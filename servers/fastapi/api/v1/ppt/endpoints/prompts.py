@@ -58,7 +58,7 @@ Convert given static HTML and Tailwind slide to a TSX React component so that it
     - There should support for multiple chart types including bar, line, pie and donut in the same size as given. 
     - Use an attribute in the schema to select between chart types.
     - All data should be properly represented in schema.
-18. For diagrams use mermaid with appropriate placeholder which can render any daigram. Schema should have a field for code. Render in the placeholder properly.
+18. For diagrams use mermaid with appropriate placeholder which can render any diagram. Schema should have a field for code. Render in the placeholder properly.
 19. Don't add style attribute in the schema. Colors, font sizes, and all other style attributes should be added directly as tailwind classes.
 For example: 
 Input: 
