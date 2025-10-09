@@ -107,12 +107,15 @@ class LLMClient:
                 )
 
     def _get_openai_client(self):
-        if not get_openai_api_key_env():
-            raise HTTPException(
-                status_code=400,
-                detail="OpenAI API Key is not set",
-            )
-        return AsyncOpenAI()
+    api_key = get_openai_api_key_env()
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="sk-proj-DxBrfbhFYDpiWFNv0gwA_cJrM-jdkJTFEGJ6V1owsqWYSSTwvgZONjwO_Lh3q-GURJzL--HWuRT3BlbkFJ1pWBH1HfcZ-HXPq6P3PBcmxtr8T3AWXyDHB-rJSMMsC-h7-qqJDBPrGZlDCdiGVwkheWgE9YUAt",
+        )
+    # ✅ Properly initialize client with API key
+    return AsyncOpenAI(api_key=api_key)
+
 
     def _get_google_client(self):
         if not get_google_api_key_env():
