@@ -281,6 +281,83 @@ def flatten_json_schema(schema: dict) -> dict:
     return result
 
 
+def calculate_schema_depth(schema: Any, current_depth: int = 0) -> int:
+    """Calculate the maximum nesting depth of a JSON schema."""
+    if not isinstance(schema, dict):
+        return current_depth
+
+    max_depth = current_depth
+
+    # These keys indicate nesting in the schema
+    nesting_keys = ["properties", "items", "additionalProperties", "allOf", "anyOf", "oneOf", "not"]
+
+    for key, value in schema.items():
+        if key in nesting_keys:
+            if isinstance(value, dict):
+                depth = calculate_schema_depth(value, current_depth + 1)
+                max_depth = max(max_depth, depth)
+            elif isinstance(value, list):
+                for item in value:
+                    depth = calculate_schema_depth(item, current_depth + 1)
+                    max_depth = max(max_depth, depth)
+        elif isinstance(value, dict):
+            # Recurse into nested dicts that aren't schema keywords
+            depth = calculate_schema_depth(value, current_depth)
+            max_depth = max(max_depth, depth)
+
+    return max_depth
+
+
+def simplify_nested_schemas(schema: dict, max_depth: int = 5) -> dict:
+    """
+    Simplify deeply nested schemas by converting complex nested structures
+    to simpler representations when they exceed max_depth.
+    """
+    def _simplify(node: Any, current_depth: int = 0) -> Any:
+        if not isinstance(node, dict):
+            return node
+
+        if current_depth >= max_depth:
+            # At max depth, simplify to basic type
+            node_type = node.get("type")
+            if node_type:
+                return {"type": node_type, "description": node.get("description", "")}
+            return {"type": "object", "description": node.get("description", "")}
+
+        result: dict[str, Any] = {}
+
+        for key, value in node.items():
+            if key == "properties" and isinstance(value, dict):
+                result[key] = {
+                    prop_name: _simplify(prop_schema, current_depth + 1)
+                    for prop_name, prop_schema in value.items()
+                }
+            elif key == "items":
+                if isinstance(value, dict):
+                    result[key] = _simplify(value, current_depth + 1)
+                elif isinstance(value, list):
+                    result[key] = [_simplify(item, current_depth + 1) for item in value]
+                else:
+                    result[key] = value
+            elif key in ("allOf", "anyOf", "oneOf") and isinstance(value, list):
+                result[key] = [_simplify(item, current_depth + 1) for item in value]
+            elif key == "additionalProperties":
+                if isinstance(value, dict):
+                    result[key] = _simplify(value, current_depth + 1)
+                else:
+                    result[key] = value
+            elif isinstance(value, dict):
+                result[key] = _simplify(value, current_depth)
+            elif isinstance(value, list):
+                result[key] = [_simplify(item, current_depth) if isinstance(item, dict) else item for item in value]
+            else:
+                result[key] = value
+
+        return result
+
+    return _simplify(deepcopy(schema))
+
+
 def remove_titles_from_schema(schema: dict) -> dict[str, Any]:
 
     def _strip_titles(node: Any) -> Any:
@@ -306,6 +383,84 @@ def remove_titles_from_schema(schema: dict) -> dict[str, Any]:
         return node
 
     return _strip_titles(deepcopy(schema))
+
+
+def simplify_schema_for_llm(schema: dict) -> dict:
+    """
+    Simplify schema for LLM APIs by removing constraints that can cause errors.
+
+    Many LLM providers (Google Gemini, OpenAI, Anthropic, etc.) have limitations
+    on schema complexity that can cause 'too many states' or similar errors.
+    This function removes constraints that commonly cause these issues:
+    - String length constraints (minLength, maxLength)
+    - Array length constraints (minItems, maxItems)
+    - Numeric bounds (minimum, maximum)
+    - Complex string formats
+    - Default values
+    - Examples
+    """
+    def _simplify(node: Any) -> Any:
+        if not isinstance(node, dict):
+            return node
+
+        result: dict[str, Any] = {}
+
+        # Keys to remove that cause "too many states"
+        keys_to_remove = {
+            "minLength", "maxLength",  # String constraints
+            "minItems", "maxItems",     # Array constraints
+            "minimum", "maximum",       # Numeric constraints
+            "exclusiveMinimum", "exclusiveMaximum",
+            "format",                   # String formats (date-time, etc.)
+            "default",                  # Default values
+            "examples", "example",      # Examples
+            "pattern",                  # Regex patterns
+            "enum",                     # Enums can create many states
+            "const",                    # Const values
+        }
+
+        for key, value in node.items():
+            # Skip keys that cause too many states
+            if key in keys_to_remove:
+                continue
+
+            # Recursively process nested structures
+            if key == "properties" and isinstance(value, dict):
+                result[key] = {
+                    prop_name: _simplify(prop_schema)
+                    for prop_name, prop_schema in value.items()
+                }
+            elif key == "items":
+                if isinstance(value, dict):
+                    result[key] = _simplify(value)
+                elif isinstance(value, list):
+                    result[key] = [_simplify(item) for item in value]
+                else:
+                    result[key] = value
+            elif key in ("allOf", "anyOf", "oneOf", "prefixItems"):
+                if isinstance(value, list):
+                    result[key] = [_simplify(item) for item in value]
+                else:
+                    result[key] = value
+            elif key == "additionalProperties":
+                if isinstance(value, dict):
+                    result[key] = _simplify(value)
+                else:
+                    result[key] = value
+            elif isinstance(value, dict):
+                result[key] = _simplify(value)
+            elif isinstance(value, list):
+                result[key] = [_simplify(item) if isinstance(item, dict) else item for item in value]
+            else:
+                result[key] = value
+
+        return result
+
+    return _simplify(deepcopy(schema))
+
+
+# Backward compatibility alias
+simplify_schema_for_google = simplify_schema_for_llm
 
 
 # ? Not used

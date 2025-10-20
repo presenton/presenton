@@ -60,6 +60,7 @@ from utils.schema_utils import (
     flatten_json_schema,
     remove_titles_from_schema,
 )
+from utils.llm_utils import prepare_schema_for_llm
 
 
 class LLMClient:
@@ -463,6 +464,17 @@ class LLMClient:
         use_tool_calls_for_structured_output = (
             self.use_tool_calls_for_structured_output()
         )
+
+        # Process schema to avoid "too many states" issues (first time only, not on recursion)
+        if depth == 0:
+            response_schema = prepare_schema_for_llm(
+                response_schema,
+                max_depth=5,  # OpenAI has higher limits than Google
+                remove_constraints=True,  # Still helps avoid edge cases
+                debug_log=False,  # Less verbose for OpenAI
+                provider_name="OpenAI",
+            )
+
         if strict and depth == 0:
             response_schema = ensure_strict_json_schema(
                 response_schema,
@@ -587,6 +599,17 @@ class LLMClient:
                 )
             )
 
+        # Prepare the response schema for Google's strict limits
+        processed_response_schema = None
+        if not tools and response_format:
+            processed_response_schema = prepare_schema_for_llm(
+                response_format,
+                max_depth=4,  # Google's limit is around 5, use 4 to be safe
+                remove_constraints=True,
+                debug_log=True,
+                provider_name="Google",
+            )
+
         response = await asyncio.to_thread(
             client.models.generate_content,
             model=model,
@@ -604,7 +627,7 @@ class LLMClient:
                 ),
                 system_instruction=self._get_system_prompt(messages),
                 response_mime_type="application/json" if not tools else None,
-                response_json_schema=response_format if not tools else None,
+                response_json_schema=processed_response_schema,
                 max_output_tokens=max_tokens,
             ),
         )
@@ -669,6 +692,18 @@ class LLMClient:
         depth: int = 0,
     ):
         client: AsyncAnthropic = self._client
+
+        # Process schema to avoid complexity issues (first time only, not on recursion)
+        processed_schema = response_format
+        if depth == 0:
+            processed_schema = prepare_schema_for_llm(
+                response_format,
+                max_depth=5,  # Anthropic has good support for complex schemas
+                remove_constraints=True,  # Still helps with edge cases
+                debug_log=False,  # Less verbose for Anthropic
+                provider_name="Anthropic",
+            )
+
         response: AnthropicMessage = await client.messages.create(
             model=model,
             system=self._get_system_prompt(messages),
@@ -681,7 +716,7 @@ class LLMClient:
                 {
                     "name": "ResponseSchema",
                     "description": "A response to the user's message",
-                    "input_schema": response_format,
+                    "input_schema": processed_schema,
                 },
                 *(tools or []),
             ],
