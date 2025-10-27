@@ -1,5 +1,5 @@
 PDF_MIME_TYPES = ["application/pdf"]
-TEXT_MIME_TYPES = ["text/plain"]
+TEXT_MIME_TYPES = ["text/plain", "text/markdown", "text/x-markdown"]
 POWERPOINT_TYPES = [
     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 ]

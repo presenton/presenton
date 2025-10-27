@@ -44,6 +44,7 @@ from models.sse_response import SSECompleteResponse, SSEErrorResponse, SSERespon
 
 from services.database import get_async_session
 from services.temp_file_service import TEMP_FILE_SERVICE
+from services.content_summarizer import ContentSummarizer
 from services.concurrent_service import CONCURRENT_SERVICE
 from models.sql.presentation import PresentationModel
 from services.pptx_presentation_creator import PptxPresentationCreator
@@ -512,10 +513,31 @@ async def generate_presentation_handler(
 
             if request.files:
                 documents_loader = DocumentsLoader(file_paths=request.files)
-                await documents_loader.load_documents()
+                temp_dir = TEMP_FILE_SERVICE.create_temp_dir()
+                await documents_loader.load_documents(temp_dir)
                 documents = documents_loader.documents
                 if documents:
                     additional_context = "\n\n".join(documents)
+
+            # Summarize large content to fit within token limits
+            print(f"Content size check - content: {len(request.content) if request.content else 0} chars, additional_context: {len(additional_context) if additional_context else 0} chars")
+            content_summarizer = ContentSummarizer(
+                max_context_tokens=20000,  # Safe limit for most models
+                chunk_size_tokens=8000,
+                use_llm_summarization=False  # Use simple truncation (faster, no extra LLM calls)
+            )
+            try:
+                processed_content, processed_additional_context = await content_summarizer.summarize_if_needed(
+                    request.content,
+                    additional_context,
+                    request.n_slides
+                )
+                print(f"After summarization - content: {len(processed_content) if processed_content else 0} chars, additional_context: {len(processed_additional_context) if processed_additional_context else 0} chars")
+            except Exception as e:
+                print(f"Summarization failed: {e}, using original content")
+                traceback.print_exc()
+                processed_content = request.content
+                processed_additional_context = additional_context
 
             # Finding number of slides to generate by considering table of contents
             n_slides_to_generate = request.n_slides
@@ -534,10 +556,10 @@ async def generate_presentation_handler(
 
             presentation_outlines_text = ""
             async for chunk in generate_ppt_outline(
-                request.content,
+                processed_content,
                 n_slides_to_generate,
                 request.language,
-                additional_context,
+                processed_additional_context,
                 request.tone.value,
                 request.verbosity.value,
                 request.instructions,
