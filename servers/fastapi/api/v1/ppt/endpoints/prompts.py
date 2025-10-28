@@ -1,27 +1,29 @@
-GENERATE_HTML_SYSTEM_PROMPT = """
+from constants.presentation import DEFAULT_FONT_FAMILY
+
+GENERATE_HTML_SYSTEM_PROMPT = f"""
 You need to generate html and tailwind code for given presentation slide image. Generated code will be used as template for different content. You need to think through each design elements and then decide where each element should go.
 Follow these rules strictly:
-- Make sure the design from html and tailwind is exact to the slide. 
-- Make sure all components are in their own place. 
+- Make sure the design from html and tailwind is exact to the slide.
+- Make sure all components are in their own place.
 - Make sure size of elements are exact. Check sizes of images and other elements from OXML and convert them to pixels.
 - Make sure all components should be noted of and should be added as it is.
 - Image's and icons's size and position should be added exactly as it is.
-- Read through the OXML data of slide and then match exact position ans size of elements. Make sure to convert between dimension and pixels. 
+- Read through the OXML data of slide and then match exact position ans size of elements. Make sure to convert between dimension and pixels.
 - Make sure the vertical and horizonal spacing between elements are same as in the image. Try to get spacing from the OXML document as well. Make sure no elements overflows because of high spacing.
 - Do not use absolute position unless absolutely necessary. Use flex, grid and spacing to properly arrange components.
 - First, layout everything using flex or grid. Try to fit all the components using this layout. Finally, if you cannot layout any element without flex and grid, then only use absolute to place the element.
-- Analyze each text's available space and it's design, and give minimum characters to fill in the text for the space and context and maximum that the space can handle. Be  conservative with how many characters text space can handle. Make sure no text overflows and decide as to not disrupt the slide.  Do this for every text. 
-- Bullet elements or bullet cards (one with pointers) should be placed one after another and should be flexible to hold more or less bullet points than in the image. Analyze the number of bullet points the slide can handle and add style properties accordingly. Also add a comment below the bullets for min and max bullet points supported.  Make sure the number you quote should fit in the available space. Don't  be too ambitious. 
+- Analyze each text's available space and it's design, and give minimum characters to fill in the text for the space and context and maximum that the space can handle. Be  conservative with how many characters text space can handle. Make sure no text overflows and decide as to not disrupt the slide.  Do this for every text.
+- Bullet elements or bullet cards (one with pointers) should be placed one after another and should be flexible to hold more or less bullet points than in the image. Analyze the number of bullet points the slide can handle and add style properties accordingly. Also add a comment below the bullets for min and max bullet points supported.  Make sure the number you quote should fit in the available space. Don't  be too ambitious.
 - For each text add font size and font family as tailwind property. Preferably pick them from OXML and convert dimensions instead of guessing from given image.
 - Make sure that no elements overflow or exceed slide bounding in any way.
 - Properly export shapes as exact SVG.
-- Add relevant font in tailwind to all texts.   
-- Wrap the output code inside these classes: \"relative w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-white relative z-20 mx-auto overflow-hidden\". 
+- Add relevant font in tailwind to all texts. Use "{DEFAULT_FONT_FAMILY}" as default font family for better multilingual support (especially Thai).
+- Wrap the output code inside these classes: \"relative w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-white relative z-20 mx-auto overflow-hidden\".
 - For image everywhere use https://images.pexels.com/photos/31527637/pexels-photo-31527637.jpeg
 - Image should never be inside of a SVG.
 - Replace brand icons with a circle of same size with "i" between. Generic icons like "email", "call", etc should remain same.
 - If there is a box/card enclosing a text, make it grow as well when the text grows, so that the text does not overflow the box/card.
-- Give out only HTML and Tailwind code. No other texts or explanations. 
+- Give out only HTML and Tailwind code. No other texts or explanations.
 - Do not give entire HTML structure with head, body, etc. Just give the respective HTML and Tailwind code inside div with above classes.
 - If a list of fonts is provided, the pick matching font for the text from the list and style with tailwind font-family property. Use following format: font-["font-name"]
 """
@@ -139,11 +141,11 @@ const dynamicSlideLayout: React.FC<BulletWithIconsSlideLayoutProps> = ({ data: s
 
     return (
         <>
-            <div 
+            <div
                 className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-gradient-to-br from-gray-50 to-white relative z-20 mx-auto overflow-hidden"
-                style={{
-                    fontFamily: "Poppins, sans-serif"
-                }}
+                style={{{{
+                    fontFamily: "{DEFAULT_FONT_FAMILY}"
+                }}}}
             >
 
 
@@ -238,4 +240,16 @@ const dynamicSlideLayout: React.FC<BulletWithIconsSlideLayoutProps> = ({ data: s
 HTML_EDIT_SYSTEM_PROMPT = """
 You need to edit given html with respect to the indication and sketch in the given UI. You'll be given the code for current UI which is in presentation size, along with its visualization in image form. Over that you'll also be given another image which has indications of what might change in form of sketch in the UI. You will have to return the edited html with tailwind with the changes as indicated on the image and through prompt. Make sure you think through the design before making the change and also make sure you don't change the non-indicated part. Try to follow the design style of current content for generated content. If sketch image is not provided, then you need to edit the html with respect to the prompt. Make sure size of the presentation does not change in any cirsumstance. Only give out code and nothing else.
 """
+
+# Replace placeholders with actual font family from constants
+HTML_TO_REACT_SYSTEM_PROMPT = HTML_TO_REACT_SYSTEM_PROMPT.replace(
+    '"{DEFAULT_FONT_FAMILY}"',
+    f'"{DEFAULT_FONT_FAMILY}"'
+).replace(
+    '{{{{',
+    '{{'
+).replace(
+    '}}}}',
+    '}}'
+)
 

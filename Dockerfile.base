@@ -1,0 +1,65 @@
+# ===========================
+# Base Image with Dependencies
+# ===========================
+# This image contains all system and Python dependencies
+# Used by both Dockerfile (production) and Dockerfile.dev (development)
+
+FROM python:3.11-slim-bookworm
+
+# Install system dependencies including fonts
+RUN apt-get update && apt-get install -y \
+    nginx \
+    curl \
+    libreoffice \
+    fontconfig \
+    fonts-roboto \
+    wget \
+    unzip \
+    chromium \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 using NodeSource repository
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Prompt font from Google Fonts GitHub repository for Thai language support
+RUN mkdir -p /usr/share/fonts/truetype/prompt && \
+    cd /usr/share/fonts/truetype/prompt && \
+    wget -q https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-Regular.ttf && \
+    wget -q https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-Bold.ttf && \
+    wget -q https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-Medium.ttf && \
+    wget -q https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-SemiBold.ttf && \
+    wget -q https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-Light.ttf && \
+    fc-cache -f -v
+
+# Set environment variables
+ENV APP_DATA_DIRECTORY=/app_data
+ENV TEMP_DIRECTORY=/tmp/presenton
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Install Python dependencies for FastAPI
+RUN pip install --no-cache-dir \
+    aiohttp \
+    aiomysql \
+    aiosqlite \
+    asyncpg \
+    fastapi[standard] \
+    pathvalidate \
+    pdfplumber \
+    chromadb \
+    sqlmodel \
+    anthropic \
+    google-genai \
+    openai \
+    fastmcp \
+    dirtyjson
+
+# Install docling with PyTorch CPU-only version
+RUN pip install --no-cache-dir docling --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Set working directory
+WORKDIR /app

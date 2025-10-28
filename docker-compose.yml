@@ -1,9 +1,18 @@
 services:
+  # Base image with all dependencies
+  base:
+    image: presenton-base:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+
   production:
     # image: ghcr.io/presenton/presenton:latest
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - base
     ports:
       # You can replace 5000 with any other port number of your choice to run Presenton on a different port number.
       - "5000:80"
@@ -36,6 +45,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - base
     deploy:
       resources:
         reservations:
@@ -74,6 +85,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    depends_on:
+      - base
     ports:
       - "5000:80"
     volumes:
@@ -105,6 +118,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    depends_on:
+      - base
     deploy:
       resources:
         reservations:

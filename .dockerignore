@@ -1,11 +1,91 @@
+# Git
 .git
 .gitignore
+.gitattributes
 
-servers/fastapi/tmp
-servers/fastapi/debug
-servers/fastapi/.venv
+# Documentation
+*.md
+!README.md
+docs/
+readme_assets/
 
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker files (don't need in context except when building)
+DOCKER_BUILD.md
+
+# Node.js
 servers/nextjs/node_modules
 servers/nextjs/.next
+servers/nextjs/out
+servers/nextjs/build
+node_modules/
+npm-debug.log
+yarn-error.log
+.npm
+.yarn
 
+# Python
+servers/fastapi/__pycache__/
+servers/fastapi/**/__pycache__/
+servers/fastapi/.venv
+servers/fastapi/venv
+servers/fastapi/tmp
+servers/fastapi/debug
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Application data
+app_data/
 container.db
+*.log
+*.sqlite
+*.db
+
+# Chroma database (runtime generated)
+servers/fastapi/chroma/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment files (use docker-compose env)
+.env
+.env.*
+!.env.example
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Tests (not needed in production image)
+servers/fastapi/tests/
+servers/nextjs/__tests__/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Static analysis
+.mypy_cache/
+.ruff_cache/
+pylint-report.txt
