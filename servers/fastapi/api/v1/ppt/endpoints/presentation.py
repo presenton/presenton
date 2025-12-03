@@ -654,7 +654,7 @@ async def generate_presentation_handler(
             content=request.content,
             n_slides=request.n_slides,
             language=request.language,
-            title=get_presentation_title_from_outlines(presentation_outlines),
+            title=request.title or get_presentation_title_from_outlines(presentation_outlines),
             outlines=presentation_outlines.model_dump(),
             layout=layout_model.model_dump(),
             structure=presentation_structure.model_dump(),

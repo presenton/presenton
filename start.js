@@ -168,22 +168,20 @@ const startServers = async () => {
     console.error("Ollama process failed to start:", err);
   });
 
-  // Keep the Node process alive until both servers exit
-  const exitCode = await Promise.race([
-    new Promise((resolve) => fastApiProcess.on("exit", resolve)),
-    new Promise((resolve) => nextjsProcess.on("exit", resolve)),
-    new Promise((resolve) => ollamaProcess.on("exit", resolve)),
-  ]);
-
-  console.log(`One of the processes exited. Exit code: ${exitCode}`);
-  process.exit(exitCode);
+  return {
+    fastApiProcess,
+    nextjsProcess,
+    appmcpProcess,
+    ollamaProcess
+  };
 };
 
-// Start nginx service
+// Start nginx service (waits for backend services to be ready)
 const startNginx = () => {
-  const nginxProcess = spawn("service", ["nginx", "start"], {
+  const nginxProcess = spawn("/app/wait-for-services.sh", [], {
     stdio: "inherit",
     env: process.env,
+    shell: true,
   });
 
   nginxProcess.on("error", (err) => {
@@ -191,12 +189,11 @@ const startNginx = () => {
   });
 
   nginxProcess.on("exit", (code) => {
-    if (code === 0) {
-      console.log("Nginx started successfully");
-    } else {
-      console.error(`Nginx failed to start with exit code: ${code}`);
-    }
+    console.log(`Nginx exited with code: ${code}`);
+    process.exit(code);
   });
+
+  return nginxProcess;
 };
 
 const main = async () => {
@@ -208,8 +205,32 @@ const main = async () => {
     setupUserConfigFromEnv();
   }
 
-  startServers();
-  startNginx();
+  // Start nginx first so Cloud Run sees port 80 listening
+  const nginxProcess = startNginx();
+
+  // Then start all backend services
+  const processes = await startServers();
+
+  console.log("All processes started. Monitoring for exits...");
+
+  // Keep the Node process alive until any critical process exits
+  const exitCode = await Promise.race([
+    new Promise((resolve) => nginxProcess.on("exit", (code) => {
+      console.log(`Nginx exited with code: ${code}`);
+      resolve(code);
+    })),
+    new Promise((resolve) => processes.fastApiProcess.on("exit", (code) => {
+      console.log(`FastAPI exited with code: ${code}`);
+      resolve(code);
+    })),
+    new Promise((resolve) => processes.nextjsProcess.on("exit", (code) => {
+      console.log(`Next.js exited with code: ${code}`);
+      resolve(code);
+    })),
+  ]);
+
+  console.log(`A critical process exited. Exit code: ${exitCode}`);
+  process.exit(exitCode);
 };
 
 main();

@@ -1,0 +1,25 @@
+# This file specifies files that should not be uploaded to Google Cloud
+# when deploying with gcloud
+
+.git
+.gitignore
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.env
+.env.local
+app_data/
+readme_assets/
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db

@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     libreoffice \
     fontconfig \
-    chromium
+    chromium \
+    netcat-openbsd
 
 
 # Install Node.js 20 using NodeSource repository
@@ -50,6 +51,11 @@ WORKDIR /app
 # Copy FastAPI
 COPY servers/fastapi/ ./servers/fastapi/
 COPY start.js LICENSE NOTICE ./
+COPY wait-for-services.sh ./
+RUN chmod +x wait-for-services.sh
+
+# Pre-download ChromaDB ONNX model to avoid slow first startup
+RUN python -c "from chromadb.utils import embedding_functions; embedding_functions.DefaultEmbeddingFunction()(texts=['test'])" || true
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
