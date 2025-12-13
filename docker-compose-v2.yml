@@ -1,0 +1,91 @@
+x-common-env: &common-env
+  CAN_CHANGE_KEYS: ${CAN_CHANGE_KEYS}
+  IMAGE_PROVIDER: ${IMAGE_PROVIDER}
+  LLM: ${LLM}
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  OPENAI_MODEL: ${OPENAI_MODEL}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+  GOOGLE_MODEL: ${GOOGLE_MODEL}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  ANTHROPIC_MODEL: ${ANTHROPIC_MODEL}
+  OLLAMA_URL: ${OLLAMA_URL}
+  OLLAMA_MODEL: ${OLLAMA_MODEL}
+  CUSTOM_LLM_URL: ${CUSTOM_LLM_URL}
+  CUSTOM_LLM_API_KEY: ${CUSTOM_LLM_API_KEY}
+  CUSTOM_MODEL: ${CUSTOM_MODEL}
+  PEXELS_API_KEY: ${PEXELS_API_KEY}
+  EXTENDED_REASONING: ${EXTENDED_REASONING}
+  TOOL_CALLS: ${TOOL_CALLS}
+  DISABLE_THINKING: ${DISABLE_THINKING}
+  WEB_GROUNDING: ${WEB_GROUNDING}
+  DATABASE_URL: ${DATABASE_URL}
+  DISABLE_ANONYMOUS_TRACKING: ${DISABLE_ANONYMOUS_TRACKING}
+  PRESENTON_URL: ${PRESENTON_URL:-http://caddy}
+  NEXTJS_URL: ${NEXTJS_URL:-http://nextjs}
+
+services:
+  caddy:
+    image: ${DOCKER_REGISTRY:-}${DOCKER_REGISTRY:+/}presenton-caddy:${IMAGE_TAG:-latest}
+    build:
+     context: ./servers/caddy
+     dockerfile: Dockerfile
+     additional_contexts:
+       static: ./servers/fastapi/static
+    ports:
+      - "${PORT:-80}:${PORT:-80}"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - app_data:/app_data
+    environment:
+      PORT: ${PORT:-80}
+    depends_on:
+      nextjs:
+        condition: service_healthy
+      fastapi:
+        condition: service_healthy
+
+  nextjs:
+    image: ${DOCKER_REGISTRY:-}${DOCKER_REGISTRY:+/}presenton-nextjs:${IMAGE_TAG:-latest}
+    build:
+      context: ./servers/nextjs
+      dockerfile: Dockerfile
+      additional_contexts:
+        parent: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - app_data:/app_data
+    environment:
+      <<: *common-env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "--max-time", "3", "-I", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  fastapi:
+    image: ${DOCKER_REGISTRY:-}${DOCKER_REGISTRY:+/}presenton-fastapi:${IMAGE_TAG:-latest}
+    build:
+      context: ./servers/fastapi
+      dockerfile: Dockerfile
+      additional_contexts:
+        parent: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - app_data:/app_data
+    environment:
+      <<: *common-env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "--max-time", "3", "-I", "http://localhost:8000/docs"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+
+volumes:
+  app_data:
+  caddy_data:
+  caddy_config:

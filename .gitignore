@@ -18,3 +18,4 @@ chroma
 container.db
 .next-build
 .cursor
+.exports

@@ -1,11 +1,16 @@
 .git
 .gitignore
+.dockerignore
 
 servers/fastapi/tmp
 servers/fastapi/debug
 servers/fastapi/.venv
+servers/fastapi/Dockerfile
+servers/fastapi/.dockerignore
 
 servers/nextjs/node_modules
 servers/nextjs/.next
+servers/nextjs/Dockerfile
+servers/nextjs/.dockerignore
 
 container.db
