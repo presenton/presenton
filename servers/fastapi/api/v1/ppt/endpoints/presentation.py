@@ -5,8 +5,9 @@ import math
 import os
 import random
 import traceback
-from typing import Annotated, List, Literal, Optional, Tuple
+from typing import Annotated, List, Literal, Optional, Tuple, Dict, Any
 import dirtyjson
+import uuid
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path
 from fastapi.responses import StreamingResponse
 from sqlalchemy import delete
@@ -68,11 +69,15 @@ from utils.process_slides import (
 import uuid
 
 
-PRESENTATION_ROUTER = APIRouter(prefix="/presentation", tags=["Presentation"])
+807
+APIRouter(prefix="/presentation", tags=["Presentation"])
 
 
 @PRESENTATION_ROUTER.get("/all", response_model=List[PresentationWithSlides])
 async def get_all_presentations(sql_session: AsyncSession = Depends(get_async_session)):
+
+    # Store for background jobs (use Redis/database in production)
+presentation_jobs: Dict[str, Dict[str, Any]] = {}
     presentations_with_slides = []
 
     query = (
