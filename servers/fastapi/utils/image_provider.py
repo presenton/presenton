@@ -38,6 +38,10 @@ def is_comfyui_selected() -> bool:
     return ImageProvider.COMFYUI == get_selected_image_provider()
 
 
+def is_openai_compatible_selected() -> bool:
+    return ImageProvider.OPENAI_COMPATIBLE == get_selected_image_provider()
+
+
 def get_selected_image_provider() -> ImageProvider | None:
     """
     Get the selected image provider from environment variables.

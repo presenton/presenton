@@ -16,6 +16,11 @@ from utils.get_env import (
 from utils.get_env import get_pixabay_api_key_env
 from utils.get_env import get_comfyui_url_env
 from utils.get_env import get_comfyui_workflow_env
+from utils.get_env import (
+    get_openai_compatible_image_api_key_env,
+    get_openai_compatible_image_base_url_env,
+    get_openai_compatible_image_model_env,
+)
 from utils.image_provider import (
     is_gpt_image_1_5_selected,
     is_image_generation_disabled,
@@ -25,6 +30,7 @@ from utils.image_provider import (
     is_nanobanana_pro_selected,
     is_dalle3_selected,
     is_comfyui_selected,
+    is_openai_compatible_selected,
 )
 import uuid
 
@@ -53,6 +59,8 @@ class ImageGenerationService:
             return self.generate_image_openai_gpt_image_1_5
         elif is_comfyui_selected():
             return self.generate_image_comfyui
+        elif is_openai_compatible_selected():
+            return self.generate_image_openai_compatible
         return None
 
     def is_stock_provider_selected(self):
@@ -140,6 +148,31 @@ class ImageGenerationService:
             "gpt-image-1.5",
             get_gpt_image_1_5_quality_env() or "medium",
         )
+
+    async def generate_image_openai_compatible(
+        self, prompt: str, output_directory: str
+    ) -> str:
+        api_key = get_openai_compatible_image_api_key_env()
+        base_url = get_openai_compatible_image_base_url_env()
+        model = get_openai_compatible_image_model_env()
+
+        if not api_key or not base_url or not model:
+            raise Exception(
+                "Missing configuration for OpenAI Compatible Image Provider (API Key, Base URL, or Model)"
+            )
+
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        result = await client.images.generate(
+            model=model,
+            prompt=prompt,
+            n=1,
+            size="1024x1024",
+            response_format="b64_json",
+        )
+        image_path = os.path.join(output_directory, f"{uuid.uuid4()}.png")
+        with open(image_path, "wb") as f:
+            f.write(base64.b64decode(result.data[0].b64_json))
+        return image_path
 
     async def _generate_image_google(
         self, prompt: str, output_directory: str, model: str

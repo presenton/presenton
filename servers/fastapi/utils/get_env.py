@@ -117,3 +117,15 @@ def get_dall_e_3_quality_env():
 # Gpt Image 1.5 Quality
 def get_gpt_image_1_5_quality_env():
     return os.getenv("GPT_IMAGE_1_5_QUALITY")
+
+
+def get_openai_compatible_image_api_key_env():
+    return os.getenv("OPENAI_COMPATIBLE_IMAGE_API_KEY")
+
+
+def get_openai_compatible_image_base_url_env():
+    return os.getenv("OPENAI_COMPATIBLE_IMAGE_BASE_URL")
+
+
+def get_openai_compatible_image_model_env():
+    return os.getenv("OPENAI_COMPATIBLE_IMAGE_MODEL")

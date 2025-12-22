@@ -9,3 +9,4 @@ class ImageProvider(Enum):
     DALLE3 = "dall-e-3"
     GPT_IMAGE_1_5 = "gpt-image-1.5"
     COMFYUI = "comfyui"
+    OPENAI_COMPATIBLE = "openai_compatible"
