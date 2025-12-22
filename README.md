@@ -148,6 +148,64 @@ docker run -it --name presenton -p 5000:80 -e LLM="anthropic" -e ANTHROPIC_API_K
 docker run -it -p 5000:80 -e CAN_CHANGE_KEYS="false"  -e LLM="custom" -e CUSTOM_LLM_URL="http://*****" -e CUSTOM_LLM_API_KEY="*****" -e CUSTOM_MODEL="llama3.2:3b" -e IMAGE_PROVIDER="pexels" -e  PEXELS_API_KEY="********" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
 
+### Using Custom OpenAI Compatible Image Provider
+
+To use a custom OpenAI-compatible API for image generation (e.g., NanoBanana or other providers), you can build a custom Docker image and run it.
+
+#### 1. Build Custom Docker Image
+
+Since this feature is available in the latest code, you can build the image locally:
+
+```bash
+docker build -t presenton-custom .
+```
+
+#### 2. Run with Docker Run
+
+Run the container using the image you just built (`presenton-custom`). Set `IMAGE_PROVIDER` to `openai_compatible` and provide the necessary environment variables.
+
+```bash
+docker run -it -p 5000:80 \
+  -e CAN_CHANGE_KEYS="false" \
+  -e LLM="openai" \
+  -e OPENAI_API_KEY="sk-..." \
+  -e IMAGE_PROVIDER="openai_compatible" \
+  -e OPENAI_COMPATIBLE_IMAGE_API_KEY="your-custom-api-key" \
+  -e OPENAI_COMPATIBLE_IMAGE_BASE_URL="https://api.nanobanana.com/v1" \
+  -e OPENAI_COMPATIBLE_IMAGE_MODEL="your-custom-model" \
+  -v "./app_data:/app_data" \
+  presenton-custom
+```
+
+#### 3. Run with Docker Compose
+
+If you prefer using `docker-compose`, you can update your `docker-compose.yml` or use the following configuration:
+
+```yaml
+version: '3.8'
+services:
+  presenton:
+    build: .  # Builds from the current directory
+    ports:
+      - "5000:80"
+    volumes:
+      - ./app_data:/app_data
+    environment:
+      - CAN_CHANGE_KEYS=false
+      - LLM=openai
+      - OPENAI_API_KEY=sk-...
+      - IMAGE_PROVIDER=openai_compatible
+      - OPENAI_COMPATIBLE_IMAGE_API_KEY=your-custom-api-key
+      - OPENAI_COMPATIBLE_IMAGE_BASE_URL=https://api.nanobanana.com/v1
+      - OPENAI_COMPATIBLE_IMAGE_MODEL=your-custom-model
+```
+
+Then run:
+
+```bash
+docker-compose up --build
+```
+
 #### Running Presenton with GPU Support
 
 To use GPU acceleration with Ollama models, you need to install and configure the NVIDIA Container Toolkit. This allows Docker containers to access your NVIDIA GPU.
