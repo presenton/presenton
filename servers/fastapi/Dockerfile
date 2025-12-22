@@ -5,7 +5,11 @@ ENV PORT=8000
 RUN apt-get update && apt-get install -y \
     curl \
     libreoffice \
-    fontconfig
+    fontconfig \
+    build-essential \
+    gcc \
+    g++ \
+    make
 
 # Create a working directory
 WORKDIR /app/fastapi  

@@ -1,5 +1,5 @@
 {
     "description": "General purpose layouts for common presentation elements",
     "ordered": false,
-    "default": true
+    "default": false
 } 
