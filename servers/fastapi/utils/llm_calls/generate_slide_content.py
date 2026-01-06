@@ -51,7 +51,7 @@ def get_system_prompt(
 
         User instructions, tone and verbosity should always be followed and should supercede any other instruction, except for max and min character limit, slide schema and number of items.
 
-        - Provide output in json format and **don't include <parameters> tags**.
+        - Provide output in JSON format **without any Markdown syntax**, **without any preface or explanation**, and **don't include <parameters> tags**.
 
         # Image and Icon Output Format
         image: {{
