@@ -4,6 +4,7 @@ import * as z from "zod";
 import ActionableWrapper from '@/components/ActionableWrapper';
 import ActionableTitle from '@/components/ActionableTitle';
 import ActionableParagraph from '@/components/ActionableParagraph';
+import { ActionableMainContent } from '@/components/ActionableMainContent';
 
 export const layoutId = 'numbers-slide'
 export const layoutName = 'Numbers Slide'
@@ -70,7 +71,7 @@ const NumbersSlideLayout: React.FC<{ data: NumbersSlideData }> = ({ data }) => {
   return (
     <ActionableWrapper className="p-[50px] flex flex-col">
       <ActionableLogo />
-      <div className="flex-1 flex-col flex justify-center py-[10px]">
+      <ActionableMainContent className="pb-10">
         <div className='flex flex-col gap-8'>
           <ActionableTitle>
             {title}
@@ -103,7 +104,7 @@ const NumbersSlideLayout: React.FC<{ data: NumbersSlideData }> = ({ data }) => {
             </ActionableParagraph>
           )}
         </div>
-      </div>
+      </ActionableMainContent>
     </ActionableWrapper>
   );
 };

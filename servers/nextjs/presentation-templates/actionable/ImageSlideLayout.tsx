@@ -8,6 +8,7 @@ import ActionableTitle from '@/components/ActionableTitle';
 import ActionableSubTitle from '@/components/ActionableSubTitle';
 import ActionableParagraph from '@/components/ActionableParagraph';
 import ActionableImage from '@/components/ActionableImage';
+import { ActionableMainContent } from '@/components/ActionableMainContent';
 
 export const layoutId = 'image-slide'
 export const layoutName = 'Image Slide'
@@ -71,7 +72,7 @@ const ImageSlideLayout: React.FC<{ data: ImageSlideData }> = ({ data }) => {
     <ActionableWrapper className="flex">
       <div className="w-3/5 h-full p-[50px] flex flex-col justify-between">
         <ActionableLogo />
-        <div className='flex flex-col gap-5'>
+        <ActionableMainContent className='gap-5'>
           <ActionableTitle>
             {title}
           </ActionableTitle>
@@ -93,7 +94,7 @@ const ImageSlideLayout: React.FC<{ data: ImageSlideData }> = ({ data }) => {
               </div>
             ))}
           </div>
-        </div>
+        </ActionableMainContent>
       </div>
       <div className='w-2/5'>
         <ActionableImage

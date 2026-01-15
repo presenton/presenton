@@ -7,6 +7,7 @@ import ActionableTitle from '@/components/ActionableTitle';
 import ActionableParagraph from '@/components/ActionableParagraph';
 import ActionableCredits from '@/components/ActionableCredits';
 import { ChartContainer, ChartLegend } from '@/components/ui/chart';
+import { ActionableMainContent } from '@/components/ActionableMainContent';
 
 export const layoutId = 'chart-slide'
 export const layoutName = 'Chart Slide'
@@ -76,93 +77,93 @@ const ChartSlideLayout: React.FC<{ data: ChartSlideData }> = ({ data }) => {
 
   return (
     <ActionableWrapper className="flex flex-col p-[50px]">
-        <div className='flex flex-col h-full justify-between'>
-          <ActionableLogo />
+      <div className='flex flex-col h-full justify-between'>
+        <ActionableLogo />
 
-          <div className='py-3 flex flex-col gap-5'>
-            {/* Title */}
-            <ActionableTitle>
-              {title}
-            </ActionableTitle>
+        <ActionableMainContent className='pb-3 gap-5'>
+          {/* Title */}
+          <ActionableTitle>
+            {title}
+          </ActionableTitle>
 
-            <ActionableParagraph>
-              {subtitle}
-            </ActionableParagraph>
+          <ActionableParagraph>
+            {subtitle}
+          </ActionableParagraph>
 
-            {/* Chart Container */}
-            <div className="flex-1 w-full">
-              <ChartContainer config={{}} className='w-full h-[300px]'>
-                {chartType === 'line' ? (
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <YAxis 
-                      orientation='right'
-                      style={{ fontSize: '12px', fontFamily: "Geist, sans-serif", color: 'var(--muted-foreground)' }}
-                      tickLine={false}
+          {/* Chart Container */}
+          <div className="flex-1 w-full">
+            <ChartContainer config={{}} className='w-full h-[300px]'>
+              {chartType === 'line' ? (
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <YAxis 
+                    orientation='right'
+                    style={{ fontSize: '12px', fontFamily: "Geist, sans-serif", color: 'var(--muted-foreground)' }}
+                    tickLine={false}
+                  />
+                  <XAxis 
+                    dataKey={xAxisKey}
+                    style={{ fontSize: '12px', fontFamily: "Geist, sans-serif", color: 'var(--muted-foreground)' }}
+                    tickLine={false}
+                  />
+                  {lines.map((line) => (
+                    <Line
+                      key={line.dataKey}
+                      type="monotone"
+                      dataKey={line.dataKey}
+                      name={line.name}
+                      stroke={line.color}
+                      strokeWidth={line.strokeWidth}
+                      dot={false}
+                      isAnimationActive={false}
                     />
-                    <XAxis 
-                      dataKey={xAxisKey}
-                      style={{ fontSize: '12px', fontFamily: "Geist, sans-serif", color: 'var(--muted-foreground)' }}
-                      tickLine={false}
+                  ))}
+                  <ChartLegend />
+                </LineChart>
+              ) : (
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <YAxis 
+                    orientation='right'
+                    style={{ fontSize: '12px', fontFamily: "Geist, sans-serif", color: 'var(--muted-foreground)' }}
+                    tickLine={false}
+                  />
+                  <XAxis 
+                    dataKey={xAxisKey}
+                    style={{ fontSize: '12px', fontFamily: "Geist, sans-serif", color: 'var(--muted-foreground)' }}
+                    tickLine={false}
+                  />
+                  {lines.map((line) => (
+                    <Bar
+                      key={line.dataKey}
+                      dataKey={line.dataKey}
+                      name={line.name}
+                      fill={line.color}
+                      isAnimationActive={false}
                     />
-                    {lines.map((line) => (
-                      <Line
-                        key={line.dataKey}
-                        type="monotone"
-                        dataKey={line.dataKey}
-                        name={line.name}
-                        stroke={line.color}
-                        strokeWidth={line.strokeWidth}
-                        dot={false}
-                        isAnimationActive={false}
-                      />
-                    ))}
-                    <ChartLegend />
-                  </LineChart>
-                ) : (
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <YAxis 
-                      orientation='right'
-                      style={{ fontSize: '12px', fontFamily: "Geist, sans-serif", color: 'var(--muted-foreground)' }}
-                      tickLine={false}
-                    />
-                    <XAxis 
-                      dataKey={xAxisKey}
-                      style={{ fontSize: '12px', fontFamily: "Geist, sans-serif", color: 'var(--muted-foreground)' }}
-                      tickLine={false}
-                    />
-                    {lines.map((line) => (
-                      <Bar
-                        key={line.dataKey}
-                        dataKey={line.dataKey}
-                        name={line.name}
-                        fill={line.color}
-                        isAnimationActive={false}
-                      />
-                    ))}
-                    <ChartLegend />
-                  </BarChart>
-                )}
-              </ChartContainer>
-            </div>
-
-            {/* Notes */}
-            {belowText && (
-              <ActionableParagraph>
-                {belowText}
-              </ActionableParagraph>
-            )}
+                  ))}
+                  <ChartLegend />
+                </BarChart>
+              )}
+            </ChartContainer>
           </div>
 
-          <ActionableCredits />
-        </div>
+          {/* Notes */}
+          {belowText && (
+            <ActionableParagraph>
+              {belowText}
+            </ActionableParagraph>
+          )}
+        </ActionableMainContent>
+
+        <ActionableCredits />
+      </div>
     </ActionableWrapper>
   );
 };

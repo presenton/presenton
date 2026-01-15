@@ -7,6 +7,7 @@ import ActionableTitle from '@/components/ActionableTitle';
 import ActionableParagraph from '@/components/ActionableParagraph';
 import ActionableCredits from '@/components/ActionableCredits';
 import ActionableImage from '@/components/ActionableImage';
+import { ActionableMainContent } from '@/components/ActionableMainContent';
 
 export const layoutId = 'intro-slide'
 export const layoutName = 'Intro Slide'
@@ -54,7 +55,7 @@ const IntroSlideLayout: React.FC<{ data: IntroSlideData }> = ({ data }) => {
       </div>
       <div className="w-3/5 h-full flex flex-col justify-between py-[50px] pl-[60px] pr-[100px]">
         <ActionableLogo />
-        <div className='flex flex-col gap-6'>
+        <ActionableMainContent className='gap-6 justify-center pt-0'>
           <ActionableTitle>
             {title}
           </ActionableTitle>
@@ -71,10 +72,8 @@ const IntroSlideLayout: React.FC<{ data: IntroSlideData }> = ({ data }) => {
               <strong>Objectif : </strong>{goal}
             </ActionableParagraph>
           )}
-        </div>
-        <div>
-          <ActionableCredits />
-        </div>
+        </ActionableMainContent>
+        <ActionableCredits />
       </div>
     </ActionableWrapper>
   )

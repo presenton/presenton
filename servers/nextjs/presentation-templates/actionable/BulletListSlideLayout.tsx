@@ -6,6 +6,7 @@ import ActionableWrapper from '@/components/ActionableWrapper';
 import ActionableLogo from '@/components/ActionableLogo';
 import React from 'react'
 import * as z from "zod";
+import { ActionableMainContent } from '@/components/ActionableMainContent';
 
 export const layoutId = 'bullet-list-slide'
 export const layoutName = 'Bullet List Slide'
@@ -72,7 +73,7 @@ const BulletListSlideLayout: React.FC<{ data: BulletListSlideData }> = ({ data }
 
       <ActionableWrapper className="p-[50px] flex flex-col justify-between">
         <ActionableLogo />
-        <div className="flex flex-col justify-center">
+        <ActionableMainContent>
           <div className='flex flex-col gap-8'>
             <ActionableTitle>
               {title}
@@ -104,10 +105,8 @@ const BulletListSlideLayout: React.FC<{ data: BulletListSlideData }> = ({ data }
               </ActionableParagraph>
             )}
           </div>
-        </div>
-        <div>
-          <ActionableCredits />
-        </div>
+        </ActionableMainContent>
+        <ActionableCredits />
       </ActionableWrapper>
     </>
   )

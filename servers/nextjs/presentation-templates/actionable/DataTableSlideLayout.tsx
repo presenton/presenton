@@ -7,6 +7,7 @@ import ActionableTitle from '@/components/ActionableTitle';
 import ActionableSubTitle from '@/components/ActionableSubTitle';
 import ActionableParagraph from '@/components/ActionableParagraph';
 import ActionableCredits from '@/components/ActionableCredits';
+import { ActionableMainContent } from '@/components/ActionableMainContent';
 
 export const layoutId = 'data-table-slide'
 export const layoutName = 'Data Table Slide'
@@ -63,61 +64,61 @@ const DataTableSlideLayout: React.FC<{ data: DataTableSlideData }> = ({ data }) 
 
   return (
     <ActionableWrapper className="flex p-[50px]">
-        <div className='w-full flex flex-col justify-between'>
-          <ActionableLogo />
-          <div className='w-full flex flex-col py-3 gap-6'>
+      <div className='w-full flex flex-col justify-between'>
+        <ActionableLogo />
+        <ActionableMainContent className='w-full pb-3 gap-6'>
+          <div>
+            <ActionableTitle>
+              {title}
+            </ActionableTitle>
+            <ActionableSubTitle>
+              {subtitle}
+            </ActionableSubTitle>
+          </div>
+          <div className="w-full border-[#E4E4E7] border rounded-lg overflow-hidden">
+            {/* Table Header */}
             <div>
-              <ActionableTitle>
-                {title}
-              </ActionableTitle>
-              <ActionableSubTitle>
-                {subtitle}
-              </ActionableSubTitle>
-            </div>
-            <div className="w-full border-[#E4E4E7] border rounded-lg overflow-hidden">
-              {/* Table Header */}
-              <div>
-                <div className="grid gap-px" style={{ gridTemplateColumns: `repeat(${columnHeaders.length}, 1fr)` }}>
-                  {columnHeaders.map((header, index) => (
-                    <div 
-                      key={index} 
-                      className="px-2 h-10 flex items-center text-sm font-semibold"
-                      style={{ fontFamily: "Geist, sans-serif" }}
-                    >
-                      {header.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Table Body */}
-              <div>
-                {rows.map((row, rowIndex) => (
+              <div className="grid gap-px" style={{ gridTemplateColumns: `repeat(${columnHeaders.length}, 1fr)` }}>
+                {columnHeaders.map((header, index) => (
                   <div 
-                    key={rowIndex} 
-                    className={cn('grid gap-px border-t border-[#E4E4E7]', { 'bg-[#F5F5F5]': rowIndex % 2 === 1 })}
-                    style={{ gridTemplateColumns: `repeat(${columnHeaders.length}, 1fr)` }}
+                    key={index} 
+                    className="px-2 h-10 flex items-center text-sm font-semibold"
+                    style={{ fontFamily: "Geist, sans-serif" }}
                   >
-                    {columnHeaders.map((header, colIndex) => (
-                      <div 
-                        key={colIndex} 
-                        className="px-2 h-[52px] flex items-center text-sm"
-                        style={{ fontFamily: "Geist, sans-serif" }}
-                      >
-                        {row[header.key] || ''}
-                      </div>
-                    ))}
+                    {header.label}
                   </div>
                 ))}
               </div>
             </div>
-            {belowText && (
-              <ActionableParagraph>
-                {belowText}
-              </ActionableParagraph>
-            )}
+            {/* Table Body */}
+            <div>
+              {rows.map((row, rowIndex) => (
+                <div 
+                  key={rowIndex} 
+                  className={cn('grid gap-px border-t border-[#E4E4E7]', { 'bg-[#F5F5F5]': rowIndex % 2 === 1 })}
+                  style={{ gridTemplateColumns: `repeat(${columnHeaders.length}, 1fr)` }}
+                >
+                  {columnHeaders.map((header, colIndex) => (
+                    <div 
+                      key={colIndex} 
+                      className="px-2 h-[52px] flex items-center text-sm"
+                      style={{ fontFamily: "Geist, sans-serif" }}
+                    >
+                      {row[header.key] || ''}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-          <ActionableCredits />
-        </div>
+          {belowText && (
+            <ActionableParagraph>
+              {belowText}
+            </ActionableParagraph>
+          )}
+        </ActionableMainContent>
+        <ActionableCredits />
+      </div>
     </ActionableWrapper>
   );
 };
