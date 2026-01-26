@@ -21,6 +21,23 @@ build:
 push:
 	docker compose -f docker-compose-v2.yml push
 
+deploy: ## Déploie les 3 conteneurs sur Cloud Run
+	@if [ -z "$(ENV)" ]; then echo "ENV is not set. Usage: make deploy DOCKER_REGISTRY=<value> ENV=dev IMAGE_TAG=v0.1.0"; exit 1; fi
+	@if [ -z "$(IMAGE_TAG)" ]; then echo "IMAGE_TAG is not set. Usage: make deploy ENV=dev IMAGE_TAG=v0.1.0"; exit 1; fi
+	@if [ -z "$(DOCKER_REGISTRY)" ]; then echo "DOCKER_REGISTRY is not set. Usage: make deploy DOCKER_REGISTRY=<value> ENV=dev IMAGE_TAG=v0.1.0"; exit 1; fi
+	make build
+	make push
+	gcloud run services update presenton-$(ENV) \
+		--project get-actionable-$(ENV) \
+		--region europe-west1 \
+		--container caddy \
+		--image ${DOCKER_REGISTRY}/presenton-caddy:$(IMAGE_TAG) \
+		--port 80 \
+		--container nextjs \
+		--image ${DOCKER_REGISTRY}/presenton-nextjs:$(IMAGE_TAG) \
+		--container fastapi \
+		--image ${DOCKER_REGISTRY}/presenton-fastapi:$(IMAGE_TAG)
+
 down: ## Arrête tous les services
 	docker-compose -f docker-compose-v2.dev.yml down
 	docker-compose -f docker-compose-v2.yml down

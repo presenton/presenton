@@ -1,0 +1,97 @@
+name: presenton CD
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version of Presenton to deploy in production'
+        required: true
+        type: string
+
+jobs:
+  deploy-dev:
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-dev
+      cancel-in-progress: true
+    environment:
+      name: presenton-dev
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup environment variables for dev
+        run: |
+          echo "IMAGE_TAG=$IMAGE_TAG" >> "$GITHUB_ENV"
+          echo "ENV=dev" >> "$GITHUB_ENV"
+          echo "DOCKER_REGISTRY=europe-west1-docker.pkg.dev/get-actionable-dev/presenton" >> "$GITHUB_ENV"
+        env:
+          IMAGE_TAG: ${{ github.event.release.tag_name }}
+
+      - name: Auth Google
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_DEV_KEY }}
+
+      - name: Setup Gcloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+            project_id: get-actionable-${{ env.ENV }}
+
+      - name: Deploy presenton
+        run: make deploy
+        timeout-minutes: 10
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          ENV: ${{ env.ENV }}
+          DOCKER_REGISTRY: ${{ env.DOCKER_REGISTRY }}
+
+  deploy-prod:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'}}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-prod
+      cancel-in-progress: true
+    environment:
+      name: presenton-prod
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.version || github.event.client_payload.version }}
+
+      - name: Setup environment variables for prod when manual trigger
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "IMAGE_TAG=$IMAGE_TAG" >> "$GITHUB_ENV"
+          echo "ENV=prod" >> "$GITHUB_ENV"
+          echo "DOCKER_REGISTRY=europe-west1-docker.pkg.dev/get-actionable-prod/presenton" >> "$GITHUB_ENV"
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.version }}
+
+      - name: Auth Google
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_PROD_KEY }}
+
+      - name: Setup Gcloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+            project_id: get-actionable-${{ env.ENV }}
+
+      - name: Deploy presenton
+        run: make deploy
+        timeout-minutes: 10
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          ENV: ${{ env.ENV }}
+          DOCKER_REGISTRY: ${{ env.DOCKER_REGISTRY }}
