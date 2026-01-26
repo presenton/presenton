@@ -33,6 +33,18 @@ def get_anthropic_model_env():
     return os.getenv("ANTHROPIC_MODEL")
 
 
+def get_vertex_gcp_project_env():
+    return os.getenv("VERTEX_GCP_PROJECT")
+
+
+def get_vertex_gcp_region_env():
+    return os.getenv("VERTEX_GCP_REGION")
+
+
+def get_vertex_anthropic_model_env():
+    return os.getenv("VERTEX_ANTHROPIC_MODEL")
+
+
 def get_ollama_url_env():
     return os.getenv("OLLAMA_URL")
 
@@ -55,6 +67,10 @@ def get_google_api_key_env():
 
 def get_google_model_env():
     return os.getenv("GOOGLE_MODEL")
+
+
+def get_vertex_google_model_env():
+    return os.getenv("VERTEX_GOOGLE_MODEL")
 
 
 def get_custom_llm_api_key_env():

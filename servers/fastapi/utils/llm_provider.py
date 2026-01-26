@@ -4,6 +4,8 @@ from constants.llm import (
     DEFAULT_ANTHROPIC_MODEL,
     DEFAULT_GOOGLE_MODEL,
     DEFAULT_OPENAI_MODEL,
+    DEFAULT_VERTEX_ANTHROPIC_MODEL,
+    DEFAULT_VERTEX_GOOGLE_MODEL,
 )
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
@@ -13,6 +15,8 @@ from utils.get_env import (
     get_llm_provider_env,
     get_ollama_model_env,
     get_openai_model_env,
+    get_vertex_anthropic_model_env,
+    get_vertex_google_model_env,
 )
 
 
@@ -22,7 +26,7 @@ def get_llm_provider():
     except:
         raise HTTPException(
             status_code=500,
-            detail=f"Invalid LLM provider. Please select one of: openai, google, anthropic, ollama, custom",
+            detail=f"Invalid LLM provider. Please select one of: openai, google, vertex_google, anthropic, vertex_anthropic, ollama, custom",
         )
 
 
@@ -34,8 +38,16 @@ def is_google_selected():
     return get_llm_provider() == LLMProvider.GOOGLE
 
 
+def is_vertex_google_selected():
+    return get_llm_provider() == LLMProvider.VERTEX_GOOGLE
+
+
 def is_anthropic_selected():
     return get_llm_provider() == LLMProvider.ANTHROPIC
+
+
+def is_vertex_anthropic_selected():
+    return get_llm_provider() == LLMProvider.VERTEX_ANTHROPIC
 
 
 def is_ollama_selected():
@@ -52,8 +64,12 @@ def get_model():
         return get_openai_model_env() or DEFAULT_OPENAI_MODEL
     elif selected_llm == LLMProvider.GOOGLE:
         return get_google_model_env() or DEFAULT_GOOGLE_MODEL
+    elif selected_llm == LLMProvider.VERTEX_GOOGLE:
+        return get_vertex_google_model_env() or DEFAULT_VERTEX_GOOGLE_MODEL
     elif selected_llm == LLMProvider.ANTHROPIC:
         return get_anthropic_model_env() or DEFAULT_ANTHROPIC_MODEL
+    elif selected_llm == LLMProvider.VERTEX_ANTHROPIC:
+        return get_vertex_anthropic_model_env() or DEFAULT_VERTEX_ANTHROPIC_MODEL
     elif selected_llm == LLMProvider.OLLAMA:
         return get_ollama_model_env()
     elif selected_llm == LLMProvider.CUSTOM:
@@ -61,5 +77,5 @@ def get_model():
     else:
         raise HTTPException(
             status_code=500,
-            detail=f"Invalid LLM provider. Please select one of: openai, google, anthropic, ollama, custom",
+            detail=f"Invalid LLM provider. Please select one of: openai, google, vertex_google, anthropic, vertex_anthropic, ollama, custom",
         )

@@ -83,13 +83,17 @@ Open http://localhost:5000 on browser of your choice to use Presenton.
 You may want to directly provide your API KEYS as environment variables and keep them hidden. You can set these environment variables to achieve it.
 
 - **CAN_CHANGE_KEYS=[true/false]**: Set this to **false** if you want to keep API Keys hidden and make them unmodifiable.
-- **LLM=[openai/google/anthropic/ollama/custom]**: Select **LLM** of your choice.
+- **LLM=[openai/google/vertex_google/anthropic/vertex_anthropic/ollama/custom]**: Select **LLM** of your choice.
 - **OPENAI_API_KEY=[Your OpenAI API Key]**: Provide this if **LLM** is set to **openai**
 - **OPENAI_MODEL=[OpenAI Model ID]**: Provide this if **LLM** is set to **openai** (default: "gpt-4.1")
 - **GOOGLE_API_KEY=[Your Google API Key]**: Provide this if **LLM** is set to **google**
 - **GOOGLE_MODEL=[Google Model ID]**: Provide this if **LLM** is set to **google** (default: "models/gemini-2.0-flash")
 - **ANTHROPIC_API_KEY=[Your Anthropic API Key]**: Provide this if **LLM** is set to **anthropic**
 - **ANTHROPIC_MODEL=[Anthropic Model ID]**: Provide this if **LLM** is set to **anthropic** (default: "claude-3-5-sonnet-20241022")
+- **VERTEX_GCP_PROJECT=[Your GCP Project ID]**: Provide this if **LLM** is set to **vertex_google** or **vertex_anthropic**
+- **VERTEX_GCP_REGION=[GCP Region]**: Provide this if **LLM** is set to **vertex_google** or **vertex_anthropic** (default: "global"). Other options: "us-east5", "europe-west1", etc.
+- **VERTEX_GOOGLE_MODEL=[Vertex AI Google Model ID]**: Provide this if **LLM** is set to **vertex_google** (default: "gemini-2.5-flash")
+- **VERTEX_ANTHROPIC_MODEL=[Vertex AI Model ID]**: Provide this if **LLM** is set to **vertex_anthropic** (default: "claude-sonnet-4-5@20250929")
 - **OLLAMA_URL=[Custom Ollama URL]**: Provide this if you want to custom Ollama URL and **LLM** is set to **ollama**
 - **OLLAMA_MODEL=[Ollama Model ID]**: Provide this if **LLM** is set to **ollama**
 - **CUSTOM_LLM_URL=[Custom OpenAI Compatible URL]**: Provide this if **LLM** is set to **custom**
@@ -130,6 +134,14 @@ docker run -it --name presenton -p 5000:80 -e LLM="openai" -e OPENAI_API_KEY="**
 docker run -it --name presenton -p 5000:80 -e LLM="google" -e GOOGLE_API_KEY="******" -e IMAGE_PROVIDER="gemini_flash" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
 
+### Using Vertex AI with Google
+
+```bash
+docker run -it --name presenton -p 5000:80 -e LLM="vertex_google" -e VERTEX_GCP_PROJECT="your-gcp-project-id" -e VERTEX_GCP_REGION="global" -e IMAGE_PROVIDER="gemini_flash" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" -v "$HOME/.config/gcloud:/root/.config/gcloud:ro" ghcr.io/presenton/presenton:latest
+```
+
+**Note**: For Vertex AI, you need to mount your Google Cloud credentials. Run `gcloud auth application-default login` before starting the container, and mount the credentials directory as shown above.
+
 ### Using Ollama
 
 ```bash
@@ -141,6 +153,14 @@ docker run -it --name presenton -p 5000:80 -e LLM="ollama" -e OLLAMA_MODEL="llam
 ```bash
 docker run -it --name presenton -p 5000:80 -e LLM="anthropic" -e ANTHROPIC_API_KEY="******" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
+
+### Using Vertex AI with Anthropic
+
+```bash
+docker run -it --name presenton -p 5000:80 -e LLM="vertex_anthropic" -e VERTEX_GCP_PROJECT="your-gcp-project-id" -e VERTEX_GCP_REGION="global" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" -v "$HOME/.config/gcloud:/root/.config/gcloud:ro" ghcr.io/presenton/presenton:latest
+```
+
+**Note**: For Vertex AI, you need to mount your Google Cloud credentials. Run `gcloud auth application-default login` before starting the container, and mount the credentials directory as shown above.
 
 ### Using OpenAI Compatible API
 

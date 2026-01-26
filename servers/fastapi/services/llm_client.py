@@ -20,6 +20,7 @@ from google.genai.types import Tool as GoogleTool
 from anthropic import AsyncAnthropic
 from anthropic.types import Message as AnthropicMessage
 from anthropic import MessageStreamEvent as AnthropicMessageStreamEvent
+from anthropic import AsyncAnthropicVertex
 from enums.llm_provider import LLMProvider
 from models.llm_message import (
     AnthropicAssistantMessage,
@@ -51,6 +52,8 @@ from utils.get_env import (
     get_ollama_url_env,
     get_openai_api_key_env,
     get_tool_calls_env,
+    get_vertex_gcp_project_env,
+    get_vertex_gcp_region_env,
     get_web_grounding_env,
 )
 from utils.llm_provider import get_llm_provider, get_model
@@ -79,6 +82,7 @@ class LLMClient:
         if (
             self.llm_provider == LLMProvider.OLLAMA
             or self.llm_provider == LLMProvider.CUSTOM
+            or self.llm_provider == LLMProvider.VERTEX_ANTHROPIC
         ):
             return False
         return parse_bool_or_none(get_web_grounding_env()) or False
@@ -94,8 +98,12 @@ class LLMClient:
                 return self._get_openai_client()
             case LLMProvider.GOOGLE:
                 return self._get_google_client()
+            case LLMProvider.VERTEX_GOOGLE:
+                return self._get_vertex_google_client()
             case LLMProvider.ANTHROPIC:
                 return self._get_anthropic_client()
+            case LLMProvider.VERTEX_ANTHROPIC:
+                return self._get_vertex_anthropic_client()
             case LLMProvider.OLLAMA:
                 return self._get_ollama_client()
             case LLMProvider.CUSTOM:
@@ -103,7 +111,7 @@ class LLMClient:
             case _:
                 raise HTTPException(
                     status_code=400,
-                    detail="LLM Provider must be either openai, google, anthropic, ollama, or custom",
+                    detail="LLM Provider must be either openai, google, vertex_google, anthropic, vertex_anthropic, ollama, or custom",
                 )
 
     def _get_openai_client(self):
@@ -122,6 +130,18 @@ class LLMClient:
             )
         return genai.Client()
 
+    def _get_vertex_google_client(self):
+        project_id = get_vertex_gcp_project_env()
+        if not project_id:
+            raise HTTPException(
+                status_code=400,
+                detail="VERTEX_GCP_PROJECT environment variable is not set. Please provide your Google Cloud Project ID.",
+            )
+
+        region = get_vertex_gcp_region_env() or "global"
+
+        return genai.Client(vertexai=True, project=project_id, location=region)
+
     def _get_anthropic_client(self):
         if not get_anthropic_api_key_env():
             raise HTTPException(
@@ -129,6 +149,30 @@ class LLMClient:
                 detail="Anthropic API Key is not set",
             )
         return AsyncAnthropic()
+
+    def _get_vertex_anthropic_client(self):
+        if AsyncAnthropicVertex is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Anthropic Vertex AI package is not installed. Please install it with: pip install 'anthropic[vertex]' google-cloud-aiplatform",
+            )
+
+        project_id = get_vertex_gcp_project_env()
+        if not project_id:
+            raise HTTPException(
+                status_code=400,
+                detail="VERTEX_GCP_PROJECT environment variable is not set. Please provide your Google Cloud Project ID.",
+            )
+
+        region = get_vertex_gcp_region_env() or "global"
+
+        try:
+            return AsyncAnthropicVertex(project_id=project_id, region=region)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to initialize Vertex AI Anthropic client. Please ensure Google Cloud Application Default Credentials (ADC) are configured. Run 'gcloud auth application-default login' to set up credentials. Error: {str(e)}",
+            )
 
     def _get_ollama_client(self):
         return AsyncOpenAI(
@@ -419,14 +463,14 @@ class LLMClient:
                     max_tokens=max_tokens,
                     tools=parsed_tools,
                 )
-            case LLMProvider.GOOGLE:
+            case LLMProvider.GOOGLE | LLMProvider.VERTEX_GOOGLE:
                 content = await self._generate_google(
                     model=model,
                     messages=messages,
                     max_tokens=max_tokens,
                     tools=parsed_tools,
                 )
-            case LLMProvider.ANTHROPIC:
+            case LLMProvider.ANTHROPIC | LLMProvider.VERTEX_ANTHROPIC:
                 content = await self._generate_anthropic(
                     model=model,
                     messages=messages,
@@ -795,7 +839,7 @@ class LLMClient:
                     tools=parsed_tools,
                     max_tokens=max_tokens,
                 )
-            case LLMProvider.GOOGLE:
+            case LLMProvider.GOOGLE | LLMProvider.VERTEX_GOOGLE:
                 content = await self._generate_google_structured(
                     model=model,
                     messages=messages,
@@ -803,7 +847,7 @@ class LLMClient:
                     tools=parsed_tools,
                     max_tokens=max_tokens,
                 )
-            case LLMProvider.ANTHROPIC:
+            case LLMProvider.ANTHROPIC | LLMProvider.VERTEX_ANTHROPIC:
                 content = await self._generate_anthropic_structured(
                     model=model,
                     messages=messages,
@@ -1112,14 +1156,14 @@ class LLMClient:
                     max_tokens=max_tokens,
                     tools=parsed_tools,
                 )
-            case LLMProvider.GOOGLE:
+            case LLMProvider.GOOGLE | LLMProvider.VERTEX_GOOGLE:
                 return self._stream_google(
                     model=model,
                     messages=messages,
                     max_tokens=max_tokens,
                     tools=parsed_tools,
                 )
-            case LLMProvider.ANTHROPIC:
+            case LLMProvider.ANTHROPIC | LLMProvider.VERTEX_ANTHROPIC:
                 return self._stream_anthropic(
                     model=model,
                     messages=messages,
@@ -1538,7 +1582,7 @@ class LLMClient:
                     tools=parsed_tools,
                     max_tokens=max_tokens,
                 )
-            case LLMProvider.GOOGLE:
+            case LLMProvider.GOOGLE | LLMProvider.VERTEX_GOOGLE:
                 return self._stream_google_structured(
                     model=model,
                     messages=messages,
@@ -1546,7 +1590,7 @@ class LLMClient:
                     tools=parsed_tools,
                     max_tokens=max_tokens,
                 )
-            case LLMProvider.ANTHROPIC:
+            case LLMProvider.ANTHROPIC | LLMProvider.VERTEX_ANTHROPIC:
                 return self._stream_anthropic_structured(
                     model=model,
                     messages=messages,

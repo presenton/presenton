@@ -169,9 +169,9 @@ class ImageGenerationService:
     async def generate_image_gemini_flash(
         self, prompt: str, output_directory: str
     ) -> str:
-        """Generate image using Gemini Flash (gemini-2.5-flash-image-preview)."""
+        """Generate image using Gemini Flash (gemini-2.5-flash-image)."""
         return await self._generate_image_google(
-            prompt, output_directory, "gemini-2.5-flash-image-preview"
+            prompt, output_directory, "gemini-2.5-flash-image"
         )
 
     async def generate_image_nanobanana_pro(
