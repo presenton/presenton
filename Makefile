@@ -26,6 +26,7 @@ deploy: ## Déploie les 3 conteneurs sur Cloud Run
 	@if [ -z "$(IMAGE_TAG)" ]; then echo "IMAGE_TAG is not set. Usage: make deploy ENV=dev IMAGE_TAG=v0.1.0"; exit 1; fi
 	@if [ -z "$(DOCKER_REGISTRY)" ]; then echo "DOCKER_REGISTRY is not set. Usage: make deploy DOCKER_REGISTRY=<value> ENV=dev IMAGE_TAG=v0.1.0"; exit 1; fi
 	make build
+	gcloud auth configure-docker europe-west1-docker.pkg.dev --no-user-output-enabled --quiet
 	make push
 	gcloud run services update presenton-$(ENV) \
 		--project get-actionable-$(ENV) \
