@@ -8,6 +8,10 @@ x-common-env: &common-env
   GOOGLE_MODEL: ${GOOGLE_MODEL}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
   ANTHROPIC_MODEL: ${ANTHROPIC_MODEL}
+  VERTEX_GCP_PROJECT: ${VERTEX_GCP_PROJECT}
+  VERTEX_GCP_REGION: ${VERTEX_GCP_REGION}
+  VERTEX_GOOGLE_MODEL: ${VERTEX_GOOGLE_MODEL}
+  VERTEX_ANTHROPIC_MODEL: ${VERTEX_ANTHROPIC_MODEL}
   OLLAMA_URL: ${OLLAMA_URL}
   OLLAMA_MODEL: ${OLLAMA_MODEL}
   CUSTOM_LLM_URL: ${CUSTOM_LLM_URL}
@@ -76,6 +80,7 @@ services:
       - "8000:8000"
     volumes:
       - app_data:/app_data
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
     environment:
       <<: *common-env
     healthcheck:

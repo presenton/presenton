@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     make
 
 # Create a working directory
-WORKDIR /app/fastapi  
+WORKDIR /app/fastapi
 
 # Set environment variables
 ENV APP_DATA_DIRECTORY=/app_data
@@ -21,7 +21,7 @@ ENV TEMP_DIRECTORY=/tmp/presenton
 # Install dependencies for FastAPI
 RUN pip install aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
     pathvalidate pdfplumber chromadb sqlmodel \
-    anthropic google-genai openai fastmcp dirtyjson
+    "anthropic[vertex]" google-genai google-cloud-aiplatform openai fastmcp dirtyjson
 RUN pip install docling --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Copy FastAPI

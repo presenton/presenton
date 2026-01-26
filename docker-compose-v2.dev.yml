@@ -8,6 +8,10 @@ x-common-env: &common-env
   GOOGLE_MODEL: ${GOOGLE_MODEL}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
   ANTHROPIC_MODEL: ${ANTHROPIC_MODEL}
+  VERTEX_GCP_PROJECT: ${VERTEX_GCP_PROJECT}
+  VERTEX_GOOGLE_MODEL: ${VERTEX_GOOGLE_MODEL}
+  VERTEX_GCP_REGION: ${VERTEX_GCP_REGION}
+  VERTEX_ANTHROPIC_MODEL: ${VERTEX_ANTHROPIC_MODEL}
   OLLAMA_URL: ${OLLAMA_URL}
   OLLAMA_MODEL: ${OLLAMA_MODEL}
   CUSTOM_LLM_URL: ${CUSTOM_LLM_URL}
@@ -58,6 +62,7 @@ services:
       - "3000:3000"
     volumes:
       - app_data:/app_data
+      - tmp:/tmp
       # Mount source code for hot reload
       - ./servers/nextjs/app:/app/nextjs/app:ro
       - ./servers/nextjs/components:/app/nextjs/components:ro
@@ -90,6 +95,8 @@ services:
       - "8000:8000"
     volumes:
       - app_data:/app_data
+      - tmp:/tmp
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
       # Mount source code for hot reload
       - ./servers/fastapi/api:/app/fastapi/api:ro
       - ./servers/fastapi/assets:/app/fastapi/assets:ro
@@ -111,6 +118,7 @@ services:
       start_period: 10s
 
 volumes:
+  tmp:
   app_data:
   caddy_data:
   caddy_config:
