@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 import os
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     create_async_engine,
@@ -25,6 +26,17 @@ from utils.db_utils import get_database_url_and_connect_args
 database_url, connect_args = get_database_url_and_connect_args()
 
 sql_engine: AsyncEngine = create_async_engine(database_url, connect_args=connect_args)
+
+# Optimize SQLite for Cloud Storage (GCS Fuse)
+if "sqlite" in database_url:
+    @event.listens_for(sql_engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=OFF")
+        cursor.execute("PRAGMA synchronous=OFF")
+        cursor.execute("PRAGMA cache_size=10000")
+        cursor.close()
+
 async_session_maker = async_sessionmaker(sql_engine, expire_on_commit=False)
 
 

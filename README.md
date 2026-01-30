@@ -52,7 +52,7 @@ Presenton gives you complete control over your AI presentation workflow. Choose 
 ## Presenton Cloud
 
 <a href="https://presenton.ai" target="_blank" align="center">
-  
+
   <img src="readme_assets/cloud-banner.png" height="350" alt="Presenton Logo" />
 </a>
 
@@ -270,6 +270,23 @@ For detailed info checkout [API documentation](https://docs.presenton.ai/using-p
 
 ![Demo](readme_assets/images/export-presentation.png)
 
+## Development
+
+Want to contribute or customize Presenton? Check out our [Development Guide](DEVELOPMENT.md) for:
+- 🔥 Hot reload development setup (no rebuild needed!)
+- 🐳 Docker Compose development workflow
+- 🛠️ Local development without Docker
+- 📝 Contributing guidelines
+
+Quick start for development:
+```bash
+# With Makefile
+make dev-build
+
+# Or manually
+docker-compose -f docker-compose-v2.yml -f docker-compose-v2.dev.yml up --build
+```
+
 ## Community
 
 [Discord](https://discord.gg/9ZsKKxudNE)
@@ -277,3 +294,4 @@ For detailed info checkout [API documentation](https://docs.presenton.ai/using-p
 ## License
 
 Apache 2.0
+# presenton-

@@ -1,0 +1,73 @@
+:{$PORT:5000} {
+    reverse_proxy /* localhost:3000
+
+    # API FastAPI
+    reverse_proxy /api/v1/* localhost:8000 {
+        transport http {
+            dial_timeout 30s
+            response_header_timeout 30m
+            read_timeout 30m
+            write_timeout 30m
+        }
+    }
+
+    # MCP
+    reverse_proxy /mcp* localhost:8001 {
+        transport http {
+            dial_timeout 30s
+            response_header_timeout 30m
+            read_timeout 30m
+            write_timeout 30m
+        }
+    }
+
+    # Documentation
+    reverse_proxy /docs localhost:8000 {
+        transport http {
+            dial_timeout 30s
+            response_header_timeout 30m
+            read_timeout 30m
+            write_timeout 30m
+        }
+    }
+
+    reverse_proxy /openapi.json localhost:8000 {
+        transport http {
+            dial_timeout 30s
+            response_header_timeout 30m
+            read_timeout 30m
+            write_timeout 30m
+        }
+    }
+
+    # Fichiers statiques avec cache
+    handle /static/* {
+        root * /
+        file_server
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    handle /app_data/images/* {
+        root * /
+        file_server
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    handle /app_data/exports/* {
+        root * /
+        file_server
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    handle /app_data/uploads/* {
+        root * /
+        file_server
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+
+    handle /app_data/fonts/* {
+        root * /
+        file_server
+        header Cache-Control "public, max-age=31536000, immutable"
+    }
+}

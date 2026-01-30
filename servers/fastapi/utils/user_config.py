@@ -62,13 +62,14 @@ def get_user_config():
     user_config_path = get_user_config_path_env()
 
     existing_config = UserConfig()
-    try:
-        if os.path.exists(user_config_path):
-            with open(user_config_path, "r") as f:
-                existing_config = UserConfig(**json.load(f))
-    except Exception:
-        print("Error while loading user config")
-        pass
+    if user_config_path:
+        try:
+            if os.path.exists(user_config_path):
+                with open(user_config_path, "r") as f:
+                    existing_config = UserConfig(**json.load(f))
+        except Exception as e:
+            print(f"Error while loading user config from {user_config_path}: {e}")
+            pass
 
     return UserConfig(
         LLM=existing_config.LLM or get_llm_provider_env(),

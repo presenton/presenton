@@ -2,14 +2,20 @@
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
+  output: 'standalone',
   
 
   // Rewrites for development - proxy font requests to FastAPI backend
   async rewrites() {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
     return [
       {
-        source: '/app_data/fonts/:path*',
-        destination: 'http://localhost:8000/app_data/fonts/:path*',
+        source: '/api/v1/:path*',
+        destination: `${apiBaseUrl}/api/v1/:path*`,
+      },
+      {
+        source: '/app_data/:path*',
+        destination: `${apiBaseUrl}/app_data/:path*`,
       },
     ];
   },

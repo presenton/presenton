@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
   page.setDefaultNavigationTimeout(300000);
   page.setDefaultTimeout(300000);
 
-  await page.goto(`http://localhost/pdf-maker?id=${id}`, {
+  const presentonUrl = process.env.PRESENTON_URL || "http://localhost";
+  await page.goto(`${presentonUrl}/pdf-maker?id=${id}`, {
     waitUntil: "networkidle0",
     timeout: 300000,
   });
@@ -48,18 +49,18 @@ export async function POST(req: NextRequest) {
         const allElements = document.querySelectorAll('*');
         let loadedElements = 0;
         let totalElements = allElements.length;
-        
+
         for (let el of allElements) {
             const style = window.getComputedStyle(el);
-            const isVisible = style.display !== 'none' && 
-                            style.visibility !== 'hidden' && 
+            const isVisible = style.display !== 'none' &&
+                            style.visibility !== 'hidden' &&
                             style.opacity !== '0';
-            
+
             if (isVisible && el.offsetWidth > 0 && el.offsetHeight > 0) {
                 loadedElements++;
             }
         }
-        
+
         return (loadedElements / totalElements) >= 0.99;
       }
       `,
