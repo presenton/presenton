@@ -14,16 +14,16 @@ export const layoutName = 'Intro Slide'
 export const layoutDescription = 'An introduction slide layout featuring title, subtitle, optional period and goal information, with an accompanying image. Perfect for section introductions and topic overviews.'
 
 const introSlideSchema = z.object({
-  title: z.string().min(3).max(100).default("Strategic Vision 2026").meta({
+  title: z.string().min(3).max(100).default("Analyse de la Satisfaction Client Q4 2025").meta({
     description: "Main title of the slide",
   }),
-  subtitle: z.string().min(5).max(150).default("Transforming our approach to digital innovation through customer-centric solutions and sustainable growth strategies").meta({
+  subtitle: z.string().min(5).max(150).default("Insights sur les drivers de satisfaction et recommandations pour améliorer l'expérience client").meta({
     description: "Subtitle text",
   }),
-  period: z.string().min(2).max(100).optional().default("Q1 2026 - Q4 2026").meta({
+  period: z.string().min(2).max(100).optional().default("Octobre - Décembre 2025").meta({
     description: "Time period or timeframe (optional)",
   }),
-  goal: z.string().min(5).max(150).optional().default("Our primary goal is to achieve 40% market expansion while maintaining operational excellence and delivering exceptional value to our stakeholders").meta({
+  goal: z.string().min(5).max(150).optional().default("Identifier les causes d'insatisfaction et prédire les tendances NPS pour anticiper les risques de churn").meta({
     description: "Goal or objective statement (optional)",
   }),
   image: ImageSchema.default({

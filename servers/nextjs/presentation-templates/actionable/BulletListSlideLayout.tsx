@@ -25,34 +25,34 @@ const columnSchema = z.object({
 })
 
 const bulletListSlideSchema = z.object({
-  title: z.string().min(3).max(80).default("Key Points Overview").meta({
+  title: z.string().min(3).max(80).default("Plan d'Action Satisfaction Client").meta({
     description: "Main title of the slide",
   }),
   columns: z.array(columnSchema).min(1).max(2).default([
     {
-      title: "Primary Benefits",
+      title: "Quick Wins (0-3 mois)",
       items: [
-        "Enhanced productivity through automation",
-        "Seamless integration with existing tools",
-        "Real-time collaboration features",
-        "Advanced security and compliance"
+        "Réduire temps de réponse support à <24h sur tous les canaux",
+        "Automatiser onboarding avec tutoriels interactifs",
+        "Lancer programme ambassadeurs avec promoteurs NPS 9-10",
+        "Déployer chat proactif sur pages critiques du parcours"
       ],
-      belowText: "These features drive measurable ROI"
+      belowText: "Impact estimé : +8 points de NPS"
     },
     {
-      title: "Technical Features",
+      title: "Initiatives structurelles (3-12 mois)",
       items: [
-        "Cloud-native architecture",
-        "API-first design approach",
-        "Built-in analytics dashboard",
-        "Customizable workflows"
+        "Développer modèle prédictif de churn basé sur comportements",
+        "Implémenter feedback loop automatique post-interaction support",
+        "Créer parcours personnalisés par segment client",
+        "Optimiser adoption multi-canal via notifications ciblées"
       ],
-      belowText: "Scalable infrastructure for growth"
+      belowText: "Impact estimé : +15 points de NPS et -20% de churn"
     }
   ]).meta({
     description: "Columns with bullet lists (max 2 columns)",
   }),
-  belowText: z.string().max(200).optional().default("All features are available in the enterprise plan with dedicated support").meta({
+  belowText: z.string().max(200).optional().default("ROI attendu : amélioration satisfaction + réduction churn = +1.2M€ de revenus préservés sur 12 mois").meta({
     description: "Optional text below all columns",
   })
 })

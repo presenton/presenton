@@ -23,37 +23,37 @@ const numberItemSchema = z.object({
 })
 
 const numbersSlideSchema = z.object({
-  title: z.string().min(3).max(80).default("Key Achievements This Quarter").meta({
+  title: z.string().min(3).max(80).default("Indicateurs Clés de Performance").meta({
     description: "Main title of the slide",
   }),
-  aboveText: z.string().min(10).max(300).default("Our team has delivered exceptional results across multiple metrics, demonstrating strong momentum and operational excellence throughout the quarter.").meta({
+  aboveText: z.string().min(10).max(300).default("Vue d'ensemble des métriques de satisfaction client et de l'efficacité prédictive sur le dernier trimestre").meta({
     description: "Introductory text above the numbers",
   }),
   items: z.array(numberItemSchema).min(1).max(4).default([
     {
-      number: "127%",
-      unit: "Revenue Growth",
-      explanation: "Year-over-year increase driven by new product launches and market expansion"
+      number: "62",
+      unit: "NPS Score",
+      explanation: "Net Promoter Score moyen sur Q4, en hausse de +8 points vs Q3"
     },
     {
-      number: "3.2M",
-      unit: "Active Users",
-      explanation: "Total active user base with 89% month-over-month retention rate"
+      number: "4,280",
+      unit: "Réponses",
+      explanation: "Total de réponses collectées avec un taux de réponse de 23%"
     },
     {
-      number: "45",
-      unit: "New Partners",
-      explanation: "Strategic partnerships established across North America and Europe"
+      number: "87%",
+      unit: "Précision",
+      explanation: "Taux de précision du modèle de prédiction NPS sur non-répondants"
     },
     {
-      number: "98%",
-      unit: "Satisfaction",
-      explanation: "Customer satisfaction score based on quarterly survey results"
+      number: "12",
+      unit: "Drivers",
+      explanation: "Facteurs de satisfaction identifiés par analyse comportementale"
     }
   ]).meta({
     description: "List of numbers/metrics to display (max 4 items)",
   }),
-  belowText: z.string().max(300).optional().default("These metrics reflect our commitment to excellence and position us strongly for continued growth in the coming quarters").meta({
+  belowText: z.string().max(300).optional().default("Performances en amélioration continue avec une fiabilité prédictive permettant d'anticiper les risques de churn").meta({
     description: "Optional text below the numbers",
   })
 })
@@ -81,7 +81,7 @@ const NumbersSlideLayout: React.FC<{ data: NumbersSlideData }> = ({ data }) => {
           </ActionableParagraph>
           <div className='grid grid-cols-4 gap-6'>
             {items.map((item, index) => (
-              <div key={index} className='bg-gray-100 rounded-lg px-6 py-8 flex flex-col gap-6 items-center'>
+              <div key={index} className='bg-gray-100  px-6 py-8 flex flex-col gap-6 items-center'>
                 <div className='text-center'>
                   <div className="text-[40px] leading-[150%] font-semibold" style={{ fontFamily: "Geist, sans-serif" }}>
                     {item.number}

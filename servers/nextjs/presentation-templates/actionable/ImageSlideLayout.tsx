@@ -84,7 +84,7 @@ const ImageSlideLayout: React.FC<{ data: ImageSlideData }> = ({ data }) => {
           </ActionableSubTitle>
           <div className="gap-6 grid grid-cols-2">
             {contentSections.map((section, index) => (
-              <div key={index} className={cn("px-6 py-5 rounded-lg bg-[#F5F5F5] flex flex-col gap-1.5", { "col-span-2": index === 2 })}>
+              <div key={index} className={cn("px-6 py-5  bg-[#F5F5F5] flex flex-col gap-1.5", { "col-span-2": index === 2 })}>
                 <h3 className="font-semibold text-xl leading-[150%]" style={{ fontFamily: "Geist, sans-serif" }}>
                   {section.heading}
                 </h3>

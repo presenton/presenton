@@ -23,30 +23,30 @@ const columnHeaderSchema = z.object({
 })
 
 const dataTableSlideSchema = z.object({
-  title: z.string().min(3).max(50).default("Performance Metrics Summary").meta({
+  title: z.string().min(3).max(50).default("Performance NPS par Canal").meta({
     description: "Main title of the slide",
   }),
-  subtitle: z.string().min(5).max(100).default("Quarterly breakdown of key performance indicators across regions").meta({
+  subtitle: z.string().min(5).max(100).default("Comparaison des scores de satisfaction selon le point de contact client").meta({
     description: "Subtitle text",
   }),
   columnHeaders: z.array(columnHeaderSchema).min(1).max(4).default([
-    { key: 'region', label: 'Region' },
-    { key: 'sales', label: 'Sales ($)' },
-    { key: 'growth', label: 'Growth (%)' },
-    { key: 'customers', label: 'Customers' }
+    { key: 'canal', label: 'Canal' },
+    { key: 'nps', label: 'NPS Score' },
+    { key: 'reponses', label: 'Réponses' },
+    { key: 'evolution', label: 'Évolution' }
   ]).meta({
     description: "Table column headers with keys and labels",
   }),
   rows: z.array(z.record(z.string(), z.string())).min(1).max(5).default([
-    { region: 'North America', sales: '$2.4M', growth: '+23%', customers: '1,240' },
-    { region: 'Europe', sales: '$1.8M', growth: '+18%', customers: '890' },
-    { region: 'Asia Pacific', sales: '$1.2M', growth: '+31%', customers: '650' },
-    { region: 'Latin America', sales: '$680K', growth: '+15%', customers: '320' },
-    { region: 'Middle East', sales: '$520K', growth: '+28%', customers: '210' }
+    { canal: 'Application Mobile', nps: '68', reponses: '2,340', evolution: '+12%' },
+    { canal: 'Site Web', nps: '54', reponses: '1,820', evolution: '+5%' },
+    { canal: 'Support Téléphone', nps: '42', reponses: '890', evolution: '-8%' },
+    { canal: 'Email', nps: '51', reponses: '1,240', evolution: '+3%' },
+    { canal: 'Chat Live', nps: '72', reponses: '450', evolution: '+18%' }
   ]).meta({
     description: "Table data rows (keys must match columnHeaders keys)",
   }),
-  belowText: z.string().max(300).optional().default("All figures represent Q3 results with year-over-year comparisons. Asia Pacific shows strongest growth potential").meta({
+  belowText: z.string().max(300).optional().default("Le Chat Live affiche le meilleur NPS (72) mais représente le plus faible volume. Application Mobile combine volume élevé et forte satisfaction.").meta({
     description: "Optional text below the table",
   }),
 })
@@ -75,7 +75,7 @@ const DataTableSlideLayout: React.FC<{ data: DataTableSlideData }> = ({ data }) 
               {subtitle}
             </ActionableSubTitle>
           </div>
-          <div className="w-full border-[#E4E4E7] border rounded-lg overflow-hidden">
+          <div className="w-full border-[#E4E4E7] border  overflow-hidden">
             {/* Table Header */}
             <div>
               <div className="grid gap-px" style={{ gridTemplateColumns: `repeat(${columnHeaders.length}, 1fr)` }}>
