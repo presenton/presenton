@@ -25,17 +25,17 @@ docker-compose up development
 ```bash
 cd servers/fastapi
 
-# Run backend directly
-python server.py --port 8000 --reload true
+# Run backend directly (Python 3.11 required)
+python3 server.py --port 8000 --reload true
 
 # Run tests
-pytest
+python3 -m pytest
 
 # Run specific test
-pytest tests/test_presentation_generation_api.py -v
+python3 -m pytest tests/test_presentation_generation_api.py -v
 
 # Run MCP server (Model Context Protocol)
-python mcp_server.py --port 8001
+python3 mcp_server.py --port 8001
 ```
 
 ### Next.js (Frontend)
@@ -76,6 +76,10 @@ docker-compose up development
 ## Architecture
 
 ### Backend (`servers/fastapi/`)
+
+**Entry Point:**
+- `server.py` - Starts the FastAPI server via `api.main:app` with uvicorn
+- `mcp_server.py` - Starts the MCP (Model Context Protocol) server on port 8001
 
 **Key directories:**
 - `api/v1/ppt/endpoints/` - API route handlers for presentations, slides, images, icons, etc.
@@ -242,3 +246,9 @@ To add a new template:
 1. Create template folder with layout components
 2. Add to `DEFAULT_TEMPLATES` in `servers/fastapi/constants/presentation.py`
 3. Ensure all standard layout types are supported
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
