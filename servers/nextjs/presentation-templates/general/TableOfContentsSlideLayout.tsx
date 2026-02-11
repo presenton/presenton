@@ -48,28 +48,19 @@ const TableOfContentsSlideLayout: React.FC<TableOfContentsSlideLayoutProps> = ({
 
     return (
         <>
-           <link
+            <link
                 href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
                 rel="stylesheet"
             />
-            
-            <div 
+
+            <div
                 className="w-full rounded-sm max-w-[1280px] shadow-lg px-8 sm:px-12 lg:px-20 py-8 sm:py-12 lg:py-16 max-h-[720px] aspect-video bg-white relative z-20 mx-auto"
                 style={{
                     fontFamily: 'var(--heading-font-family,Inter)',
-                    background:"var(--card-background-color,#ffffff)"
+                    background: "var(--card-background-color,#ffffff)"
                 }}
             >
-                {(slideData as any)?.__companyName__ && (
-                    <div className="absolute top-0 left-0 right-0 px-8 sm:px-12 lg:px-20 pt-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm sm:text-base font-semibold" style={{ color: 'var(--text-heading-color, #111827)' }}>
-                                {(slideData as any)?.__companyName__ || 'Company Name'}
-                            </span>
-                            <div className="h-[2px] flex-1 opacity-70" style={{ backgroundColor: 'var(--text-heading-color, #111827)' }}></div>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Title Section */}
                 <div className="text-center mb-8 sm:mb-12 mt-6">
@@ -78,7 +69,7 @@ const TableOfContentsSlideLayout: React.FC<TableOfContentsSlideLayoutProps> = ({
                     </h1>
                     {/* Decorative Wave */}
                     <div className="flex justify-center">
-                        <svg width="80" height="20" viewBox="0 0 80 20" className="text-purple-600" style={{color:"var(--primary-accent-color,#9333ea)"}}>
+                        <svg width="80" height="20" viewBox="0 0 80 20" className="text-purple-600" style={{ color: "var(--primary-accent-color,#9333ea)" }}>
                             <path
                                 d="M0 10 Q20 0 40 10 T80 10"
                                 stroke="currentColor"
@@ -97,21 +88,21 @@ const TableOfContentsSlideLayout: React.FC<TableOfContentsSlideLayoutProps> = ({
                             <div key={section.number} className="flex items-center justify-between group">
                                 <div className="flex items-center space-x-4">
                                     {/* Number Box */}
-                                    <div style={{background:"var(--primary-accent-color,#9333ea)", color:"var(--text-heading-color,#ffffff)"}} className="w-12 h-12 sm:w-14 sm:h-14 bg-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl group-hover:bg-purple-700 transition-colors">
+                                    <div style={{ background: "var(--primary-accent-color,#9333ea)", color: "var(--text-heading-color,#ffffff)" }} className="w-12 h-12 sm:w-14 sm:h-14 bg-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl group-hover:bg-purple-700 transition-colors">
                                         {section.number}
                                     </div>
                                     {/* Title */}
-                                    <span style={{color:"var(--text-heading-color,#111827)"}} className="text-lg sm:text-xl font-medium text-gray-800 group-hover:text-purple-600 transition-colors">
+                                    <span style={{ color: "var(--text-heading-color,#111827)" }} className="text-lg sm:text-xl font-medium text-gray-800 group-hover:text-purple-600 transition-colors">
                                         {section.title}
                                     </span>
                                 </div>
                                 {/* Page Number */}
                                 <div className="text-right">
-                                    <span style={{color:"var(--text-body-color,#4b5563)"}} className="text-lg sm:text-xl text-gray-600">
+                                    <span style={{ color: "var(--text-body-color,#4b5563)" }} className="text-lg sm:text-xl text-gray-600">
                                         {section.pageNumber}
                                     </span>
                                     {/* Dotted line effect */}
-                                    <div style={{color:"var(--text-body-color,#4b5563)"}} className="text-gray-300 text-sm mt-1">
+                                    <div style={{ color: "var(--text-body-color,#4b5563)" }} className="text-gray-300 text-sm mt-1">
                                         .....
                                     </div>
                                 </div>
@@ -125,21 +116,21 @@ const TableOfContentsSlideLayout: React.FC<TableOfContentsSlideLayoutProps> = ({
                             <div key={section.number} className="flex items-center justify-between group">
                                 <div className="flex items-center space-x-4">
                                     {/* Number Box */}
-                                    <div style={{background:"var(--primary-accent-color,#9333ea)", color:"var(--text-heading-color,#ffffff)"}} className="w-12 h-12 sm:w-14 sm:h-14 bg-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl group-hover:bg-purple-700 transition-colors">
+                                    <div style={{ background: "var(--primary-accent-color,#9333ea)", color: "var(--text-heading-color,#ffffff)" }} className="w-12 h-12 sm:w-14 sm:h-14 bg-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl group-hover:bg-purple-700 transition-colors">
                                         {section.number}
                                     </div>
                                     {/* Title */}
-                                    <span style={{color:"var(--text-heading-color,#111827)"}} className="text-lg sm:text-xl font-medium text-gray-800 group-hover:text-purple-600 transition-colors">
+                                    <span style={{ color: "var(--text-heading-color,#111827)" }} className="text-lg sm:text-xl font-medium text-gray-800 group-hover:text-purple-600 transition-colors">
                                         {section.title}
                                     </span>
                                 </div>
                                 {/* Page Number */}
                                 <div className="text-right">
-                                    <span style={{color:"var(--text-body-color,#4b5563)"}} className="text-lg sm:text-xl text-gray-600">
+                                    <span style={{ color: "var(--text-body-color,#4b5563)" }} className="text-lg sm:text-xl text-gray-600">
                                         {section.pageNumber}
                                     </span>
                                     {/* Dotted line effect */}
-                                    <div style={{color:"var(--text-body-color,#4b5563)"}} className="text-gray-300 text-sm mt-1">
+                                    <div style={{ color: "var(--text-body-color,#4b5563)" }} className="text-gray-300 text-sm mt-1">
                                         .....
                                     </div>
                                 </div>

@@ -117,13 +117,7 @@ const MetricsNumbers: React.FC<SlideLayoutProps> = ({ data: slideData }) => {
           backgroundColor: "var(--card-background-color, #FFFFFF)",
         }}
       >
-        {/* Header */}
-        <div className="px-12 pt-6 pb-2">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rotate-45" style={{ backgroundColor: "var(--text-heading-color, #111827)" }}></div>
-            {  (slideData as any)?.__companyName__ && <span className="text-[16px]" style={{ color: "var(--text-body-color, #6B7280)" }}>{(slideData as any)?.__companyName__}</span>}
-          </div>
-        </div>
+
 
         {/* Separator line like the reference */}
         <div className="absolute top-0 left-1/2 w-[1px] h-full" style={{ backgroundColor: "rgba(0,0,0,0.1)" }}></div>
@@ -147,7 +141,7 @@ const MetricsNumbers: React.FC<SlideLayoutProps> = ({ data: slideData }) => {
             <div className="absolute top-6 -right-24 w-[220px] h-[220px] rounded-full border" style={{ borderColor: "rgba(0,0,0,0.2)" }}></div>
 
             <div className="flex flex-col gap-6">
-              {metrics.slice(0,3).map((m, i) => (
+              {metrics.slice(0, 3).map((m, i) => (
                 <div key={i} className="rounded-[18px] px-6 py-5 grid grid-cols-[38%_62%] items-start shadow-[0_16px_40px_rgba(0,0,0,0.08)]" style={{ backgroundColor: 'var(--primary-accent-color, #BFF4FF)' }}>
                   <div className="text-[40px] font-semibold" style={{ color: 'var(--text-heading-color, #111827)' }}>{m.value}</div>
                   <div>

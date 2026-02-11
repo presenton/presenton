@@ -3,7 +3,7 @@ import * as z from "zod"
 import { RemoteSvgIcon } from "@/app/hooks/useRemoteSvgIcon";
 
 const layoutId = "icon-bullet-list-description-slide"
-const layoutName = "Icon Bullet List Description"      
+const layoutName = "Icon Bullet List Description"
 const layoutDescription = "Bullet list with title, description, and icon"
 
 const IconSchema = z
@@ -39,7 +39,7 @@ const FeatureSchema = z
 
 const Schema = z
   .object({
-    
+
     title: z
       .string()
       .min(8)
@@ -86,7 +86,7 @@ const Schema = z
     website: z.string().min(6).max(60).default("www.yourwebsite.com"),
   })
   .default({
-   
+
     title: "Key Product Features",
     description:
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor.",
@@ -142,13 +142,8 @@ const FeatureCards: React.FC<SlideLayoutProps> = ({ data: slideData }) => {
           backgroundColor: "var(--card-background-color, #FFFFFF)",
         }}
       >
-        {/* Header */}
-        <div className="px-12 pt-6 pb-2">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rotate-45" style={{ backgroundColor: "var(--text-heading-color, #111827)" }}></div>
-            {(slideData as any)?.__companyName__ && <span className="text-[16px]" style={{ color: "var(--text-body-color, #6B7280)" }}>{(slideData as any)?.__companyName__}</span>}
-          </div>
-        </div>
+
+
 
         {/* Decorative right image area removed to keep imagery-driven design */}
 
@@ -163,7 +158,7 @@ const FeatureCards: React.FC<SlideLayoutProps> = ({ data: slideData }) => {
         {/* Feature cards */}
         <div className="relative px-12 mt-8">
           <div className="grid grid-flow-col auto-cols-[260px] gap-6 justify-center">
-            {features.slice(0,4).map((f, i) => (
+            {features.slice(0, 4).map((f, i) => (
               <div key={i} className="rounded-[22px] shadow-[0_16px_40px_rgba(0,0,0,0.08)] overflow-hidden" style={{ backgroundColor: 'var(--primary-accent-color, #BFF4FF)' }}>
                 <div className="px-6 py-5">
                   <div className="w-10 h-10 rounded-sm flex items-center justify-center" style={{ backgroundColor: 'var(--secondary-accent-color, #FFFFFF)' }}>

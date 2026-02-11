@@ -12,10 +12,10 @@ export async function GET() {
       const raw = fs.readFileSync(userConfigPath, "utf-8");
       const cfg = JSON.parse(raw || "{}");
       keyFromFile = cfg?.OPENAI_API_KEY || "";
-    } catch {}
+    } catch { }
   }
 
-  console.log(keyFromFile);
+
 
   const keyFromEnv = process.env.OPENAI_API_KEY || "";
   console.log(keyFromEnv);

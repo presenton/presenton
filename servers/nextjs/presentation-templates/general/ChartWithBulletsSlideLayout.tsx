@@ -231,8 +231,8 @@ const ChartWithBulletsSlideLayout: React.FC<ChartWithBulletsSlideLayoutProps> = 
 
     return (
         <>
-       
-           <link
+
+            <link
                 href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
                 rel="stylesheet"
             />
@@ -241,19 +241,10 @@ const ChartWithBulletsSlideLayout: React.FC<ChartWithBulletsSlideLayoutProps> = 
                 className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-white relative z-20 mx-auto overflow-hidden"
                 style={{
                     fontFamily: 'var(--heading-font-family,Inter)',
-                    background:"var(--card-background-color,#ffffff)"
+                    background: "var(--card-background-color,#ffffff)"
                 }}
             >
-                {(slideData as any)?.__companyName__ && (
-                    <div className="absolute top-0 left-0 right-0 px-8 sm:px-12 lg:px-20 pt-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm sm:text-base font-semibold" style={{ color: 'var(--text-heading-color, #111827)' }}>
-                                {(slideData as any)?.__companyName__ || 'Company Name'}
-                            </span>
-                            <div className="h-[2px] flex-1 opacity-70" style={{ backgroundColor: 'var(--text-heading-color, #111827)' }}></div>
-                        </div>
-                    </div>
-                )}
+
                 {/* Main Content */}
                 <div className="flex h-full px-8 sm:px-12 lg:px-20 pt-8 pb-8">
                     {/* Left Section - Title, Description, Chart */}
@@ -264,12 +255,12 @@ const ChartWithBulletsSlideLayout: React.FC<ChartWithBulletsSlideLayoutProps> = 
                         </h1>
 
                         {/* Description */}
-                        <p style={{color:"var(--text-body-color,#4b5563)"}} className="text-base text-gray-700 leading-relaxed mb-8">
+                        <p style={{ color: "var(--text-body-color,#4b5563)" }} className="text-base text-gray-700 leading-relaxed mb-8">
                             {slideData?.description || 'Businesses face challenges with outdated technology and rising costs, limiting efficiency and growth in competitive markets.'}
                         </p>
 
                         {/* Chart Container */}
-                        <div  className="flex-1 rounded-lg shadow-sm border border-gray-100 p-4" style={{ background: 'var(--primary-accent-color,#F5F8FE)' }}>
+                        <div className="flex-1 rounded-lg shadow-sm border border-gray-100 p-4" style={{ background: 'var(--primary-accent-color,#F5F8FE)' }}>
                             <ChartContainer config={chartConfig} className="h-full w-full">
                                 {renderChart()}
                             </ChartContainer>
@@ -288,7 +279,7 @@ const ChartWithBulletsSlideLayout: React.FC<ChartWithBulletsSlideLayoutProps> = 
                             >
                                 {/* Icon and Title */}
                                 <div className="flex items-center space-x-3 mb-3">
-                                    <div style={{background:"var(--primary-accent-color,#9333ea)"}} className="w-8 h-8 rounded-lg flex items-center justify-center">
+                                    <div style={{ background: "var(--primary-accent-color,#9333ea)" }} className="w-8 h-8 rounded-lg flex items-center justify-center">
                                         <RemoteSvgIcon
                                             url={bullet.icon.__icon_url__}
                                             strokeColor={"currentColor"}
@@ -297,13 +288,13 @@ const ChartWithBulletsSlideLayout: React.FC<ChartWithBulletsSlideLayoutProps> = 
                                             title={bullet.icon.__icon_query__}
                                         />
                                     </div>
-                                    <h3 style={{color:"var(--text-heading-color,#ffffff)"}} className="text-lg font-semibold">
+                                    <h3 style={{ color: "var(--text-heading-color,#ffffff)" }} className="text-lg font-semibold">
                                         {bullet.title}
                                     </h3>
                                 </div>
 
                                 {/* Description */}
-                                <p style={{color:"var(--text-body-color,#ffffff)"}} className="text-sm leading-relaxed opacity-90">
+                                <p style={{ color: "var(--text-body-color,#ffffff)" }} className="text-sm leading-relaxed opacity-90">
                                     {bullet.description}
                                 </p>
                             </div>

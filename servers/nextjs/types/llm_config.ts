@@ -23,9 +23,19 @@ export interface LLMConfig {
   CUSTOM_MODEL?: string;
 
   // Image providers
+  DISABLE_IMAGE_GENERATION?: boolean;
   IMAGE_PROVIDER?: string;
   PEXELS_API_KEY?: string;
   PIXABAY_API_KEY?: string;
+
+  // ComfyUI
+  COMFYUI_URL?: string;
+  COMFYUI_WORKFLOW?: string;
+
+  // Dalle 3 Quality
+  DALL_E_3_QUALITY?: string;
+  // GPT Image 1.5 Quality
+  GPT_IMAGE_1_5_QUALITY?: string;
 
   // Other Configs
   TOOL_CALLS?: boolean;

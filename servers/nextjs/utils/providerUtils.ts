@@ -42,11 +42,16 @@ export const updateLLMConfig = (
     pexels_api_key: "PEXELS_API_KEY",
     pixabay_api_key: "PIXABAY_API_KEY",
     image_provider: "IMAGE_PROVIDER",
+    disable_image_generation: "DISABLE_IMAGE_GENERATION",
     use_custom_url: "USE_CUSTOM_URL",
     tool_calls: "TOOL_CALLS",
     disable_thinking: "DISABLE_THINKING",
     extended_reasoning: "EXTENDED_REASONING",
     web_grounding: "WEB_GROUNDING",
+    comfyui_url: "COMFYUI_URL",
+    comfyui_workflow: "COMFYUI_WORKFLOW",
+    dall_e_3_quality: "DALL_E_3_QUALITY",
+    gpt_image_1_5_quality: "GPT_IMAGE_1_5_QUALITY",
   };
 
   const configKey = fieldMappings[field];
@@ -68,7 +73,7 @@ export const changeProvider = (
 
   // Auto Select appropriate image provider based on the text models
   if (provider === "openai") {
-    newConfig.IMAGE_PROVIDER = "dall-e-3";
+    newConfig.IMAGE_PROVIDER = "gpt-image-1.5";
   } else if (provider === "google") {
     newConfig.IMAGE_PROVIDER = "gemini_flash";
   } else {

@@ -5,12 +5,17 @@ from models.user_config import UserConfig
 from utils.get_env import (
     get_anthropic_api_key_env,
     get_anthropic_model_env,
+    get_comfyui_url_env,
+    get_comfyui_workflow_env,
     get_custom_llm_api_key_env,
     get_custom_llm_url_env,
     get_custom_model_env,
+    get_dall_e_3_quality_env,
+    get_disable_image_generation_env,
     get_disable_thinking_env,
     get_google_api_key_env,
     get_google_model_env,
+    get_gpt_image_1_5_quality_env,
     get_llm_provider_env,
     get_ollama_model_env,
     get_ollama_url_env,
@@ -28,13 +33,18 @@ from utils.parsers import parse_bool_or_none
 from utils.set_env import (
     set_anthropic_api_key_env,
     set_anthropic_model_env,
+    set_comfyui_url_env,
+    set_comfyui_workflow_env,
     set_custom_llm_api_key_env,
     set_custom_llm_url_env,
     set_custom_model_env,
+    set_dall_e_3_quality_env,
+    set_disable_image_generation_env,
     set_disable_thinking_env,
     set_extended_reasoning_env,
     set_google_api_key_env,
     set_google_model_env,
+    set_gpt_image_1_5_quality_env,
     set_llm_provider_env,
     set_ollama_model_env,
     set_ollama_url_env,
@@ -56,7 +66,7 @@ def get_user_config():
         if os.path.exists(user_config_path):
             with open(user_config_path, "r") as f:
                 existing_config = UserConfig(**json.load(f))
-    except Exception as e:
+    except Exception:
         print("Error while loading user config")
         pass
 
@@ -76,8 +86,18 @@ def get_user_config():
         or get_custom_llm_api_key_env(),
         CUSTOM_MODEL=existing_config.CUSTOM_MODEL or get_custom_model_env(),
         IMAGE_PROVIDER=existing_config.IMAGE_PROVIDER or get_image_provider_env(),
+        DISABLE_IMAGE_GENERATION=(
+            existing_config.DISABLE_IMAGE_GENERATION
+            if existing_config.DISABLE_IMAGE_GENERATION is not None
+            else (parse_bool_or_none(get_disable_image_generation_env()) or False)
+        ),
         PIXABAY_API_KEY=existing_config.PIXABAY_API_KEY or get_pixabay_api_key_env(),
         PEXELS_API_KEY=existing_config.PEXELS_API_KEY or get_pexels_api_key_env(),
+        COMFYUI_URL=existing_config.COMFYUI_URL or get_comfyui_url_env(),
+        COMFYUI_WORKFLOW=existing_config.COMFYUI_WORKFLOW or get_comfyui_workflow_env(),
+        DALL_E_3_QUALITY=existing_config.DALL_E_3_QUALITY or get_dall_e_3_quality_env(),
+        GPT_IMAGE_1_5_QUALITY=existing_config.GPT_IMAGE_1_5_QUALITY
+        or get_gpt_image_1_5_quality_env(),
         TOOL_CALLS=(
             existing_config.TOOL_CALLS
             if existing_config.TOOL_CALLS is not None
@@ -127,12 +147,22 @@ def update_env_with_user_config():
         set_custom_llm_api_key_env(user_config.CUSTOM_LLM_API_KEY)
     if user_config.CUSTOM_MODEL:
         set_custom_model_env(user_config.CUSTOM_MODEL)
+    if user_config.DISABLE_IMAGE_GENERATION is not None:
+        set_disable_image_generation_env(str(user_config.DISABLE_IMAGE_GENERATION))
     if user_config.IMAGE_PROVIDER:
         set_image_provider_env(user_config.IMAGE_PROVIDER)
     if user_config.PIXABAY_API_KEY:
         set_pixabay_api_key_env(user_config.PIXABAY_API_KEY)
     if user_config.PEXELS_API_KEY:
         set_pexels_api_key_env(user_config.PEXELS_API_KEY)
+    if user_config.COMFYUI_URL:
+        set_comfyui_url_env(user_config.COMFYUI_URL)
+    if user_config.COMFYUI_WORKFLOW:
+        set_comfyui_workflow_env(user_config.COMFYUI_WORKFLOW)
+    if user_config.DALL_E_3_QUALITY:
+        set_dall_e_3_quality_env(user_config.DALL_E_3_QUALITY)
+    if user_config.GPT_IMAGE_1_5_QUALITY:
+        set_gpt_image_1_5_quality_env(user_config.GPT_IMAGE_1_5_QUALITY)
     if user_config.TOOL_CALLS is not None:
         set_tool_calls_env(str(user_config.TOOL_CALLS))
     if user_config.DISABLE_THINKING is not None:

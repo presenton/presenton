@@ -123,7 +123,7 @@ class TestPresentationGenerationAPI:
         response = client.post(
             "/api/v1/ppt/presentation/generate",
             json={
-                "prompt": "Create a presentation about artificial intelligence and machine learning",
+                "content": "Create a presentation about artificial intelligence and machine learning",
                 "n_slides": 5,
                 "language": "English",
                 "export_as": "pdf",
@@ -138,7 +138,7 @@ class TestPresentationGenerationAPI:
         response = client.post(
             "/api/v1/ppt/presentation/generate",
             json={
-                "prompt": "Create a presentation about artificial intelligence and machine learning",
+                "content": "Create a presentation about artificial intelligence and machine learning",
                 "n_slides": 5,
                 "language": "English",
                 "export_as": "pptx",
@@ -149,7 +149,7 @@ class TestPresentationGenerationAPI:
         assert "presentation_id" in response.json()
         assert "pptx" in response.json()["path"]
 
-    def test_generate_presentation_with_no_prompt(self, client):
+    def test_generate_presentation_with_no_content(self, client):
         response = client.post(
             "/api/v1/ppt/presentation/generate",
             json={
@@ -166,7 +166,7 @@ class TestPresentationGenerationAPI:
         response = client.post(
             "/api/v1/ppt/presentation/generate",
             json={
-                "prompt": "Create a presentation about artificial intelligence and machine learning",
+                "content": "Create a presentation about artificial intelligence and machine learning",
                 "n_slides": 0,
                 "language": "English",
                 "export_as": "pdf",
@@ -179,7 +179,7 @@ class TestPresentationGenerationAPI:
         response = client.post(
             "/api/v1/ppt/presentation/generate",
             json={
-                "prompt": "Create a presentation about artificial intelligence and machine learning",
+                "content": "Create a presentation about artificial intelligence and machine learning",
                 "n_slides": 5,
                 "language": "English",
                 "export_as": "invalid_type",

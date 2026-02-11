@@ -99,21 +99,7 @@ const TeamMembers: React.FC<SlideLayoutProps> = ({ data: slideData }) => {
           backgroundColor: "var(--card-background-color, #FFFFFF)",
         }}
       >
-        {/* Header: diamond + business name */}
-        <div className="px-12 pt-6 pb-2">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-3 h-3 rotate-45"
-              style={{ backgroundColor: "var(--text-heading-color, #111827)" }}
-            ></div>
-          {  (slideData as any)?.__companyName__ && <span
-              className="text-[16px]"
-              style={{ color: "var(--text-body-color, #6B7280)" }}
-            >
-              {(slideData as any)?.__companyName__}
-            </span>}
-          </div>
-        </div>
+
 
         <div className="px-12 pt-6 grid grid-cols-[36%_64%] gap-8 items-start">
           {/* Left text stack */}

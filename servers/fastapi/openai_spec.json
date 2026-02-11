@@ -79,9 +79,10 @@
     "schemas": {
       "Body_generate_presentation_api_api_v1_ppt_presentation_generate_post": {
         "properties": {
-          "prompt": {
+          "content": {
             "type": "string",
-            "title": "Prompt"
+            "title": "Content",
+            "description": "The content for generating the presentation"
           },
           "n_slides": {
             "type": "integer",
@@ -121,7 +122,7 @@
           }
         },
         "type": "object",
-        "required": ["prompt"],
+        "required": ["content"],
         "title": "Body_generate_presentation_api_api_v1_ppt_presentation_generate_post"
       },
       "PresentationPathAndEditPath": {

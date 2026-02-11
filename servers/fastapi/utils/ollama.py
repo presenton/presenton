@@ -10,7 +10,7 @@ from utils.get_env import get_ollama_url_env
 async def pull_ollama_model(model: str) -> AsyncGenerator[dict, None]:
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            f"{get_ollama_url_env()}/api/pull",
+            f"{get_ollama_url_env() or 'http://localhost:11434'}/api/pull",
             json={"model": model},
         ) as response:
             if response.status != 200:
@@ -34,7 +34,7 @@ async def pull_ollama_model(model: str) -> AsyncGenerator[dict, None]:
 async def list_pulled_ollama_models() -> list[OllamaModelStatus]:
     async with aiohttp.ClientSession() as session:
         async with session.get(
-            f"{get_ollama_url_env()}/api/tags",
+            f"{get_ollama_url_env() or 'http://localhost:11434'}/api/tags",
         ) as response:
             if response.status == 200:
                 pulled_models = await response.json()

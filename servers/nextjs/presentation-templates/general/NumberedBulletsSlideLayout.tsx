@@ -58,7 +58,7 @@ const NumberedBulletsSlideLayout: React.FC<NumberedBulletsSlideLayoutProps> = ({
 
     return (
         <>
-           <link
+            <link
                 href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
                 rel="stylesheet"
             />
@@ -67,19 +67,10 @@ const NumberedBulletsSlideLayout: React.FC<NumberedBulletsSlideLayoutProps> = ({
                 className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-white relative z-20 mx-auto overflow-hidden"
                 style={{
                     fontFamily: 'var(--heading-font-family,Inter)',
-                    background:"var(--card-background-color,#ffffff)"
+                    background: "var(--card-background-color,#ffffff)"
                 }}
             >
-                {(slideData as any)?.__companyName__ && (
-                    <div className="absolute top-0 left-0 right-0 px-8 sm:px-12 lg:px-20 pt-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm sm:text-base font-semibold" style={{ color: 'var(--text-heading-color, #111827)' }}>
-                                {(slideData as any)?.__companyName__ || 'Company Name'}
-                            </span>
-                            <div className="h-[2px] flex-1 opacity-70" style={{ backgroundColor: 'var(--text-heading-color, #111827)' }}></div>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Main Content Container */}
                 <div className="px-8 sm:px-12 lg:px-20 pt-12 pb-8 h-full">
@@ -91,7 +82,7 @@ const NumberedBulletsSlideLayout: React.FC<NumberedBulletsSlideLayoutProps> = ({
                                 {slideData?.title || 'Market Validation'}
                             </h1>
                             {/* Purple accent line */}
-                            <div style={{background:"var(--text-heading-color,#9333ea)"}} className="w-24 h-1 bg-purple-600 mb-6"></div>
+                            <div style={{ background: "var(--text-heading-color,#9333ea)" }} className="w-24 h-1 bg-purple-600 mb-6"></div>
                         </div>
 
                         {/* Image Section */}
@@ -99,7 +90,7 @@ const NumberedBulletsSlideLayout: React.FC<NumberedBulletsSlideLayoutProps> = ({
                             <img
                                 src={slideData?.image?.__image_url__ || ''}
                                 alt={slideData?.image?.__image_prompt__ || slideData?.title || ''}
-                                className="w-full h-full object-cover rounded-lg shadow-md" style={{background:"var(--tertiary-accent-color,#e5e7eb)"}}
+                                className="w-full h-full object-cover rounded-lg shadow-md" style={{ background: "var(--tertiary-accent-color,#e5e7eb)" }}
                             />
                         </div>
                     </div>
@@ -110,17 +101,17 @@ const NumberedBulletsSlideLayout: React.FC<NumberedBulletsSlideLayoutProps> = ({
                             <div key={index} className="flex items-start space-x-4">
                                 {/* Number */}
                                 <div className="flex-shrink-0">
-                                    <div style={{color:"var(--text-heading-color,#111827)"}} className="text-4xl sm:text-5xl font-bold text-gray-900">
+                                    <div style={{ color: "var(--text-heading-color,#111827)" }} className="text-4xl sm:text-5xl font-bold text-gray-900">
                                         {String(index + 1).padStart(2, '0')}
                                     </div>
                                 </div>
 
                                 {/* Content */}
                                 <div className="flex-1 pt-2">
-                                    <h3 style={{color:"var(--text-heading-color,#111827)"}} className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
+                                    <h3 style={{ color: "var(--text-heading-color,#111827)" }} className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
                                         {bullet.title}
                                     </h3>
-                                    <p style={{color:"var(--text-body-color,#4b5563)"}} className="text-base text-gray-700 leading-relaxed">
+                                    <p style={{ color: "var(--text-body-color,#4b5563)" }} className="text-base text-gray-700 leading-relaxed">
                                         {bullet.description}
                                     </p>
                                 </div>

@@ -2,7 +2,7 @@ import React from "react"
 import * as z from "zod"
 
 const layoutId = "table-of-contents-layout"
-const layoutName = "Table Of Contents"  
+const layoutName = "Table Of Contents"
 const layoutDescription = "Header with brand marker, title, optional description, and a two-column table of contents list"
 
 const ToCItemSchema = z
@@ -19,12 +19,12 @@ const Schema = z
   .object({
     topBar: z
       .object({
-        
+
         marker: z.string().min(1).max(3).default("2").meta({
           description: "Numeric marker on the top bar. Up to 3 digits",
         }),
       })
-      .default({  marker: "2" }),
+      .default({ marker: "2" }),
 
     title: z
       .string()
@@ -61,7 +61,7 @@ const Schema = z
       .meta({ description: "List of contents (3-10)" }),
   })
   .default({
-      topBar: {  marker: "2" },
+    topBar: { marker: "2" },
     title: "Table Of Contents",
     description:
       "Use this as a quick guide to navigate the presentation sections.",
@@ -102,23 +102,7 @@ const dynamicSlideLayout: React.FC<SlideLayoutProps> = ({ data: slideData }) => 
           backgroundColor: "var(--card-background-color, #FFFFFF)",
         }}
       >
-        <div className="px-12 pt-6 pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-             { (slideData as any)?.__companyName__ && <span
-                className="text-[18px] font-semibold "
-                style={{ color: "var(--primary-accent-color, #1B8C2D)" }}
-              >
-                {(slideData as any)?.__companyName__ || "Pitchdeck"}
-              </span>}
-              <div
-                className="h-[2px] w-[220px]"
-                style={{ backgroundColor: "var(--primary-accent-color, #1B8C2D)" }}
-              ></div>
-            </div>
-            {/* page number intentionally omitted */}
-          </div>
-        </div>
+
 
         <div className="px-12">
           <h1

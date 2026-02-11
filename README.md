@@ -17,13 +17,11 @@
 
 **Presentation Agent** is an open-source application for generating presentations with AI — all running locally on your device. Stay in control of your data and privacy while using models like OpenAI and Gemini, or use your own hosted models through Ollama.
 
-__✨ Now, generate presentations with your existing PPTX file! Just upload your presentation file to create template design and then use that template to generate on brand and on design presentation on any topic.__
+**✨ Now, generate presentations with your existing PPTX file! Just upload your presentation file to create template design and then use that template to generate on brand and on design presentation on any topic.**
 
 ![Demo](readme_assets/demo.gif)
 
-
-> [!NOTE]
-> **Enterprise Inquiries:**
+> [!NOTE] > **Enterprise Inquiries:**
 > For enterprise use, custom deployments, or partnership opportunities, contact us at **[suraj@presenton.ai](mailto:suraj@presenton.ai)**.
 
 > [!IMPORTANT]
@@ -32,26 +30,25 @@ __✨ Now, generate presentations with your existing PPTX file! Just upload your
 > [!TIP]
 > For detailed setup guides, API documentation, and advanced configuration options, visit our **[Official Documentation](https://docs.presenton.ai)**
 
-
 ## ✨ More Freedom with AI Presentations
 
 Presentation Agent gives you complete control over your AI presentation workflow. Choose your models, customize your experience, and keep your data private.
 
-* ✅ **Custom Templates & Themes** — Create unlimited presentation designs with HTML and Tailwind CSS
-* ✅ **AI Template Generation** — Create presentation templates from existing Powerpoint documents.
-* ✅ **Flexible Generation** — Build presentations from prompts or uploaded documents
-* ✅ **Export Ready** — Save as PowerPoint (PPTX) and PDF with professional formatting
-* ✅ **Built-In MCP Server** — Generate presentations over Model Context Protocol
-* ✅ **Bring Your Own Key** — Use your own API keys for OpenAI, Google Gemini, Anthropic Claude, or any compatible provider. Only pay for what you use, no hidden fees or subscriptions.
-* ✅ **Ollama Integration** — Run open-source models locally with full privacy
-* ✅ **OpenAI API Compatible** — Connect to any OpenAI-compatible endpoint with your own models
-* ✅ **Multi-Provider Support** — Mix and match text and image generation providers
-* ✅ **Versatile Image Generation** — Choose from DALL-E 3, Gemini Flash, Pexels, or Pixabay
-* ✅ **Rich Media Support** — Icons, charts, and custom graphics for professional presentations
-* ✅ **Runs Locally** — All processing happens on your device, no cloud dependencies
-* ✅ **API Deployment** — Host as your own API service for your team
-* ✅ **Fully Open-Source** — Apache 2.0 licensed, inspect, modify, and contribute
-* ✅ **Docker Ready** — One-command deployment with GPU support for local models
+- ✅ **Custom Templates & Themes** — Create unlimited presentation designs with HTML and Tailwind CSS
+- ✅ **AI Template Generation** — Create presentation templates from existing Powerpoint documents.
+- ✅ **Flexible Generation** — Build presentations from prompts or uploaded documents
+- ✅ **Export Ready** — Save as PowerPoint (PPTX) and PDF with professional formatting
+- ✅ **Built-In MCP Server** — Generate presentations over Model Context Protocol
+- ✅ **Bring Your Own Key** — Use your own API keys for OpenAI, Google Gemini, Anthropic Claude, or any compatible provider. Only pay for what you use, no hidden fees or subscriptions.
+- ✅ **Ollama Integration** — Run open-source models locally with full privacy
+- ✅ **OpenAI API Compatible** — Connect to any OpenAI-compatible endpoint with your own models
+- ✅ **Multi-Provider Support** — Mix and match text and image generation providers
+- ✅ **Versatile Image Generation** — Choose from DALL-E 3, Gemini Flash, Pexels, or Pixabay
+- ✅ **Rich Media Support** — Icons, charts, and custom graphics for professional presentations
+- ✅ **Runs Locally** — All processing happens on your device, no cloud dependencies
+- ✅ **API Deployment** — Host as your own API service for your team
+- ✅ **Fully Open-Source** — Apache 2.0 licensed, inspect, modify, and contribute
+- ✅ **Docker Ready** — One-command deployment with GPU support for local models
 
 ## Presentation Agent Cloud
 <a href="https://presenton.ai" target="_blank" align="center">
@@ -64,11 +61,13 @@ Presentation Agent gives you complete control over your AI presentation workflow
 #### 1. Start Presentation Agent
 
 ##### Linux/MacOS (Bash/Zsh Shell):
+
 ```bash
 docker run -it --name presenton -p 5000:80 -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
 
 ##### Windows (PowerShell):
+
 ```bash
 docker run -it --name presenton -p 5000:80 -v "${PWD}\app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
@@ -101,40 +100,49 @@ You may want to directly provide your API KEYS as environment variables and keep
 
 You can also set the following environment variables to customize the image generation provider and API keys:
 
-- **IMAGE_PROVIDER=[pexels/pixabay/gemini_flash/dall-e-3]**: Select the image provider of your choice.
-  - Defaults to **dall-e-3** for OpenAI models, **gemini_flash** for Google models if not set.
+- **DISABLE_IMAGE_GENERATION**: If **true**, Image Generation will be disabled for slides.
+- **IMAGE_PROVIDER=[dall-e-3/gpt-image-1.5/gemini_flash/nanobanana_pro/pexels/pixabay/comfyui]**: Select the image provider of your choice.
+  - Required if **DISABLE_IMAGE_GENERATION** is not set to **true**.
+- **OPENAI_API_KEY=[Your OpenAI API Key]**: Required if using **dall-e-3** or **gpt-image-1.5** as the image provider.
+- **DALL_E_3_QUALITY=[standard/hd]**: Optional quality setting for **dall-e-3** (default: `standard`).
+- **GPT_IMAGE_1_5_QUALITY=[low/medium/high]**: Optional quality setting for **gpt-image-1.5** (default: `medium`).
+- **GOOGLE_API_KEY=[Your Google API Key]**: Required if using **gemini_flash** or **nanobanana_pro** as the image provider.
 - **PEXELS_API_KEY=[Your Pexels API Key]**: Required if using **pexels** as the image provider.
 - **PIXABAY_API_KEY=[Your Pixabay API Key]**: Required if using **pixabay** as the image provider.
-- **GOOGLE_API_KEY=[Your Google API Key]**: Required if using **gemini_flash** as the image provider.
-- **OPENAI_API_KEY=[Your OpenAI API Key]**: Required if using **dall-e-3** as the image provider.
+- **COMFYUI_URL=[Your ComfyUI server URL]** and **COMFYUI_WORKFLOW=[Workflow JSON]**: Required if using **comfyui** to route prompts to a self-hosted ComfyUI workflow.
 
 You can disable anonymous telemetry using the following environment variable:
+
 - **DISABLE_ANONYMOUS_TELEMETRY=[true/false]**: Set this to **true** to disable anonymous telemetry.
 
-
-> **Note:** You can freely choose both the LLM (text generation) and the image provider. Supported image providers: **pexels**, **pixabay**, **gemini_flash** (Google), and **dall-e-3** (OpenAI).
+> **Note:** You can freely choose both the LLM (text generation) and the image provider. Supported image providers: **dall-e-3**, **gpt-image-1.5** (OpenAI), **gemini_flash**, **nanobanana_pro** (Google), **pexels**, **pixabay**, and **comfyui** (self-hosted).
 
 ### Using OpenAI
+
 ```bash
 docker run -it --name presenton -p 5000:80 -e LLM="openai" -e OPENAI_API_KEY="******" -e IMAGE_PROVIDER="dall-e-3" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
 
 ### Using Google
+
 ```bash
 docker run -it --name presenton -p 5000:80 -e LLM="google" -e GOOGLE_API_KEY="******" -e IMAGE_PROVIDER="gemini_flash" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
 
 ### Using Ollama
+
 ```bash
 docker run -it --name presenton -p 5000:80 -e LLM="ollama" -e OLLAMA_MODEL="llama3.2:3b" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="*******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
 
 ### Using Anthropic
+
 ```bash
 docker run -it --name presenton -p 5000:80 -e LLM="anthropic" -e ANTHROPIC_API_KEY="******" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
 
 ### Using OpenAI Compatible API
+
 ```bash
 docker run -it -p 5000:80 -e CAN_CHANGE_KEYS="false"  -e LLM="custom" -e CUSTOM_LLM_URL="http://*****" -e CUSTOM_LLM_API_KEY="*****" -e CUSTOM_MODEL="llama3.2:3b" -e IMAGE_PROVIDER="pexels" -e  PEXELS_API_KEY="********" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
@@ -163,29 +171,29 @@ Content-Type: `application/json`
 
 #### Request Body
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| content | string | Yes | The content for generating the presentation |
-| slides_markdown | string[] \| null | No | The markdown for the slides |
-| instructions | string \| null | No | The instruction for generating the presentation |
-| tone | string | No | The tone to use for the text (default: "default"). Available options: "default", "casual", "professional", "funny", "educational", "sales_pitch" |
-| verbosity | string | No | How verbose the text should be (default: "standard"). Available options: "concise", "standard", "text-heavy" |
-| web_search | boolean | No | Whether to enable web search (default: false) |
-| n_slides | integer | No | Number of slides to generate (default: 8) |
-| language | string | No | Language for the presentation (default: "English") |
-| template | string | No | Template to use for the presentation (default: "general") |
-| include_table_of_contents | boolean | No | Whether to include a table of contents (default: false) |
-| include_title_slide | boolean | No | Whether to include a title slide (default: true) |
-| files | string[] \| null | No | Files to use for the presentation. Use /api/v1/ppt/files/upload to upload files |
-| export_as | string | No | Export format (default: "pptx"). Available options: "pptx", "pdf" |
+| Parameter                 | Type             | Required | Description                                                                                                                                      |
+| ------------------------- | ---------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| content                   | string           | Yes      | The content for generating the presentation                                                                                                      |
+| slides_markdown           | string[] \| null | No       | The markdown for the slides                                                                                                                      |
+| instructions              | string \| null   | No       | The instruction for generating the presentation                                                                                                  |
+| tone                      | string           | No       | The tone to use for the text (default: "default"). Available options: "default", "casual", "professional", "funny", "educational", "sales_pitch" |
+| verbosity                 | string           | No       | How verbose the text should be (default: "standard"). Available options: "concise", "standard", "text-heavy"                                     |
+| web_search                | boolean          | No       | Whether to enable web search (default: false)                                                                                                    |
+| n_slides                  | integer          | No       | Number of slides to generate (default: 8)                                                                                                        |
+| language                  | string           | No       | Language for the presentation (default: "English")                                                                                               |
+| template                  | string           | No       | Template to use for the presentation (default: "general")                                                                                        |
+| include_table_of_contents | boolean          | No       | Whether to include a table of contents (default: false)                                                                                          |
+| include_title_slide       | boolean          | No       | Whether to include a title slide (default: true)                                                                                                 |
+| files                     | string[] \| null | No       | Files to use for the presentation. Use /api/v1/ppt/files/upload to upload files                                                                  |
+| export_as                 | string           | No       | Export format (default: "pptx"). Available options: "pptx", "pdf"                                                                                |
 
 #### Response
 
 ```json
 {
-    "presentation_id": "string",
-    "path": "string",
-    "edit_path": "string"
+  "presentation_id": "string",
+  "path": "string",
+  "edit_path": "string"
 }
 ```
 
@@ -218,42 +226,51 @@ curl -X POST http://localhost:5000/api/v1/ppt/presentation/generate \
 For detailed info checkout [API documentation](https://docs.presenton.ai/using-presenton-api).
 
 ### API Tutorials
+
 - [Generate Presentations via API in 5 minutes](https://docs.presenton.ai/tutorial/generate-presentation-over-api)
 - [Create Presentations from CSV using AI](https://docs.presenton.ai/tutorial/generate-presentation-from-csv)
 - [Create Data Reports Using AI](https://docs.presenton.ai/tutorial/create-data-reports-using-ai)
 
 ## Roadmap
+
 - [x] Support for custom HTML templates by developers
 - [x] Support for accessing custom templates over API
 - [x] Implement MCP server
 - [ ] Ability for users to change system prompt
-- [X] Support external SQL database
-
+- [x] Support external SQL database
 
 ## UI Features
 
 ### 1. Add prompt, select number of slides and language
+
 ![Demo](readme_assets/images/prompting.png)
 
 ### 2. Select theme
+
 ![Demo](readme_assets/images/select-theme.png)
 
 ### 3. Review and edit outline
+
 ![Demo](readme_assets/images/outline.png)
 
 ### 4. Select theme
+
 ![Demo](readme_assets/images/select-theme.png)
 
 ### 5. Present on app
+
 ![Demo](readme_assets/images/present.png)
 
 ### 6. Change theme
+
 ![Demo](readme_assets/images/change-theme.png)
 
 ### 7. Export presentation as PDF and PPTX
+
 ![Demo](readme_assets/images/export-presentation.png)
 
 ## Community
+
 [Discord](https://discord.gg/9ZsKKxudNE)
 
 ## License

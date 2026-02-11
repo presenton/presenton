@@ -32,7 +32,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     icon: "/icons/pexels.png",
     requiresApiKey: true,
     apiKeyField: "PEXELS_API_KEY",
-    apiKeyFieldLabel: "Pexels API Key"
+    apiKeyFieldLabel: "Pexels API Key",
   },
   pixabay: {
     value: "pixabay",
@@ -41,25 +41,52 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     icon: "/icons/pixabay.png",
     requiresApiKey: true,
     apiKeyField: "PIXABAY_API_KEY",
-    apiKeyFieldLabel: "Pixabay API Key"
+    apiKeyFieldLabel: "Pixabay API Key",
   },
   "dall-e-3": {
     value: "dall-e-3",
     label: "DALL-E 3",
-    description: "OpenAI's latest image generation model",
+    description: "OpenAI's image generation model",
     icon: "/icons/dall-e.png",
     requiresApiKey: true,
     apiKeyField: "OPENAI_API_KEY",
-    apiKeyFieldLabel: "OpenAI API Key"
+    apiKeyFieldLabel: "OpenAI API Key",
+  },
+  "gpt-image-1.5": {
+    value: "gpt-image-1.5",
+    label: "GPT Image 1.5",
+    description: "OpenAI's image generation model",
+    icon: "/icons/gpt.png",
+    requiresApiKey: true,
+    apiKeyField: "OPENAI_API_KEY",
+    apiKeyFieldLabel: "OpenAI API Key",
   },
   gemini_flash: {
     value: "gemini_flash",
     label: "Gemini Flash",
-    description: "Google's primary image generation model",
+    description: "Google's fast image generation model",
     icon: "/icons/google.png",
     requiresApiKey: true,
     apiKeyField: "GOOGLE_API_KEY",
-    apiKeyFieldLabel: "Google API Key"
+    apiKeyFieldLabel: "Google API Key",
+  },
+  nanobanana_pro: {
+    value: "nanobanana_pro",
+    label: "NanoBanana Pro",
+    description: "Google's advanced image generation model",
+    icon: "/icons/google.png",
+    requiresApiKey: true,
+    apiKeyField: "GOOGLE_API_KEY",
+    apiKeyFieldLabel: "Google API Key",
+  },
+  comfyui: {
+    value: "comfyui",
+    label: "ComfyUI",
+    description: "Use your local ComfyUI server with custom workflows",
+    icon: "/icons/comfyui.png",
+    requiresApiKey: false,
+    apiKeyField: "COMFYUI_URL",
+    apiKeyFieldLabel: "ComfyUI Server URL",
   },
 };
 
@@ -89,4 +116,4 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     label: "Custom",
     description: "Custom LLM",
   },
-}; 
+};

@@ -7,7 +7,7 @@ export const layoutName = 'Metrics with Image'
 export const layoutDescription = 'A slide layout with supporting image on the left and title, description, and metrics grid on the right. Can be used alternatively with MetricSlide.'
 
 const metricsWithImageSlideSchema = z.object({
-    title: z.string().min(3).max(40).default('Competitive Advantage').meta({   
+    title: z.string().min(3).max(40).default('Competitive Advantage').meta({
         description: "Main title of the slide",
     }),
     description: z.string().min(10).max(150).default('Ginyard International Co. stands out by offering custom digital solutions tailored to client needs, alongside long-term support to ensure lasting relationships and continuous adaptation.').meta({
@@ -35,7 +35,7 @@ const metricsWithImageSlideSchema = z.object({
             label: 'Client Retention Rate',
             value: '95%'
         },
-        
+
     ]).meta({
         description: "List of key business metrics to display",
     })
@@ -58,35 +58,26 @@ const MetricsWithImageSlideLayout: React.FC<MetricsWithImageSlideLayoutProps> = 
                 href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
                 rel="stylesheet"
             />
-            
-            <div 
+
+            <div
                 className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-white relative z-20 mx-auto overflow-hidden"
                 style={{
                     fontFamily: 'var(--heading-font-family,Inter)',
-                    background:"var(--card-background-color,#ffffff)"
+                    background: "var(--card-background-color,#ffffff)"
                 }}
             >
-                {(slideData as any)?.__companyName__ && (
-                    <div className="absolute top-0 left-0 right-0 px-8 sm:px-12 lg:px-20 pt-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm sm:text-base font-semibold" style={{ color: 'var(--text-heading-color, #111827)' }}>
-                                {(slideData as any)?.__companyName__ || 'Company Name'}
-                            </span>
-                            <div className="h-[2px] flex-1 opacity-70" style={{ backgroundColor: 'var(--text-heading-color, #111827)' }}></div>
-                        </div>
-                    </div>
-                )}
+
                 {/* Decorative Wave Patterns */}
                 <div className="absolute bottom-0 left-0 w-48 h-48 opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 200 200" fill="none">
-                        <path d="M0 100C50 75 100 125 150 100C175 87.5 200 100 200 100V200H0V100Z" fill="#8b5cf6" opacity="0.4"/>
-                        <path d="M0 150C75 175 125 125 200 150V175C150 162.5 100 175 50 162.5L0 150Z" fill="#8b5cf6" opacity="0.3"/>
+                        <path d="M0 100C50 75 100 125 150 100C175 87.5 200 100 200 100V200H0V100Z" fill="#8b5cf6" opacity="0.4" />
+                        <path d="M0 150C75 175 125 125 200 150V175C150 162.5 100 175 50 162.5L0 150Z" fill="#8b5cf6" opacity="0.3" />
                     </svg>
                 </div>
-                
+
                 <div className="absolute top-0 right-0 w-64 h-64 opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 200 200" fill="none">
-                        <path d="M100 0C150 50 200 0 200 50C200 100 150 150 100 150C50 150 0 100 0 50C0 0 50 50 100 0Z" fill="#8b5cf6" opacity="0.2"/>
+                        <path d="M100 0C150 50 200 0 200 50C200 100 150 150 100 150C50 150 0 100 0 50C0 0 50 50 100 0Z" fill="#8b5cf6" opacity="0.2" />
                     </svg>
                 </div>
 
@@ -111,7 +102,7 @@ const MetricsWithImageSlideLayout: React.FC<MetricsWithImageSlideLayoutProps> = 
                         </h1>
 
                         {/* Description */}
-                        <p style={{color:"var(--text-body-color,#4b5563)"}} className="text-base sm:text-lg text-gray-700 leading-relaxed">
+                        <p style={{ color: "var(--text-body-color,#4b5563)" }} className="text-base sm:text-lg text-gray-700 leading-relaxed">
                             {slideData?.description || 'Ginyard International Co. stands out by offering custom digital solutions tailored to client needs, alongside long-term support to ensure lasting relationships and continuous adaptation.'}
                         </p>
 
@@ -119,10 +110,10 @@ const MetricsWithImageSlideLayout: React.FC<MetricsWithImageSlideLayoutProps> = 
                         <div className="grid grid-cols-2 gap-6">
                             {metrics.map((metric, index) => (
                                 <div key={index} className="text-center space-y-2">
-                                    <div style={{color:"var(--text-body-color,#4b5563)"}} className="text-sm text-gray-600 font-medium">
+                                    <div style={{ color: "var(--text-body-color,#4b5563)" }} className="text-sm text-gray-600 font-medium">
                                         {metric.label}
                                     </div>
-                                    <div style={{color:"var(--text-heading-color,#9333ea)"}} className="text-3xl sm:text-4xl lg:text-5xl font-bold text-purple-600">
+                                    <div style={{ color: "var(--text-heading-color,#9333ea)" }} className="text-3xl sm:text-4xl lg:text-5xl font-bold text-purple-600">
                                         {metric.value}
                                     </div>
                                 </div>

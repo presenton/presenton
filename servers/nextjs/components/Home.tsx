@@ -65,7 +65,9 @@ export default function Home() {
       }));
       // API: save config
       trackEvent(MixpanelEvent.Home_SaveConfiguration_API_Call);
+      // API CALL: save config
       await handleSaveLLMConfig(llmConfig);
+
       if (llmConfig.LLM === "ollama" && llmConfig.OLLAMA_MODEL) {
         // API: check model pulled
         trackEvent(MixpanelEvent.Home_CheckOllamaModelPulled_API_Call);

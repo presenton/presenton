@@ -91,26 +91,17 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
             <link
                 href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
                 rel="stylesheet"
-            />            
-            
+            />
+
 
             <div
                 className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-white relative z-20 mx-auto overflow-hidden"
                 style={{
                     fontFamily: 'var(--heading-font-family,Inter)',
-                    background:"var(--card-background-color,#ffffff)"
+                    background: "var(--card-background-color,#ffffff)"
                 }}
             >
-                {/* {(slideData as any)?.__companyName__ && ( */}
-                    <div className="absolute top-0 left-0 right-0 px-8 sm:px-12 lg:px-20 pt-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm sm:text-base font-semibold" style={{ color: 'var(--text-heading-color, #111827)' }}>
-                                {(slideData as any)?.__companyName__ || 'Company Name'}
-                            </span>
-                            <div className="h-[2px] flex-1 opacity-70" style={{ backgroundColor: 'var(--text-heading-color, #111827)' }}></div>
-                        </div>
-                    </div>
-                {/* )} */}
+
                 {/* Decorative Wave Patterns */}
                 <div className="absolute top-0 left-0 w-32 h-full opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 100 400" fill="none">
@@ -142,7 +133,7 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                                     className={`flex items-start space-x-4 p-4 rounded-lg`}
                                 >
                                     {/* Icon */}
-                                    <div style={{background:"var(--primary-accent-color,#9333ea)"}} className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center">
+                                    <div style={{ background: "var(--primary-accent-color,#9333ea)" }} className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center">
                                         <RemoteSvgIcon
                                             url={bullet.icon.__icon_url__}
                                             strokeColor={"currentColor"}
@@ -154,11 +145,11 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
 
                                     {/* Content */}
                                     <div className="flex-1">
-                                        <h3 style={{color:"var(--text-heading-color,#111827)"}} className="text-lg sm:text-xl font-semibold text-gray-900 mb-1">
+                                        <h3 style={{ color: "var(--text-heading-color,#111827)" }} className="text-lg sm:text-xl font-semibold text-gray-900 mb-1">
                                             {bullet.title}
                                         </h3>
                                         {bullet.subtitle && (
-                                            <p style={{color:"var(--text-body-color,#4b5563)"}} className="text-sm text-gray-700 leading-relaxed">
+                                            <p style={{ color: "var(--text-body-color,#4b5563)" }} className="text-sm text-gray-700 leading-relaxed">
                                                 {bullet.subtitle}
                                             </p>
                                         )}
@@ -171,14 +162,14 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                     {/* Right Section - Image */}
                     <div className="flex-shrink-0 w-96 flex items-center justify-center relative">
                         {/* Decorative Elements */}
-                        <div style={{color:"var(--primary-accent-color,#9333ea)"}} className="absolute top-8 right-8 text-purple-600 opacity-60">
+                        <div style={{ color: "var(--primary-accent-color,#9333ea)" }} className="absolute top-8 right-8 text-purple-600 opacity-60">
                             <svg width="32" height="32" viewBox="0 0 32 32" fill="currentColor">
                                 <path d="M16 0l4.12 8.38L28 12l-7.88 3.62L16 24l-4.12-8.38L4 12l7.88-3.62L16 0z" />
                             </svg>
                         </div>
 
                         <div className="absolute top-16 left-8 opacity-20">
-                            <svg width="80" height="20" viewBox="0 0 80 20" className="text-purple-600" style={{color:"var(--primary-accent-color,#9333ea)"}}>
+                            <svg width="80" height="20" viewBox="0 0 80 20" className="text-purple-600" style={{ color: "var(--primary-accent-color,#9333ea)" }}>
                                 <path
                                     d="M0 10 Q20 0 40 10 T80 10"
                                     stroke="currentColor"

@@ -26,7 +26,7 @@ const ChartDatumSchema = z.object({
 })
 
 const Schema = z.object({
- 
+
   title: z
     .string()
     .min(16)
@@ -92,19 +92,9 @@ const dynamicSlideLayout: React.FC<SlideLayoutProps> = ({ data: slideData }) => 
       />
       <div
         className=" w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video relative z-20 mx-auto overflow-hidden"
-        style={{  fontFamily:"var(--heading-font-family,Playfair Display)", backgroundColor: 'var(--card-background-color, #FFFFFF)' }}
+        style={{ fontFamily: "var(--heading-font-family,Playfair Display)", backgroundColor: 'var(--card-background-color, #FFFFFF)' }}
       >
-        <div className="w-full flex items-center justify-between px-10 pt-6">
-          <div className="flex items-center gap-5">
-            { (slideData as any)?.__companyName__ && <span className="text-[18px]  font-semibold" style={{ color: 'var(--text-heading-color, #111827)' }}>
-              {(slideData as any)?.__companyName__ || 'Pitchdeck'}
-            </span>}
-            <svg className="w-[220px] h-[2px]" viewBox="0 0 220 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="220" height="2" style={{ fill: 'var(--text-heading-color, #111827)' }}></rect>
-            </svg>
-          </div>
-          {/* page number intentionally omitted */}
-        </div>
+
 
         <div className="grid grid-cols-2 h-[calc(100%-64px)]">
           {/* Left: Recharts visualization */}

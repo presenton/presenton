@@ -56,6 +56,7 @@ export enum LanguageType {
   Welsh = "Welsh (Cymraeg)",
   Irish = "Irish (Gaeilge)",
   ScottishGaelic = "Scottish Gaelic (Gàidhlig)",
+  Ukrainian = "Ukrainian (Українська)",
 
   // Middle Eastern and Central Asian Languages
   Hebrew = "Hebrew (עברית)",

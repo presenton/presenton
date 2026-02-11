@@ -61,19 +61,10 @@ const TableInfoSlideLayout: React.FC<TableInfoSlideLayoutProps> = ({ data: slide
                 className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-white relative z-20 mx-auto overflow-hidden flex flex-col"
                 style={{
                     fontFamily: 'var(--heading-font-family,Inter)',
-                    background:"var(--card-background-color,#ffffff)"
+                    background: "var(--card-background-color,#ffffff)"
                 }}
             >
-                {(slideData as any)?.__companyName__ && (
-                    <div className="absolute top-0 left-0 right-0 px-8 sm:px-12 lg:px-20 pt-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm sm:text-base font-semibold" style={{ color: 'var(--text-heading-color, #111827)' }}>
-                                {(slideData as any)?.__companyName__ || 'Company Name'}
-                            </span>
-                            <div className="h-[2px] flex-1 opacity-70" style={{ backgroundColor: 'var(--text-heading-color, #111827)' }}></div>
-                        </div>
-                    </div>
-                )}
+
                 {/* Decorative Wave Patterns */}
                 <div className="absolute top-0 left-0 w-64 h-full opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 200 400" fill="none">
@@ -93,14 +84,14 @@ const TableInfoSlideLayout: React.FC<TableInfoSlideLayoutProps> = ({ data: slide
 
                 {/* Main Content */}
                 <div className="relative z-10 px-8 sm:px-12 lg:px-20 pt-12 py-8 flex-1 flex flex-col justify-between">
-                    
+
                     {/* Title Section */}
                     <div className="text-center space-y-4">
                         <h1 style={{ color: "var(--text-heading-color,#111827)" }} className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900">
                             {slideData?.title || 'Market Comparison'}
                         </h1>
                         {/* Purple accent line */}
-                        <div style={{background:"var(--primary-accent-color,#9333ea)"}} className="w-20 h-1 bg-purple-600 mx-auto"></div>
+                        <div style={{ background: "var(--primary-accent-color,#9333ea)" }} className="w-20 h-1 bg-purple-600 mx-auto"></div>
                     </div>
 
                     {/* Table Section */}
@@ -111,7 +102,7 @@ const TableInfoSlideLayout: React.FC<TableInfoSlideLayoutProps> = ({ data: slide
                                 <div style={{ backgroundColor: "var(--primary-accent-color,#9333ea)" }}>
                                     <div className="grid gap-px" style={{ gridTemplateColumns: `repeat(${tableHeaders.length}, 1fr)` }}>
                                         {tableHeaders.map((header, index) => (
-                                            <div key={index} className="px-6 py-4 font-semibold text-center text-sm sm:text-base" style={{color:"var(--text-heading-color,#111827)"}}>
+                                            <div key={index} className="px-6 py-4 font-semibold text-center text-sm sm:text-base" style={{ color: "var(--text-heading-color,#111827)" }}>
                                                 {header}
                                             </div>
                                         ))}
@@ -121,8 +112,8 @@ const TableInfoSlideLayout: React.FC<TableInfoSlideLayoutProps> = ({ data: slide
                                 {/* Table Body */}
                                 <div className="divide-y divide-gray-200">
                                     {tableRows.map((row, rowIndex) => (
-                                        <div 
-                                            key={rowIndex} 
+                                        <div
+                                            key={rowIndex}
                                             className={`grid gap-px ${rowIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'} transition-colors duration-200`}
                                             style={{ gridTemplateColumns: `repeat(${tableHeaders.length}, 1fr)` }}
                                         >
@@ -145,13 +136,13 @@ const TableInfoSlideLayout: React.FC<TableInfoSlideLayoutProps> = ({ data: slide
                                 </div>
                             </div>
                         </div>
-                        
+
                     </div>
 
                     {/* Description Section */}
                     <div className="text-center space-y-4">
                         <div className="max-w-4xl mx-auto">
-                            <p style={{color:"var(--text-body-color,#4b5563)"}} className="text-sm sm:text-base text-gray-700 leading-relaxed">
+                            <p style={{ color: "var(--text-body-color,#4b5563)" }} className="text-sm sm:text-base text-gray-700 leading-relaxed">
                                 {slideData?.description || 'This comparison shows our competitive position in the market. While we currently have a smaller market share, our growth rate significantly exceeds competitors, indicating strong potential for future expansion.'}
                             </p>
                         </div>

@@ -24,7 +24,7 @@ ENV TEMP_DIRECTORY=/tmp/presenton
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install ollama
-# RUN curl -fsSL http://ollama.com/install.sh | sh
+RUN curl -fsSL http://ollama.com/install.sh | sh
 
 # Install dependencies for FastAPI
 RUN pip install aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \

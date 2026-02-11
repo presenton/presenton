@@ -45,19 +45,10 @@ const QuoteSlideLayout: React.FC<QuoteSlideLayoutProps> = ({ data: slideData }) 
                 className="w-full rounded-sm max-w-[1280px] shadow-lg max-h-[720px] aspect-video bg-white relative z-20 mx-auto overflow-hidden"
                 style={{
                     fontFamily: 'var(--heading-font-family,Inter)',
-                    background:"var(--card-background-color,#ffffff)"
+                    background: "var(--card-background-color,#ffffff)"
                 }}
             >
-                {(slideData as any)?.__companyName__ && (
-                    <div className="absolute top-0 left-0 right-0 px-8 sm:px-12 lg:px-20 pt-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm sm:text-base font-semibold" style={{ color: 'var(--text-heading-color, #ffffff)' }}>
-                                {(slideData as any)?.__companyName__ || 'Company Name'}
-                            </span>
-                            <div className="h-[2px] flex-1 opacity-70" style={{ backgroundColor: 'var(--text-heading-color, #ffffff)' }}></div>
-                        </div>
-                    </div>
-                )}
+
                 {/* Background Image */}
                 <div
                     className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
@@ -87,7 +78,7 @@ const QuoteSlideLayout: React.FC<QuoteSlideLayoutProps> = ({ data: slideData }) 
                                 {slideData?.heading || 'Words of Wisdom'}
                             </h1>
                             {/* Purple accent line */}
-                            <div style={{background:"var(--primary-accent-color,#9333ea)"}} className="w-20 h-1 bg-purple-400 mx-auto"></div>
+                            <div style={{ background: "var(--primary-accent-color,#9333ea)" }} className="w-20 h-1 bg-purple-400 mx-auto"></div>
                         </div>
 
                         {/* Quote Section */}
@@ -95,7 +86,7 @@ const QuoteSlideLayout: React.FC<QuoteSlideLayoutProps> = ({ data: slideData }) 
                             {/* Quote Icon */}
                             <div className="flex justify-center">
                                 <svg
-                                    className="w-12 h-12 text-purple-300 opacity-80" style={{color:"var(--primary-accent-color,#9333ea)"}}
+                                    className="w-12 h-12 text-purple-300 opacity-80" style={{ color: "var(--primary-accent-color,#9333ea)" }}
                                     fill="currentColor"
                                     viewBox="0 0 24 24"
                                 >
@@ -104,17 +95,17 @@ const QuoteSlideLayout: React.FC<QuoteSlideLayoutProps> = ({ data: slideData }) 
                             </div>
 
                             {/* Quote Text */}
-                            <blockquote style={{color:"var(--text-body-color,#ffffff)"}} className="text-xl sm:text-2xl lg:text-3xl font-medium text-white leading-relaxed italic">
+                            <blockquote style={{ color: "var(--text-body-color,#ffffff)" }} className="text-xl sm:text-2xl lg:text-3xl font-medium text-white leading-relaxed italic">
                                 "{slideData?.quote || 'Success is not final, failure is not fatal: it is the courage to continue that counts. The future belongs to those who believe in the beauty of their dreams.'}"
                             </blockquote>
 
                             {/* Author */}
                             <div className="flex justify-center items-center space-x-4">
-                                <div style={{background:"var(--primary-accent-color,#9333ea)"}} className="w-16 h-px bg-purple-300"></div>
+                                <div style={{ background: "var(--primary-accent-color,#9333ea)" }} className="w-16 h-px bg-purple-300"></div>
                                 <cite className="text-base sm:text-lg text-purple-200 font-semibold not-italic">
                                     {slideData?.author || 'Winston Churchill'}
                                 </cite>
-                                <div style={{background:"var(--primary-accent-color,#9333ea)"}} className="w-16 h-px bg-purple-300"></div>
+                                <div style={{ background: "var(--primary-accent-color,#9333ea)" }} className="w-16 h-px bg-purple-300"></div>
                             </div>
                         </div>
                     </div>

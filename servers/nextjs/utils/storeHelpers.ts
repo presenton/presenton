@@ -16,7 +16,8 @@ export const handleSaveLLMConfig = async (llmConfig: LLMConfig) => {
 
 export const hasValidLLMConfig = (llmConfig: LLMConfig) => {
   if (!llmConfig.LLM) return false;
-  if (!llmConfig.IMAGE_PROVIDER) return false;
+  if (!llmConfig.DISABLE_IMAGE_GENERATION && !llmConfig.IMAGE_PROVIDER)
+    return false;
 
   const isOpenAIConfigValid =
     llmConfig.OPENAI_MODEL !== "" &&
@@ -58,7 +59,12 @@ export const hasValidLLMConfig = (llmConfig: LLMConfig) => {
     llmConfig.CUSTOM_MODEL !== null &&
     llmConfig.CUSTOM_MODEL !== undefined;
 
+  const shouldValidateImages = !llmConfig.DISABLE_IMAGE_GENERATION;
+
   const isImageConfigValid = () => {
+    if (!shouldValidateImages) {
+      return true;
+    }
     switch (llmConfig.IMAGE_PROVIDER) {
       case "pexels":
         return llmConfig.PEXELS_API_KEY && llmConfig.PEXELS_API_KEY !== "";
@@ -66,8 +72,14 @@ export const hasValidLLMConfig = (llmConfig: LLMConfig) => {
         return llmConfig.PIXABAY_API_KEY && llmConfig.PIXABAY_API_KEY !== "";
       case "dall-e-3":
         return llmConfig.OPENAI_API_KEY && llmConfig.OPENAI_API_KEY !== "";
+      case "gpt-image-1.5":
+        return llmConfig.OPENAI_API_KEY && llmConfig.OPENAI_API_KEY !== "";
       case "gemini_flash":
         return llmConfig.GOOGLE_API_KEY && llmConfig.GOOGLE_API_KEY !== "";
+      case "nanobanana_pro":
+        return llmConfig.GOOGLE_API_KEY && llmConfig.GOOGLE_API_KEY !== "";
+      case "comfyui":
+        return llmConfig.COMFYUI_URL && llmConfig.COMFYUI_URL !== "";
       default:
         return false;
     }
@@ -77,14 +89,14 @@ export const hasValidLLMConfig = (llmConfig: LLMConfig) => {
     llmConfig.LLM === "openai"
       ? isOpenAIConfigValid
       : llmConfig.LLM === "google"
-        ? isGoogleConfigValid
-        : llmConfig.LLM === "anthropic"
-          ? isAnthropicConfigValid
-          : llmConfig.LLM === "ollama"
-            ? isOllamaConfigValid
-            : llmConfig.LLM === "custom"
-              ? isCustomConfigValid
-              : false;
+      ? isGoogleConfigValid
+      : llmConfig.LLM === "anthropic"
+      ? isAnthropicConfigValid
+      : llmConfig.LLM === "ollama"
+      ? isOllamaConfigValid
+      : llmConfig.LLM === "custom"
+      ? isCustomConfigValid
+      : false;
 
   return isLLMConfigValid && isImageConfigValid();
 };

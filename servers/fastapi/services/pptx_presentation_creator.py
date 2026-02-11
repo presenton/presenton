@@ -49,7 +49,6 @@ BLANK_SLIDE_LAYOUT = 6
 
 
 class PptxPresentationCreator:
-
     def __init__(self, ppt_model: PptxPresentationModel, temp_dir: str):
         self._temp_dir = temp_dir
 
@@ -187,7 +186,7 @@ class PptxPresentationCreator:
         ):
             try:
                 image = Image.open(image_path)
-            except:
+            except Exception:
                 print(f"Could not open image: {image_path}")
                 return
 
@@ -308,7 +307,7 @@ class PptxPresentationCreator:
                 shape.width, shape.height
             )
             shape.adjustments[0] = normalized_border_radius
-        except:
+        except Exception:
             print("Could not apply border radius.")
 
     def apply_fill_to_shape(self, shape: Shape, fill: Optional[PptxFillModel] = None):
@@ -333,7 +332,6 @@ class PptxPresentationCreator:
     def apply_shadow_to_shape(
         self, shape: Shape, shadow: Optional[PptxShadowModel] = None
     ):
-
         # Access the XML for the shape
         sp_element = shape._element
         sp_pr = sp_element.xpath("p:spPr")[0]  # Shape properties XML element
@@ -390,12 +388,18 @@ class PptxPresentationCreator:
             )
         else:
             # Apply the provided shadow
+            # dir expects 60000ths of a degree in OOXML
+            angle_dir = (
+                int(round((shadow.angle % 360) * 60000))
+                if shadow.angle is not None
+                else 0
+            )
             outer_shadow = etree.SubElement(
                 effect_list,
                 f"{{{nsmap['a']}}}outerShdw",
                 {
                     "blurRad": f"{Pt(shadow.radius)}",
-                    "dir": f"{shadow.angle * 1000}",
+                    "dir": f"{angle_dir}",
                     "dist": f"{Pt(shadow.offset)}",
                     "rotWithShape": "0",
                 },
