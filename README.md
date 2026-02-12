@@ -112,7 +112,6 @@ You can also set the following environment variables to customize the image gene
 - **PEXELS_API_KEY=[Your Pexels API Key]**: Required if using **pexels** as the image provider.
 - **PIXABAY_API_KEY=[Your Pixabay API Key]**: Required if using **pixabay** as the image provider.
 - **COMFYUI_URL=[Your ComfyUI server URL]** and **COMFYUI_WORKFLOW=[Workflow JSON]**: Required if using **comfyui** to route prompts to a self-hosted ComfyUI workflow.
-- **OLLAMA_FLUX_URL=[Ollama URL for image generation]**: Optional if using **ollama_flux** (default: `http://localhost:11434`). Note: Ollama Flux uses the `x/flux2-klein:9b` model internally.
 
 You can disable anonymous telemetry using the following environment variable:
 
