@@ -103,7 +103,7 @@ You may want to directly provide your API KEYS as environment variables and keep
 You can also set the following environment variables to customize the image generation provider and API keys:
 
 - **DISABLE_IMAGE_GENERATION**: If **true**, Image Generation will be disabled for slides.
-- **IMAGE_PROVIDER=[dall-e-3/gpt-image-1.5/gemini_flash/nanobanana_pro/pexels/pixabay/comfyui]**: Select the image provider of your choice.
+- **IMAGE_PROVIDER=[dall-e-3/gpt-image-1.5/gemini_flash/nanobanana_pro/pexels/pixabay/comfyui/ollama_flux]**: Select the image provider of your choice.
   - Required if **DISABLE_IMAGE_GENERATION** is not set to **true**.
 - **OPENAI_API_KEY=[Your OpenAI API Key]**: Required if using **dall-e-3** or **gpt-image-1.5** as the image provider.
 - **DALL_E_3_QUALITY=[standard/hd]**: Optional quality setting for **dall-e-3** (default: `standard`).
