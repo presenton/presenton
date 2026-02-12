@@ -80,6 +80,8 @@ export const hasValidLLMConfig = (llmConfig: LLMConfig) => {
         return llmConfig.GOOGLE_API_KEY && llmConfig.GOOGLE_API_KEY !== "";
       case "comfyui":
         return llmConfig.COMFYUI_URL && llmConfig.COMFYUI_URL !== "";
+      case "ollama_flux":
+        return llmConfig.OLLAMA_URL;
       default:
         return false;
     }

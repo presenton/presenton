@@ -3,6 +3,8 @@ import base64
 import json
 import os
 import aiohttp
+import subprocess
+import uuid
 from fastapi import HTTPException
 from google import genai
 from openai import NOT_GIVEN, AsyncOpenAI
@@ -19,6 +21,7 @@ from utils.get_env import get_comfyui_workflow_env
 from utils.image_provider import (
     is_gpt_image_1_5_selected,
     is_image_generation_disabled,
+    is_ollama_selected,
     is_pixels_selected,
     is_pixabay_selected,
     is_gemini_flash_selected,
@@ -53,6 +56,8 @@ class ImageGenerationService:
             return self.generate_image_openai_gpt_image_1_5
         elif is_comfyui_selected():
             return self.generate_image_comfyui
+        elif is_ollama_selected():
+            return self.generate_image_ollama
         return None
 
     def is_stock_provider_selected(self):
@@ -181,6 +186,34 @@ class ImageGenerationService:
         return await self._generate_image_google(
             prompt, output_directory, "gemini-3-pro-image-preview"
         )
+
+    async def generate_image_ollama(self, prompt: str, output_directory: str) -> str:
+        """Generate image using ollama (x/flux2-klein:9b)."""
+        try:
+            # Run ollama command
+            result = subprocess.run(
+                ["ollama", "run", "x/flux2-klein:9b", prompt],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode != 0:
+                raise Exception(f"Ollama Flux failed: {result.stderr}")
+
+            # Flux outputs base64-encoded PNG to stdout
+            import base64
+
+            image_data = base64.b64decode(result.stdout.strip())
+
+            image_path = os.path.join(output_directory, f"flux_{uuid.uuid4()}.png")
+            with open(image_path, "wb") as f:
+                f.write(image_data)
+
+            return image_path
+        except subprocess.TimeoutExpired:
+            raise Exception("Ollama Flux generation timed out")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def get_image_from_pexels(self, prompt: str) -> str:
         async with aiohttp.ClientSession(trust_env=True) as session:

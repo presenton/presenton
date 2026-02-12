@@ -40,9 +40,10 @@ Presenton gives you complete control over your AI presentation workflow. Choose 
 - ✅ **Built-In MCP Server** — Generate presentations over Model Context Protocol
 - ✅ **Bring Your Own Key** — Use your own API keys for OpenAI, Google Gemini, Anthropic Claude, or any compatible provider. Only pay for what you use, no hidden fees or subscriptions.
 - ✅ **Ollama Integration** — Run open-source models locally with full privacy
+- ✅ **Local Image Generation** — Generate images using Ollama Flux (x/flux2-klein:9b) without API keys
 - ✅ **OpenAI API Compatible** — Connect to any OpenAI-compatible endpoint with your own models
 - ✅ **Multi-Provider Support** — Mix and match text and image generation providers
-- ✅ **Versatile Image Generation** — Choose from DALL-E 3, Gemini Flash, Pexels, or Pixabay
+- ✅ **Versatile Image Generation** — Choose from DALL-E 3, Gemini Flash, Pexels, Pixabay, or local Ollama Flux
 - ✅ **Rich Media Support** — Icons, charts, and custom graphics for professional presentations
 - ✅ **Runs Locally** — All processing happens on your device, no cloud dependencies
 - ✅ **API Deployment** — Host as your own API service for your team
@@ -111,12 +112,13 @@ You can also set the following environment variables to customize the image gene
 - **PEXELS_API_KEY=[Your Pexels API Key]**: Required if using **pexels** as the image provider.
 - **PIXABAY_API_KEY=[Your Pixabay API Key]**: Required if using **pixabay** as the image provider.
 - **COMFYUI_URL=[Your ComfyUI server URL]** and **COMFYUI_WORKFLOW=[Workflow JSON]**: Required if using **comfyui** to route prompts to a self-hosted ComfyUI workflow.
+- **OLLAMA_FLUX_URL=[Ollama URL for image generation]**: Optional if using **ollama_flux** (default: `http://localhost:11434`). Note: Ollama Flux uses the `x/flux2-klein:9b` model internally.
 
 You can disable anonymous telemetry using the following environment variable:
 
 - **DISABLE_ANONYMOUS_TELEMETRY=[true/false]**: Set this to **true** to disable anonymous telemetry.
 
-> **Note:** You can freely choose both the LLM (text generation) and the image provider. Supported image providers: **dall-e-3**, **gpt-image-1.5** (OpenAI), **gemini_flash**, **nanobanana_pro** (Google), **pexels**, **pixabay**, and **comfyui** (self-hosted).
+> **Note:** You can freely choose both the LLM (text generation) and the image provider. Supported image providers: **dall-e-3**, **gpt-image-1.5** (OpenAI), **gemini_flash**, **nanobanana_pro** (Google), **pexels**, **pixabay**, **comfyui** (self-hosted), and **ollama_flux** (local image generation using Ollama Flux).
 
 ### Using OpenAI
 
@@ -134,6 +136,12 @@ docker run -it --name presenton -p 5000:80 -e LLM="google" -e GOOGLE_API_KEY="**
 
 ```bash
 docker run -it --name presenton -p 5000:80 -e LLM="ollama" -e OLLAMA_MODEL="llama3.2:3b" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="*******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
+```
+
+### Using Local Image Generation with Ollama Flux
+
+```bash
+docker run -it --name presenton -p 5000:80 -e LLM="ollama" -e OLLAMA_MODEL="llama3.2:3b" -e IMAGE_PROVIDER="ollama_flux" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
 ```
 
 ### Using Anthropic

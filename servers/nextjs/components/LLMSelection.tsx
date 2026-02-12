@@ -211,6 +211,8 @@ export default function LLMProviderSelection({
           updates.IMAGE_PROVIDER = "gpt-image-1.5";
         } else if (prevConfig.LLM === "google") {
           updates.IMAGE_PROVIDER = "gemini_flash";
+        } else if (prevConfig.LLM === "ollama") {
+          updates.IMAGE_PROVIDER = "ollama_flux";
         } else {
           updates.IMAGE_PROVIDER = "pexels";
         }

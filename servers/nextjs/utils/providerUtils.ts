@@ -76,6 +76,8 @@ export const changeProvider = (
     newConfig.IMAGE_PROVIDER = "gpt-image-1.5";
   } else if (provider === "google") {
     newConfig.IMAGE_PROVIDER = "gemini_flash";
+  } else if (provider === "ollama") {
+    newConfig.IMAGE_PROVIDER = "ollama_flux";
   } else {
     newConfig.IMAGE_PROVIDER = "pexels"; // default for ollama and custom
   }
