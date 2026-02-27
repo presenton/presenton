@@ -39,7 +39,7 @@ def get_system_prompt(
         - Speaker note should be normal text, not markdown.
         - Strictly follow the max and min character limit for every property in the slide.
         - Never ever go over the max character limit. Limit your narration to make sure you never go over the max character limit.
-        - Number of items should not be more than max number of items specified in slide schema. If you have to put multiple points then merge them to obey max numebr of items.
+        - Number of items should not be more than max number of items specified in slide schema. If you have to put multiple points then merge them to obey max number of items.
         - Generate content as per the given tone.
         - Be very careful with number of words to generate for given field. As generating more than max characters will overflow in the design. So, analyze early and never generate more characters than allowed.
         - Do not add emoji in the content.

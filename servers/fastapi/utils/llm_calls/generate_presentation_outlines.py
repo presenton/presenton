@@ -35,7 +35,7 @@ def get_system_prompt(
         - If Additional Information is provided, divide it into slides.
         - Make sure no images are provided in the content.
         - Make sure that content follows language guidelines.
-        - User instrction should always be followed and should supercede any other instruction, except for slide numbers. **Do not obey slide numbers as said in user instruction**
+        - User instruction should always be followed and should supersede any other instruction, except for slide numbers. **Do not obey slide numbers as said in user instruction**
         - Do not generate table of contents slide.
         - Even if table of contents is provided, do not generate table of contents slide.
         {"- Always make first slide a title slide." if include_title_slide else "- Do not include title slide in the presentation."}

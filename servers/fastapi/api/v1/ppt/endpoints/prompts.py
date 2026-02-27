@@ -6,8 +6,8 @@ Follow these rules strictly:
 - Make sure size of elements are exact. Check sizes of images and other elements from OXML and convert them to pixels.
 - Make sure all components should be noted of and should be added as it is.
 - Image's and icons's size and position should be added exactly as it is.
-- Read through the OXML data of slide and then match exact position ans size of elements. Make sure to convert between dimension and pixels. 
-- Make sure the vertical and horizonal spacing between elements are same as in the image. Try to get spacing from the OXML document as well. Make sure no elements overflows because of high spacing.
+- Read through the OXML data of slide and then match exact position and size of elements. Make sure to convert between dimension and pixels. 
+- Make sure the vertical and horizontal spacing between elements are same as in the image. Try to get spacing from the OXML document as well. Make sure no elements overflows because of high spacing.
 - Do not use absolute position unless absolutely necessary. Use flex, grid and spacing to properly arrange components.
 - First, layout everything using flex or grid. Try to fit all the components using this layout. Finally, if you cannot layout any element without flex and grid, then only use absolute to place the element.
 - Analyze each text's available space and it's design, and give minimum characters to fill in the text for the space and context and maximum that the space can handle. Be  conservative with how many characters text space can handle. Make sure no text overflows and decide as to not disrupt the slide.  Do this for every text. 
@@ -52,13 +52,13 @@ Convert given static HTML and Tailwind slide to a TSX React component so that it
 13. Do not parse the slideData inside dynamicSlideLayout, just use it as it is. Do not use statements like `Schema.parse() ` anywhere. Instead directly use the data without validating or parsing.
 14. Always complete the reference, do not give "slideData .? .cards" instead give "slideData?.cards".
 15. Do not add anything other than code. Do not add "use client", "json", "typescript", "javascript" and other prefix or suffix, just give out code exactly formatted like example.
-16. In schema, give default for all fields irrespective of their types, give defualt values for array and objects as well. 
+16. In schema, give default for all fields irrespective of their types, give default values for array and objects as well. 
 17. For charts use recharts.js library and follow these rules strictly:
     - Do not import rechart, it will already be imported.
     - There should support for multiple chart types including bar, line, pie and donut in the same size as given. 
     - Use an attribute in the schema to select between chart types.
     - All data should be properly represented in schema.
-18. For diagrams use mermaid with appropriate placeholder which can render any daigram. Schema should have a field for code. Render in the placeholder properly.
+18. For diagrams use mermaid with appropriate placeholder which can render any diagram. Schema should have a field for code. Render in the placeholder properly.
 19. Don't add style attribute in the schema. Colors, font sizes, and all other style attributes should be added directly as tailwind classes.
 For example: 
 Input: 
@@ -236,6 +236,6 @@ const dynamicSlideLayout: React.FC<BulletWithIconsSlideLayoutProps> = ({ data: s
 """
 
 HTML_EDIT_SYSTEM_PROMPT = """
-You need to edit given html with respect to the indication and sketch in the given UI. You'll be given the code for current UI which is in presentation size, along with its visualization in image form. Over that you'll also be given another image which has indications of what might change in form of sketch in the UI. You will have to return the edited html with tailwind with the changes as indicated on the image and through prompt. Make sure you think through the design before making the change and also make sure you don't change the non-indicated part. Try to follow the design style of current content for generated content. If sketch image is not provided, then you need to edit the html with respect to the prompt. Make sure size of the presentation does not change in any cirsumstance. Only give out code and nothing else.
+You need to edit given html with respect to the indication and sketch in the given UI. You'll be given the code for current UI which is in presentation size, along with its visualization in image form. Over that you'll also be given another image which has indications of what might change in form of sketch in the UI. You will have to return the edited html with tailwind with the changes as indicated on the image and through prompt. Make sure you think through the design before making the change and also make sure you don't change the non-indicated part. Try to follow the design style of current content for generated content. If sketch image is not provided, then you need to edit the html with respect to the prompt. Make sure size of the presentation does not change in any circumstance. Only give out code and nothing else.
 """
 

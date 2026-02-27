@@ -51,7 +51,7 @@ def get_messages(
                 {"# User Instruction:" if instructions else ""}
                 {instructions or ""}
 
-                User intruction should be taken into account while creating the presentation structure, except for number of slides.
+                User instruction should be taken into account while creating the presentation structure, except for number of slides.
 
                 Select layout index for each of the {n_slides} slides based on what will best serve the presentation's goals.
             """,
@@ -82,7 +82,7 @@ def get_messages_for_slides_markdown(
 
                 Select layout that best matches the content of the slides.
 
-                User intruction should be taken into account while creating the presentation structure, except for number of slides.
+                User instruction should be taken into account while creating the presentation structure, except for number of slides.
 
                 Select layout index for each of the {n_slides} slides based on what will best serve the presentation's goals.
             """,
