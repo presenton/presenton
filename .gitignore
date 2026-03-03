@@ -1,19 +1,43 @@
 .env
 .venv
-__pycache__
-.pytest_cache
-.next
-node_modules
-out
-user_data
-app_data
-tmp
-debug
-.fastembed_cache
+build/
+dist/
+__pycache__/
+.pytest_cache/
+.next/
+node_modules/
+out/
+user_data/
+app_data/
+tmp/
+debug/
+.fastembed_cache/
 
-generated_models
-nltk
-chroma
+# Generated/Build files
+generated_models/
+nltk/
+chroma/
 container.db
-.next-build
-.cursor
+.next-build/
+.cursor/
+*.egg-info/
+.eggs/
+
+# Build artifacts - DO NOT COMMIT
+electron/servers/fastapi/build/
+electron/servers/fastapi/dist/
+servers/fastapi/build/
+servers/fastapi/dist/
+*.pyc
+*.pyo
+*.so
+*.dylib
+
+# Large assets
+**/icons*.json
+**/*.pyz
+**/*.pkg
+
+# Lock files (optional - many teams exclude these)
+package-lock.json
+pnpm-lock.yaml

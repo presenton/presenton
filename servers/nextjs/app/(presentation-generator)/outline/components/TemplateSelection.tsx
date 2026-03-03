@@ -1,26 +1,111 @@
 "use client";
 import React, { useEffect } from "react";
+import { useLayout } from "../../context/LayoutContext";
+import TemplateLayouts from "./TemplateLayouts";
 
-import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
-import { templates} from "@/app/presentation-templates";
-import { Card } from "@/components/ui/card";
-import { TemplateWithData } from "@/app/presentation-templates/utils";
-import { CustomTemplates, useCustomTemplateSummaries } from "@/app/hooks/useCustomTemplates";
-import { Loader2 } from "lucide-react";
-import { CustomTemplateCard } from "./CustomTemplateCard";
+import { Template } from "../types/index";
+
+import { getHeader } from "../../services/api/header";
 interface TemplateSelectionProps {
-  selectedTemplate: (TemplateLayoutsWithSettings | string) | null;
-  onSelectTemplate: (template: TemplateLayoutsWithSettings | string) => void;
+  selectedTemplate: Template | null;
+  onSelectTemplate: (template: Template) => void;
 }
 
 const TemplateSelection: React.FC<TemplateSelectionProps> = ({
   selectedTemplate,
   onSelectTemplate
 }) => {
+  const {
+    getLayoutsByTemplateID,
+    getTemplateSetting,
+    getAllTemplateIDs,
+    getFullDataByTemplateID,
+    loading
+  } = useLayout();
 
+  const [summaryMap, setSummaryMap] = React.useState<Record<string, { lastUpdatedAt?: number; name?: string; description?: string }>>({});
 
   useEffect(() => {
+    // Fetch custom templates summary to get last_updated_at and template meta for sorting and display
+    fetch(`/api/v1/ppt/template-management/summary`, {
+      headers: getHeader(),
+    })
+      .then(res => res.json())
+      .then(data => {
+        const map: Record<string, { lastUpdatedAt?: number; name?: string; description?: string }> = {};
+        if (data && Array.isArray(data.presentations)) {
+          for (const p of data.presentations) {
+            const slug = `custom-${p.presentation_id}`;
+            map[slug] = {
+              lastUpdatedAt: p.last_updated_at ? new Date(p.last_updated_at).getTime() : 0,
+              name: p.template?.name,
+              description: p.template?.description,
+            };
+          }
+        }
+        setSummaryMap(map);
+      })
+      .catch(() => setSummaryMap({}));
+  }, []);
 
+  const templates: Template[] = React.useMemo(() => {
+    const templates = getAllTemplateIDs();
+    if (templates.length === 0) return [];
+
+    const Templates: Template[] = templates
+      .filter((templateID: string) => {
+        // Filter out template that contain any errored layouts (from custom templates compile/parse errors)
+        const fullData = getFullDataByTemplateID(templateID);
+        const hasErroredLayouts = fullData.some((fd: any) => (fd as any)?.component?.displayName === "CustomTemplateErrorSlide");
+        return !hasErroredLayouts;
+      })
+      .map(templateID => {
+        const settings = getTemplateSetting(templateID);
+        const customMeta = summaryMap[templateID];
+        const isCustom = templateID.toLowerCase().startsWith("custom-");
+        return {
+          id: templateID,
+          name: isCustom && customMeta?.name ? customMeta.name : templateID,
+          description: (isCustom && customMeta?.description) ? customMeta.description : (settings?.description || `${templateID} presentation templates`),
+          ordered: settings?.ordered || false,
+          default: settings?.default || false,
+        };
+      });
+
+    // Sort templates to put default first, then by name
+    return Templates.sort((a, b) => {
+      if (a.default && !b.default) return -1;
+      if (!a.default && b.default) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [getAllTemplateIDs, getLayoutsByTemplateID, getTemplateSetting, getFullDataByTemplateID, summaryMap]);
+
+  const inBuiltTemplates = React.useMemo(
+    () => templates.filter(g => !g.id.toLowerCase().startsWith("custom-")),
+    [templates]
+  );
+  const customTemplates = React.useMemo(() => {
+    const unsorted = templates.filter(g => g.id.toLowerCase().startsWith("custom-"));
+    // Sort by last_updated_at desc using summaryMap keyed by template id
+    return unsorted.sort((a, b) => (summaryMap[b.id]?.lastUpdatedAt || 0) - (summaryMap[a.id]?.lastUpdatedAt || 0));
+  }, [templates, summaryMap]);
+
+  // Auto-select first template when templates are loaded
+  useEffect(() => {
+    if (templates.length > 0 && !selectedTemplate) {
+      const defaultTemplate = templates.find(g => g.default) || templates[0];
+      const slides = getLayoutsByTemplateID(defaultTemplate.id);
+
+      onSelectTemplate({
+        ...defaultTemplate,
+        slides: slides,
+      });
+    }
+  }, [templates, selectedTemplate, onSelectTemplate]);
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
     const existingScript = document.querySelector(
       'script[src*="tailwindcss.com"]'
     );
@@ -33,11 +118,49 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = ({
 
   }, []);
 
-  const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="p-4 rounded-lg border border-gray-200 bg-gray-50 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded mb-3"></div>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="aspect-video bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
+  if (templates.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <h5 className="text-lg font-medium mb-2 text-gray-700">
+            No Templates Available
+          </h5>
+          <p className="text-gray-600 text-sm">
+            No presentation templates could be loaded. Please try refreshing the page.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-
+  const handleTemplateSelection = (template: Template) => {
+    const slides = getLayoutsByTemplateID(template.id);
+    onSelectTemplate({
+      ...template,
+      slides: slides,
+    });
+  }
 
   return (
     <div className="space-y-8 mb-4">
@@ -45,56 +168,14 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = ({
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-3">In Built Templates</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {templates.map((template: TemplateLayoutsWithSettings) => {
-            const previewLayouts = template.layouts.slice(0, 4);
-
-            return (
-              <Card
-                key={template.id}
-                className={`${typeof selectedTemplate !== 'string' && selectedTemplate?.id === template.id ? 'border-2 border-blue-500' : ''} cursor-pointer hover:shadow-lg transition-all duration-200 group overflow-hidden relative`}
-                onClick={() => onSelectTemplate(template)}
-              >
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl font-bold text-gray-900 capitalize">
-                      {template.name}
-                    </h3>
-
-                  </div>
-
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {template.description}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {previewLayouts.map((layout: TemplateWithData, index: number) => {
-                      const LayoutComponent = layout.component;
-                      return (
-                        <div
-                          key={`${template.id}-preview-${index}`}
-                          className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
-                          style={{ contain: 'layout style paint' }}
-                        >
-                          <div className="absolute inset-0 bg-transparent z-10" />
-                          <div
-                            className="transform scale-[0.2] flex justify-center items-center origin-top-left w-[500%] h-[500%]"
-                            style={{ transform: 'scale(0.2) translateZ(0)', backfaceVisibility: 'hidden' }}
-                          >
-                            <LayoutComponent data={layout.sampleData} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                {typeof selectedTemplate !== 'string' && selectedTemplate?.id === template.id && (
-                  <div className="absolute top-0 right-0 bg-blue-500 text-white px-2 py-1 rounded-bl-lg">
-                    Selected
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+          {inBuiltTemplates.map((template) => (
+            <TemplateLayouts
+              key={template.id}
+              template={template}
+              onSelectTemplate={handleTemplateSelection}
+              selectedTemplate={selectedTemplate}
+            />
+          ))}
         </div>
       </div>
 
@@ -103,27 +184,18 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = ({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-gray-900">Custom AI Templates</h3>
         </div>
-        {customLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="ml-3 text-gray-600">Loading custom templates...</span>
+        {customTemplates.length === 0 ? (
+          <div className="text-sm text-gray-600 py-2">
+            No custom templates. Create one from "All Templates" menu.
           </div>
-        ) : customTemplates.length === 0 ? (
-          <Card className="p-8 text-center">
-            <p className="text-gray-500">No custom templates yet.</p>
-            <p className="text-sm text-gray-400 mt-2">
-              Custom templates you create will appear here.
-            </p>
-          </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2  gap-6">
-            {customTemplates.map((template: CustomTemplates) => (
-
-              <CustomTemplateCard
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {customTemplates.map((template) => (
+              <TemplateLayouts
                 key={template.id}
                 template={template}
-                onSelectTemplate={onSelectTemplate}
-                selectedTemplate={typeof selectedTemplate === 'string' ? selectedTemplate : null}
+                onSelectTemplate={handleTemplateSelection}
+                selectedTemplate={selectedTemplate}
               />
             ))}
           </div>
@@ -133,4 +205,4 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = ({
   );
 };
 
-export default TemplateSelection;
+export default TemplateSelection; 

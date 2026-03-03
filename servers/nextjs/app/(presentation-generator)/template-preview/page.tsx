@@ -1,108 +1,33 @@
 "use client";
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import LoadingStates from "./components/LoadingStates";
 import { Card } from "@/components/ui/card";
-import { ExternalLink, Loader2, Plus } from "lucide-react";
-
-import { templates } from "@/app/presentation-templates";
-import type { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
-import { TemplateWithData } from "@/app/presentation-templates/utils";
-import {
-  useCustomTemplateSummaries,
-  useCustomTemplatePreview,
-  CustomTemplates,
-} from "@/app/hooks/useCustomTemplates";
-import { CompiledLayout } from "@/app/hooks/compileLayout";
-import Header from "../dashboard/components/Header";
-
-// Component for rendering custom template card with lazy-loaded previews
-const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
-  const router = useRouter();
-  const { previewLayouts, loading, totalLayouts } = useCustomTemplatePreview(template.id);
-
-  const handleNavigate = () => {
-    if (template.id.startsWith('custom-')) {
-      router.push(`/template-preview/${template.id}`);
-    } else {
-      router.push(`/template-preview/custom-${template.id}`);
-    }
-  }
-
-  return (
-    <Card
-      className="cursor-pointer hover:shadow-lg transition-all duration-200 group overflow-hidden"
-      onClick={handleNavigate}
-    >
-      <div className="p-5">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xl font-bold text-gray-900">
-            {template.name}
-          </h3>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-              {totalLayouts}
-            </span>
-            <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
-          </div>
-        </div>
-
-
-
-        {/* Layout previews */}
-        <div className="grid grid-cols-2 gap-2">
-          {loading ? (
-            // Loading placeholders
-            [...Array(Math.min(4, template.layoutCount))].map((_, index) => (
-              <div
-                key={`${template.id}-loading-${index}`}
-                className="relative bg-gradient-to-br from-purple-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
-              >
-                <Loader2 className="w-4 h-4 text-purple-300 animate-spin" />
-              </div>
-            ))
-          ) : previewLayouts.length > 0 ? (
-            // Actual layout previews
-            previewLayouts.slice(0, 4).map((layout: CompiledLayout, index: number) => {
-              const LayoutComponent = layout.component;
-              return (
-                <div
-                  key={`${template.id}-preview-${index}`}
-                  className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
-                >
-                  <div className="absolute inset-0 bg-transparent z-10" />
-                  <div
-                    className="transform scale-[0.12] origin-top-left"
-                    style={{ width: "833.33%", height: "833.33%" }}
-                  >
-                    <LayoutComponent data={layout.sampleData} />
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            // Empty state placeholders
-            [...Array(Math.min(4, template.layoutCount))].map((_, index) => (
-              <div
-                key={`${template.id}-empty-${index}`}
-                className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
-              >
-                <span className="text-xs text-gray-400">No preview</span>
-              </div>
-            ))
-          )}
-        </div>
-
-
-      </div>
-    </Card>
-  );
-};
+import { Copy, ExternalLink } from "lucide-react";
+import Header from "@/app/(presentation-generator)/dashboard/components/Header";
+import { useLayout } from "../context/LayoutContext";
+import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
+import { getHeader } from "../services/api/header";
+import { toast } from "sonner";
 
 const LayoutPreview = () => {
+  const {
+    getAllTemplateIDs,
+    getLayoutsByTemplateID,
+    getTemplateSetting,
+    getFullDataByTemplateID,
+    loading,
+    error,
+  } = useLayout();
   const router = useRouter();
-  const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
+  const pathname = usePathname();
+
+  const [summaryMap, setSummaryMap] = useState<Record<string, { lastUpdatedAt?: number; name?: string; description?: string }>>({});
+
   useEffect(() => {
-    const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
+    const existingScript = document.querySelector(
+      'script[src*="tailwindcss.com"]'
+    );
     if (!existingScript) {
       const script = document.createElement("script");
       script.src = "https://cdn.tailwindcss.com";
@@ -111,109 +36,245 @@ const LayoutPreview = () => {
     }
   }, []);
 
-  const totalStaticLayouts = templates.reduce((acc: number, g: TemplateLayoutsWithSettings) => acc + g.layouts.length, 0);
-  const totalCustomLayouts = customTemplates.reduce((acc: number, t: CustomTemplates) => acc + t.layoutCount, 0);
+  useEffect(() => {
+    // Fetch summary to map custom template slug to template meta and last updated time
+    fetch(`/api/v1/ppt/template-management/summary`, {
+      headers: getHeader(),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const map: Record<string, { lastUpdatedAt?: number; name?: string; description?: string }> = {};
+        if (data && Array.isArray(data.presentations)) {
+          for (const p of data.presentations) {
+            const slug = `custom-${p.presentation_id}`;
+            map[slug] = {
+              lastUpdatedAt: p.last_updated_at ? new Date(p.last_updated_at).getTime() : 0,
+              name: p.template?.name,
+              description: p.template?.description,
+            };
+          }
+        }
+        setSummaryMap(map);
+      })
+      .catch(() => setSummaryMap({}));
+  }, []);
+
+  // Transform context data to match expected format
+  const layoutTemplates = getAllTemplateIDs().map((templateID) => ({
+    templateID,
+    layouts: getLayoutsByTemplateID(templateID),
+    settings: getTemplateSetting(templateID) || { description: "", ordered: false },
+  }));
+  const inBuiltTemplates = layoutTemplates.filter(
+    (g) => !g.templateID.toLowerCase().startsWith("custom-")
+  );
+  const customTemplates = layoutTemplates.filter((g) =>
+    g.templateID.toLowerCase().startsWith("custom-")
+  );
+
+  // Sort custom templates by last_updated_at desc using summaryMap
+  const customTemplatesSorted = [...customTemplates].sort(
+    (a, b) => (summaryMap[b.templateID]?.lastUpdatedAt || 0) - (summaryMap[a.templateID]?.lastUpdatedAt || 0)
+  );
+
+  // Handle loading state
+  if (loading) {
+    return <LoadingStates type="loading" />;
+  }
+
+  // Handle error state
+  if (error) {
+    return <LoadingStates type="error" message={error} />;
+  }
+
+  // Handle empty state
+  if (!loading && layoutTemplates.length === 0) {
+    return <LoadingStates type="empty" />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">All Templates</h1>
-          <p className="text-gray-600 mt-2">
-            {totalStaticLayouts + totalCustomLayouts} layouts across{" "}
-            {templates.length + customTemplates.length} templates
-          </p>
+      <div className=" sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto border-b px-6 py-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900">All Templates</h1>
+            <p className="text-gray-600 mt-2">
+              {layoutTemplates.length} templates
+            </p>
+          </div>
         </div>
+        {/* Custom Templates */}
+        <section className="h-full pt-8 pb-8 flex justify-center items-center">
+          <div className="max-w-7xl mx-auto px-6 py-6 w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Custom AI Templates</h2>
+              <button className="text-sm text-gray-800 hover:text-blue-600 transition-colors flex items-center gap-2 group" onClick={() => {
+                trackEvent(MixpanelEvent.Navigation, { from: pathname, to: `/custom-template` });
+                router.push(`/custom-template`)
+              }}>
+                Create Custom Template
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customTemplatesSorted.length > 0 ? (
+                customTemplatesSorted.map((template) => {
+                  const meta = summaryMap[template.templateID];
 
-        {/* Inbuilt Templates Section */}
-        <section className="mb-12">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Inbuilt Templates</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {templates.map((template: TemplateLayoutsWithSettings) => {
-              const previewLayouts = template.layouts.slice(0, 4);
+                  const displayName = meta?.name ? meta.name : template.templateID;
+                  const displayDescription = meta?.description ? meta.description : template.settings.description;
+                  const layoutTemplate = getFullDataByTemplateID(template.templateID);
+                  return (
+                    <Card
+                      key={template.templateID}
+                      className="cursor-pointer hover:shadow-md transition-all duration-200 group"
+                      onClick={() => {
+                        trackEvent(MixpanelEvent.Navigation, { from: pathname, to: `/template-preview/${template.templateID}` });
+                        router.push(`/template-preview/${template.templateID}`)
+                      }}
+                    >
+                      <div className="p-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-lg font-semibold text-gray-900 capitalize group-hover:text-blue-600 transition-colors">
+                            {displayName}
+                          </h3>
 
-              return (
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                              {template.layouts.length}
+                            </span>
+                            <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-600  ">ID: {template.templateID}</p>
+                          <Copy className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" onClick={() => {
+                            navigator.clipboard.writeText(template.templateID);
+                            toast.success("Copied to clipboard");
+                          }} />
+                        </div>
+                        <p className="text-sm text-gray-600 my-4">
+                          {displayDescription}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 mb-3 min-h-[300px]">
+                          {layoutTemplate &&
+                            layoutTemplate?.slice(0, 4).map((layout: any, index: number) => {
+                              const {
+                                component: LayoutComponent,
+                                sampleData,
+                                layoutId,
+                                templateID,
+                              } = layout;
+                              return (
+                                <div
+                                  key={`${templateID}-${index}`}
+                                  className=" relative border border-gray-200 cursor-pointer overflow-hidden aspect-video"
+                                >
+                                  <div className="absolute cursor-pointer bg-transparent z-40 top-0 left-0 w-full h-full" />
+                                  <div className="transform scale-[0.2] flex justify-center items-center origin-top-left  w-[500%] h-[500%]">
+                                    <LayoutComponent data={sampleData} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })
+              ) : (
                 <Card
-                  key={template.id}
-                  className="cursor-pointer hover:shadow-lg transition-all duration-200 group overflow-hidden"
-                  onClick={() => router.push(`/template-preview/${template.id}`)}
+                  className="cursor-pointer hover:shadow-md transition-all border-blue-500 duration-200 group"
+                  onClick={() => {
+                    trackEvent(MixpanelEvent.Navigation, { from: pathname, to: `/custom-template` });
+                    router.push(`/custom-template`)
+                  }}
                 >
-                  <div className="p-5">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xl font-bold text-gray-900 capitalize">
-                        {template.name}
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 capitalize group-hover:text-blue-600 transition-colors">
+                        Create Custom Template
                       </h3>
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                          {template.layouts.length}
-                        </span>
                         <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
                       </div>
                     </div>
-
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {template.description}
+                    <p className="text-sm text-gray-600 mb-4">
+                      Create your first custom template
                     </p>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      {previewLayouts.map((layout: TemplateWithData, index: number) => {
-                        const LayoutComponent = layout.component;
-                        return (
-                          <div
-                            key={`${template.id}-preview-${index}`}
-                            className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
-                          >
-                            <div className="absolute inset-0 bg-transparent z-10" />
-                            <div
-                              className="transform scale-[0.12] origin-top-left"
-                              style={{ width: "833.33%", height: "833.33%" }}
-                            >
-                              <LayoutComponent data={layout.sampleData} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
                   </div>
                 </Card>
-              );
-            })}
+              )}
+            </div>
           </div>
         </section>
 
-        {/* Custom Templates Section */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-
-            <h2 className="text-xl font-semibold text-gray-800 ">
-              My Custom Templates
-            </h2>
-            <a href="/custom-template" className="text-sm flex font-bold font-inter items-center justify-center gap-2  bg-[#5146E5] text-white px-4 py-2 rounded-md">
-              <Plus className="w-4 h-4" /> Create new template
-            </a>
+        {/* In Built Templates */}
+        <section className="h-full pt-8 flex justify-center items-center">
+          <div className="max-w-7xl mx-auto px-6 py-6 w-full">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Inbuilt Templates</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {inBuiltTemplates.map((template) => {
+                const isCustom = template.templateID.toLowerCase().startsWith("custom-");
+                const meta = summaryMap[template.templateID];
+                const displayName = isCustom && meta?.name ? meta.name : template.templateID;
+                const displayDescription = isCustom && meta?.description ? meta.description : template.settings.description;
+                const layoutTemplate = getFullDataByTemplateID(template.templateID);
+                return (
+                  <Card
+                    key={template.templateID}
+                    className="cursor-pointer hover:shadow-md transition-all duration-200 group"
+                    onClick={() => {
+                      trackEvent(MixpanelEvent.Navigation, { from: pathname, to: `/template-preview/${template.templateID}` });
+                      router.push(`/template-preview/${template.templateID}`)
+                    }}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900 capitalize group-hover:text-blue-600 transition-colors">
+                          {displayName}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                            {template.layouts.length}
+                          </span>
+                          <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-4">
+                        {displayDescription}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 mb-3 min-h-[300px]">
+                        {layoutTemplate &&
+                          layoutTemplate?.slice(0, 4).map((layout: any, index: number) => {
+                            const {
+                              component: LayoutComponent,
+                              sampleData,
+                              layoutId,
+                              templateID,
+                            } = layout;
+                            return (
+                              <div
+                                key={`${templateID}-${index}`}
+                                className=" relative border border-gray-200 cursor-pointer overflow-hidden aspect-video"
+                              >
+                                <div className="absolute cursor-pointer bg-transparent z-40 top-0 left-0 w-full h-full" />
+                                <div className="transform scale-[0.2] flex justify-center items-center origin-top-left  w-[500%] h-[500%]">
+                                  <LayoutComponent data={sampleData} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
-
-          {customLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-              <span className="ml-3 text-gray-600">Loading custom templates...</span>
-            </div>
-          ) : customTemplates.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-gray-500">No custom templates yet.</p>
-              <p className="text-sm text-gray-400 mt-2">
-                Custom templates you create will appear here.
-              </p>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {customTemplates.map((template: CustomTemplates) => (
-                <CustomTemplateCard key={template.id} template={template} />
-              ))}
-            </div>
-          )}
         </section>
+
+
       </div>
     </div>
   );

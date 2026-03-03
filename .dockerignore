@@ -1,11 +1,48 @@
+# Version control
 .git
+.github
 .gitignore
 
+# Documentation
+README.md
+readme_assets
+LICENSE
+NOTICE
+scripts
+
+# FastAPI dev/test artifacts
 servers/fastapi/tmp
 servers/fastapi/debug
 servers/fastapi/.venv
+servers/fastapi/__pycache__
+servers/fastapi/**/__pycache__
+servers/fastapi/tests
+servers/fastapi/pyproject.toml
 
+# Next.js build/dev artifacts
 servers/nextjs/node_modules
 servers/nextjs/.next
+servers/nextjs/.next-build
+servers/nextjs/cypress
+servers/nextjs/cypress.config.ts
+servers/nextjs/tsconfig.tsbuildinfo
+servers/nextjs/README.md
 
+# Data / DB
 container.db
+app_data
+
+# Docker files (not needed inside the image)
+Dockerfile
+Dockerfile.dev
+Dockerfile.nextjs
+Dockerfile.fastapi
+docker-compose.yml
+
+# IDE / OS
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

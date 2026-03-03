@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import FontManager from "./components/FontManager";
 import Header from "../dashboard/components/Header";
-
+import { useLayout } from "../context/LayoutContext";
 import { useCustomLayout } from "./hooks/useCustomLayout";
 import { useFontManagement } from "./hooks/useFontManagement";
 import { useFileUpload } from "./hooks/useFileUpload";
@@ -22,14 +22,14 @@ import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 const CustomTemplatePage = () => {
   const router = useRouter();
   const pathname = usePathname();
-
-
+  const { refetch } = useLayout();
+  
   // Custom hooks for different concerns
   const { hasRequiredKey, isRequiredKeyLoading } = useAPIKeyCheck();
   const { selectedFile, handleFileSelect, removeFile } = useFileUpload();
   const { slides, setSlides, completedSlides } = useCustomLayout();
   const { fontsData, UploadedFonts, uploadFont, removeFont, getAllUnsupportedFonts, setFontsData } = useFontManagement();
-  const { isProcessingPptx, processFile, retrySlide, processSlideToHtml } = useSlideProcessing(
+  const { isProcessingPptx, processFile, retrySlide,processSlideToHtml } = useSlideProcessing(
     selectedFile,
     slides,
     setSlides,
@@ -39,7 +39,7 @@ const CustomTemplatePage = () => {
     slides,
     UploadedFonts,
     fontsData,
-
+    refetch,
     setSlides
   );
 
@@ -53,7 +53,7 @@ const CustomTemplatePage = () => {
   };
 
   const handleProcessSlideToHtml = (slide: any) => {
-    processSlideToHtml(slide, 0)
+    processSlideToHtml(slide,0)
   }
 
   // Handle slide updates
@@ -62,15 +62,15 @@ const CustomTemplatePage = () => {
       prevSlides.map((s, i) =>
         i === index
           ? {
-            ...s,
-            ...updatedSlideData,
-            modified: true,
-          }
+              ...s,
+              ...updatedSlideData,
+              modified: true,
+            }
           : s
       )
     );
   };
-  useEffect(() => {
+ useEffect(() => {
     const existingScript = document.querySelector(
       'script[src*="tailwindcss.com"]'
     );
@@ -90,7 +90,7 @@ const CustomTemplatePage = () => {
   // Anthropic key warning
   if (!hasRequiredKey) {
     return <APIKeyWarning />;
-
+ 
 
   }
   return (
@@ -112,7 +112,7 @@ const CustomTemplatePage = () => {
             </div>
           </div>
         </div>
-
+       
 
         {/* File Upload Section */}
         <FileUploadSection
@@ -133,7 +133,7 @@ const CustomTemplatePage = () => {
             uploadFont={uploadFont}
             removeFont={removeFont}
             getAllUnsupportedFonts={getAllUnsupportedFonts}
-            processSlideToHtml={() => handleProcessSlideToHtml(slides[0])}
+            processSlideToHtml={()=>handleProcessSlideToHtml(slides[0])}
           />
         )}
 

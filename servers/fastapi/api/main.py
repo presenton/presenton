@@ -1,13 +1,18 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from api.lifespan import app_lifespan
 from api.middlewares import UserConfigEnvUpdateMiddleware
 from api.v1.ppt.router import API_V1_PPT_ROUTER
 from api.v1.webhook.router import API_V1_WEBHOOK_ROUTER
 from api.v1.mock.router import API_V1_MOCK_ROUTER
+from utils.get_env import get_app_data_directory_env
 
 
 app = FastAPI(lifespan=app_lifespan)
+
+app_data_directory = get_app_data_directory_env() or "/tmp/presenton"
+app.mount("/app_data", StaticFiles(directory=app_data_directory), name="app_data")
 
 
 # Routers

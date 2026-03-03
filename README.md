@@ -48,7 +48,6 @@ Presenton gives you complete control over your AI presentation workflow. Choose 
 - ✅ **API Deployment** — Host as your own API service for your team
 - ✅ **Fully Open-Source** — Apache 2.0 licensed, inspect, modify, and contribute
 - ✅ **Docker Ready** — One-command deployment with GPU support for local models
-- ✅ **Electron Desktop App** — Run Presenton as a native desktop application on Windows, macOS, and Linux (no browser required)
 
 ## Presenton Cloud
 
@@ -57,11 +56,7 @@ Presenton gives you complete control over your AI presentation workflow. Choose 
   <img src="readme_assets/cloud-banner.png" height="350" alt="Presenton Logo" />
 </a>
 
-## Running Presenton
-
-You can run Presenton in two ways: **Docker** for a one-command setup without installing a local dev stack, or the **Electron desktop app** for a native app experience (ideal for development or offline use).
-
-### Option 1: Docker
+## Running Presenton Docker
 
 #### 1. Start Presenton
 
@@ -83,43 +78,9 @@ Open http://localhost:5000 on browser of your choice to use Presenton.
 
 > **Note: You can replace 5000 with any other port number of your choice to run Presenton on a different port number.**
 
-### Option 2: Electron (Desktop App)
-
-Run Presenton as a native desktop application. LLM and image provider (API keys, etc.) can be configured in the app; the same environment variables used for Docker apply when running the bundled backend.
-
-**Prerequisites:** Node.js (LTS), npm, Python 3.11, and [uv](https://docs.astral.sh/uv/) (for the Electron FastAPI backend in `electron/servers/fastapi`).
-
-**Setup (first time):**
-
-```bash
-cd electron
-npm run setup:env
-```
-
-This installs Node dependencies, runs `uv sync` in the FastAPI server, and installs Next.js dependencies.
-
-**Run in development:**
-
-```bash
-npm run dev
-```
-
-This compiles TypeScript and starts Electron; the backend and UI run locally in the desktop window.
-
-**Build distributable (optional):**
-
-To create installers for Windows, macOS, or Linux:
-
-```bash
-npm run build:all
-npm run dist
-```
-
-Outputs are written to `electron/dist` (or as per your electron-builder config).
-
 ## Deployment Configurations
 
-These settings apply to both Docker and the Electron app's backend. You may want to directly provide your API KEYS as environment variables and keep them hidden. You can set these environment variables to achieve it.
+You may want to directly provide your API KEYS as environment variables and keep them hidden. You can set these environment variables to achieve it.
 
 - **CAN_CHANGE_KEYS=[true/false]**: Set this to **false** if you want to keep API Keys hidden and make them unmodifiable.
 - **LLM=[openai/google/anthropic/ollama/custom]**: Select **LLM** of your choice.
@@ -316,3 +277,4 @@ For detailed info checkout [API documentation](https://docs.presenton.ai/using-p
 ## License
 
 Apache 2.0
+# presenton1

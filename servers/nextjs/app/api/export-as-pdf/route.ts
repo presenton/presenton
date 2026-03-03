@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import puppeteer from "puppeteer";
+import { uploadBufferToGcs } from "@/lib/gcsStorage";
 
 import { sanitizeFilename } from "@/app/(presentation-generator)/utils/others";
 import { NextResponse, NextRequest } from "next/server";
@@ -81,6 +82,19 @@ export async function POST(req: NextRequest) {
   browser.close();
 
   const sanitizedTitle = sanitizeFilename(title ?? "presentation");
+  const gcsUrl = await uploadBufferToGcs(
+    pdfBuffer,
+    `exports/${sanitizedTitle}.pdf`,
+    "application/pdf"
+  );
+
+  if (gcsUrl) {
+    return NextResponse.json({
+      success: true,
+      path: gcsUrl,
+    });
+  }
+
   const appDataDirectory = process.env.APP_DATA_DIRECTORY!;
   if (!appDataDirectory) {
     return NextResponse.json({

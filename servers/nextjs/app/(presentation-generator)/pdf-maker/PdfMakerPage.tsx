@@ -10,24 +10,32 @@ import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { AlertCircle } from "lucide-react";
 import { setPresentationData } from "@/store/slices/presentationGeneration";
 import { DashboardApi } from "../services/api/dashboard";
-
-
-import { V1ContentRender } from "../components/V1ContentRender";
+import { useLayout } from "../context/LayoutContext";
+import { useFontLoader } from "../hooks/useFontLoader";
+import { useTemplateLayouts } from "../hooks/useTemplateLayouts";
 
 
 
 
 
 const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
+  const { renderSlideContent, loading } = useTemplateLayouts();
   const pathname = usePathname();
   const [contentLoading, setContentLoading] = useState(true);
-
+  const { getCustomTemplateFonts } = useLayout()
   const dispatch = useDispatch();
   const { presentationData } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
   const [error, setError] = useState(false);
+  useEffect(() => {
+    if (!loading && presentationData?.slides && presentationData?.slides.length > 0) {
+      const presentation_id = presentationData?.slides[0].layout.split(":")[0].split("custom-")[1];
+      const fonts = getCustomTemplateFonts(presentation_id);
 
+      useFontLoader(fonts || []);
+    }
+  }, [presentationData, loading]);
   useEffect(() => {
     if (presentationData?.slides[0].layout.includes("custom")) {
       const existingScript = document.querySelector(
@@ -95,7 +103,7 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
             className="mx-auto flex flex-col items-center  overflow-hidden  justify-center   "
           >
             {!presentationData ||
-
+              loading ||
               contentLoading ||
               !presentationData?.slides ||
               presentationData?.slides.length === 0 ? (
@@ -117,8 +125,7 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
                   presentationData.slides.map((slide: any, index: number) => (
                     // [data-speaker-note] is used to extract the speaker note from the slide for export to pptx
                     <div key={index} className="w-full" data-speaker-note={slide.speaker_note}>
-                      <V1ContentRender slide={slide} isEditMode={true} theme={null}
-                      />
+                      {renderSlideContent(slide, true)}
                     </div>
                   ))}
               </>

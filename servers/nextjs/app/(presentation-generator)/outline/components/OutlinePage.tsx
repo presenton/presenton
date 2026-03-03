@@ -15,7 +15,6 @@ import { useOutlineStreaming } from "../hooks/useOutlineStreaming";
 import { useOutlineManagement } from "../hooks/useOutlineManagement";
 import { usePresentationGeneration } from "../hooks/usePresentationGeneration";
 import TemplateSelection from "./TemplateSelection";
-import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 
 const OutlinePage: React.FC = () => {
   const { presentation_id, outlines } = useSelector(
@@ -23,7 +22,7 @@ const OutlinePage: React.FC = () => {
   );
 
   const [activeTab, setActiveTab] = useState<string>(TABS.OUTLINE);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateLayoutsWithSettings | string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   // Custom hooks
   const streamState = useOutlineStreaming(presentation_id);
   const { handleDragEnd, handleAddSlide } = useOutlineManagement(outlines);

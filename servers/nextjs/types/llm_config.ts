@@ -43,13 +43,6 @@ export interface LLMConfig {
   EXTENDED_REASONING?: boolean;
   WEB_GROUNDING?: boolean;
 
-  // Codex OAuth (ChatGPT)
-  CODEX_MODEL?: string;
-  CODEX_ACCESS_TOKEN?: string;
-  CODEX_REFRESH_TOKEN?: string;
-  CODEX_TOKEN_EXPIRES?: string;
-  CODEX_ACCOUNT_ID?: string;
-
   // Only used in UI settings
   USE_CUSTOM_URL?: boolean;
 }

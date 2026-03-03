@@ -4,8 +4,29 @@ from urllib.parse import urlsplit, urlunsplit, parse_qsl
 import ssl
 
 
+def _normalize_env_value(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    normalized = value.strip()
+    if not normalized:
+        return None
+
+    if (
+        (normalized.startswith("\"") and normalized.endswith("\""))
+        or (normalized.startswith("'") and normalized.endswith("'"))
+    ):
+        normalized = normalized[1:-1].strip()
+
+    if not normalized or normalized.lower() in {"none", "null"}:
+        return None
+
+    return normalized
+
+
 def get_database_url_and_connect_args() -> tuple[str, dict]:
-    database_url = get_database_url_env() or "sqlite:///" + os.path.join(
+    env_database_url = _normalize_env_value(get_database_url_env())
+    database_url = env_database_url or "sqlite:///" + os.path.join(
         get_app_data_directory_env() or "/tmp/presenton", "fastapi.db"
     )
 

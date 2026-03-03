@@ -119,22 +119,13 @@ def get_gpt_image_1_5_quality_env():
     return os.getenv("GPT_IMAGE_1_5_QUALITY")
 
 
-# Codex OAuth
-def get_codex_access_token_env():
-    return os.getenv("CODEX_ACCESS_TOKEN")
+def get_gcs_bucket_env():
+    return os.getenv("GCS_BUCKET")
 
 
-def get_codex_refresh_token_env():
-    return os.getenv("CODEX_REFRESH_TOKEN")
+def get_gcs_prefix_env():
+    return os.getenv("GCS_PREFIX")
 
 
-def get_codex_token_expires_env():
-    return os.getenv("CODEX_TOKEN_EXPIRES")
-
-
-def get_codex_account_id_env():
-    return os.getenv("CODEX_ACCOUNT_ID")
-
-
-def get_codex_model_env():
-    return os.getenv("CODEX_MODEL")
+def get_gemini_flash_model_env():
+    return os.getenv("GEMINI_FLASH_MODEL")

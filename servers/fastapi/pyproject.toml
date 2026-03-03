@@ -2,6 +2,7 @@
 name = "presenton-backend"
 version = "0.1.0"
 description = "Add your description here"
+readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
     "aiohttp>=3.12.15",
@@ -27,7 +28,3 @@ dependencies = [
 
 [[tool.uv.index]]
 url = "https://download.pytorch.org/whl/cpu"
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["api*", "enums*", "models*", "services*", "constants*", "utils*"]

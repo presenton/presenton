@@ -8,7 +8,7 @@ export const useLayoutSaving = (
   slides: ProcessedSlide[],
   UploadedFonts: UploadedFont[],
   fontsData: FontData | null,
-  // refetch: () => void,
+  refetch: () => void,
   setSlides: React.Dispatch<React.SetStateAction<ProcessedSlide[]>>
 ) => {
   const [isSavingLayout, setIsSavingLayout] = useState(false);
@@ -61,15 +61,15 @@ export const useLayoutSaving = (
       } catch (error) {
         retryCount++;
         console.error(`Error converting slide ${slide.slide_number} (attempt ${retryCount}):`, error);
-
+        
         if (retryCount < maxRetries) {
           toast.error(`Failed to convert slide ${slide.slide_number}. Retrying in 2 minutes...`, {
             description: `Attempt ${retryCount}/${maxRetries}. Error: ${error instanceof Error ? error.message : "An unexpected error occurred"}`,
           });
-
+          
           // Wait for 2 minutes before retrying
           await delay(2 * 60 * 1000);
-
+          
           toast.info(`Retrying conversion for slide ${slide.slide_number}...`);
         } else {
           throw new Error(`Failed to convert slide ${slide.slide_number} after ${maxRetries} attempts: ${error instanceof Error ? error.message : "An unexpected error occurred"}`);
@@ -173,7 +173,7 @@ export const useLayoutSaving = (
       });
 
       toast.success(`Layout "${layoutName}" saved successfully`);
-      // refetch();
+      refetch();
       closeSaveModal();
       return presentationId;
     } catch (error) {
@@ -188,7 +188,7 @@ export const useLayoutSaving = (
     } finally {
       setIsSavingLayout(false);
     }
-  }, [slides, UploadedFonts, fontsData, closeSaveModal, setSlides]);
+  }, [slides, UploadedFonts, fontsData, refetch, closeSaveModal, setSlides]);
 
   return {
     isSavingLayout,

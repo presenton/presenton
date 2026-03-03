@@ -37,6 +37,10 @@
     ".next-build/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "cypress",
+    "**/*.cy.ts",
+    "**/*.cy.tsx",
+    "cypress.config.ts"
   ]
 }

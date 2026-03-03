@@ -1,10 +1,12 @@
 import os
 import base64
+import tempfile
 from datetime import datetime
 from typing import Optional, List, Dict
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Depends
 from pydantic import BaseModel
+import aiohttp
 from openai import OpenAI
 from openai import APIError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -106,6 +108,24 @@ class ErrorResponse(BaseModel):
     success: bool = False
     detail: str
     error_code: Optional[str] = None
+
+
+async def _download_image_to_temp(url: str) -> str:
+    suffix = os.path.splitext(url.split("?")[0])[1] or ".png"
+    fd, temp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+
+    async with aiohttp.ClientSession(trust_env=True) as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                raise HTTPException(
+                    status_code=404, detail=f"Image URL not accessible: {url}"
+                )
+            content = await response.read()
+            with open(temp_path, "wb") as temp_file:
+                temp_file.write(content)
+
+    return temp_path
 
 
 class TemplateCreateRequest(BaseModel):
@@ -457,7 +477,11 @@ async def convert_slide_to_html(request: SlideToHtmlRequest):
         image_path = request.image
 
         # Handle different path formats
-        if image_path.startswith("/app_data/images/"):
+        temp_download_path = None
+        if image_path.startswith("http://") or image_path.startswith("https://"):
+            temp_download_path = await _download_image_to_temp(image_path)
+            actual_image_path = temp_download_path
+        elif image_path.startswith("/app_data/images/"):
             # Remove the /app_data/images/ prefix and join with actual images directory
             relative_path = image_path[len("/app_data/images/") :]
             actual_image_path = os.path.join(get_images_directory(), relative_path)
@@ -503,6 +527,9 @@ async def convert_slide_to_html(request: SlideToHtmlRequest):
             fonts=request.fonts,
         )
 
+        if temp_download_path and os.path.exists(temp_download_path):
+            os.remove(temp_download_path)
+
         html_content = html_content.replace("```html", "").replace("```", "")
 
         return SlideToHtmlResponse(success=True, html=html_content)
@@ -547,7 +574,11 @@ async def convert_html_to_react(request: HtmlToReactRequest):
         media_type = None
         if request.image:
             image_path = request.image
-            if image_path.startswith("/app_data/images/"):
+            temp_download_path = None
+            if image_path.startswith("http://") or image_path.startswith("https://"):
+                temp_download_path = await _download_image_to_temp(image_path)
+                actual_image_path = temp_download_path
+            elif image_path.startswith("/app_data/images/"):
                 relative_path = image_path[len("/app_data/images/") :]
                 actual_image_path = os.path.join(get_images_directory(), relative_path)
             elif image_path.startswith("/static/"):
@@ -570,6 +601,8 @@ async def convert_html_to_react(request: HtmlToReactRequest):
                     ".gif": "image/gif",
                     ".webp": "image/webp",
                 }.get(ext, "image/png")
+            if temp_download_path and os.path.exists(temp_download_path):
+                os.remove(temp_download_path)
 
         # Convert HTML to React component
         react_component = await generate_react_component_from_html(

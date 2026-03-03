@@ -2,17 +2,7 @@
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
-  
-
-  // Rewrites for development - proxy font requests to FastAPI backend
-  async rewrites() {
-    return [
-      {
-        source: '/app_data/fonts/:path*',
-        destination: 'http://localhost:8000/app_data/fonts/:path*',
-      },
-    ];
-  },
+  output: "standalone",
 
   images: {
     remotePatterns: [
@@ -27,6 +17,10 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "pptgen-public.s3.ap-south-1.amazonaws.com",
+      },
+      {
+        protocol: "https",
+        hostname: "storage.googleapis.com",
       },
       {
         protocol: "https",

@@ -1,9 +1,46 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
+import path from "path";
 import { LLMConfig } from "@/types/llm_config";
 
-const userConfigPath = process.env.USER_CONFIG_PATH!;
+const userConfigPath = process.env.USER_CONFIG_PATH;
 const canChangeKeys = process.env.CAN_CHANGE_KEYS !== "false";
+
+// Helper function to get config from environment variables
+function getConfigFromEnv(): LLMConfig {
+  // Helper to clean null values but preserve empty strings
+  const getEnvValue = (key: string | undefined): string | undefined => {
+    return key && key !== "null" ? key : undefined;
+  };
+
+  return {
+    LLM: getEnvValue(process.env.LLM),
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+    OPENAI_MODEL: getEnvValue(process.env.OPENAI_MODEL),
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || "",
+    GOOGLE_MODEL: getEnvValue(process.env.GOOGLE_MODEL),
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
+    ANTHROPIC_MODEL: getEnvValue(process.env.ANTHROPIC_MODEL),
+    OLLAMA_URL: getEnvValue(process.env.OLLAMA_URL),
+    OLLAMA_MODEL: getEnvValue(process.env.OLLAMA_MODEL),
+    CUSTOM_LLM_URL: process.env.CUSTOM_LLM_URL,
+    CUSTOM_LLM_API_KEY: process.env.CUSTOM_LLM_API_KEY,
+    CUSTOM_MODEL: process.env.CUSTOM_MODEL,
+    DISABLE_IMAGE_GENERATION: process.env.DISABLE_IMAGE_GENERATION === "true",
+    PIXABAY_API_KEY: process.env.PIXABAY_API_KEY,
+    IMAGE_PROVIDER: getEnvValue(process.env.IMAGE_PROVIDER),
+    PEXELS_API_KEY: process.env.PEXELS_API_KEY,
+    COMFYUI_URL: process.env.COMFYUI_URL,
+    COMFYUI_WORKFLOW: process.env.COMFYUI_WORKFLOW,
+    DALL_E_3_QUALITY: getEnvValue(process.env.DALL_E_3_QUALITY),
+    GPT_IMAGE_1_5_QUALITY: getEnvValue(process.env.GPT_IMAGE_1_5_QUALITY),
+    TOOL_CALLS: process.env.TOOL_CALLS === "true",
+    DISABLE_THINKING: process.env.DISABLE_THINKING === "true",
+    EXTENDED_REASONING: process.env.EXTENDED_REASONING === "true",
+    WEB_GROUNDING: process.env.WEB_GROUNDING === "true",
+    USE_CUSTOM_URL: false,
+  };
+}
 
 export async function GET() {
   if (!canChangeKeys) {
@@ -12,18 +49,24 @@ export async function GET() {
       status: 403,
     });
   }
+
+  // If no USER_CONFIG_PATH is set (Cloud Run), return env vars directly
   if (!userConfigPath) {
-    return NextResponse.json({
-      error: "User config path not found",
-      status: 500,
-    });
+    return NextResponse.json(getConfigFromEnv());
   }
 
-  if (!fs.existsSync(userConfigPath)) {
-    return NextResponse.json({});
+  // Try to read from file if it exists
+  if (fs.existsSync(userConfigPath)) {
+    try {
+      const configData = fs.readFileSync(userConfigPath, "utf-8");
+      return NextResponse.json(JSON.parse(configData));
+    } catch (error) {
+      console.error("Error reading config file:", error);
+    }
   }
-  const configData = fs.readFileSync(userConfigPath, "utf-8");
-  return NextResponse.json(JSON.parse(configData));
+
+  // Fallback to environment variables
+  return NextResponse.json(getConfigFromEnv());
 }
 
 export async function POST(request: Request) {
@@ -31,6 +74,19 @@ export async function POST(request: Request) {
     return NextResponse.json({
       error: "You are not allowed to access this resource",
     });
+  }
+
+  // If no USER_CONFIG_PATH (Cloud Run), config is read-only from env vars
+  if (!userConfigPath) {
+    return NextResponse.json({
+      error: "Configuration is read-only in cloud environment. Update via deployment environment variables.",
+      readonly: true,
+    }, { status: 400 });
+  }
+
+  const configDir = path.dirname(userConfigPath);
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
   }
 
   const userConfig = await request.json();
@@ -91,11 +147,6 @@ export async function POST(request: Request) {
       userConfig.USE_CUSTOM_URL === undefined
         ? existingConfig.USE_CUSTOM_URL
         : userConfig.USE_CUSTOM_URL,
-    CODEX_MODEL: userConfig.CODEX_MODEL || existingConfig.CODEX_MODEL,
-    CODEX_ACCESS_TOKEN: existingConfig.CODEX_ACCESS_TOKEN,
-    CODEX_REFRESH_TOKEN: existingConfig.CODEX_REFRESH_TOKEN,
-    CODEX_TOKEN_EXPIRES: existingConfig.CODEX_TOKEN_EXPIRES,
-    CODEX_ACCOUNT_ID: existingConfig.CODEX_ACCOUNT_ID,
   };
   fs.writeFileSync(userConfigPath, JSON.stringify(mergedConfig));
   return NextResponse.json(mergedConfig);

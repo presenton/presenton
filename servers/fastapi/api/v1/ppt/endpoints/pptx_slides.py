@@ -14,6 +14,7 @@ import re
 
 from services.documents_loader import DocumentsLoader
 from utils.asset_directory_utils import get_images_directory
+from utils.gcs_storage import maybe_upload_file_to_gcs
 import uuid
 from constants.documents import POWERPOINT_TYPES
 
@@ -373,8 +374,13 @@ async def process_pptx_slides(
                 ):
                     # Use shutil.copy2 instead of os.rename to handle cross-device moves
                     shutil.copy2(screenshot_path, permanent_screenshot_path)
+                    gcs_url = maybe_upload_file_to_gcs(
+                        permanent_screenshot_path,
+                        relative_path=f"images/{presentation_id}/{screenshot_filename}",
+                    )
                     screenshot_url = (
-                        f"/app_data/images/{presentation_id}/{screenshot_filename}"
+                        gcs_url
+                        or f"/app_data/images/{presentation_id}/{screenshot_filename}"
                     )
                 else:
                     # Fallback if screenshot generation failed or file is empty placeholder

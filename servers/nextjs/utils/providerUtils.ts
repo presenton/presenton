@@ -52,7 +52,6 @@ export const updateLLMConfig = (
     comfyui_workflow: "COMFYUI_WORKFLOW",
     dall_e_3_quality: "DALL_E_3_QUALITY",
     gpt_image_1_5_quality: "GPT_IMAGE_1_5_QUALITY",
-    codex_model: "CODEX_MODEL",
   };
 
   const configKey = fieldMappings[field];
@@ -78,7 +77,7 @@ export const changeProvider = (
   } else if (provider === "google") {
     newConfig.IMAGE_PROVIDER = "gemini_flash";
   } else {
-    newConfig.IMAGE_PROVIDER = "pexels"; // default for ollama, custom, codex
+    newConfig.IMAGE_PROVIDER = "pexels"; // default for ollama and custom
   }
 
   return newConfig;

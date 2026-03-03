@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, {  useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,7 +20,7 @@ import {
 } from "../hooks";
 import { PresentationPageProps } from "../types";
 import LoadingState from "./LoadingState";
-
+import { useLayout } from "../../context/LayoutContext";
 import { useFontLoader } from "../../hooks/useFontLoader";
 import { usePresentationUndoRedo } from "../hooks/PresentationUndoRedo";
 const PresentationPage: React.FC<PresentationPageProps> = ({
@@ -33,8 +33,8 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
-
-
+  const {getCustomTemplateFonts} = useLayout();
+ 
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
@@ -82,14 +82,14 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   };
 
 
-  // useEffect(() => {
-  //   if(!loading && !isStreaming && presentationData?.slides && presentationData?.slides.length > 0){  
-  //     const presentation_id = presentationData?.slides[0].layout.split(":")[0].split("custom-")[1];
-  //   const fonts = getCustomTemplateFonts(presentation_id);
-
-  //   useFontLoader(fonts || []);
-  // }
-  // }, [presentationData,loading,isStreaming]);
+  useEffect(() => {
+    if(!loading && !isStreaming && presentationData?.slides && presentationData?.slides.length > 0){  
+      const presentation_id = presentationData?.slides[0].layout.split(":")[0].split("custom-")[1];
+    const fonts = getCustomTemplateFonts(presentation_id);
+  
+    useFontLoader(fonts || []);
+  }
+  }, [presentationData,loading,isStreaming]);
   // Presentation Mode View
   if (isPresentMode) {
     return (
@@ -144,16 +144,16 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
           isMobilePanelOpen={isMobilePanelOpen}
           setIsMobilePanelOpen={setIsMobilePanelOpen}
         />
-
+        
         <div className="flex-1 h-[calc(100vh-100px)] overflow-y-auto">
           <div
             id="presentation-slides-wrapper"
             className="mx-auto flex flex-col items-center overflow-hidden justify-center p-2 sm:p-6 pt-0"
           >
             {!presentationData ||
-              loading ||
-              !presentationData?.slides ||
-              presentationData?.slides.length === 0 ? (
+            loading ||
+            !presentationData?.slides ||
+            presentationData?.slides.length === 0 ? (
               <div className="relative w-full h-[calc(100vh-120px)] mx-auto">
                 <div className="">
                   {Array.from({ length: 2 }).map((_, index) => (

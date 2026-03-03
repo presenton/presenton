@@ -6,8 +6,6 @@ import { clearPresentationData } from "@/store/slices/presentationGeneration";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import { Template, LoadingState, TABS } from "../types/index";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
-import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
-import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
 
 const DEFAULT_LOADING_STATE: LoadingState = {
   message: "",
@@ -19,7 +17,7 @@ const DEFAULT_LOADING_STATE: LoadingState = {
 export const usePresentationGeneration = (
   presentationId: string | null,
   outlines: { content: string }[] | null,
-  selectedTemplate: TemplateLayoutsWithSettings | string | null,
+  selectedTemplate: Template | null,
   setActiveTab: (tab: string) => void
 ) => {
   const dispatch = useDispatch();
@@ -40,34 +38,24 @@ export const usePresentationGeneration = (
       });
       return false;
     }
-
+    if (!selectedTemplate.slides.length) {
+      toast.error("No Slide Schema found", {
+        description: "Please select a Group before generating presentation",
+      });
+      return false;
+    }
 
     return true;
   }, [outlines, selectedTemplate]);
 
-
-
-  const clearTheme = () => {
-    const element = document.getElementById('presentation-page')
-    if (!element) return;
-    element.style.removeProperty('--primary-color');
-    element.style.removeProperty('--background-color');
-    element.style.removeProperty('--card-color');
-    element.style.removeProperty('--stroke');
-    element.style.removeProperty('--primary-text');
-    element.style.removeProperty('--background-text');
-    element.style.removeProperty('--graph-0');
-    element.style.removeProperty('--graph-1');
-    element.style.removeProperty('--graph-2');
-    element.style.removeProperty('--graph-3');
-    element.style.removeProperty('--graph-4');
-    element.style.removeProperty('--graph-5');
-    element.style.removeProperty('--graph-6');
-    element.style.removeProperty('--graph-7');
-    element.style.removeProperty('--graph-8');
-    element.style.removeProperty('--graph-9');
-
-  }
+  const prepareLayoutData = useCallback(() => {
+    if (!selectedTemplate) return null;
+    return {
+      name: selectedTemplate.name,
+      ordered: selectedTemplate.ordered,
+      slides: selectedTemplate.slides
+    };
+  }, [selectedTemplate]);
 
   const handleSubmit = useCallback(async () => {
     if (!selectedTemplate) {
@@ -75,6 +63,8 @@ export const usePresentationGeneration = (
       return;
     }
     if (!validateInputs()) return;
+
+
 
     setLoadingState({
       message: "Generating presentation data...",
@@ -84,72 +74,19 @@ export const usePresentationGeneration = (
     });
 
     try {
-      let layout;
+      const layoutData = prepareLayoutData();
 
-      // Check if it's a custom template (string = presentationId)
-      if (typeof selectedTemplate === 'string') {
-        setLoadingState({
-          message: "Loading custom template...",
-          isLoading: true,
-          showProgress: true,
-          duration: 30,
-        });
-
-        // Fetch custom template details using the shared function
-        const customTemplateDetail = await getCustomTemplateDetails(selectedTemplate);
-
-        if (!customTemplateDetail || customTemplateDetail.layouts.length === 0) {
-          toast.error("Template Error", {
-            description: "Failed to load custom template layouts",
-          });
-          return;
-        }
-
-        setLoadingState({
-          message: "Generating presentation data...",
-          isLoading: true,
-          showProgress: true,
-          duration: 30,
-        });
-
-        layout = {
-          name: customTemplateDetail.id,
-          ordered: false,
-          slides: customTemplateDetail.layouts.map((compiledLayout) => ({
-            id: customTemplateDetail.id.startsWith('custom-') ? `${customTemplateDetail.id}:${compiledLayout.layoutId}` : `custom-${customTemplateDetail.id}:${compiledLayout.layoutId}`,
-            name: compiledLayout.layoutName,
-            description: compiledLayout.layoutDescription,
-            templateID: customTemplateDetail.id,
-            templateName: customTemplateDetail.name,
-            json_schema: compiledLayout.schemaJSON,
-          }))
-        };
-      } else {
-        // Built-in template
-        layout = {
-          name: selectedTemplate.id,
-          ordered: false,
-          slides: selectedTemplate.layouts.map((layoutItem) => ({
-            id: layoutItem.layoutId,
-            name: layoutItem.layoutName,
-            description: layoutItem.layoutDescription,
-            templateID: selectedTemplate.id,
-            templateName: selectedTemplate.name,
-            json_schema: layoutItem.schemaJSON,
-          }))
-        };
-      }
-
+      if (!layoutData) return;
+      trackEvent(MixpanelEvent.Presentation_Prepare_API_Call);
       const response = await PresentationGenerationApi.presentationPrepare({
         presentation_id: presentationId,
         outlines: outlines,
-        layout: layout,
+        layout: layoutData,
       });
 
       if (response) {
         dispatch(clearPresentationData());
-        clearTheme();
-        router.replace(`/presentation?id=${presentationId}&stream=true&type=standard`);
+        router.replace(`/presentation?id=${presentationId}&stream=true`);
       }
     } catch (error: any) {
       console.error('Error In Presentation Generation(prepare).', error);
@@ -159,7 +96,7 @@ export const usePresentationGeneration = (
     } finally {
       setLoadingState(DEFAULT_LOADING_STATE);
     }
-  }, [validateInputs, presentationId, outlines, dispatch, router, selectedTemplate]);
+  }, [validateInputs, prepareLayoutData, presentationId, outlines, dispatch, router, selectedTemplate]);
 
   return { loadingState, handleSubmit };
 }; 
