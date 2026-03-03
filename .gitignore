@@ -33,10 +33,17 @@ servers/fastapi/dist/
 *.so
 *.dylib
 
-# Large assets
+# Large assets & icon libraries
 **/icons*.json
+servers/nextjs/public/static/icons/        # Icon library directory (Phosphor icons - Generated)
+servers/fastapi/static/icons/              # Icon library directory copied to FastAPI
 **/*.pyz
 **/*.pkg
+
+# Production builds & distributions
+dist/
+build/
+out/
 
 # Lock files (optional - many teams exclude these)
 package-lock.json
