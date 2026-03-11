@@ -51,6 +51,7 @@ Presenton gives you complete control over your AI presentation workflow. Choose 
 - ✅ **Electron Desktop App** — Run Presenton as a native desktop application on Windows, macOS, and Linux (no browser required)
 - ✅ **Sign in with ChatGPT** — Use your free or paid ChatGPT account to sign in and start creating presentations instantly — no separate API key required
 
+
 ## Presenton Cloud
 
 <a href="https://presenton.ai" target="_blank" align="center">
