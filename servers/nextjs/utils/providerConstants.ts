@@ -90,6 +90,15 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     apiKeyField: "COMFYUI_URL",
     apiKeyFieldLabel: "ComfyUI Server URL",
   },
+  ollama_flux: {
+    value: "ollama_flux",
+    label: "Ollama x/flux-klein:9b",
+    description: "Use your local Ollama with x/flux-klein:9b",
+    icon: "/icons/ollama.png",
+    requiresApiKey: false,
+    apiKeyField: "",
+    apiKeyFieldLabel: "",
+  },
 };
 
 export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
