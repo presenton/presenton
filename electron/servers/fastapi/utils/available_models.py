@@ -19,3 +19,9 @@ async def list_available_anthropic_models(api_key: str) -> list[str]:
 async def list_available_google_models(api_key: str) -> list[str]:
     client = genai.Client(api_key=api_key)
     return list(map(lambda x: x.name, client.models.list(config={"page_size": 50})))
+
+
+async def list_available_minimax_models(api_key: str) -> list[str]:
+    from constants.llm import MINIMAX_URL
+
+    return await list_available_openai_compatible_models(MINIMAX_URL, api_key)

@@ -124,3 +124,12 @@ def set_codex_account_id_env(value: str):
 
 def set_codex_model_env(value: str):
     os.environ["CODEX_MODEL"] = value
+
+
+# MiniMax
+def set_minimax_api_key_env(value: str):
+    os.environ["MINIMAX_API_KEY"] = value
+
+
+def set_minimax_model_env(value: str):
+    os.environ["MINIMAX_MODEL"] = value

@@ -20,6 +20,7 @@ import AnthropicConfig from "./AnthropicConfig";
 import OllamaConfig from "./OllamaConfig";
 import CustomConfig from "./CustomConfig";
 import CodexConfig from "./CodexConfig";
+import MiniMaxConfig from "./MiniMaxConfig";
 import {
   updateLLMConfig,
   changeProvider as changeProviderUtil,
@@ -412,6 +413,15 @@ export default function LLMProviderSelection({
           <TabsContent value="codex" className="mt-6">
             <CodexConfig
               codexModel={llmConfig.CODEX_MODEL || ""}
+              onInputChange={input_field_changed}
+            />
+          </TabsContent>
+
+          {/* MiniMax Content */}
+          <TabsContent value="minimax" className="mt-6">
+            <MiniMaxConfig
+              minimaxApiKey={llmConfig.MINIMAX_API_KEY || ""}
+              minimaxModel={llmConfig.MINIMAX_MODEL || ""}
               onInputChange={input_field_changed}
             />
           </TabsContent>

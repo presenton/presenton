@@ -4,6 +4,7 @@ from constants.llm import (
     DEFAULT_ANTHROPIC_MODEL,
     DEFAULT_CODEX_MODEL,
     DEFAULT_GOOGLE_MODEL,
+    DEFAULT_MINIMAX_MODEL,
     DEFAULT_OPENAI_MODEL,
 )
 from enums.llm_provider import LLMProvider
@@ -13,6 +14,7 @@ from utils.get_env import (
     get_custom_model_env,
     get_google_model_env,
     get_llm_provider_env,
+    get_minimax_model_env,
     get_ollama_model_env,
     get_openai_model_env,
 )
@@ -24,7 +26,7 @@ def get_llm_provider():
     except:
         raise HTTPException(
             status_code=500,
-            detail=f"Invalid LLM provider. Please select one of: openai, google, anthropic, ollama, custom, codex",
+            detail=f"Invalid LLM provider. Please select one of: openai, google, anthropic, ollama, custom, codex, minimax",
         )
 
 
@@ -52,6 +54,10 @@ def is_codex_selected():
     return get_llm_provider() == LLMProvider.CODEX
 
 
+def is_minimax_selected():
+    return get_llm_provider() == LLMProvider.MINIMAX
+
+
 def get_model():
     selected_llm = get_llm_provider()
     if selected_llm == LLMProvider.OPENAI:
@@ -66,8 +72,10 @@ def get_model():
         return get_custom_model_env()
     elif selected_llm == LLMProvider.CODEX:
         return get_codex_model_env() or DEFAULT_CODEX_MODEL
+    elif selected_llm == LLMProvider.MINIMAX:
+        return get_minimax_model_env() or DEFAULT_MINIMAX_MODEL
     else:
         raise HTTPException(
             status_code=500,
-            detail=f"Invalid LLM provider. Please select one of: openai, google, anthropic, ollama, custom, codex",
+            detail=f"Invalid LLM provider. Please select one of: openai, google, anthropic, ollama, custom, codex, minimax",
         )

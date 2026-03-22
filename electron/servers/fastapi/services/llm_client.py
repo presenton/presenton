@@ -52,6 +52,7 @@ from utils.get_env import (
     get_custom_llm_url_env,
     get_disable_thinking_env,
     get_google_api_key_env,
+    get_minimax_api_key_env,
     get_ollama_url_env,
     get_openai_api_key_env,
     get_tool_calls_env,
@@ -114,10 +115,12 @@ class LLMClient:
                 return self._get_custom_client()
             case LLMProvider.CODEX:
                 return self._get_codex_client()
+            case LLMProvider.MINIMAX:
+                return self._get_minimax_client()
             case _:
                 raise HTTPException(
                     status_code=400,
-                    detail="LLM Provider must be either openai, google, anthropic, ollama, custom, or codex",
+                    detail="LLM Provider must be either openai, google, anthropic, ollama, custom, codex, or minimax",
                 )
 
     def _get_openai_client(self):
@@ -159,6 +162,19 @@ class LLMClient:
         return AsyncOpenAI(
             base_url=get_custom_llm_url_env(),
             api_key=get_custom_llm_api_key_env() or "null",
+        )
+
+    def _get_minimax_client(self):
+        from constants.llm import MINIMAX_URL
+
+        if not get_minimax_api_key_env():
+            raise HTTPException(
+                status_code=400,
+                detail="MiniMax API Key is not set",
+            )
+        return AsyncOpenAI(
+            base_url=MINIMAX_URL,
+            api_key=get_minimax_api_key_env(),
         )
 
     def _get_codex_headers(self) -> dict:
@@ -483,6 +499,17 @@ class LLMClient:
             depth=depth,
         )
 
+    async def _generate_minimax(
+        self,
+        model: str,
+        messages: List[LLMMessage],
+        max_tokens: Optional[int] = None,
+        depth: int = 0,
+    ):
+        return await self._generate_openai(
+            model=model, messages=messages, max_tokens=max_tokens, depth=depth
+        )
+
     async def _generate_codex(
         self,
         model: str,
@@ -669,6 +696,10 @@ class LLMClient:
                 )
             case LLMProvider.CUSTOM:
                 content = await self._generate_custom(
+                    model=model, messages=messages, max_tokens=max_tokens
+                )
+            case LLMProvider.MINIMAX:
+                content = await self._generate_minimax(
                     model=model, messages=messages, max_tokens=max_tokens
                 )
         if content is None:
@@ -1046,6 +1077,24 @@ class LLMClient:
             depth=depth,
         )
 
+    async def _generate_minimax_structured(
+        self,
+        model: str,
+        messages: List[LLMMessage],
+        response_format: dict,
+        strict: bool = False,
+        max_tokens: Optional[int] = None,
+        depth: int = 0,
+    ):
+        return await self._generate_openai_structured(
+            model=model,
+            messages=messages,
+            response_format=response_format,
+            strict=strict,
+            max_tokens=max_tokens,
+            depth=depth,
+        )
+
     async def generate_structured(
         self,
         model: str,
@@ -1103,6 +1152,14 @@ class LLMClient:
                 )
             case LLMProvider.CUSTOM:
                 content = await self._generate_custom_structured(
+                    model=model,
+                    messages=messages,
+                    response_format=response_format,
+                    strict=strict,
+                    max_tokens=max_tokens,
+                )
+            case LLMProvider.MINIMAX:
+                content = await self._generate_minimax_structured(
                     model=model,
                     messages=messages,
                     response_format=response_format,
@@ -1528,6 +1585,17 @@ class LLMClient:
             depth=depth,
         )
 
+    def _stream_minimax(
+        self,
+        model: str,
+        messages: List[LLMMessage],
+        max_tokens: Optional[int] = None,
+        depth: int = 0,
+    ):
+        return self._stream_openai(
+            model=model, messages=messages, max_tokens=max_tokens, depth=depth
+        )
+
     def stream(
         self,
         model: str,
@@ -1572,6 +1640,10 @@ class LLMClient:
                 )
             case LLMProvider.CUSTOM:
                 return self._stream_custom(
+                    model=model, messages=messages, max_tokens=max_tokens
+                )
+            case LLMProvider.MINIMAX:
+                return self._stream_minimax(
                     model=model, messages=messages, max_tokens=max_tokens
                 )
 
@@ -2231,6 +2303,24 @@ class LLMClient:
             depth=depth,
         )
 
+    def _stream_minimax_structured(
+        self,
+        model: str,
+        messages: List[LLMMessage],
+        response_format: dict,
+        strict: bool = False,
+        max_tokens: Optional[int] = None,
+        depth: int = 0,
+    ):
+        return self._stream_openai_structured(
+            model=model,
+            messages=messages,
+            response_format=response_format,
+            strict=strict,
+            max_tokens=max_tokens,
+            depth=depth,
+        )
+
     def stream_structured(
         self,
         model: str,
@@ -2287,6 +2377,14 @@ class LLMClient:
                 )
             case LLMProvider.CUSTOM:
                 return self._stream_custom_structured(
+                    model=model,
+                    messages=messages,
+                    response_format=response_format,
+                    strict=strict,
+                    max_tokens=max_tokens,
+                )
+            case LLMProvider.MINIMAX:
+                return self._stream_minimax_structured(
                     model=model,
                     messages=messages,
                     response_format=response_format,

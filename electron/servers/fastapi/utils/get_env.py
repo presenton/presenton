@@ -142,3 +142,12 @@ def get_codex_model_env():
 
 def get_migrate_database_on_startup_env():
     return os.getenv("MIGRATE_DATABASE_ON_STARTUP")
+
+
+# MiniMax
+def get_minimax_api_key_env():
+    return os.getenv("MINIMAX_API_KEY")
+
+
+def get_minimax_model_env():
+    return os.getenv("MINIMAX_MODEL")

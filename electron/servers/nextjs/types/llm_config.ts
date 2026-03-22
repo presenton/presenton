@@ -22,6 +22,10 @@ export interface LLMConfig {
   CUSTOM_LLM_API_KEY?: string;
   CUSTOM_MODEL?: string;
 
+  // MiniMax
+  MINIMAX_API_KEY?: string;
+  MINIMAX_MODEL?: string;
+
   // Image providers
   DISABLE_IMAGE_GENERATION?: boolean;
   IMAGE_PROVIDER?: string;

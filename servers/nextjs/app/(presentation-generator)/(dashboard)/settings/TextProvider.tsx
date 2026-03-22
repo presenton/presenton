@@ -45,6 +45,8 @@ const TextProvider = ({
                 return 'OLLAMA_MODEL';
             case 'custom':
                 return 'CUSTOM_MODEL';
+            case 'minimax':
+                return 'MINIMAX_MODEL';
             default:
                 return '';
         }
@@ -60,6 +62,8 @@ const TextProvider = ({
                 return 'ANTHROPIC_API_KEY';
             case 'custom':
                 return 'CUSTOM_LLM_API_KEY';
+            case 'minimax':
+                return 'MINIMAX_API_KEY';
             default:
                 return '';
         }
@@ -102,7 +106,9 @@ const TextProvider = ({
                         ? 'ANTHROPIC_API_KEY'
                         : llm === 'custom'
                             ? 'CUSTOM_LLM_API_KEY'
-                            : '';
+                            : llm === 'minimax'
+                                ? 'MINIMAX_API_KEY'
+                                : '';
         if (keyField) {
             onInputChange(value, keyField);
         }
@@ -113,6 +119,7 @@ const TextProvider = ({
         if (selectedProvider === 'google' && !currentApiKey) return;
         if (selectedProvider === 'anthropic' && !currentApiKey) return;
         if (selectedProvider === 'custom' && !currentCustomUrl) return;
+        if (selectedProvider === 'minimax' && !currentApiKey) return;
 
         setModelsLoading(true);
         try {
@@ -139,6 +146,17 @@ const TextProvider = ({
                 });
             } else if (selectedProvider === 'ollama') {
                 response = await fetch('/api/v1/ppt/ollama/models/supported');
+            } else if (selectedProvider === 'minimax') {
+                response = await fetch('/api/v1/ppt/openai/models/available', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: selectedProviderMeta?.url || 'https://api.minimax.io/v1',
+                        api_key: currentApiKey
+                    }),
+                });
             } else {
                 response = await fetch('/api/v1/ppt/openai/models/available', {
                     method: 'POST',
@@ -178,7 +196,9 @@ const TextProvider = ({
                                 ? 'models/gemini-2.5-flash'
                                 : selectedProvider === 'anthropic'
                                     ? 'claude-sonnet-4-20250514'
-                                    : normalizedModels[0];
+                                    : selectedProvider === 'minimax'
+                                        ? 'MiniMax-M2.7'
+                                        : normalizedModels[0];
 
                     const nextModel = normalizedModels.includes(preferredDefault) ? preferredDefault : normalizedModels[0];
                     onInputChange(nextModel, currentModelField);
@@ -426,7 +446,8 @@ const TextProvider = ({
                                         (selectedProvider === 'openai' && !currentApiKey) ||
                                         (selectedProvider === 'google' && !currentApiKey) ||
                                         (selectedProvider === 'anthropic' && !currentApiKey) ||
-                                        (selectedProvider === 'custom' && !currentCustomUrl)
+                                        (selectedProvider === 'custom' && !currentCustomUrl) ||
+                                        (selectedProvider === 'minimax' && !currentApiKey)
                                     }
                                     className={`mt-4 py-2.5 bg-[#EDEEEF] px-3.5 w-fit  rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border ${modelsLoading
                                         ? " border-gray-300 cursor-not-allowed text-gray-500"

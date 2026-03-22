@@ -132,6 +132,12 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     description: "ChatGPT Plus/Pro via OAuth",
     icon: "/icons/chatgpt.png",
   },
+  minimax: {
+    value: "minimax",
+    label: "MiniMax",
+    description: "MiniMax's M2.7 text generation model",
+    url: "https://api.minimax.io/v1",
+  },
 };
 
 export const DALLE_3_QUALITY_OPTIONS = [

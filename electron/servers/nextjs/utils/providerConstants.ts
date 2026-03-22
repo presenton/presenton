@@ -121,4 +121,9 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     label: "ChatGPT",
     description: "ChatGPT Plus/Pro via OAuth",
   },
+  minimax: {
+    value: "minimax",
+    label: "MiniMax",
+    description: "MiniMax's M2.7 text generation model",
+  },
 };

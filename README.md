@@ -24,7 +24,7 @@ No SaaS lock-in · No forced subscriptions · Full control over models and data
 What makes Presenton different?
 
 - Fully **self-hosted**
-- Works with OpenAI, Gemini, Anthropic, Ollama, or custom models
+- Works with OpenAI, Gemini, Anthropic, MiniMax, Ollama, or custom models
 - API deployable
 - Fully open-source (Apache 2.0)
 - Use your **existing PPTX files as templates** _(coming soon)_
@@ -93,7 +93,7 @@ Presenton gives you complete control over your AI presentation workflow. Choose 
 - Flexible Generation — Build presentations from prompts or uploaded documents
 - Export Ready — Save as PowerPoint (PPTX) and PDF with professional formatting
 - Built-In MCP Server — Generate presentations over Model Context Protocol
-- Bring Your Own Key — Use your own API keys for OpenAI, Google Gemini, Anthropic Claude, or any compatible provider. Only pay for what you use, no hidden fees or subscriptions.
+- Bring Your Own Key — Use your own API keys for OpenAI, Google Gemini, Anthropic Claude, MiniMax, or any compatible provider. Only pay for what you use, no hidden fees or subscriptions.
 - Ollama Integration — Run open-source models locally with full privacy
 - OpenAI API Compatible — Connect to any OpenAI-compatible endpoint with your own models
 - Multi-Provider Support — Mix and match text and image generation providers
@@ -196,7 +196,7 @@ Run Presenton directly in your browser — no installation, no setup required. S
 These settings apply to both Docker and the Electron app's backend. You may want to directly provide your API KEYS as environment variables and keep them hidden. You can set these environment variables to achieve it.
 
 - CAN_CHANGE_KEYS=[true/false]: Set this to **false** if you want to keep API Keys hidden and make them unmodifiable.
-- LLM=[openai/google/anthropic/ollama/custom]: Select **LLM** of your choice.
+- LLM=[openai/google/anthropic/minimax/ollama/custom]: Select **LLM** of your choice.
 - OPENAI_API_KEY=[Your OpenAI API Key]: Provide this if **LLM** is set to **openai**
 - OPENAI_MODEL=[OpenAI Model ID]: Provide this if **LLM** is set to **openai** (default: "gpt-4.1")
 - GOOGLE_API_KEY=[Your Google API Key]: Provide this if **LLM** is set to **google**
@@ -208,6 +208,8 @@ These settings apply to both Docker and the Electron app's backend. You may want
 - CUSTOM_LLM_URL=[Custom OpenAI Compatible URL]: Provide this if **LLM** is set to **custom**
 - CUSTOM_LLM_API_KEY=[Custom OpenAI Compatible API KEY]: Provide this if **LLM** is set to **custom**
 - CUSTOM_MODEL=[Custom Model ID]: Provide this if **LLM** is set to **custom**
+- MINIMAX_API_KEY=[Your MiniMax API Key]: Provide this if **LLM** is set to **minimax**
+- MINIMAX_MODEL=[MiniMax Model ID]: Provide this if **LLM** is set to **minimax** (default: "MiniMax-M2.7")
 - TOOL_CALLS=[Enable/Disable Tool Calls on Custom LLM]: If **true**, **LLM** will use Tool Call instead of Json Schema for Structured Output.
 - DISABLE_THINKING=[Enable/Disable Thinking on Custom LLM]: If **true**, Thinking will be disabled.
 - WEB_GROUNDING=[Enable/Disable Web Search for OpenAI, Google And Anthropic]: If **true**, LLM will be able to search web for better results.
@@ -247,6 +249,9 @@ You can disable anonymous telemetry using the following environment variable:
 
 - Using Anthropic
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="anthropic" -e ANTHROPIC_API_KEY="******" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
+
+- Using MiniMax
+    <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="minimax" -e MINIMAX_API_KEY="******" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
 - Using OpenAI Compatible API
     <pre><code class="language-bash">docker run -it -p 5000:80 -e CAN_CHANGE_KEYS="false"  -e LLM="custom" -e CUSTOM_LLM_URL="http://*****" -e CUSTOM_LLM_API_KEY="*****" -e CUSTOM_MODEL="llama3.2:3b" -e IMAGE_PROVIDER="pexels" -e  PEXELS_API_KEY="********" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>

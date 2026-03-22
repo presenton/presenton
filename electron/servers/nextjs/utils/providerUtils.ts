@@ -54,6 +54,8 @@ export const updateLLMConfig = (
     dall_e_3_quality: "DALL_E_3_QUALITY",
     gpt_image_1_5_quality: "GPT_IMAGE_1_5_QUALITY",
     codex_model: "CODEX_MODEL",
+    minimax_api_key: "MINIMAX_API_KEY",
+    minimax_model: "MINIMAX_MODEL",
   };
 
   const configKey = fieldMappings[field];
