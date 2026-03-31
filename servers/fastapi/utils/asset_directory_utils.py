@@ -78,3 +78,9 @@ def get_uploads_directory():
     uploads_directory = os.path.join(get_app_data_directory_env(), "uploads")
     os.makedirs(uploads_directory, exist_ok=True)
     return uploads_directory
+
+
+def get_audio_directory():
+    audio_directory = os.path.join(get_app_data_directory_env(), "audio")
+    os.makedirs(audio_directory, exist_ok=True)
+    return audio_directory

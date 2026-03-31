@@ -223,6 +223,52 @@ export class PresentationGenerationApi {
 
 
 
+  // TTS NARRATION
+
+  static async getTTSStatus(): Promise<{ available: boolean }> {
+    try {
+      const response = await fetch(`/api/v1/ppt/tts/status`, {
+        method: "GET",
+        headers: getHeader(),
+        cache: "no-cache",
+      });
+      return await ApiResponseHandler.handleResponse(response, "Failed to check TTS status");
+    } catch (error) {
+      console.error("error checking TTS status", error);
+      return { available: false };
+    }
+  }
+
+  static async generateTTSForSlide(slideId: string, voiceId?: number) {
+    try {
+      const response = await fetch(`/api/v1/ppt/tts/generate`, {
+        method: "POST",
+        headers: getHeader(),
+        body: JSON.stringify({ slide_id: slideId, voice_id: voiceId }),
+        cache: "no-cache",
+      });
+      return await ApiResponseHandler.handleResponse(response, "Failed to generate audio");
+    } catch (error) {
+      console.error("error in TTS generation", error);
+      throw error;
+    }
+  }
+
+  static async generateTTSForPresentation(presentationId: string, voiceId?: number) {
+    try {
+      const response = await fetch(`/api/v1/ppt/tts/generate-presentation`, {
+        method: "POST",
+        headers: getHeader(),
+        body: JSON.stringify({ presentation_id: presentationId, voice_id: voiceId }),
+        cache: "no-cache",
+      });
+      return await ApiResponseHandler.handleResponse(response, "Failed to generate presentation audio");
+    } catch (error) {
+      console.error("error in presentation TTS generation", error);
+      throw error;
+    }
+  }
+
   // EXPORT PRESENTATION
   static async exportAsPPTX(presentationData: any) {
     try {

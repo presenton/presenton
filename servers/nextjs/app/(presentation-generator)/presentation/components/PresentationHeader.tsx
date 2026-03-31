@@ -7,9 +7,8 @@ import {
   Undo2,
   RotateCcw,
   ArrowRightFromLine,
-
   ArrowUpRight,
-
+  Volume2,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -43,14 +42,19 @@ const PresentationHeader = ({
   presentation_id,
   isPresentationSaving,
   currentSlide,
+  ttsAvailable,
+  onAllAudioGenerated,
 }: {
   presentation_id: string;
   isPresentationSaving: boolean;
   currentSlide?: number;
+  ttsAvailable?: boolean;
+  onAllAudioGenerated?: (map: { [slideIndex: number]: string }) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const [isExporting, setIsExporting] = useState(false);
+  const [isGeneratingAllAudio, setIsGeneratingAllAudio] = useState(false);
   const [themes, setThemes] = useState<Theme[]>([]);
 
   const pathname = usePathname();
@@ -201,6 +205,32 @@ const PresentationHeader = ({
     }
   };
 
+  const handleGenerateAllNarration = async () => {
+    if (!presentation_id || isGeneratingAllAudio) return;
+    setIsGeneratingAllAudio(true);
+    try {
+      const results = await PresentationGenerationApi.generateTTSForPresentation(presentation_id);
+      if (results && Array.isArray(results) && onAllAudioGenerated) {
+        const audioMap: { [slideIndex: number]: string } = {};
+        for (const result of results) {
+          if (result.audio_url) {
+            audioMap[result.slide_index] = result.audio_url;
+          }
+        }
+        onAllAudioGenerated(audioMap);
+        const count = Object.keys(audioMap).length;
+        toast.success(`Narration generated for ${count} slide${count !== 1 ? "s" : ""}`);
+      }
+    } catch (error: any) {
+      console.error("Error generating all narration:", error);
+      toast.error("Failed to generate narration", {
+        description: error.message || "Error generating narration.",
+      });
+    } finally {
+      setIsGeneratingAllAudio(false);
+    }
+  };
+
   const ExportOptions = ({ mobile }: { mobile: boolean }) => (
     <div className={` rounded-[18px] max-md:mt-4 ${mobile ? "" : "bg-white"}  p-5`}>
       <p className="text-sm font-medium text-[#19001F]">Export as</p>
@@ -293,6 +323,23 @@ const PresentationHeader = ({
               </button>
             </ToolTip>
           </div>
+
+          {ttsAvailable && (
+            <ToolTip content="Generate narration for all slides">
+              <button
+                onClick={handleGenerateAllNarration}
+                disabled={isGeneratingAllAudio || isStreaming || !presentationData?.slides?.length}
+                className="flex items-center gap-[7px] px-[18px] py-[11px] rounded-[53px] text-sm font-semibold text-[#101323] border border-[#EDECEC] bg-[#F6F6F9] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#EDECEC] duration-300"
+              >
+                {isGeneratingAllAudio ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5" />
+                )}
+                {isGeneratingAllAudio ? "Generating..." : "Narration"}
+              </button>
+            </ToolTip>
+          )}
 
           <Popover open={open} onOpenChange={setOpen} >
             <PopoverTrigger asChild>

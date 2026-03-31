@@ -8,6 +8,10 @@ import {
   Maximize2,
   StickyNote,
   EyeOff,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slide } from "../../types/slide";
@@ -23,6 +27,14 @@ interface PresentationModeProps {
   onFullscreenToggle: () => void;
   onExit: () => void;
   onSlideChange: (slideNumber: number) => void;
+
+  // Audio narration props
+  audioMap?: { [slideIndex: number]: string };
+  isAudioPlaying?: boolean;
+  autoPlay?: boolean;
+  onPlayAudio?: (slideIndex: number) => void;
+  onPauseAudio?: () => void;
+  onToggleAutoPlay?: () => void;
 }
 
 const PresentationMode: React.FC<PresentationModeProps> = ({
@@ -35,7 +47,12 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   onExit,
   onSlideChange,
 
-
+  audioMap = {},
+  isAudioPlaying = false,
+  autoPlay = false,
+  onPlayAudio,
+  onPauseAudio,
+  onToggleAutoPlay,
 }) => {
   if (slides === undefined || slides === null || slides.length === 0) {
     return null;
@@ -102,9 +119,19 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         case "N":
           setShowSpeakerNotes((prev) => !prev);
           break;
+        case "p":
+        case "P":
+          if (audioMap[currentSlide]) {
+            if (isAudioPlaying) {
+              onPauseAudio?.();
+            } else {
+              onPlayAudio?.(currentSlide);
+            }
+          }
+          break;
       }
     },
-    [currentSlide, slides.length, onSlideChange, onExit, onFullscreenToggle, isFullscreen]
+    [currentSlide, slides.length, onSlideChange, onExit, onFullscreenToggle, isFullscreen, audioMap, isAudioPlaying, onPlayAudio, onPauseAudio]
   );
 
   // Add both keydown and keyup listeners
@@ -231,6 +258,50 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
             >
               <ChevronRight className="h-5 w-5" style={{ color: "var(--text-body-color,#000000)" }} />
             </Button>
+
+            {/* Audio narration controls */}
+            {audioMap[currentSlide] && onPlayAudio && onPauseAudio && (
+              <div className="flex items-center gap-1 ml-2 border-l border-black/10 pl-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isAudioPlaying) {
+                      onPauseAudio();
+                    } else {
+                      onPlayAudio(currentSlide);
+                    }
+                  }}
+                  className="text-white hover:bg-white/20"
+                  title={isAudioPlaying ? "Pause narration (P)" : "Play narration (P)"}
+                >
+                  {isAudioPlaying ? (
+                    <Pause className="h-4 w-4" style={{ color: "var(--text-body-color,#000000)" }} />
+                  ) : (
+                    <Play className="h-4 w-4" style={{ color: "var(--text-body-color,#000000)" }} />
+                  )}
+                </Button>
+                {onToggleAutoPlay && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleAutoPlay();
+                    }}
+                    className="text-white hover:bg-white/20"
+                    title={autoPlay ? "Disable auto-play narration" : "Enable auto-play narration"}
+                  >
+                    {autoPlay ? (
+                      <Volume2 className="h-4 w-4" style={{ color: "var(--text-body-color,#000000)" }} />
+                    ) : (
+                      <VolumeX className="h-4 w-4" style={{ color: "var(--text-body-color,#000000)" }} />
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </>
       )}

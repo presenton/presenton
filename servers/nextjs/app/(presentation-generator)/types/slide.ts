@@ -33,6 +33,7 @@ export interface Slide {
   graph_id: string | null;
   presentation?: string;
   speaker_note?: string;
+  audio_url?: string;
 
   content: SlideContent;
 }

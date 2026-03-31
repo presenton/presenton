@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,9 +15,11 @@ import {
   usePresentationData,
   usePresentationNavigation,
   useAutoSave,
+  useSlideAudio,
 } from "../hooks";
 import { PresentationPageProps } from "../types";
 import LoadingState from "./LoadingState";
+import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 
 import { usePresentationUndoRedo } from "../hooks/PresentationUndoRedo";
 import PresentationHeader from "./PresentationHeader";
@@ -75,8 +77,26 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
 
   usePresentationUndoRedo();
 
+  // Audio narration
+  const slideAudio = useSlideAudio();
+  const [ttsAvailable, setTtsAvailable] = useState(false);
+
+  useEffect(() => {
+    PresentationGenerationApi.getTTSStatus().then((res) => {
+      setTtsAvailable(res.available);
+    });
+  }, []);
+
+  const handleAudioGenerated = useCallback(
+    (slideIndex: number, audioUrl: string) => {
+      slideAudio.setSlideAudio(slideIndex, audioUrl);
+    },
+    [slideAudio.setSlideAudio]
+  );
+
   const onSlideChange = (newSlide: number) => {
     handleSlideChange(newSlide, presentationData);
+    slideAudio.onSlideChange(newSlide);
   };
 
   // useEffect(() => {
@@ -97,6 +117,12 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
         onFullscreenToggle={toggleFullscreen}
         onExit={handlePresentExit}
         onSlideChange={onSlideChange}
+        audioMap={slideAudio.audioMap}
+        isAudioPlaying={slideAudio.isPlaying}
+        autoPlay={slideAudio.autoPlay}
+        onPlayAudio={slideAudio.playSlideAudio}
+        onPauseAudio={slideAudio.pauseAudio}
+        onToggleAutoPlay={slideAudio.toggleAutoPlay}
       />
     );
   }
@@ -137,7 +163,13 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
           />
         </div>
         <div className=" w-full h-[calc(100vh-20px)] hide-scrollbar pr-[25px] overflow-y-auto">
-          <PresentationHeader presentation_id={presentation_id} isPresentationSaving={isSaving} currentSlide={selectedSlide} />
+          <PresentationHeader
+            presentation_id={presentation_id}
+            isPresentationSaving={isSaving}
+            currentSlide={selectedSlide}
+            ttsAvailable={ttsAvailable}
+            onAllAudioGenerated={slideAudio.setAllSlideAudio}
+          />
           <div
             id="presentation-slides-wrapper"
             style={{
@@ -174,6 +206,8 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
                         slide={slide}
                         index={index}
                         presentationId={presentation_id}
+                        onAudioGenerated={handleAudioGenerated}
+                        ttsAvailable={ttsAvailable}
                       />
                     ))}
                 </>

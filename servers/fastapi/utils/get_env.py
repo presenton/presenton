@@ -142,3 +142,11 @@ def get_codex_model_env():
 
 def get_migrate_database_on_startup_env():
     return os.getenv("MIGRATE_DATABASE_ON_STARTUP")
+
+
+def get_camb_api_key_env():
+    return os.getenv("CAMB_API_KEY")
+
+
+def get_camb_tts_model_env():
+    return os.getenv("CAMB_TTS_MODEL")

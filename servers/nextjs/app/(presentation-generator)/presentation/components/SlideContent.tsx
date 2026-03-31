@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Loader2, PlusIcon, Trash2, Pencil, Trash } from "lucide-react";
+import { Loader2, PlusIcon, Trash2, Pencil, Trash, Volume2 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -26,11 +26,14 @@ interface SlideContentProps {
   slide: any;
   index: number;
   presentationId: string;
+  onAudioGenerated?: (slideIndex: number, audioUrl: string) => void;
+  ttsAvailable?: boolean;
 }
 
-const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
+const SlideContent = ({ slide, index, presentationId, onAudioGenerated, ttsAvailable }: SlideContentProps) => {
   const dispatch = useDispatch();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [showNewSlideSelection, setShowNewSlideSelection] = useState(false);
   const [isEditPopoverOpen, setIsEditPopoverOpen] = useState(false);
   const [isSpeakerPopoverOpen, setIsSpeakerPopoverOpen] = useState(false);
@@ -42,6 +45,25 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
   // Use the centralized group layouts hook
 
   const pathname = usePathname();
+
+  const handleGenerateNarration = async () => {
+    if (!slide?.id || !slide?.speaker_note?.trim()) return;
+    setIsGeneratingAudio(true);
+    try {
+      const response = await PresentationGenerationApi.generateTTSForSlide(slide.id);
+      if (response?.audio_url && onAudioGenerated) {
+        onAudioGenerated(slide.index, response.audio_url);
+        toast.success("Narration generated");
+      }
+    } catch (error: any) {
+      console.error("Error generating narration:", error);
+      toast.error("Failed to generate narration", {
+        description: error.message || "Error generating narration.",
+      });
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!editPrompt.trim()) {
@@ -273,6 +295,27 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                   </div>
                 </PopoverContent>
               </Popover>
+
+              {ttsAvailable && (
+                <button
+                  type="button"
+                  onClick={handleGenerateNarration}
+                  disabled={!slide?.speaker_note?.trim() || isGeneratingAudio}
+                  className={`flex px-4 py-2.5 items-center justify-center rounded-full border border-gray-200 bg-white font-syne ${
+                    !slide?.speaker_note?.trim()
+                      ? "text-gray-300 cursor-not-allowed"
+                      : "text-gray-600"
+                  }`}
+                >
+                  <ToolTip content={slide?.speaker_note?.trim() ? "Generate narration" : "Add speaker notes first"}>
+                    {isGeneratingAudio ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
+                  </ToolTip>
+                </button>
+              )}
 
               <button
                 type="button"
