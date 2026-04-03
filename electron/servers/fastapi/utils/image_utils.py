@@ -46,7 +46,7 @@ def clip_image(
     return clipped_image
 
 
-def round_image_corners(image: Image.Image, radii: List[int]) -> Image.Image:
+def round_image_corners(image: Image.Image, radii: List[float]) -> Image.Image:
     if len(radii) != 4:
         raise ValueError(
             "Image Border Radius - radii must contain exactly 4 values for each corner"
