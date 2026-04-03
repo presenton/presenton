@@ -128,7 +128,7 @@ class PptxAutoShapeBoxModel(PptxShapeModel):
     shadow: Optional[PptxShadowModel] = None
     position: PptxPositionModel
     text_wrap: bool = True
-    border_radius: Optional[int] = None
+    border_radius: Optional[float] = None
     paragraphs: Optional[List[PptxParagraphModel]] = None
 
 
@@ -139,7 +139,7 @@ class PptxPictureBoxModel(PptxShapeModel):
     clip: bool = True
     opacity: Optional[float] = None
     invert: bool = False
-    border_radius: Optional[List[int]] = None
+    border_radius: Optional[List[float]] = None
     shape: Optional[PptxBoxShapeEnum] = None
     object_fit: Optional[PptxObjectFitModel] = None
     picture: PptxPictureModel
