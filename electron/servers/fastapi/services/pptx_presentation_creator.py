@@ -444,7 +444,7 @@ class PptxPresentationCreator:
         if text_run_model.font:
             self.apply_font(text_run.font, text_run_model.font)
 
-    def apply_border_radius_to_shape(self, shape: Shape, border_radius: Optional[int]):
+    def apply_border_radius_to_shape(self, shape: Shape, border_radius: Optional[float]):
         if not border_radius:
             return
         try:
