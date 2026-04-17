@@ -227,6 +227,7 @@ You can also set the following environment variables to customize the image gene
 - PEXELS_API_KEY=[Your Pexels API Key]: Required if using **pexels** as the image provider.
 - PIXABAY_API_KEY=[Your Pixabay API Key]: Required if using **pixabay** as the image provider.
 - COMFYUI_URL=[Your ComfyUI server URL] and COMFYUI_WORKFLOW=[Workflow JSON]: Required if using **comfyui** to route prompts to a self-hosted ComfyUI workflow.
+- OPENAI_COMPAT_IMAGE_BASE_URL=[Custom Images API URL], OPENAI_COMPAT_IMAGE_API_KEY=[API Key], OPENAI_COMPAT_IMAGE_MODEL=[Model ID]: Required if using **openai_compatible** to send image requests to any OpenAI-compatible `/v1/images/*` endpoint (LiteLLM, Azure, vLLM Gateways, etc.).
 
 You can disable anonymous telemetry using the following environment variable:
 
@@ -251,13 +252,17 @@ You can disable anonymous telemetry using the following environment variable:
 - Using Anthropic
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="anthropic" -e ANTHROPIC_API_KEY="******" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
-- Using OpenAI Compatible API
+- Using OpenAI Compatible LLM API
     <pre><code class="language-bash">docker run -it -p 5000:80 -e CAN_CHANGE_KEYS="false"  -e LLM="custom" -e CUSTOM_LLM_URL="http://*****" -e CUSTOM_LLM_API_KEY="*****" -e CUSTOM_MODEL="llama3.2:3b" -e IMAGE_PROVIDER="pexels" -e  PEXELS_API_KEY="********" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
 - Running Presenton with GPU Support
-  To use GPU acceleration with Ollama models, you need to install and configure the NVIDIA Container Toolkit. This allows Docker containers to access your NVIDIA GPU.
   Once the NVIDIA Container Toolkit is installed and configured, you can run Presenton with GPU support by adding the `--gpus=all` flag:
     <pre><code class="language-bash">docker run -it --name presenton --gpus=all -p 5000:80 -e LLM="ollama" -e OLLAMA_MODEL="llama3.2:3b" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="*******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
+
+- Using an OpenAI-Compatible Image Provider
+
+  This routes all slide image requests through your OpenAI-compatible gateway (LiteLLM, Azure, vLLM, etc.) while keeping the text LLM configuration independent:
+    <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e IMAGE_PROVIDER="openai_compatible" -e OPENAI_COMPAT_IMAGE_BASE_URL="https://proxy.example.com/v1" -e OPENAI_COMPAT_IMAGE_API_KEY="******" -e OPENAI_COMPAT_IMAGE_MODEL="gpt-image-1" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
 #
 

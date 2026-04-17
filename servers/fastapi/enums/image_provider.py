@@ -10,3 +10,4 @@ class ImageProvider(Enum):
     GPT_IMAGE_1_5 = "gpt-image-1.5"
     COMFYUI = "comfyui"
     OPEN_WEBUI = "open_webui"
+    OPENAI_COMPATIBLE = "openai_compatible"

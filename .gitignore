@@ -22,3 +22,6 @@ container.db
 .agents
 skills-lock.json
 .codex/
+
+docker-compose-dch.yml
+litellm-config.yaml

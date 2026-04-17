@@ -14,6 +14,9 @@ from utils.get_env import (
     get_pexels_api_key_env,
     get_open_webui_image_url_env,
     get_open_webui_image_api_key_env,
+    get_openai_compat_image_base_url_env,
+    get_openai_compat_image_api_key_env,
+    get_openai_compat_image_model_env,
 )
 from utils.get_env import get_pixabay_api_key_env
 from utils.get_env import get_comfyui_url_env
@@ -28,6 +31,7 @@ from utils.image_provider import (
     is_dalle3_selected,
     is_comfyui_selected,
     is_open_webui_selected,
+    is_openai_compatible_selected,
 )
 import uuid
 
@@ -58,6 +62,8 @@ class ImageGenerationService:
             return self.generate_image_comfyui
         elif is_open_webui_selected():
             return self.generate_image_open_webui
+        elif is_openai_compatible_selected():
+            return self.generate_image_openai_compatible
         return None
 
     def is_stock_provider_selected(self):
@@ -557,5 +563,39 @@ class ImageGenerationService:
                         return image_path
                     else:
                         raise Exception(f"Failed to download image: {response.status}")
+
+    async def generate_image_openai_compatible(
+        self, prompt: str, output_directory: str
+    ) -> str:
+        base_url = get_openai_compat_image_base_url_env()
+        api_key = get_openai_compat_image_api_key_env()
+        model = get_openai_compat_image_model_env()
+
+        if not base_url or not api_key or not model:
+            raise ValueError(
+                "OPENAI_COMPAT_IMAGE_BASE_URL, OPENAI_COMPAT_IMAGE_API_KEY and OPENAI_COMPAT_IMAGE_MODEL must be set."
+            )
+
+        client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+
+        try:
+            response = await client.images.generate(
+                model=model,
+                prompt=prompt,
+                n=1,
+                size="1024x1024",
+                response_format="b64_json",
+            )
+
+            image_data = base64.b64decode(response.data[0].b64_json)
+            image_path = os.path.join(output_directory, f"{uuid.uuid4()}.png")
+
+            with open(image_path, "wb") as f:
+                f.write(image_data)
+
+            return image_path
+        except Exception as e:
+            print(f"Error generating image with OpenAI Compatible provider: {e}")
+            raise e
 
         raise Exception("No images found in ComfyUI outputs")
