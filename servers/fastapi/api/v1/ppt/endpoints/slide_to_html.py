@@ -154,7 +154,10 @@ async def generate_html_from_slide(
         f"Generating HTML from slide image and XML using OpenAI GPT-5 Responses API..."
     )
     try:
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY") or api_key,
+            base_url=os.getenv("OPENAI_BASE_URL") or None,
+        )
 
         # Compose input for Responses API. Include system prompt, image (separate), OXML and optional fonts text.
         data_url = f"data:{media_type};base64,{base64_image}"
@@ -177,7 +180,7 @@ async def generate_html_from_slide(
 
         print("Making Responses API request for HTML generation...")
         response = client.responses.create(
-            model="gpt-5",
+            model=os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5"),
             input=input_payload,
             reasoning={"effort": "high"},
             text={"verbosity": "low"},
@@ -246,7 +249,10 @@ async def generate_react_component_from_html(
         HTTPException: If API call fails or no content is generated
     """
     try:
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY") or api_key,
+            base_url=os.getenv("OPENAI_BASE_URL") or None,
+        )
 
         print("Making Responses API request for React component generation...")
 
@@ -262,7 +268,7 @@ async def generate_react_component_from_html(
         ]
 
         response = client.responses.create(
-            model="gpt-5",
+            model=os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5"),
             input=input_payload,
             reasoning={"effort": "minimal"},
             text={"verbosity": "low"},
@@ -356,7 +362,10 @@ async def edit_html_with_images(
         HTTPException: If API call fails or no content is generated
     """
     try:
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY") or api_key,
+            base_url=os.getenv("OPENAI_BASE_URL") or None,
+        )
 
         print("Making Responses API request for HTML editing...")
 
@@ -384,7 +393,7 @@ async def edit_html_with_images(
         ]
 
         response = client.responses.create(
-            model="gpt-5",
+            model=os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5"),
             input=input_payload,
             reasoning={"effort": "low"},
             text={"verbosity": "low"},
