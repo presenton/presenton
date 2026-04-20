@@ -150,13 +150,18 @@ async def generate_html_from_slide(
     Raises:
         HTTPException: If API call fails or no content is generated
     """
-    print(
-        f"Generating HTML from slide image and XML using OpenAI GPT-5 Responses API..."
-    )
+    import time as _time
+
+    base_url = os.getenv("OPENAI_BASE_URL") or None
+    model = os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5")
+    print(f"[slide_to_html] generate_html_from_slide START")
+    print(f"[slide_to_html]   base_url={base_url}")
+    print(f"[slide_to_html]   model={model}")
+    print(f"[slide_to_html]   image_size={len(base64_image)} chars, media_type={media_type}")
     try:
         client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY") or api_key,
-            base_url=os.getenv("OPENAI_BASE_URL") or None,
+            base_url=base_url,
         )
 
         # Compose input for Responses API. Include system prompt, image (separate), OXML and optional fonts text.
@@ -178,13 +183,16 @@ async def generate_html_from_slide(
             },
         ]
 
-        print("Making Responses API request for HTML generation...")
+        print(f"[slide_to_html] Calling client.responses.create (model={model})...")
+        _t0 = _time.time()
         response = client.responses.create(
-            model=os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5"),
+            model=model,
             input=input_payload,
             reasoning={"effort": "high"},
             text={"verbosity": "low"},
         )
+        _elapsed = _time.time() - _t0
+        print(f"[slide_to_html] Response received in {_elapsed:.1f}s")
 
         # Extract the response text
         html_content = (
@@ -203,15 +211,15 @@ async def generate_html_from_slide(
         return html_content
 
     except APIError as e:
-        print(f"OpenAI API Error: {e}")
+        print(f"[slide_to_html] OpenAI APIError: status={getattr(e, 'status_code', '?')} body={e}")
         raise HTTPException(
             status_code=500, detail=f"OpenAI API error during HTML generation: {str(e)}"
         )
     except Exception as e:
-        # Handle various API errors
+        import traceback
         error_msg = str(e)
-        print(f"Exception occurred: {error_msg}")
-        print(f"Exception type: {type(e)}")
+        print(f"[slide_to_html] Exception: {type(e).__name__}: {error_msg}")
+        print(f"[slide_to_html] Traceback:\n{traceback.format_exc()}")
         if "timeout" in error_msg.lower():
             raise HTTPException(
                 status_code=408,
@@ -248,13 +256,17 @@ async def generate_react_component_from_html(
     Raises:
         HTTPException: If API call fails or no content is generated
     """
+    import time as _time
+
+    base_url = os.getenv("OPENAI_BASE_URL") or None
+    model = os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5")
+    print(f"[html_to_react] generate_react_component_from_html START")
+    print(f"[html_to_react]   base_url={base_url}, model={model}")
     try:
         client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY") or api_key,
-            base_url=os.getenv("OPENAI_BASE_URL") or None,
+            base_url=base_url,
         )
-
-        print("Making Responses API request for React component generation...")
 
         # Build payload with optional image
         content_parts = [{"type": "input_text", "text": f"HTML INPUT:\n{html_content}"}]
@@ -267,12 +279,16 @@ async def generate_react_component_from_html(
             {"role": "user", "content": content_parts},
         ]
 
+        print(f"[html_to_react] Calling client.responses.create...")
+        _t0 = _time.time()
         response = client.responses.create(
-            model=os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5"),
+            model=model,
             input=input_payload,
             reasoning={"effort": "minimal"},
             text={"verbosity": "low"},
         )
+        _elapsed = _time.time() - _t0
+        print(f"[html_to_react] Response received in {_elapsed:.1f}s")
 
         react_content = (
             getattr(response, "output_text", None)
@@ -309,16 +325,16 @@ async def generate_react_component_from_html(
 
         return filtered_react_content
     except APIError as e:
-        print(f"OpenAI API Error: {e}")
+        print(f"[html_to_react] OpenAI APIError: status={getattr(e, 'status_code', '?')} body={e}")
         raise HTTPException(
             status_code=500,
             detail=f"OpenAI API error during React generation: {str(e)}",
         )
     except Exception as e:
-        # Handle various API errors
+        import traceback
         error_msg = str(e)
-        print(f"Exception occurred: {error_msg}")
-        print(f"Exception type: {type(e)}")
+        print(f"[html_to_react] Exception: {type(e).__name__}: {error_msg}")
+        print(f"[html_to_react] Traceback:\n{traceback.format_exc()}")
         if "timeout" in error_msg.lower():
             raise HTTPException(
                 status_code=408,
@@ -361,13 +377,17 @@ async def edit_html_with_images(
     Raises:
         HTTPException: If API call fails or no content is generated
     """
+    import time as _time
+
+    base_url = os.getenv("OPENAI_BASE_URL") or None
+    model = os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5")
+    print(f"[html_edit] edit_html_with_images START")
+    print(f"[html_edit]   base_url={base_url}, model={model}")
     try:
         client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY") or api_key,
-            base_url=os.getenv("OPENAI_BASE_URL") or None,
+            base_url=base_url,
         )
-
-        print("Making Responses API request for HTML editing...")
 
         current_data_url = f"data:{media_type};base64,{current_ui_base64}"
         sketch_data_url = (
@@ -382,7 +402,6 @@ async def edit_html_with_images(
             },
         ]
         if sketch_data_url:
-            # Insert sketch image after current UI image for context
             content_parts.insert(
                 1, {"type": "input_image", "image_url": sketch_data_url}
             )
@@ -392,12 +411,16 @@ async def edit_html_with_images(
             {"role": "user", "content": content_parts},
         ]
 
+        print(f"[html_edit] Calling client.responses.create...")
+        _t0 = _time.time()
         response = client.responses.create(
-            model=os.getenv("SLIDE_TO_HTML_MODEL", "gpt-5"),
+            model=model,
             input=input_payload,
             reasoning={"effort": "low"},
             text={"verbosity": "low"},
         )
+        _elapsed = _time.time() - _t0
+        print(f"[html_edit] Response received in {_elapsed:.1f}s")
 
         edited_html = (
             getattr(response, "output_text", None)
@@ -416,15 +439,15 @@ async def edit_html_with_images(
         return edited_html
 
     except APIError as e:
-        print(f"OpenAI API Error: {e}")
+        print(f"[html_edit] OpenAI APIError: status={getattr(e, 'status_code', '?')} body={e}")
         raise HTTPException(
             status_code=500, detail=f"OpenAI API error during HTML editing: {str(e)}"
         )
     except Exception as e:
-        # Handle various API errors
+        import traceback
         error_msg = str(e)
-        print(f"Exception occurred: {error_msg}")
-        print(f"Exception type: {type(e)}")
+        print(f"[html_edit] Exception: {type(e).__name__}: {error_msg}")
+        print(f"[html_edit] Traceback:\n{traceback.format_exc()}")
         if "timeout" in error_msg.lower():
             raise HTTPException(
                 status_code=408,
