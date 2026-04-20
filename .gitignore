@@ -25,3 +25,4 @@ skills-lock.json
 
 docker-compose-dch.yml
 litellm-config.yaml
+.claude
