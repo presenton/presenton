@@ -1,9 +1,13 @@
+import logging
 import os
 import random
 import re
+import time
 import uuid
 from datetime import datetime
 from typing import Any, List, Optional
+
+logger = logging.getLogger(__name__)
 
 import aiohttp
 from fastapi import Body, Depends, File, Form, HTTPException, Path, Query, UploadFile
@@ -394,18 +398,27 @@ async def init_create_template(
     request: CreateTemplateInitRequest,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    logger.info("[handler] init_create_template: start pptx_url=%s slide_count=%d",
+                request.pptx_url, len(request.slide_image_urls))
+    t0 = time.time()
+
     if not request.slide_image_urls:
         raise HTTPException(
             status_code=400, detail="At least one slide image is required"
         )
 
     pptx_path = resolve_app_path_to_filesystem(request.pptx_url)
+    logger.info("[handler] init_create_template: resolved pptx_path=%s exists=%s", pptx_path, pptx_path and os.path.isfile(pptx_path))
     if not pptx_path or not os.path.isfile(pptx_path):
         raise HTTPException(status_code=400, detail="PPTX file not found")
 
+    logger.info("[handler] init_create_template: calling EXPORT_TASK_SERVICE.convert_pptx_to_html...")
     pptx_document = await EXPORT_TASK_SERVICE.convert_pptx_to_html(
         pptx_path, get_fonts=False
     )
+    logger.info("[handler] init_create_template: convert_pptx_to_html done slides=%d (%.1fs)",
+                len(pptx_document.slides) if pptx_document.slides else 0, time.time() - t0)
+
     if not pptx_document.slides:
         raise HTTPException(
             status_code=500,
@@ -431,6 +444,7 @@ async def init_create_template(
     sql_session.add(template_create_info)
     await sql_session.commit()
     await sql_session.refresh(template_create_info)
+    logger.info("[handler] init_create_template: done template_info_id=%s (%.1fs)", template_create_info.id, time.time() - t0)
     return template_create_info.id
 
 
@@ -438,6 +452,9 @@ async def create_slide_layout(
     request: CreateSlideLayoutRequest = Body(...),
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    logger.info("[handler] create_slide_layout: start id=%s index=%d", request.id, request.index)
+    t0 = time.time()
+
     template_info = await sql_session.get(TemplateCreateInfoModel, request.id)
     if not template_info:
         raise HTTPException(status_code=400, detail="Template not found")
@@ -448,7 +465,9 @@ async def create_slide_layout(
 
     slide_html = template_info.slide_htmls[request.index]
     slide_image_url = template_info.slide_image_urls[request.index]
+    logger.info("[handler] create_slide_layout: reading image from %s", slide_image_url)
     image_bytes, media_type = await _read_image_bytes_and_media_type(slide_image_url)
+    logger.info("[handler] create_slide_layout: image loaded size=%d media_type=%s (%.1fs)", len(image_bytes), media_type, time.time() - t0)
 
     fonts_text = ""
     if template_info.fonts:
@@ -456,14 +475,17 @@ async def create_slide_layout(
         fonts_text = "#PROVIDED FONTS\n- " + "\n- ".join(font_names)
 
     user_text = f"{fonts_text}\n\n#SLIDE HTML REFERENCE\n{slide_html}"
+    logger.info("[handler] create_slide_layout: calling generate_slide_layout_code (user_text_len=%d)...", len(user_text))
     react_component = await generate_slide_layout_code(
         system_prompt=SLIDE_LAYOUT_CREATION_SYSTEM_PROMPT,
         user_text=user_text,
         image_bytes=image_bytes,
         media_type=media_type,
     )
+    logger.info("[handler] create_slide_layout: AI response received len=%d (%.1fs)", len(react_component), time.time() - t0)
     normalized_react_component = _normalize_layout_code_for_create(react_component)
 
+    logger.info("[handler] create_slide_layout: done (%.1fs)", time.time() - t0)
     return CreateSlideLayoutResponse(react_component=normalized_react_component)
 
 

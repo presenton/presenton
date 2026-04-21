@@ -1,10 +1,12 @@
 import asyncio
 from dataclasses import dataclass
+import logging
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -12,6 +14,8 @@ from typing import Dict, List, Optional
 
 from fastapi import File, HTTPException, UploadFile
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from constants.documents import PPTX_MIME_TYPES
 from services.documents_loader import DocumentsLoader
@@ -255,6 +259,7 @@ async def _install_fonts(font_paths: List[str]) -> None:
     if not font_paths:
         return
 
+    logger.info("[preview] _install_fonts: installing %d font(s)", len(font_paths))
     for font_path in font_paths:
         try:
             subprocess.run(
@@ -262,13 +267,17 @@ async def _install_fonts(font_paths: List[str]) -> None:
                 check=True,
                 capture_output=True,
             )
-        except subprocess.CalledProcessError:
+            logger.info("[preview] _install_fonts: copied %s", font_path)
+        except subprocess.CalledProcessError as exc:
+            logger.warning("[preview] _install_fonts: failed to copy %s: %s", font_path, exc)
             continue
 
     try:
+        logger.info("[preview] _install_fonts: running fc-cache")
         subprocess.run(["fc-cache", "-f", "-v"], check=True, capture_output=True)
-    except subprocess.CalledProcessError:
-        pass
+        logger.info("[preview] _install_fonts: fc-cache done")
+    except subprocess.CalledProcessError as exc:
+        logger.warning("[preview] _install_fonts: fc-cache failed: %s", exc)
 
 
 def extract_slide_xmls(pptx_path: str, temp_dir: str) -> List[str]:
@@ -302,19 +311,25 @@ async def convert_pptx_to_pdf(
     temp_dir: str,
     slide_xmls: Optional[List[str]] = None,
 ) -> str:
+    logger.info("[preview] convert_pptx_to_pdf: start pptx_path=%s", pptx_path)
+    t0 = time.time()
+
     screenshots_dir = os.path.join(temp_dir, "screenshots")
     os.makedirs(screenshots_dir, exist_ok=True)
 
     slide_xmls = slide_xmls or extract_slide_xmls(pptx_path, temp_dir)
     raw_fonts = collect_normalized_fonts_from_xmls(slide_xmls)
+    logger.info("[preview] convert_pptx_to_pdf: found %d raw font(s) in PPTX", len(raw_fonts))
     fonts_conf_path = _create_font_alias_config(raw_fonts)
     env = os.environ.copy()
     env["FONTCONFIG_FILE"] = fonts_conf_path
 
+    soffice_bin = _get_soffice_binary()
+    logger.info("[preview] convert_pptx_to_pdf: launching LibreOffice binary=%s outdir=%s", soffice_bin, screenshots_dir)
     try:
-        subprocess.run(
+        result = subprocess.run(
             [
-                _get_soffice_binary(),
+                soffice_bin,
                 "--headless",
                 "--convert-to",
                 "pdf",
@@ -329,13 +344,17 @@ async def convert_pptx_to_pdf(
             env=env,
             **_windows_hidden_subprocess_kwargs(),
         )
+        logger.info("[preview] convert_pptx_to_pdf: LibreOffice finished in %.1fs stdout=%s stderr=%s",
+                    time.time() - t0, result.stdout[:500], result.stderr[:500])
     except subprocess.TimeoutExpired as exc:
+        logger.error("[preview] convert_pptx_to_pdf: LibreOffice timed out after %.1fs", time.time() - t0)
         raise HTTPException(
             status_code=500,
             detail="LibreOffice PDF conversion timed out after 500 seconds",
         ) from exc
     except subprocess.CalledProcessError as exc:
         error_message = exc.stderr if exc.stderr else str(exc)
+        logger.error("[preview] convert_pptx_to_pdf: LibreOffice failed after %.1fs: %s", time.time() - t0, error_message[:500])
         raise HTTPException(
             status_code=500,
             detail=f"LibreOffice PDF conversion failed: {error_message}",
@@ -343,11 +362,14 @@ async def convert_pptx_to_pdf(
 
     pdf_files = [file_name for file_name in os.listdir(screenshots_dir) if file_name.endswith(".pdf")]
     if not pdf_files:
+        logger.error("[preview] convert_pptx_to_pdf: no PDF file generated in %s", screenshots_dir)
         raise HTTPException(
             status_code=500, detail="LibreOffice failed to generate a PDF file"
         )
 
-    return os.path.join(screenshots_dir, pdf_files[0])
+    pdf_path = os.path.join(screenshots_dir, pdf_files[0])
+    logger.info("[preview] convert_pptx_to_pdf: PDF generated at %s (%.1fs)", pdf_path, time.time() - t0)
+    return pdf_path
 
 
 async def store_slide_images(
@@ -423,6 +445,10 @@ async def upload_fonts_and_slides_preview_handler(
     original_font_names: Optional[List[str]] = None,
     max_slides: Optional[int] = None,
 ) -> FontsUploadAndSlidesPreviewResponse:
+    logger.info("[preview] upload_fonts_and_slides_preview_handler: start filename=%s font_files=%s",
+                getattr(pptx_file, "filename", None), len(font_files) if font_files else 0)
+    t0 = time.time()
+
     if (font_files and not original_font_names) or (
         original_font_names and not font_files
     ):
@@ -441,22 +467,34 @@ async def upload_fonts_and_slides_preview_handler(
     with tempfile.TemporaryDirectory() as temp_dir:
         pptx_path = os.path.join(temp_dir, "presentation.pptx")
         pptx_content = await pptx_file.read()
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: PPTX read, size=%d bytes", len(pptx_content))
         await asyncio.to_thread(_write_bytes_to_path, pptx_path, pptx_content)
 
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: persisting custom fonts...")
         stored_fonts = await _persist_custom_fonts(
             font_files=font_files,
             original_font_names=original_font_names,
             temp_dir=temp_dir,
         )
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: stored %d custom font(s)", len(stored_fonts))
         await _install_fonts([font.temp_path for font in stored_fonts])
 
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: extracting slide XMLs...")
         slide_xmls = extract_slide_xmls(pptx_path, temp_dir)
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: %d slide XML(s) extracted (%.1fs)", len(slide_xmls), time.time() - t0)
+
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: converting PPTX to PDF...")
         pdf_path = await convert_pptx_to_pdf(pptx_path, temp_dir, slide_xmls=slide_xmls)
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: PDF ready at %s (%.1fs)", pdf_path, time.time() - t0)
+
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: converting PDF to images...")
         screenshot_paths = await DocumentsLoader.get_page_images_from_pdf_async(
             pdf_path, temp_dir
         )
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: %d screenshot(s) generated (%.1fs)", len(screenshot_paths), time.time() - t0)
 
         if max_slides and len(screenshot_paths) > max_slides:
+            logger.info("[preview] upload_fonts_and_slides_preview_handler: truncating to max_slides=%d", max_slides)
             screenshot_paths = screenshot_paths[:max_slides]
 
         session_id = uuid.uuid4()
@@ -469,6 +507,8 @@ async def upload_fonts_and_slides_preview_handler(
         fonts: dict[str, str] = {name: url for name, url in available_fonts}
         fonts.update({font.display_name: font.url for font in stored_fonts})
 
+        logger.info("[preview] upload_fonts_and_slides_preview_handler: done. slide_images=%d fonts=%d total=%.1fs",
+                    len(slide_image_urls), len(fonts), time.time() - t0)
         return FontsUploadAndSlidesPreviewResponse(
             slide_image_urls=slide_image_urls,
             pptx_url=pptx_url,

@@ -1,11 +1,15 @@
 import asyncio
 import json
+import logging
 import os
 import shutil
 import subprocess
 import tempfile
+import time
 import uuid
 from typing import Mapping
+
+logger = logging.getLogger(__name__)
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -149,6 +153,11 @@ class ExportTaskService:
     async def convert_pptx_to_html(
         self, pptx_path: str, get_fonts: bool = False
     ) -> PptxToHtmlDocument:
+        logger.info("[export_task] convert_pptx_to_html: start pptx_path=%s get_fonts=%s", pptx_path, get_fonts)
+        logger.info("[export_task] convert_pptx_to_html: node_binary=%s entrypoint=%s converter=%s",
+                    self.node_binary, self.entrypoint_path, self.converter_path)
+        t0 = time.time()
+
         self._ensure_runtime_ready()
         if not os.path.isfile(pptx_path):
             raise HTTPException(status_code=400, detail=f"PPTX not found: {pptx_path}")
@@ -170,6 +179,7 @@ class ExportTaskService:
                     task_file,
                 )
 
+            logger.info("[export_task] convert_pptx_to_html: launching Node.js export process (timeout=%ds)...", self.timeout_seconds)
             result = await asyncio.to_thread(
                 subprocess.run,
                 [self.node_binary, self.entrypoint_path, task_path],
@@ -179,6 +189,8 @@ class ExportTaskService:
                 env=dict(self._build_node_env()),
                 **_subprocess_text_kwargs(),
             )
+            logger.info("[export_task] convert_pptx_to_html: Node.js process finished returncode=%d (%.1fs) stdout=%s stderr=%s",
+                        result.returncode, time.time() - t0, _snippet(result.stdout), _snippet(result.stderr))
 
             if result.returncode != 0:
                 raise HTTPException(
@@ -190,6 +202,7 @@ class ExportTaskService:
                 )
 
             if not os.path.isfile(response_path):
+                logger.error("[export_task] convert_pptx_to_html: response file not found at %s", response_path)
                 raise HTTPException(
                     status_code=500,
                     detail="PPTX-to-HTML export task did not produce a response file",
@@ -197,23 +210,30 @@ class ExportTaskService:
 
             with open(response_path, "r", encoding="utf-8") as response_file:
                 response_data = json.load(response_file)
+            logger.info("[export_task] convert_pptx_to_html: response_data keys=%s", list(response_data.keys()))
 
             output_path = self._resolve_output_path(response_data)
+            logger.info("[export_task] convert_pptx_to_html: output_path=%s", output_path)
             with open(output_path, "r", encoding="utf-8") as output_file:
                 output_data = json.load(output_file)
 
-            return PptxToHtmlDocument(**output_data)
+            doc = PptxToHtmlDocument(**output_data)
+            logger.info("[export_task] convert_pptx_to_html: done slides=%d (%.1fs)", len(doc.slides) if doc.slides else 0, time.time() - t0)
+            return doc
         except subprocess.TimeoutExpired as exc:
+            logger.error("[export_task] convert_pptx_to_html: Node.js timed out after %.1fs", time.time() - t0)
             raise HTTPException(
                 status_code=500,
                 detail=f"PPTX-to-HTML export timed out after {self.timeout_seconds} seconds",
             ) from exc
         except json.JSONDecodeError as exc:
+            logger.error("[export_task] convert_pptx_to_html: JSON decode error (%.1fs): %s", time.time() - t0, exc)
             raise HTTPException(
                 status_code=500,
                 detail="PPTX-to-HTML export produced invalid JSON output",
             ) from exc
         except OSError as exc:
+            logger.error("[export_task] convert_pptx_to_html: OSError (%.1fs): %s", time.time() - t0, exc)
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to run PPTX-to-HTML export task: {exc}",

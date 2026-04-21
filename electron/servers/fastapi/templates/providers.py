@@ -1,6 +1,7 @@
 import asyncio
 import base64
 from dataclasses import dataclass
+import logging
 import time
 from typing import Any, Awaitable, Callable, Optional
 
@@ -9,6 +10,8 @@ from fastapi import HTTPException
 from google import genai
 from google.genai import types as google_types
 from openai import AsyncOpenAI
+
+logger = logging.getLogger(__name__)
 
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
@@ -64,12 +67,19 @@ async def run_plain_provider_buckets(*, providers: list[PlainLLMProvider]) -> st
 
     for provider in providers:
         for attempt in range(1, MAX_ATTEMPTS_PER_PROVIDER + 1):
+            logger.info("[providers] run_plain_provider_buckets: provider=%s attempt=%d/%d",
+                        provider.name, attempt, MAX_ATTEMPTS_PER_PROVIDER)
+            t0 = time.time()
             try:
                 response_text = await provider.call()
                 if response_text:
+                    logger.info("[providers] run_plain_provider_buckets: provider=%s attempt=%d SUCCESS len=%d (%.1fs)",
+                                provider.name, attempt, len(response_text), time.time() - t0)
                     return response_text
                 raise ValueError("No output from template generation provider")
             except Exception as exc:
+                logger.warning("[providers] run_plain_provider_buckets: provider=%s attempt=%d FAILED (%.1fs): %s",
+                               provider.name, attempt, time.time() - t0, exc)
                 last_exception = exc
 
     if isinstance(last_exception, HTTPException):
@@ -176,6 +186,8 @@ async def _call_openai_like(
     image_bytes: Optional[bytes] = None,
     media_type: str = "image/png",
 ) -> str:
+    logger.info("[providers] _call_openai_like: start model=%s image=%s", model, image_bytes is not None)
+    t0 = time.time()
     content = [{"type": "input_text", "text": user_text}]
     if image_bytes:
         content.insert(
@@ -194,6 +206,7 @@ async def _call_openai_like(
         store=False,
     )
     output_text = _read_openai_response_text(response)
+    logger.info("[providers] _call_openai_like: response received len=%d (%.1fs)", len(output_text) if output_text else 0, time.time() - t0)
     if not output_text:
         raise HTTPException(status_code=500, detail="No output from template provider")
     return output_text
@@ -223,6 +236,8 @@ async def _call_codex(
     image_bytes: Optional[bytes] = None,
     media_type: str = "image/png",
 ) -> str:
+    logger.info("[providers] _call_codex: start model=%s image=%s", model, image_bytes is not None)
+    t0 = time.time()
     client = _get_codex_client()
     content = [{"type": "input_text", "text": user_text}]
     if image_bytes:
@@ -266,6 +281,7 @@ async def _call_codex(
             raise HTTPException(status_code=502, detail=f"Codex error: {error_detail}"[:400])
 
     output_text = "".join(text_parts).strip()
+    logger.info("[providers] _call_codex: response received len=%d (%.1fs)", len(output_text) if output_text else 0, time.time() - t0)
     if not output_text:
         raise HTTPException(status_code=500, detail="No output from template provider")
     return output_text
@@ -279,6 +295,8 @@ async def _call_google(
     image_bytes: Optional[bytes] = None,
     media_type: str = "image/png",
 ) -> str:
+    logger.info("[providers] _call_google: start model=%s image=%s", model, image_bytes is not None)
+    t0 = time.time()
     client = _get_google_client()
     parts = [google_types.Part.from_text(text=user_text)]
     if image_bytes:
@@ -294,6 +312,7 @@ async def _call_google(
         ),
     )
     output_text = getattr(response, "text", None) or ""
+    logger.info("[providers] _call_google: response received len=%d (%.1fs)", len(output_text) if output_text else 0, time.time() - t0)
     if not output_text:
         raise HTTPException(status_code=500, detail="No output from template provider")
     return output_text
@@ -307,6 +326,8 @@ async def _call_anthropic(
     image_bytes: Optional[bytes] = None,
     media_type: str = "image/png",
 ) -> str:
+    logger.info("[providers] _call_anthropic: start model=%s image=%s", model, image_bytes is not None)
+    t0 = time.time()
     client = _get_anthropic_client()
     content = [{"type": "text", "text": user_text}]
     if image_bytes:
@@ -330,6 +351,7 @@ async def _call_anthropic(
     output_text = "".join(
         block.text for block in response.content if getattr(block, "type", None) == "text"
     )
+    logger.info("[providers] _call_anthropic: response received len=%d (%.1fs)", len(output_text) if output_text else 0, time.time() - t0)
     if not output_text:
         raise HTTPException(status_code=500, detail="No output from template provider")
     return output_text
