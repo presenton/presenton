@@ -95,10 +95,10 @@ export const useTemplateCreation = () => {
             return null;
         }
 
-        // Validate file size (10MB limit)
-        const maxSize = 10 * 1024 * 1024;
+        // Validate file size (50MB limit — .ttc collections can be large)
+        const maxSize = 50 * 1024 * 1024;
         if (file.size > maxSize) {
-            toast.error("Font file size must be less than 10MB");
+            toast.error("Font file size must be less than 50MB");
             return null;
         }
 
