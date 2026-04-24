@@ -11,7 +11,7 @@ from utils.llm_config import get_llm_config
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_utils import extract_structured_content, get_generate_kwargs
 from utils.llm_provider import get_model
-from utils.schema_utils import add_field_in_schema, remove_fields_from_schema
+from utils.schema_utils import add_field_in_schema, ensure_array_schemas_have_items, remove_fields_from_schema
 
 
 SLIDE_CONTENT_SYSTEM_PROMPT = """
@@ -177,6 +177,7 @@ async def get_slide_content_from_type_and_outline(
         },
         True,
     )
+    response_schema = ensure_array_schemas_have_items(response_schema)
 
     try:
         response_format = JSONSchemaResponse(
