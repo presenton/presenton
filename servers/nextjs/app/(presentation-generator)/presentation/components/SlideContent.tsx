@@ -19,8 +19,8 @@ import {
 import { usePathname } from "next/navigation";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { addToHistory } from "@/store/slices/undoRedoSlice";
-import { V1ContentRender } from "../../components/V1ContentRender";
 import NewSlide from "./NewSlide";
+import SlideScale from "../../components/PresentationRender";
 
 interface SlideContentProps {
   slide: any;
@@ -51,8 +51,6 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
     setIsUpdating(true);
 
     try {
-      trackEvent(MixpanelEvent.Slide_Update_From_Prompt_Button_Clicked, { pathname });
-      trackEvent(MixpanelEvent.Slide_Edit_API_Call);
       const response = await PresentationGenerationApi.editSlide(
         slide.id,
         editPrompt
@@ -60,6 +58,15 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
 
       if (response) {
         dispatch(updateSlide({ index: slide.index, slide: response }));
+        trackEvent(MixpanelEvent.Presentation_Slide_Updated, {
+          pathname,
+          presentation_id: presentationId,
+          slide_id: slide.id,
+          slide_index: slide.index,
+          layout: slide.layout,
+          prompt_char_count: editPrompt.trim().length,
+          prompt_word_count: editPrompt.trim().split(/\s+/).filter(Boolean).length,
+        });
         toast.success("Slide updated successfully");
         setEditPrompt("");
       }
@@ -75,8 +82,13 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
 
   const onDeleteSlide = async () => {
     try {
-      trackEvent(MixpanelEvent.Slide_Delete_Slide_Button_Clicked, { pathname });
-      trackEvent(MixpanelEvent.Slide_Delete_API_Call);
+      trackEvent(MixpanelEvent.Presentation_Slide_Deleted, {
+        pathname,
+        presentation_id: presentationId,
+        slide_id: slide.id,
+        slide_index: slide.index,
+        layout: slide.layout,
+      });
       // Add current state to past
       dispatch(addToHistory({
         slides: presentationData?.slides,
@@ -145,14 +157,14 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
           data-group={slide.layout_group}
           className={` w-full  group font-syne  `}
         >
-          <V1ContentRender slide={slide} isEditMode={true} theme={null} />
+          {/* <V1ContentRender slide={slide} isEditMode={true} theme={null} /> */}
+          <SlideScale slide={slide} theme={presentationData?.theme || null} />
           {!showNewSlideSelection && (
             <div className="group-hover:opacity-100 hidden md:block opacity-0 transition-opacity my-4 duration-300">
               <ToolTip content="Add new slide below">
                 {!isStreaming && (
                   <div
                     onClick={() => {
-                      trackEvent(MixpanelEvent.Slide_Add_New_Slide_Button_Clicked, { pathname });
                       setShowNewSlideSelection(true);
                     }}
                     className="  bg-white shadow-md w-[80px] py-2 border hover:border-[#5141e5] duration-300  flex items-center justify-center rounded-lg cursor-pointer mx-auto"
@@ -219,6 +231,11 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                       className="min-h-[110px] max-h-[180px] w-full resize-none rounded-xl border border-gray-200 p-3 text-sm focus-visible:ring-1 focus-visible:ring-[#5141e5]"
                       disabled={isUpdating}
                       onChange={(e) => setEditPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter" || e.shiftKey || isUpdating) return;
+                        e.preventDefault();
+                        handleSubmit();
+                      }}
                       rows={5}
                       wrap="soft"
                     />
@@ -234,7 +251,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                 </PopoverContent>
               </Popover>
 
-              <Popover open={isSpeakerPopoverOpen} onOpenChange={setIsSpeakerPopoverOpen}>
+              {slide?.speaker_note && <Popover open={isSpeakerPopoverOpen} onOpenChange={setIsSpeakerPopoverOpen}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
@@ -268,11 +285,11 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
                   </div>
                   <div className="space-y-3 p-4">
                     <div className="max-h-[220px] min-h-[100px] overflow-auto whitespace-pre-wrap rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
-                      {slide?.speaker_note?.trim() || "No speaker notes for this slide."}
+                      {slide?.speaker_note?.trim()}
                     </div>
                   </div>
                 </PopoverContent>
-              </Popover>
+              </Popover>}
 
               <button
                 type="button"

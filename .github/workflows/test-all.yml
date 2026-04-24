@@ -33,7 +33,8 @@ jobs:
           libreoffice \
           fontconfig \
           chromium \
-          chromium-driver
+          chromium-driver \
+          imagemagick
     
     - name: Install Python dependencies
       run: |
@@ -81,7 +82,8 @@ jobs:
           libreoffice \
           fontconfig \
           chromium \
-          chromium-driver
+          chromium-driver \
+          imagemagick
     
     - name: Install Python dependencies
       run: |

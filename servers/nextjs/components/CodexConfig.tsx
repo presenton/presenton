@@ -1,26 +1,15 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import {
-  Check,
-  ChevronsUpDown,
   Loader2,
-  LogIn,
-  LogOut,
   RefreshCw,
+  Trash2,
   UserCheck,
+  ArrowRight,
 } from "lucide-react";
-import { Button } from "./ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "./ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getApiUrl } from "@/utils/api";
+import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 interface CodexConfigProps {
   codexModel: string;
@@ -32,6 +21,9 @@ type AuthStatus = "checking" | "unauthenticated" | "polling" | "authenticated";
 interface StatusResponse {
   status: string;
   account_id?: string;
+  username?: string;
+  email?: string;
+  is_pro?: boolean;
   detail?: string;
 }
 
@@ -40,17 +32,16 @@ interface CodexModel {
   name: string;
 }
 
-const CHATGPT_MODELS: CodexModel[] = [
-  { id: "gpt-5.1", name: "GPT-5.1" },
-  { id: "gpt-5.1-codex-max", name: "GPT-5.1 Codex Max" },
-  { id: "gpt-5.2", name: "GPT-5.2" },
-  { id: "gpt-5.2-codex", name: "GPT-5.2 Codex" },
-  { id: "gpt-5.3-codex", name: "GPT-5.3 Codex" },
-  { id: "gpt-5.4-mini", name: "GPT-5.4 Mini" },
+export const CHATGPT_MODELS: CodexModel[] = [
   { id: "gpt-5.4", name: "GPT-5.4" },
+  { id: "gpt-5.2-codex", name: "GPT-5.2-Codex" },
+  { id: "gpt-5.1-codex-max", name: "GPT-5.1-Codex-Max" },
+  { id: "gpt-5.4-mini", name: "GPT-5.4-Mini" },
+  { id: "gpt-5.3-codex", name: "GPT-5.3-Codex" },
+  { id: "gpt-5.2", name: "GPT-5.2" },
 ];
 
-const DEFAULT_CODEX_MODEL = "gpt-5.4-mini";
+export const DEFAULT_CODEX_MODEL = "gpt-5.2";
 
 export default function CodexConfig({
   codexModel,
@@ -58,12 +49,13 @@ export default function CodexConfig({
 }: CodexConfigProps) {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
   const [isExchanging, setIsExchanging] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [openModelSelect, setOpenModelSelect] = useState(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = () => {
@@ -73,34 +65,48 @@ export default function CodexConfig({
     }
   };
 
-  // Check current auth state on mount
   useEffect(() => {
     checkCurrentAuthStatus();
     return () => stopPolling();
   }, []);
 
+  const applyProfile = (data: Partial<StatusResponse>) => {
+    setAccountId(data.account_id ?? null);
+    setUsername(data.username ?? null);
+    setEmail(data.email ?? null);
+  };
+
   const checkCurrentAuthStatus = async () => {
     try {
-      const res = await fetch("/api/v1/ppt/codex/auth/status");
+      const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/status"));
       if (!res.ok) {
         setAuthStatus("unauthenticated");
+        applyProfile({});
         return;
       }
       const data: StatusResponse = await res.json();
       if (data.status === "authenticated") {
+        onInputChange('codex', 'LLM');
+        onInputChange(DEFAULT_CODEX_MODEL, 'codex_model');
         setAuthStatus("authenticated");
-        setAccountId(data.account_id ?? null);
+        applyProfile(data);
       } else {
         setAuthStatus("unauthenticated");
+        applyProfile({});
       }
     } catch {
       setAuthStatus("unauthenticated");
+      applyProfile({});
     }
   };
 
   const handleSignIn = async () => {
     try {
-      const res = await fetch("/api/v1/ppt/codex/auth/initiate", {
+
+      trackEvent(MixpanelEvent.Codex_SignIn_API_Call);
+      onInputChange('codex', 'LLM');
+
+      const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/initiate"), {
         method: "POST",
       });
       if (!res.ok) throw new Error("Failed to initiate auth");
@@ -111,11 +117,10 @@ export default function CodexConfig({
       setAuthStatus("polling");
       window.open(url, "_blank", "noopener,noreferrer");
 
-      // Start polling the status endpoint every 2s
       pollIntervalRef.current = setInterval(async () => {
         try {
           const pollRes = await fetch(
-            `/api/v1/ppt/codex/auth/status/${session_id}`
+            getApiUrl(`/api/v1/ppt/codex/auth/status/${session_id}`)
           );
           if (!pollRes.ok) return;
           const pollData: StatusResponse = await pollRes.json();
@@ -123,9 +128,8 @@ export default function CodexConfig({
           if (pollData.status === "success") {
             stopPolling();
             setAuthStatus("authenticated");
-            setAccountId(pollData.account_id ?? null);
+            applyProfile(pollData);
             setSessionId(null);
-            // Set a sensible default model if none chosen
             if (!codexModel) {
               onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
             }
@@ -133,6 +137,7 @@ export default function CodexConfig({
           } else if (pollData.status === "failed") {
             stopPolling();
             setAuthStatus("unauthenticated");
+            applyProfile({});
             toast.error("Authentication failed. Please try again.");
           }
         } catch {
@@ -142,6 +147,7 @@ export default function CodexConfig({
     } catch (err) {
       toast.error("Failed to start sign-in flow");
       setAuthStatus("unauthenticated");
+      applyProfile({});
     }
   };
 
@@ -149,7 +155,7 @@ export default function CodexConfig({
     if (!sessionId || !manualCode.trim()) return;
     setIsExchanging(true);
     try {
-      const res = await fetch("/api/v1/ppt/codex/auth/exchange", {
+      const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/exchange"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, code: manualCode.trim() }),
@@ -161,7 +167,7 @@ export default function CodexConfig({
       const data = await res.json();
       stopPolling();
       setAuthStatus("authenticated");
-      setAccountId(data.account_id);
+      applyProfile(data);
       setSessionId(null);
       setManualCode("");
       if (!codexModel) {
@@ -185,9 +191,12 @@ export default function CodexConfig({
   const handleSignOut = async () => {
     setIsLoggingOut(true);
     try {
-      await fetch("/api/v1/ppt/codex/auth/logout", { method: "POST" });
+      await fetch(getApiUrl("/api/v1/ppt/codex/auth/logout"), { method: "POST" });
       setAuthStatus("unauthenticated");
       setAccountId(null);
+      setUsername(null);
+      setEmail(null);
+      onInputChange("openai", "LLM");
       onInputChange("", "codex_model");
       toast.success("Signed out from ChatGPT");
     } catch {
@@ -200,230 +209,168 @@ export default function CodexConfig({
   const handleRefreshToken = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch("/api/v1/ppt/codex/auth/refresh", {
+      const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/refresh"), {
         method: "POST",
       });
       if (!res.ok) throw new Error("Refresh failed");
       const data = await res.json();
-      if (data.account_id) setAccountId(data.account_id);
+      applyProfile(data);
       toast.success("Token refreshed successfully");
     } catch {
       toast.error("Token refresh failed. Please sign in again.");
       setAuthStatus("unauthenticated");
+      applyProfile({});
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  // ─── Checking ────────────────────────────────────────────────────────────
   if (authStatus === "checking") {
     return (
-      <div className="flex items-center justify-center py-12 gap-3 text-gray-500">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        <span className="text-sm">Checking authentication status…</span>
+      <div className="mb-5 w-full p-3 border border-[#EDEEEF] font-syne rounded-[8px] flex items-center gap-6">
+        <div className="w-[74px] h-[74px] bg-[#333333] rounded-full flex items-center justify-center shrink-0">
+          <Loader2 className="w-10 h-10 text-[#191919] animate-spin" />
+        </div>
+        <div className="text-start flex-1 min-w-0">
+          <h4 className="text-[#191919] text-lg font-medium">Checking status</h4>
+          <p className="text-[#B3B3B3] text-sm font-normal">
+            Verifying your ChatGPT connection…
+          </p>
+        </div>
       </div>
     );
   }
 
-  // ─── Polling / waiting ───────────────────────────────────────────────────
   if (authStatus === "polling") {
     return (
-      <div className="space-y-6">
-        <div className="flex flex-col items-center gap-4 py-8 px-4 bg-blue-50 rounded-xl border border-blue-100">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-          <div className="text-center">
-            <p className="text-sm font-medium text-blue-900">
-              Waiting for authentication…
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              Complete the sign-in in the browser tab that just opened.
-            </p>
+      <div className="mb-5 space-y-4 font-syne">
+        <div className="w-full p-3 border border-[#EDEEEF] rounded-[8px] flex items-center justify-between gap-4">
+          <div className="flex items-center gap-6 min-w-0 flex-1">
+            <div className="w-[40px] h-[40px] bg-[#EDEEEF] rounded-full flex items-center justify-center shrink-0">
+              <Loader2 className="w-5 h-5 text-[#191919] animate-spin" />
+            </div>
+            <div className="text-start min-w-0">
+              <h4 className="text-[#191919] text-lg font-medium">Waiting for sign-in</h4>
+              <p className="text-[#B3B3B3] text-sm font-normal">
+                Complete sign-in in the browser tab we opened.
+              </p>
+            </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            type="button"
             onClick={handleCancelPolling}
-            className="text-gray-600"
+            className="shrink-0 text-sm text-[#B3B3B3] hover:text-[#191919] underline underline-offset-2 transition-colors"
           >
             Cancel
-          </Button>
+          </button>
         </div>
 
-        {/* Manual fallback */}
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-gray-700">
-            Didn&apos;t get redirected automatically?
+        <div className="space-y-2 rounded-[8px] border border-[#EDEEEF] p-3">
+          <p className="text-[#191919] text-xs font-normal">
+            Paste redirect URL or code if you were not redirected automatically
           </p>
-          <p className="text-xs text-gray-500">
-            After completing the sign-in, paste the full redirect URL or
-            authorization code below.
-          </p>
-          <input
-            type="text"
-            placeholder="Paste redirect URL or authorization code…"
-            className="w-full px-4 py-2.5 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors text-sm"
-            value={manualCode}
-            onChange={(e) => setManualCode(e.target.value)}
-          />
-          <Button
-            onClick={handleManualExchange}
-            disabled={isExchanging || !manualCode.trim()}
-            className="w-full"
-          >
-            {isExchanging ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Exchanging…
-              </div>
-            ) : (
-              "Submit Code"
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Paste URL or code…"
+              className="flex-1 min-w-0 px-3 py-2.5 outline-none border border-[#EDEEEF] rounded-[8px]  text-sm text-[#191919] placeholder:text-[#666666] focus:border-[#555555] transition-colors"
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={handleManualExchange}
+              disabled={isExchanging || !manualCode.trim()}
+              className="shrink-0 px-4 py-2.5 bg-[#EDEEEF] hover:bg-[#E4E5E6] disabled:opacity-40 disabled:hover:bg-[#EDEEEF] rounded-[8px] text-sm font-medium text-[#191919] transition-colors flex items-center justify-center min-w-[88px]"
+            >
+              {isExchanging ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                "Submit"
+              )}
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // ─── Authenticated ───────────────────────────────────────────────────────
   if (authStatus === "authenticated") {
+
     return (
-      <div className="space-y-6">
-        {/* Account info */}
-        <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-100">
-          <UserCheck className="w-6 h-6 text-green-600 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-green-900">
-              Signed in to ChatGPT
-            </p>
-            {accountId && (
-              <p className="text-xs text-green-700 truncate mt-0.5">
-                Account: {accountId}
-              </p>
-            )}
+      <div className=" mb-5">
+        <div className="flex items-center justify-between gap-3 p-5  border border-[#EDEEEF] rounded-[8px]">
+          <div className="flex items-center gap-3">
+
+            <div className="w-[40px] h-[40px] bg-[#333333] rounded-full flex items-center justify-center" >
+
+              <img src="/providers/OpenAI-white.png" alt="openai Logo" className="w-[27px] h-[27px]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="text-sm font-medium text-[#191919] truncate">
+                  {username || email || (accountId ? `Account ${accountId}` : "ChatGPT Account")}
+                </p>
+
+              </div>
+              {email && username && (
+                <p className="text-xs text-[#B3B3B3] truncate">{email}</p>
+              )}
+              {!email && accountId && (
+                <p className="text-xs text-[#B3B3B3] truncate">ID: {accountId}</p>
+              )}
+              <p className="text-xs text-[#B3B3B3]">Signed in to ChatGPT</p>
+            </div>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
+          <div className="flex gap-1.5 shrink-0">
+            <button
               onClick={handleRefreshToken}
               disabled={isRefreshing}
-              title="Refresh access token"
-              className="text-gray-600 border-gray-300"
+              title="Refresh token"
+              className="flex items-center justify-center px-3.5 py-2.5  border border-[#EDEEEF] rounded-[58px] minid:opacity-40 transition-colors"
             >
               {isRefreshing ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#191919]" />
               ) : (
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="w-3.5 h-3.5 text-[#191919]" />
               )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
+            </button>
+            <button
               onClick={handleSignOut}
               disabled={isLoggingOut}
-              className="text-red-600 border-red-200 hover:bg-red-50"
+              title="Sign out"
+              className="flex items-center justify-center px-3.5 py-2.5  border border-[#EDEEEF] rounded-[58px]  disabled:opacity-40 transition-colors"
             >
               {isLoggingOut ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#191919]" />
               ) : (
-                <LogOut className="w-3.5 h-3.5" />
+                <Trash2 className="w-3.5 h-3.5 text-[#191919]" />
               )}
-              <span className="ml-1.5">Sign out</span>
-            </Button>
+            </button>
           </div>
         </div>
 
-        {/* Model selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Select ChatGPT Model
-          </label>
-          <Popover open={openModelSelect} onOpenChange={setOpenModelSelect}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={openModelSelect}
-                className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
-              >
-                <span className="text-sm font-medium text-gray-900">
-                  {codexModel
-                    ? (CHATGPT_MODELS.find((m) => m.id === codexModel)?.name ?? codexModel)
-                    : "Select a model"}
-                </span>
-                <ChevronsUpDown className="w-4 h-4 text-gray-500" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="p-0"
-              align="start"
-              style={{ width: "var(--radix-popover-trigger-width)" }}
-            >
-              <Command>
-                <CommandInput placeholder="Search models…" />
-                <CommandList>
-                  <CommandEmpty>No model found.</CommandEmpty>
-                  <CommandGroup>
-                    {CHATGPT_MODELS.map((model) => (
-                      <CommandItem
-                        key={model.id}
-                        value={model.id}
-                        onSelect={(value) => {
-                          onInputChange(value, "codex_model");
-                          setOpenModelSelect(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            codexModel === model.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <span className="text-sm font-medium text-gray-900">
-                          {model.name}
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          <p className="mt-2 text-xs text-gray-500 flex items-center gap-2">
-            <span className="block w-1 h-1 rounded-full bg-gray-400" />
-            Model availability depends on your ChatGPT subscription tier.
-          </p>
-        </div>
+
       </div>
     );
   }
 
-  // ─── Unauthenticated ─────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-900 mb-1">
-          ChatGPT Plus / Pro
-        </h3>
-        <p className="text-sm text-gray-600">
-          Sign in with your OpenAI account to use ChatGPT models directly via
-          OAuth — no API key required.
-        </p>
+    <button
+      onClick={handleSignIn}
+      className=" w-full  p-5 border border-[#EDEEEF] font-syne  hover:bg-[#F7F6F9] transition-colors duration-300   rounded-[12px] flex items-center   justify-between  "
+    >
+      <div className="flex items-center gap-2 flex-1">
+        <div className="w-[40px] h-[40px] bg-[#333333] rounded-full flex items-center justify-center" >
+
+          <img src="/providers/OpenAI-white.png" alt="openai Logo" className="w-[27px] h-[27px]" />
+        </div>
+        <div className="text-start flex-1">
+          <h4 className="text-[#191919] text-sm font-medium">Sign in with ChatGPT</h4>
+          <p className="text-[#B3B3B3]   text-xs font-normal">Use your ChatGPT account — no API  key required</p>
+        </div>
       </div>
-
-      <Button
-        onClick={handleSignIn}
-        className="w-full h-12 gap-2 bg-[#10a37f] hover:bg-[#0e8f6f] text-white"
-      >
-        <LogIn className="w-4 h-4" />
-        Sign in with ChatGPT
-      </Button>
-
-      <p className="text-xs text-gray-500 flex items-start gap-2">
-        <span className="block w-1 h-1 rounded-full bg-gray-400 mt-1.5 shrink-0" />
-        A browser window will open for you to authenticate with your OpenAI
-        account. Your credentials are stored locally and never shared.
-      </p>
-    </div>
+      <ArrowRight className="w-[22px] h-[22px] text-[#4C4C4C]" />
+    </button>
   );
 }

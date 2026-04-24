@@ -12,7 +12,7 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { clearOutlines, setPresentationId } from "@/store/slices/presentationGeneration";
 import { PromptInput } from "./PromptInput";
 import { LanguageType, PresentationConfig, ToneType, VerbosityType } from "../type";
@@ -26,6 +26,18 @@ import Wrapper from "@/components/Wrapper";
 import { setPptGenUploadState } from "@/store/slices/presentationGenUpload";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { ConfigurationSelects } from "./ConfigurationSelects";
+import { RootState } from "@/store/store";
+import { ImagesApi } from "../../services/api/images";
+import CurrentConfig from "./CurrentConfig";
+import { LLMConfig } from "@/types/llm_config";
+
+const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
+const FILE_TYPE_WORD = new Set([".doc", ".docx", ".docm", ".odt", ".rtf"]);
+const FILE_TYPE_PRESENTATION = new Set([".ppt", ".pptx", ".pptm", ".odp"]);
+const FILE_TYPE_SPREADSHEET = new Set([".xls", ".xlsx", ".xlsm", ".ods", ".csv", ".tsv"]);
+const FILE_TYPE_IMAGE = new Set([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", ".svg"]);
+const FILE_TYPE_PDF = new Set([".pdf"]);
+const FILE_TYPE_TEXT = new Set([".txt"]);
 
 // Types for loading state
 interface LoadingState {
@@ -36,16 +48,60 @@ interface LoadingState {
   extra_info?: string;
 }
 
+const getFileExtension = (fileName: string): string => {
+  const index = fileName.lastIndexOf(".");
+  if (index < 0) return "";
+  return fileName.slice(index).toLowerCase();
+};
+
+const getFileCategory = (file: File): string => {
+  const extension = getFileExtension(file.name || "");
+  if (FILE_TYPE_WORD.has(extension)) return "word";
+  if (FILE_TYPE_PRESENTATION.has(extension)) return "presentation";
+  if (FILE_TYPE_SPREADSHEET.has(extension)) return "spreadsheet";
+  if (FILE_TYPE_IMAGE.has(extension) || (file.type || "").startsWith("image/")) return "image";
+  if (FILE_TYPE_PDF.has(extension) || file.type === "application/pdf") return "pdf";
+  if (FILE_TYPE_TEXT.has(extension) || file.type === "text/plain") return "text";
+  return "other";
+};
+
+const getSelectedTextModel = (config?: LLMConfig): string => {
+  if (!config) return "";
+  switch (config.LLM) {
+    case "openai":
+      return config.OPENAI_MODEL || "";
+    case "google":
+      return config.GOOGLE_MODEL || "";
+    case "anthropic":
+      return config.ANTHROPIC_MODEL || "";
+    case "ollama":
+      return config.OLLAMA_MODEL || "";
+    case "custom":
+      return config.CUSTOM_MODEL || "";
+    case "codex":
+      return config.CODEX_MODEL || "";
+    default:
+      return "";
+  }
+};
+
+const getSelectedImageQuality = (config?: LLMConfig): string => {
+  if (!config) return "";
+  if (config.IMAGE_PROVIDER === "dall-e-3") return config.DALL_E_3_QUALITY || "";
+  if (config.IMAGE_PROVIDER === "gpt-image-1.5") return config.GPT_IMAGE_1_5_QUALITY || "";
+  return "";
+};
+
 const UploadPage = () => {
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useDispatch();
+  const llmConfig = useSelector((state: RootState) => state.userConfig.llm_config);
 
-  // State management
   const [files, setFiles] = useState<File[]>([]);
   const [config, setConfig] = useState<PresentationConfig>({
-    slides: "5",
-    language: LanguageType.English,
+    slides: null,
+    language: LanguageType.Auto,
     prompt: "",
     tone: ToneType.Default,
     verbosity: VerbosityType.Standard,
@@ -63,13 +119,80 @@ const UploadPage = () => {
     extra_info: "",
   });
 
-  /**
-   * Updates the presentation configuration
-   * @param key - Configuration key to update
-   * @param value - New value for the configuration
-   */
-  const handleConfigChange = (key: keyof PresentationConfig, value: string) => {
-    setConfig((prev) => ({ ...prev, [key]: value }));
+  const getUploadSnapshotProps = () => {
+    const trimmedPrompt = config.prompt.trim();
+    const trimmedInstructions = (config.instructions || "").trim();
+    const attachmentCategories = Array.from(new Set(files.map(getFileCategory))).sort();
+    const imageGenerationEnabled = !llmConfig?.DISABLE_IMAGE_GENERATION;
+    const parsedSlides =
+      config.slides && /^\d+$/.test(config.slides) ? Number(config.slides) : null;
+
+    return {
+      pathname,
+      generation_path: files.length > 0 ? "documents" : "prompt_only",
+      slides_selected: parsedSlides,
+      slides_mode: config.slides ? "selected" : "auto",
+      language: config.language || "",
+      tone: config.tone,
+      verbosity: config.verbosity,
+      include_table_of_contents: !!config.includeTableOfContents,
+      include_title_slide: !!config.includeTitleSlide,
+      web_search: !!config.webSearch,
+      has_prompt: Boolean(trimmedPrompt),
+      prompt_char_count: trimmedPrompt.length,
+      prompt_word_count: trimmedPrompt ? trimmedPrompt.split(/\s+/).filter(Boolean).length : 0,
+      has_instructions: Boolean(trimmedInstructions),
+      instructions_char_count: trimmedInstructions.length,
+      has_attachments: files.length > 0,
+      attachments_count: files.length,
+      attachment_categories: attachmentCategories.join(","),
+      text_provider: llmConfig?.LLM || "",
+      text_model: getSelectedTextModel(llmConfig),
+      image_generation_enabled: imageGenerationEnabled,
+      image_provider: imageGenerationEnabled ? (llmConfig?.IMAGE_PROVIDER || "") : "disabled",
+      image_quality: imageGenerationEnabled ? getSelectedImageQuality(llmConfig) : "",
+    };
+  };
+
+  const trackUploadValidationFailure = (reason: string) => {
+    trackEvent(MixpanelEvent.Upload_Configuration_Invalid, {
+      ...getUploadSnapshotProps(),
+      reason,
+    });
+  };
+
+  const handleConfigChange = (key: keyof PresentationConfig, value: unknown) => {
+    setConfig((prev) => ({ ...prev, [key]: value } as PresentationConfig));
+  };
+
+  const ensureStockImageProviderReady = async (): Promise<boolean> => {
+    if (llmConfig?.DISABLE_IMAGE_GENERATION) {
+      return true;
+    }
+
+    const selectedProvider = (llmConfig?.IMAGE_PROVIDER || "").toLowerCase();
+    if (!STOCK_IMAGE_PROVIDERS.has(selectedProvider)) {
+      return true;
+    }
+
+    try {
+      const providerApiKey =
+        selectedProvider === "pexels"
+          ? llmConfig?.PEXELS_API_KEY
+          : llmConfig?.PIXABAY_API_KEY;
+      await ImagesApi.searchStockImages("business", 1, {
+        provider: selectedProvider,
+        apiKey: providerApiKey,
+        strictApiKey: true,
+      });
+      return true;
+    } catch (error: any) {
+      toast.error(
+        error?.message ||
+        `Unable to reach ${selectedProvider} right now. Please check your API key/settings and try again.`
+      );
+      return false;
+    }
   };
 
   /**
@@ -77,12 +200,20 @@ const UploadPage = () => {
    * @returns boolean indicating if the configuration is valid
    */
   const validateConfiguration = (): boolean => {
-    if (!config.language || !config.slides) {
-      toast.error("Please select number of Slides & Language");
+    if (!config.language) {
+      trackUploadValidationFailure("language_missing");
+      toast.error("Please select language");
+      return false;
+    }
+
+    if (files.length > 0 && config.language === LanguageType.Auto) {
+      trackUploadValidationFailure("language_auto_with_documents");
+      toast.error("Please choose a language before processing uploaded documents");
       return false;
     }
 
     if (!config.prompt.trim() && files.length === 0) {
+      trackUploadValidationFailure("prompt_or_document_missing");
       toast.error("No Prompt or Document Provided");
       return false;
     }
@@ -94,6 +225,14 @@ const UploadPage = () => {
    */
   const handleGeneratePresentation = async () => {
     if (!validateConfiguration()) return;
+    trackEvent(MixpanelEvent.Upload_Generation_Started, getUploadSnapshotProps());
+
+
+    const isStockProviderReady = await ensureStockImageProviderReady();
+    if (!isStockProviderReady) {
+      trackUploadValidationFailure("stock_image_provider_unreachable");
+      return;
+    }
 
     try {
       const hasUploadedAssets = files.length > 0;
@@ -123,16 +262,21 @@ const UploadPage = () => {
     let documents = [];
 
     if (files.length > 0) {
-      trackEvent(MixpanelEvent.Upload_Upload_Documents_API_Call);
       const uploadResponse = await PresentationGenerationApi.uploadDoc(files);
       documents = uploadResponse;
     }
 
+    const selectedLanguage = config?.language ?? "";
+
     const promises: Promise<any>[] = [];
 
     if (documents.length > 0) {
-      trackEvent(MixpanelEvent.Upload_Decompose_Documents_API_Call);
-      promises.push(PresentationGenerationApi.decomposeDocuments(documents));
+      promises.push(
+        PresentationGenerationApi.decomposeDocuments(
+          documents,
+          selectedLanguage
+        )
+      );
     }
     const responses = await Promise.all(promises);
     dispatch(setPptGenUploadState({
@@ -140,6 +284,12 @@ const UploadPage = () => {
       files: responses,
     }));
     dispatch(clearOutlines())
+    trackEvent(MixpanelEvent.Upload_Documents_Processed, {
+      ...getUploadSnapshotProps(),
+      uploaded_documents_count: documents.length,
+      decompose_job_count: responses.length,
+      destination: "/documents-preview",
+    });
     trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/documents-preview" });
     router.push("/documents-preview");
   };
@@ -155,13 +305,14 @@ const UploadPage = () => {
       duration: 30,
     });
 
+    const selectedLanguage = config?.language ?? "";
+
     // Use the first available layout group for direct generation
-    trackEvent(MixpanelEvent.Upload_Create_Presentation_API_Call);
     const createResponse = await PresentationGenerationApi.createPresentation({
       content: config?.prompt ?? "",
-      n_slides: config?.slides ? parseInt(config.slides) : null,
+      n_slides: config?.slides ? parseInt(config.slides, 10) : null,
       file_paths: [],
-      language: config?.language ?? "",
+      language: selectedLanguage,
       tone: config?.tone,
       verbosity: config?.verbosity,
       instructions: config?.instructions || null,
@@ -173,6 +324,11 @@ const UploadPage = () => {
 
     dispatch(setPresentationId(createResponse.id));
     dispatch(clearOutlines())
+    trackEvent(MixpanelEvent.Upload_Outline_Generation_Requested, {
+      ...getUploadSnapshotProps(),
+      presentation_id: createResponse.id,
+      destination: "/outline",
+    });
     trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
     router.push("/outline");
   };
@@ -194,7 +350,7 @@ const UploadPage = () => {
   };
 
   return (
-    <Wrapper className="pb-10 lg:max-w-[70%] xl:max-w-[65%]">
+    <Wrapper className="pb-10 lg:max-w-[65%] xl:max-w-[60%]">
       <OverlayLoader
         show={loadingState.isLoading}
         text={loadingState.message}
@@ -202,55 +358,45 @@ const UploadPage = () => {
         duration={loadingState.duration}
         extra_info={loadingState.extra_info}
       />
-      <div className="rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/60" >
-        <div className="flex flex-col gap-4 md:items-center md:flex-row justify-between p-4">
-          <div >
-            <h2 className="text-lg font-unbounded tracking-tight text-slate-900 ">Configuration</h2>
-            <p className="text-sm text-slate-500 font-syne">Choose slides, tone, and language preferences.</p>
-          </div>
+      <div className="rounded-2xl " >
+        <div className="flex flex-col gap-4 md:items-center md:flex-row justify-between px-4 ">
+          <CurrentConfig />
           <ConfigurationSelects
             config={config}
             onConfigChange={handleConfigChange}
           />
         </div>
-        <div className="border-t border-slate-200/70" />
 
-        <div className="p-4 md:p-6">
-          <h3 className="text-base font-normal font-unbounded  text-slate-900 mb-2">Content</h3>
+        <div className="p-4 ">
+
           <div className="relative">
             <PromptInput
               value={config.prompt}
               onChange={(value) => handleConfigChange("prompt", value)}
-              data-testid="prompt-input"
+
             />
           </div>
         </div>
-        <div className="border-t border-slate-200/70" />
-        <div className="p-4 md:p-6">
-          <h3 className="text-base font-normal font-unbounded text-slate-900 mb-2">Attachments (optional)</h3>
-
-
+        <div className="p-4 ">
+          <h3 className="text-sm font-medium text-[#333333] mb-2">Attachments (optional)</h3>
           <SupportingDoc
             files={[...files]}
             onFilesChange={setFiles}
-            data-testid="file-upload-input"
           />
         </div>
-        <div className="border-t border-slate-200/70" />
 
-        <div className="p-4 md:p-6">
+        <div className="p-4">
           <Button
             onClick={handleGeneratePresentation}
-            className="w-full rounded-[28px] flex items-center justify-center py-5 bg-[#5141e5] text-white font-syne font-semibold text-lg hover:bg-[#5141e5]/85 focus-visible:ring-2 focus-visible:ring-[#5141e5]/40"
-            data-testid="next-button"
+            style={{
+              background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)"
+            }}
+            className="w-fit mr-0 ml-auto rounded-[28px] flex items-center justify-center py-5 px-4  text-[#101323] font-syne font-semibold text-xs  "
           >
-            <span>Generate Presentation</span>
-            <ChevronRight className="!w-5 !h-5 ml-1.5" />
+            <span>Get Started</span>
+            <ChevronRight className="!w-5 !h-5 " />
           </Button>
         </div>
-
-
-
       </div>
     </Wrapper>
   );

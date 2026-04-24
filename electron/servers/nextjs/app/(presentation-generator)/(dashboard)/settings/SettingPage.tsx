@@ -22,6 +22,8 @@ import ImageProvider from "./ImageProvider";
 import PrivacySettings from "./PrivacySettings";
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from "@/utils/providerConstants";
 import { ImagesApi } from "@/app/(presentation-generator)/services/api/images";
+import { getApiUrl } from "@/utils/api";
+import { toast } from "sonner";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 
@@ -105,7 +107,32 @@ const SettingsPage = () => {
     }
   };
 
+  const checkCurrentAuthStatus = async () => {
+    try {
+      const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/status"));
+      if (!res.ok) {
+        return false;
+      }
+      const data = await res.json();
+      if (data.status === "authenticated") {
+        return true;
+      } else {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+  };
+
   const handleSaveConfig = async () => {
+
+    if (llmConfig.LLM === 'codex') {
+      const isAuthenticated = await checkCurrentAuthStatus();
+      if (!isAuthenticated) {
+        toast.error("Please sign in to ChatGPT to continue");
+        return;
+      }
+    }
     trackEvent(MixpanelEvent.Settings_SaveConfiguration_Button_Clicked, { pathname });
     const validationError = getLLMConfigValidationError(llmConfig);
     if (validationError) {

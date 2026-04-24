@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "presenton-backend"
 version = "0.1.0"
@@ -8,30 +12,33 @@ dependencies = [
     "aiohttp>=3.12.15",
     "aiomysql>=0.2.0",
     "aiosqlite>=0.21.0",
-    "anthropic>=0.60.0",
     "asyncpg>=0.30.0",
-    "chromadb>=1.0.15",
     "dirtyjson>=1.0.8",
-    "docling>=2.43.0",
     "fastapi[standard]>=0.116.1",
+    "fastembed-vectorstore>=0.5.2",
     "fastmcp>=2.11.0",
     "google-genai>=1.28.0",
+    "mem0ai[nlp]>=0.1.115",
     "nltk>=3.9.1",
     "openai>=1.98.0",
     "pathvalidate>=3.3.1",
     "pdfplumber>=0.11.7",
-    "pytest>=8.4.1",
     "python-pptx>=1.0.2",
-    "redis>=6.2.0",
     "sqlmodel>=0.0.24",
+    "llmai==0.1.9",
 ]
 
 [tool.uv]
 index-strategy = "unsafe-best-match"
 
-[[tool.uv.index]]
-url = "https://download.pytorch.org/whl/cpu"
-
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["api*", "enums*", "models*", "services*", "constants*", "utils*"]
+include = [
+    "api*",
+    "enums*",
+    "models*",
+    "services*",
+    "constants*",
+    "utils*",
+    "templates*",
+]

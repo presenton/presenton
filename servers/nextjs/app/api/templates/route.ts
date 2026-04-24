@@ -6,7 +6,7 @@ import { TemplateSetting } from '@/app/(presentation-generator)/template-preview
 export async function GET() {
     try {
         // Get the path to the presentation-templates directory
-        const templatesDirectory = path.join(process.cwd(), 'presentation-templates')
+        const templatesDirectory = path.join(process.cwd(), 'app', 'presentation-templates')
         
         // Read all directories in the presentation-templates directory
         const items = await fs.readdir(templatesDirectory, { withFileTypes: true })

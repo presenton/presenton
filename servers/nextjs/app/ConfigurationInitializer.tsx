@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { checkIfSelectedOllamaModelIsPulled } from '@/utils/providerUtils';
 import { LLMConfig } from '@/types/llm_config';
+import { getApiUrl } from '@/utils/api';
 
 export function ConfigurationInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
@@ -31,24 +32,46 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
 
   const fetchUserConfigState = async () => {
     setIsLoading(true);
-    const response = await fetch('/api/can-change-keys');
-    const canChangeKeys = (await response.json()).canChange;
+
+    if (route.startsWith('/pdf-maker')) {
+      setIsLoading(false);
+      return;
+    }
+
+    let canChangeKeys = false;
+    try {
+      const res = await fetch('/api/can-change-keys');
+      const data = await res.json();
+      canChangeKeys = data.canChange ?? false;
+    } catch (e) {
+      console.error('Failed to fetch can-change-keys:', e);
+      canChangeKeys = false;
+    }
     dispatch(setCanChangeKeys(canChangeKeys));
 
     if (canChangeKeys) {
-      const response = await fetch('/api/user-config');
-      const llmConfig = await response.json();
+      let llmConfig: LLMConfig = {};
+      try {
+        const res = await fetch('/api/user-config');
+        llmConfig = await res.json();
+      } catch (e) {
+        console.error('Failed to fetch user config:', e);
+        llmConfig = {};
+      }
       if (!llmConfig.LLM) {
         llmConfig.LLM = 'openai';
       }
-      if (!llmConfig.IMAGE_PROVIDER) {
-        llmConfig.IMAGE_PROVIDER = 'gpt-image-1.5';
-      }
+
       dispatch(setLLMConfig(llmConfig));
       const isValid = hasValidLLMConfig(llmConfig);
+      console.log('isValid', isValid);
+      if (route.startsWith('/pdf-maker')) {
+        setIsLoading(false);
+        return;
+      }
       if (isValid) {
         // Check if the selected Ollama model is pulled
-        if (llmConfig.LLM === 'ollama') {
+        if (llmConfig.LLM === 'ollama' && llmConfig.OLLAMA_MODEL) {
           const isPulled = await checkIfSelectedOllamaModelIsPulled(llmConfig.OLLAMA_MODEL);
           if (!isPulled) {
             router.push('/');
@@ -89,7 +112,7 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
 
   const checkIfSelectedCustomModelIsAvailable = async (llmConfig: LLMConfig) => {
     try {
-      const response = await fetch('/api/v1/ppt/openai/models/available', {
+      const response = await fetch(getApiUrl('/api/v1/ppt/openai/models/available'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

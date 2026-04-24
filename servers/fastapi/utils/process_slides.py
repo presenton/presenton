@@ -1,26 +1,37 @@
 import asyncio
-from typing import List, Tuple
+from typing import List, Optional
 from models.image_prompt import ImagePrompt
 from models.sql.image_asset import ImageAsset
 from models.sql.slide import SlideModel
 from services.icon_finder_service import ICON_FINDER_SERVICE
 from services.image_generation_service import ImageGenerationService
-from utils.asset_directory_utils import get_images_directory
 from utils.dict_utils import get_dict_at_path, get_dict_paths_with_key, set_dict_at_path
 
 
 async def process_slide_and_fetch_assets(
     image_generation_service: ImageGenerationService,
     slide: SlideModel,
+    outline_image_urls: Optional[List[str]] = None,
 ) -> List[ImageAsset]:
 
     async_tasks = []
+    async_task_meta = []
 
     image_paths = get_dict_paths_with_key(slide.content, "__image_prompt__")
     icon_paths = get_dict_paths_with_key(slide.content, "__icon_query__")
 
-    for image_path in image_paths:
+    for image_index, image_path in enumerate(image_paths):
         __image_prompt__parent = get_dict_at_path(slide.content, image_path)
+
+        if (
+            outline_image_urls
+            and image_index < len(outline_image_urls)
+            and outline_image_urls[image_index]
+        ):
+            __image_prompt__parent["__image_url__"] = outline_image_urls[image_index]
+            set_dict_at_path(slide.content, image_path, __image_prompt__parent)
+            continue
+
         async_tasks.append(
             image_generation_service.generate_image(
                 ImagePrompt(
@@ -28,36 +39,37 @@ async def process_slide_and_fetch_assets(
                 )
             )
         )
+        async_task_meta.append(("image", image_path))
 
     for icon_path in icon_paths:
         __icon_query__parent = get_dict_at_path(slide.content, icon_path)
         async_tasks.append(
             ICON_FINDER_SERVICE.search_icons(__icon_query__parent["__icon_query__"])
         )
+        async_task_meta.append(("icon", icon_path))
 
-    results = await asyncio.gather(*async_tasks)
-    results.reverse()
+    results = await asyncio.gather(*async_tasks) if async_tasks else []
 
     return_assets = []
-    for image_path in image_paths:
-        image_dict = get_dict_at_path(slide.content, image_path)
-        result = results.pop()
-        if isinstance(result, ImageAsset):
-            return_assets.append(result)
-            image_dict["__image_url__"] = result.path
-        else:
-            image_dict["__image_url__"] = result
-        set_dict_at_path(slide.content, image_path, image_dict)
+    for (task_type, asset_path), result in zip(async_task_meta, results):
+        if task_type == "image":
+            image_dict = get_dict_at_path(slide.content, asset_path)
+            if isinstance(result, ImageAsset):
+                return_assets.append(result)
+                image_dict["__image_url__"] = result.path
+            else:
+                image_dict["__image_url__"] = result
+            set_dict_at_path(slide.content, asset_path, image_dict)
+            continue
 
-    for icon_path in icon_paths:
-        icon_dict = get_dict_at_path(slide.content, icon_path)
-        icon_result = results.pop()
-        if icon_result and len(icon_result) > 0:
-            icon_dict["__icon_url__"] = icon_result[0]
+        icon_dict = get_dict_at_path(slide.content, asset_path)
+        # ICON_FINDER_SERVICE.search_icons returns a list of URLs
+        if isinstance(result, list) and result:
+            icon_dict["__icon_url__"] = result[0]
         else:
-            # Fallback to placeholder if no icon found
+            # Fallback to FastAPI static placeholder if no icon found
             icon_dict["__icon_url__"] = "/static/icons/placeholder.svg"
-        set_dict_at_path(slide.content, icon_path, icon_dict)
+        set_dict_at_path(slide.content, asset_path, icon_dict)
 
     return return_assets
 
@@ -152,7 +164,7 @@ async def process_old_and_new_slides_and_fetch_assets(
     new_assets = []
 
     # Sets new image and icon urls for assets that were fetched
-    for i, new_image in enumerate(new_images):
+    for i, _ in enumerate(new_images):
         if new_images_fetch_status[i]:
             fetched_image = new_images[i]
             if isinstance(fetched_image, ImageAsset):
@@ -162,7 +174,7 @@ async def process_old_and_new_slides_and_fetch_assets(
                 image_url = fetched_image
             new_image_dicts[i]["__image_url__"] = image_url
 
-    for i, new_icon in enumerate(new_icons):
+    for i, _ in enumerate(new_icons):
         if new_icons_fetch_status[i]:
             icon_result = new_icons[i]
             if icon_result and len(icon_result) > 0:
@@ -187,10 +199,12 @@ def process_slide_add_placeholder_assets(slide: SlideModel):
 
     for image_path in image_paths:
         image_dict = get_dict_at_path(slide.content, image_path)
+        # Use FastAPI static path for placeholder image
         image_dict["__image_url__"] = "/static/images/placeholder.jpg"
         set_dict_at_path(slide.content, image_path, image_dict)
 
     for icon_path in icon_paths:
         icon_dict = get_dict_at_path(slide.content, icon_path)
+        # Use FastAPI static path for placeholder icon
         icon_dict["__icon_url__"] = "/static/icons/placeholder.svg"
         set_dict_at_path(slide.content, icon_path, icon_dict)

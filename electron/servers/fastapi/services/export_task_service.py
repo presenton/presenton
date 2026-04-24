@@ -4,7 +4,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-import uuid
 from typing import Mapping
 
 from fastapi import HTTPException
@@ -33,7 +32,7 @@ class ExportTaskService:
         self.timeout_seconds = timeout_seconds
         self.node_binary = os.getenv("LITEPARSE_NODE_BINARY", "node")
         self.export_dir = self._resolve_export_dir()
-        self.entrypoint_path = os.path.join(self.export_dir, "index.js")
+        self.entrypoint_path = self._resolve_entrypoint_path(self.export_dir)
         self.converter_path = self._resolve_converter_path(self.export_dir)
 
     @staticmethod
@@ -42,30 +41,39 @@ class ExportTaskService:
         if configured:
             return configured
 
+        package_root = (os.getenv("EXPORT_PACKAGE_ROOT") or "").strip()
+        if package_root:
+            return package_root
+
         cwd = os.path.abspath(".")
         service_dir = os.path.dirname(__file__)
         candidates = [
-            os.path.abspath(os.path.join(cwd, "..", "..", "resources", "export")),
-            os.path.abspath(os.path.join(cwd, "..", "export")),
-            os.path.abspath(
-                os.path.join(service_dir, "..", "..", "..", "resources", "export")
-            ),
-            os.path.abspath(os.path.join(service_dir, "..", "..", "export")),
-            os.path.abspath(
-                os.path.join(cwd, "..", "..", "electron", "resources", "export")
-            ),
-            os.path.abspath(
-                os.path.join(
-                    service_dir, "..", "..", "..", "..", "electron", "resources", "export"
-                )
-            ),
+            os.path.abspath(os.path.join(cwd, "..", "..", "presentation-export")),
+            os.path.abspath(os.path.join(cwd, "..", "presentation-export")),
+            os.path.abspath(os.path.join(service_dir, "..", "..", "..", "presentation-export")),
+            os.path.abspath(os.path.join(service_dir, "..", "..", "..", "..", "presentation-export")),
         ]
 
         for candidate in candidates:
-            if os.path.isfile(os.path.join(candidate, "index.js")):
+            if os.path.isfile(os.path.join(candidate, "index.cjs")) or os.path.isfile(
+                os.path.join(candidate, "index.js")
+            ):
                 return candidate
 
         return candidates[0]
+
+    @staticmethod
+    def _resolve_entrypoint_path(export_dir: str) -> str:
+        index_cjs = os.path.join(export_dir, "index.cjs")
+        if os.path.isfile(index_cjs):
+            return index_cjs
+
+        index_js = os.path.join(export_dir, "index.js")
+        if os.path.isfile(index_js):
+            shutil.copyfile(index_js, index_cjs)
+            return index_cjs
+
+        return index_cjs
 
     @staticmethod
     def _resolve_converter_path(export_dir: str) -> str:

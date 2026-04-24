@@ -398,3 +398,38 @@ class TestImageGenerationEndpoint:
         
         asyncio.run(run_test())
 
+    def test_search_stock_images_defaults_to_selected_pixabay(self, client, mock_images_directory):
+        """
+        Test stock image search defaults to IMAGE_PROVIDER when provider query param is omitted
+        - Sets IMAGE_PROVIDER to pixabay
+        - Ensures /images/search uses Pixabay instead of returning provider validation error
+        """
+        with patch.dict(os.environ, {"IMAGE_PROVIDER": "pixabay"}):
+            with patch('api.v1.ppt.endpoints.images.get_images_directory', return_value=mock_images_directory):
+                with patch('api.v1.ppt.endpoints.images.ImageGenerationService') as mock_service_class:
+                    mock_service_instance = Mock()
+                    mock_service_instance.get_image_from_pixabay = AsyncMock(
+                        return_value=["https://example.com/pixabay_image.jpg"]
+                    )
+                    mock_service_instance.get_image_from_pexels = AsyncMock(
+                        return_value=["https://example.com/pexels_image.jpg"]
+                    )
+                    mock_service_class.return_value = mock_service_instance
+
+                    response = client.get("/images/search?query=business&limit=1")
+
+                    assert response.status_code == 200
+                    assert response.json() == ["https://example.com/pixabay_image.jpg"]
+                    mock_service_instance.get_image_from_pixabay.assert_awaited_once()
+                    mock_service_instance.get_image_from_pexels.assert_not_called()
+
+    def test_search_stock_images_invalid_provider_returns_400(self, client):
+        """
+        Test stock image search validates invalid provider values
+        - Ensures unsupported providers return HTTP 400 with clear guidance
+        """
+        response = client.get("/images/search?query=business&provider=invalid-provider")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "provider must be either 'pexels' or 'pixabay'"
+

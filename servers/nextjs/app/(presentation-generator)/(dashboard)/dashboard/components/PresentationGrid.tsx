@@ -1,9 +1,10 @@
 import React from "react";
 import { PresentationCard } from "./PresentationCard";
 import { PlusIcon } from "@radix-ui/react-icons";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { PresentationResponse } from "@/app/(presentation-generator)/services/api/dashboard";
 import { ArrowRight } from "lucide-react";
+import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
 interface PresentationGridProps {
   presentations: PresentationResponse[];
@@ -21,7 +22,13 @@ export const PresentationGrid = ({
   onPresentationDeleted,
 }: PresentationGridProps) => {
   const router = useRouter();
+  const pathname = usePathname();
   const handleCreateNewPresentation = () => {
+    trackEvent(MixpanelEvent.Dashboard_Create_New_Card_Clicked, {
+      pathname,
+      type,
+      source: "dashboard_grid_card",
+    });
     if (type === "slide") {
       router.push("/upload");
     } else {

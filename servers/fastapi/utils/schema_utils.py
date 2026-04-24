@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any, List, Mapping, Union
+from typing import Any, List
 
 from openai import NOT_GIVEN
 
@@ -20,51 +20,6 @@ supported_string_formats = [
     "ipv6",
     "uuid",
 ]
-
-
-def _is_json_object(value: object) -> bool:
-    """True if value is a dict-like object but not a list."""
-    return isinstance(value, Mapping) and not isinstance(value, list)
-
-
-def _convert_pydantic_schema(schema: object) -> dict | None:
-    """Return JSON schema dict from a Pydantic model or class, else None."""
-    if BaseModel is None:
-        return None
-    if isinstance(schema, BaseModel):
-        return schema.model_json_schema()
-    if isinstance(schema, type) and issubclass(schema, BaseModel):
-        return schema.model_json_schema()
-    if hasattr(schema, "model_json_schema"):
-        try:
-            return getattr(schema, "model_json_schema")()
-        except TypeError:
-            return None
-    return None
-
-
-def normalize_output_schema(
-    schema: Union[dict, type, object] | None,
-) -> dict[str, Any] | None:
-    """
-    Normalize output schema to a plain JSON schema dict (SDK-style).
-    Accepts a JSON schema dict, a Pydantic model class, or a Pydantic instance.
-    Returns None if schema is None; otherwise returns a dict suitable for
-    ResponseSchema / structured output.
-    """
-    if schema is None:
-        return None
-
-    converted = _convert_pydantic_schema(schema)
-    if converted is not None:
-        return converted
-
-    if not _is_json_object(schema):
-        raise ValueError(
-            "output_schema must be a plain JSON object (dict) or a Pydantic model"
-        )
-
-    return dict(schema)
 
 
 def remove_fields_from_schema(schema: dict, fields_to_remove: List[str]):
@@ -179,12 +134,12 @@ def ensure_strict_json_schema(
 
     # arrays
     # { 'type': 'array', 'items': {...} }
+    # OpenAI requires array schemas to have "items". Zod tuples may emit prefixItems only.
     items = json_schema.get("items")
     if isinstance(items, dict):
         json_schema["items"] = ensure_strict_json_schema(
             items, path=(*path, "items"), root=root
         )
-
     elif typ == "array":
         prefix_items = json_schema.get("prefixItems")
         if (

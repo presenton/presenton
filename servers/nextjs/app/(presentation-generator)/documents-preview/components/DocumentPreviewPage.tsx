@@ -23,7 +23,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { RootState } from "@/store/store";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import MarkdownRenderer from "./MarkdownRenderer";
 import { getIconFromFile } from "../../utils/others";
 import { ChevronRight, PanelRightOpen, X } from "lucide-react";
 import ToolTip from "@/components/ToolTip";
@@ -210,9 +209,9 @@ const DocumentsPreviewPage: React.FC = () => {
             {downloadingDocuments.includes(selectedDocument) ? (
               <Skeleton className="w-full h-full" />
             ) : (
-              <MarkdownRenderer
-                content={textContents[selectedDocument] || ""}
-              />
+              <div className="whitespace-pre-wrap break-words text-sm leading-7 text-[#2E2E2E]">
+                {textContents[selectedDocument] || ""}
+              </div>
             )}
           </div>
         </div>

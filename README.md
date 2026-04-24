@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/presenton/presenton/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat" alt="Apache2.0" /></a>
   <a href="https://github.com/presenton/presenton"><img src="https://img.shields.io/github/stars/presenton/presenton?style=flat" alt="Stars" /></a>
-  <a href="https://presenton.ai/"><img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat" alt="Platform" /></a>
+  <a href="https://presenton.ai/"><img src="https://img.shields.io/badge/Platform-Docker%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat" alt="Platform" /></a>
 </p>
 
 # Open-Source AI Presentation Generator and API (Gamma, Beautiful AI, Decktopus Alternative)
@@ -23,11 +23,12 @@ No SaaS lock-in · No forced subscriptions · Full control over models and data
 
 What makes Presenton different?
 
-- Fully **self-hosted**; Web (Docker) & Desktop (Mac, Windows & Linux)
+- Use Fully **self-hosted** in Web through [Docker Package](https://docs.presenton.ai/v3/get-started/quickstart)
+- Or Download [Desktop App](https://presenton.ai/download) (Mac, Windows & Linux)
 - Works with OpenAI, Gemini, Anthropic, Ollama, or custom models
-- API deployable
+- Comes with AI Presentation Generation API
 - Fully open-source (Apache 2.0)
-- Use your **existing PPTX files as templates** for AI presentation generation
+- Works with your own design/templates
 
 > [!TIP]
 > **Star us!** A ⭐ shows your support and encourages us to keep building! 😇
@@ -196,49 +197,124 @@ Run Presenton directly in your browser — no installation, no setup required. S
 
 ### ⚙️ Deployment Configurations
 
-These settings apply to both Docker and the Electron app's backend. You may want to directly provide your API KEYS as environment variables and keep them hidden. You can set these environment variables to achieve it.
+The lists below match the environment variables forwarded in this repository’s **`docker-compose.yml`** (`production`, `production-gpu`, `development`, and `development-gpu`). Put values in a `.env` file next to the compose file, or export them before `docker compose up`. The Electron app backend can read the same names when run outside Docker.
 
-- CAN_CHANGE_KEYS=[true/false]: Set this to **false** if you want to keep API Keys hidden and make them unmodifiable.
-- LLM=[openai/google/anthropic/ollama/custom]: Select **LLM** of your choice.
-- OPENAI_API_KEY=[Your OpenAI API Key]: Provide this if **LLM** is set to **openai**
-- OPENAI_MODEL=[OpenAI Model ID]: Provide this if **LLM** is set to **openai** (default: "gpt-4.1")
-- GOOGLE_API_KEY=[Your Google API Key]: Provide this if **LLM** is set to **google**
-- GOOGLE_MODEL=[Google Model ID]: Provide this if **LLM** is set to **google** (default: "models/gemini-2.0-flash")
-- ANTHROPIC_API_KEY=[Your Anthropic API Key]: Provide this if **LLM** is set to **anthropic**
-- ANTHROPIC_MODEL=[Anthropic Model ID]: Provide this if **LLM** is set to **anthropic** (default: "claude-3-5-sonnet-20241022")
-- OLLAMA_URL=[Custom Ollama URL]: Provide this if you want to custom Ollama URL and **LLM** is set to **ollama**
-- OLLAMA_MODEL=[Ollama Model ID]: Provide this if **LLM** is set to **ollama**
-- CUSTOM_LLM_URL=[Custom OpenAI Compatible URL]: Provide this if **LLM** is set to **custom**
-- CUSTOM_LLM_API_KEY=[Custom OpenAI Compatible API KEY]: Provide this if **LLM** is set to **custom**
-- CUSTOM_MODEL=[Custom Model ID]: Provide this if **LLM** is set to **custom**
-- TOOL_CALLS=[Enable/Disable Tool Calls on Custom LLM]: If **true**, **LLM** will use Tool Call instead of Json Schema for Structured Output.
-- DISABLE_THINKING=[Enable/Disable Thinking on Custom LLM]: If **true**, Thinking will be disabled.
-- WEB_GROUNDING=[Enable/Disable Web Search for OpenAI, Google And Anthropic]: If **true**, LLM will be able to search web for better results.
+Other optional variables exist in code (for example advanced Mem0 paths, LiteParse runners, or `FAST_API_INTERNAL_URL` when Next.js and FastAPI are not same-origin); they are **not** wired in `docker-compose.yml`. Supported names are discoverable from `servers/fastapi/utils/get_env.py` and the Next.js server utilities under `servers/nextjs/`.
 
-You can also set the following environment variables to customize the image generation provider and API keys:
+#### LLM and API keys
 
-- DISABLE_IMAGE_GENERATION: If **true**, Image Generation will be disabled for slides.
-- IMAGE_PROVIDER=[dall-e-3/gpt-image-1.5/gemini_flash/nanobanana_pro/pexels/pixabay/comfyui]: Select the image provider of your choice.
-  - Required if **DISABLE_IMAGE_GENERATION** is not set to **true**.
-- OPENAI_API_KEY=[Your OpenAI API Key]: Required if using **dall-e-3** or **gpt-image-1.5** as the image provider.
-- DALL_E_3_QUALITY=[standard/hd]: Optional quality setting for **dall-e-3** (default: `standard`).
-- GPT_IMAGE_1_5_QUALITY=[low/medium/high]: Optional quality setting for **gpt-image-1.5** (default: `medium`).
-- GOOGLE_API_KEY=[Your Google API Key]: Required if using **gemini_flash** or **nanobanana_pro** as the image provider.
-- PEXELS_API_KEY=[Your Pexels API Key]: Required if using **pexels** as the image provider.
-- PIXABAY_API_KEY=[Your Pixabay API Key]: Required if using **pixabay** as the image provider.
-- COMFYUI_URL=[Your ComfyUI server URL] and COMFYUI_WORKFLOW=[Workflow JSON]: Required if using **comfyui** to route prompts to a self-hosted ComfyUI workflow.
-- OPENAI_COMPAT_IMAGE_BASE_URL=[Custom Images API URL], OPENAI_COMPAT_IMAGE_API_KEY=[API Key], OPENAI_COMPAT_IMAGE_MODEL=[Model ID]: Required if using **openai_compatible** to send image requests to any OpenAI-compatible `/v1/images/*` endpoint (LiteLLM, Azure, vLLM Gateways, etc.).
+- **CAN_CHANGE_KEYS**=[true/false]: Set to **false** if you want to keep API keys hidden and make them unmodifiable.
+- **LLM**=[openai/google/anthropic/ollama/custom/codex]: Select the text **LLM**.
+- **OPENAI_API_KEY**: Required if **LLM** is **openai**.
+- **OPENAI_MODEL**: Required if **LLM** is **openai** (default: `gpt-4.1`).
+- **GOOGLE_API_KEY**: Required if **LLM** is **google**.
+- **GOOGLE_MODEL**: Required if **LLM** is **google** (default: `models/gemini-2.0-flash`).
+- **ANTHROPIC_API_KEY**: Required if **LLM** is **anthropic**.
+- **ANTHROPIC_MODEL**: Required if **LLM** is **anthropic** (default: `claude-3-5-sonnet-20241022`).
+- **CODEX_MODEL**: Required if **LLM** is **codex** (Codex OAuth flow; compose maps host port **1455** for the callback).
+- **CUSTOM_LLM_URL**: OpenAI-compatible base URL if **LLM** is **custom**.
+- **CUSTOM_LLM_API_KEY**: API key if **LLM** is **custom**.
+- **CUSTOM_MODEL**: Model id if **LLM** is **custom**.
+- **DISABLE_THINKING**=[true/false]: If **true**, disables “thinking” on the custom LLM.
+- **WEB_GROUNDING**=[true/false]: If **true**, enables web search for OpenAI, Google, and Anthropic models.
+- **EXTENDED_REASONING**=[true/false]: Enables extended reasoning where supported by the configured stack.
 
-You can disable anonymous telemetry using the following environment variable:
+#### Ollama
 
-- DISABLE_ANONYMOUS_TRACKING=[true/false]: Set this to **true** to disable anonymous telemetry.
+Use when **LLM** is **ollama**:
 
-> Note: You can freely choose both the LLM (text generation) and the image provider. Supported image providers: **dall-e-3**, **gpt-image-1.5** (OpenAI), **gemini_flash**, **nanobanana_pro** (Google), **pexels**, **pixabay**, and **comfyui** (self-hosted).
+- **OLLAMA_URL**: Base URL of the Ollama HTTP API (e.g. `http://host.docker.internal:11434` from Docker).
+- **OLLAMA_MODEL**: Model name in Ollama (e.g. `llama3.2:3b`).
+- **START_OLLAMA**=[true/false]: Container entrypoint (`start.js`): optional install + `ollama serve`. Default **false** (`development` / `production` compose).
+
+#### Presentation memory (Mem0 OSS)
+
+Mem0 uses local Qdrant + SQLite (OSS); memory is scoped per presentation.
+
+| Variable | Purpose |
+|----------|---------|
+| **MEM0_ENABLED** | **true**/false (compose default **true**). |
+| **MEM0_DIR** | Root directory (compose default **`/app_data/mem0`**). |
+| **MEM0_EMBEDDER_PROVIDER** | Embedder backend (compose default **`fastembed`**). |
+| **MEM0_EMBEDDER_MODEL** | Model id (compose default **`BAAI/bge-small-en-v1.5`**). |
+| **MEM0_EMBEDDING_DIMS** | Vector size (compose default **384**). |
+
+#### Document parsing (LiteParse)
+
+| Variable | Purpose |
+|----------|---------|
+| **LITEPARSE_DPI** | OCR render DPI (compose default **120**). |
+| **LITEPARSE_NUM_WORKERS** | Worker count (compose default **1**). |
+
+#### Database
+
+- **DATABASE_URL**: SQLAlchemy URL; if unset, the app falls back to SQLite under app data.
+- **MIGRATE_DATABASE_ON_STARTUP**: Compose sets **`true`** for all services so migrations run on startup.
+
+#### Image generation
+
+These variables match `docker-compose.yml`. **`IMAGE_PROVIDER`** selects the backend (`pexels`, `pixabay`, `gemini_flash`, `nanobanana_pro`, `dall-e-3`, `gpt-image-1.5`, `comfyui`, `open_webui`). Use **OPENAI_API_KEY** for OpenAI image modes and **GOOGLE_API_KEY** for Gemini image modes (same keys as the LLM section).
+
+- **DISABLE_IMAGE_GENERATION**=[true/false]: Disable slide image generation.
+- **IMAGE_PROVIDER**: Provider id (see enum above).
+- **PEXELS_API_KEY**: Pexels stock images.
+- **PIXABAY_API_KEY**: Pixabay stock images.
+- **DALL_E_3_QUALITY**=[standard/hd]: Optional for **dall-e-3** (default `standard`).
+- **GPT_IMAGE_1_5_QUALITY**=[low/medium/high]: Optional for **gpt-image-1.5** (default `medium`).
+- **COMFYUI_URL** / **COMFYUI_WORKFLOW**: Self-hosted ComfyUI workflow JSON.
+- **OPEN_WEBUI_IMAGE_URL** / **OPEN_WEBUI_IMAGE_API_KEY**: Open WebUI–compatible image endpoint.
+- **OPENAI_COMPAT_IMAGE_BASE_URL** / **OPENAI_COMPAT_IMAGE_API_KEY** / **OPENAI_COMPAT_IMAGE_MODEL**: Required if **IMAGE_PROVIDER** is **openai_compatible** — routes image requests to any OpenAI-compatible `/v1/images/*` endpoint (LiteLLM, Azure, vLLM Gateways, etc.).
+
+#### Telemetry
+
+- **DISABLE_ANONYMOUS_TRACKING**=[true/false]: Set to **true** to disable anonymous telemetry.
+
+#### Authentication (web login)
+
+Presenton uses a **single admin account** per instance. Credentials live in `app_data` (hashed; see `userConfig.json`). Pass these with `-e` or via `.env` for compose:
+
+- **AUTH_USERNAME** / **AUTH_PASSWORD** — Preseed the admin login on first boot (password at least 6 characters). Ignored if a user already exists unless **AUTH_OVERRIDE_FROM_ENV** is set.
+- **AUTH_OVERRIDE_FROM_ENV**=[true/false] — If **true**, replace stored credentials from the env vars on every FastAPI startup and rotate the session signing secret (invalidates existing sessions). Remove after a one-off rotation.
+- **RESET_AUTH**=[true/false] — If **true**, clear stored credentials on startup. Use for a **single** boot to recover access, then unset.
+
+**Examples**
+
+```bash
+docker run -it --name presenton -p 5000:80 -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
+```
+
+```bash
+docker run -it --name presenton -p 5000:80 -e AUTH_USERNAME=admin -e AUTH_PASSWORD=changeme123 -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
+```
+
+```bash
+docker run -it --name presenton -p 5000:80 -e AUTH_USERNAME=admin -e AUTH_PASSWORD=changeme123 -v "${PWD}\app_data:/app_data" ghcr.io/presenton/presenton:latest
+```
+
+```bash
+docker stop presenton && docker rm presenton && docker run -it --name presenton -p 5000:80 -e AUTH_USERNAME=admin -e AUTH_PASSWORD=newcred456 -e AUTH_OVERRIDE_FROM_ENV=true -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
+```
+
+```bash
+docker stop presenton && docker rm presenton && docker run -it --name presenton -p 5000:80 -e RESET_AUTH=true -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
+```
+
+```bash
+docker stop presenton && docker rm presenton && docker run -it --name presenton -p 5000:80 -e AUTH_USERNAME=admin -e AUTH_PASSWORD=changeme123 -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest
+```
+
+**Manual reset:** stop the container, edit `./app_data/userConfig.json`, delete `AUTH_USERNAME`, `AUTH_PASSWORD_HASH`, and `AUTH_SECRET_KEY`, save, and start again.
+
+Sign out from the app: **Settings → Other → Sign out**.
+
+> Note: LLM and image variables above are forwarded from **`docker-compose.yml`** when set in `.env`.
 
 <br>
 <br>
 
 **Docker Run Examples by Provider**
+
+Same variables as compose; use `-e` instead of `.env` when running `docker run` directly.
 
 - Using OpenAI
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="openai" -e OPENAI_API_KEY="******" -e IMAGE_PROVIDER="dall-e-3" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
@@ -274,6 +350,11 @@ You can disable anonymous telemetry using the following environment variable:
 <strong>Endpoint:</strong> <code>/api/v1/ppt/presentation/generate</code><br>
 <strong>Method:</strong> <code>POST</code><br>
 <strong>Content-Type:</strong> <code>application/json</code>
+</p>
+
+<p>
+<strong>Authentication (HTTP Basic):</strong><br>
+All <code>/api/v1/</code> routes except <code>/api/v1/auth/*</code> require authentication. Send your Presenton admin username and password (same as the web UI, or <strong>AUTH_USERNAME</strong> / <strong>AUTH_PASSWORD</strong> when preseeding Docker). With <code>curl</code>, put them right after <code>-u</code> as <code>-u USERNAME:PASSWORD</code> — that is HTTP Basic auth and sets <code>Authorization: Basic …</code> for you. Replace the sample <code>username:password</code> below with your real credentials.
 </p>
 
 **Request Body**
@@ -404,17 +485,19 @@ Options: <code>pptx</code>, <code>pdf</code>
   "edit_path": "string"
 }</code></pre>
 
-**Example Request**
+**Example (curl + HTTP Basic auth with <code>-u</code>)**
 
-<pre><code class="language-bash">curl -X POST http://localhost:5000/api/v1/ppt/presentation/generate \
+<pre><code class="language-bash">curl -u username:password \
+  -X POST http://localhost:5000/api/v1/ppt/presentation/generate \
   -H "Content-Type: application/json" \
   -d '{
-    "content": "Introduction to Machine Learning",
+   "content": "Introduction to Machine Learning",
     "n_slides": 5,
     "language": "English",
     "template": "general",
     "export_as": "pptx"
   }'</code></pre>
+
 
 **Example Response**
 
@@ -459,22 +542,4 @@ Prepend your server’s root URL to <code>path</code> and
 
 ### 🚀 Roadmap
 
-- [x] Support for custom HTML templates by developers
-- [x] Support for accessing custom templates over API
-- [x] Implement MCP server
-- [ ] Ability for users to change system prompt
-- [x] Support external SQL database
-
-#
-
-### 🚀 Roadmap
-
 Track the public roadmap on GitHub Projects: [https://github.com/orgs/presenton/projects/2](https://github.com/orgs/presenton/projects/2)
-
-#
-
-<p align="left">
-  <a href="https://www.youtube.com/@presentonai?sub_confirmation=1">
-    <img src="https://img.shields.io/badge/Subscribe-6C47FF?style=for-the-badge&logo=cloud&logoColor=white" />
-  </a>
-</p>

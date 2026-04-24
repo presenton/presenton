@@ -2,95 +2,57 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { ArrowUpRight, ChevronRight, ExternalLink, Loader2, Plus } from "lucide-react";
+import { ArrowUpRight, ChevronRight, Loader2 } from "lucide-react";
 import { templates } from "@/app/presentation-templates";
-import { TemplateWithData, TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
+import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import {
     useCustomTemplateSummaries,
     useCustomTemplatePreview,
     CustomTemplates,
 } from "@/app/hooks/useCustomTemplates";
-import { CompiledLayout } from "@/app/hooks/compileLayout";
 import CreateCustomTemplate from "./CreateCustomTemplate";
 import Link from "next/link";
+import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
+import {
+    TemplatePreviewStage,
+    LayoutsBadge,
+    InbuiltTemplatePreview,
+    CustomTemplatePreview,
+} from "../../../components/TemplatePreviewComponents";
 
-// Component for rendering custom template card with lazy-loaded previews
 export const CustomTemplateCard = React.memo(function CustomTemplateCard({ template }: { template: CustomTemplates }) {
     const router = useRouter();
-    const { previewLayouts, loading, totalLayouts } = useCustomTemplatePreview(`${template.id}`);
+    const { previewLayouts, loading } = useCustomTemplatePreview(`${template.id}`);
     const handleOpen = useCallback(() => {
+        trackEvent(MixpanelEvent.Templates_Custom_Opened, { template_id: template.id, template_name: template.name });
         if (template.id.startsWith('custom-')) {
-            router.push(`/template-preview/${template.id}`)
+            router.push(`/template-preview?slug=${template.id}`)
         } else {
-            router.push(`/template-preview/custom-${template.id}`)
+            router.push(`/template-preview?slug=custom-${template.id}`)
         }
-    }
-        , [router, template.id]);
+    }, [router, template.id, template.name]);
 
     return (
         <Card
-            className="cursor-pointer flex flex-col justify-between shadow-none sm:shadow-none relative hover:shadow-lg transition-all duration-200 group overflow-hidden"
+            className="cursor-pointer flex flex-col shadow-none sm:shadow-none relative hover:shadow-sm transition-all duration-200 group overflow-hidden rounded-[22px] border border-[#E8E9EC] bg-white"
             onClick={handleOpen}
         >
-
-            <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
-            <span className="text-xs font-syne absolute top-2 flex gap-1 capitalize  items-center left-2 rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40">
-                Layouts- {totalLayouts}
-            </span>
-            <div className="p-5">
-
-                {/* Layout previews */}
-                <div className="grid grid-cols-2 gap-2">
-                    {loading ? (
-                        // Loading placeholders
-                        [...Array(Math.min(4, template.layoutCount))].map((_, index) => (
-                            <div
-                                key={`${template.id}-loading-${index}`}
-                                className="relative bg-gradient-to-br from-purple-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
-                            >
-                                <Loader2 className="w-4 h-4 text-purple-300 animate-spin" />
-                            </div>
-                        ))
-                    ) : previewLayouts.length > 0 && (
-                        // Actual layout previews
-                        previewLayouts.slice(0, 4).map((layout: CompiledLayout, index: number) => {
-                            const LayoutComponent = layout.component;
-                            return (
-                                <div
-                                    key={`${template.id}-preview-${index}`}
-                                    className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
-                                >
-                                    <div className="absolute inset-0 bg-transparent z-10" />
-                                    <div
-                                        className="transform scale-[0.12] origin-top-left"
-                                        style={{ width: "833.33%", height: "833.33%" }}
-                                    >
-                                        <LayoutComponent data={layout.sampleData} />
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-
-
-            </div>
-            <div className="flex items-center justify-between p-5 bg-white border-t border-[#EDEEEF] relative z-40  ">
-                <h3 className="text-sm font-bold w-[191px] text-gray-900">
-                    {template.name}
-                </h3>
-
-                <div className="flex items-center gap-2">
-
-                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
+            <TemplatePreviewStage>
+                <LayoutsBadge count={template.layoutCount} />
+                <CustomTemplatePreview
+                    previewLayouts={previewLayouts}
+                    loading={loading}
+                    templateId={template.id}
+                />
+            </TemplatePreviewStage>
+            <div className="relative z-40 flex items-center justify-between border-t border-[#EDEEEF] bg-white px-6 py-5">
+                <h3 className="max-w-[min(191px,65%)] text-base font-bold text-gray-900">{template.name}</h3>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-purple-600" />
             </div>
         </Card>
     );
 }, (prev, next) => {
-    // Custom templates may be refetched, producing new object references; compare on fields we render/use.
     return (
-        prev.template.id === next.template.id &&
         prev.template.id === next.template.id &&
         prev.template.name === next.template.name &&
         prev.template.layoutCount === next.template.layoutCount
@@ -104,54 +66,24 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
     template: TemplateLayoutsWithSettings;
     onOpen: (id: string) => void;
 }) {
-    const previewLayouts = useMemo(() => template.layouts.slice(0, 4), [template.layouts]);
     const handleOpen = useCallback(() => onOpen(template.id), [onOpen, template.id]);
 
     return (
         <Card
             key={template.id}
-            className="cursor-pointer relative sm:shadow-none shadow-none  hover:shadow-lg transition-all duration-200 group overflow-hidden"
+            className="group relative cursor-pointer overflow-hidden rounded-[22px] border border-[#E8E9EC] bg-white shadow-none sm:shadow-none transition-all duration-200 hover:shadow-sm"
             onClick={handleOpen}
         >
-            <span className="text-xs font-syne absolute top-2 flex gap-1 capitalize  items-center left-2 rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40">
-                Layouts- {template.layouts.length}
-            </span>
-            <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
-            <div className="p-5">
-                <div className="grid grid-cols-2 gap-2">
-                    {previewLayouts.map((layout: TemplateWithData, index: number) => {
-                        const LayoutComponent = layout.component;
-                        return (
-                            <div
-                                key={`${template.id}-preview-${index}`}
-                                className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
-                            >
-                                <div className="absolute inset-0 bg-transparent z-10" />
-                                <div
-                                    className="transform scale-[0.12] origin-top-left"
-                                    style={{ width: "833.33%", height: "833.33%" }}
-                                >
-                                    <LayoutComponent data={layout.sampleData} />
-                                </div>
-                            </div>
-                        );
-                    })}
+            <TemplatePreviewStage>
+                <LayoutsBadge count={template.layouts.length} />
+                <InbuiltTemplatePreview layouts={template.layouts} templateId={template.id} />
+            </TemplatePreviewStage>
+            <div className="relative z-40 flex items-center justify-between gap-4 border-t border-[#EDEEEF] bg-white px-6 py-5">
+                <div className="min-w-0 flex-1">
+                    <h3 className="text-base font-bold capitalize text-gray-900">{template.name}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-500">{template.description}</p>
                 </div>
-            </div>
-            <div className="flex items-center justify-between  p-5 bg-white border-t border-[#EDEEEF] relative z-40 ">
-                <div className="w-[191px]">
-
-                    <h3 className="text-sm font-bold text-gray-900 capitalize">
-                        {template.name}
-                    </h3>
-                    <p className="text-xs text-gray-600 mb-4 line-clamp-2">
-                        {template.description}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-
-                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                </div>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-blue-600" />
             </div>
         </Card>
     );
@@ -163,6 +95,7 @@ const LayoutPreview = () => {
     const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
 
     useEffect(() => {
+        trackEvent(MixpanelEvent.Templates_Page_Viewed);
         const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
         if (!existingScript) {
             const script = document.createElement("script");
@@ -172,18 +105,20 @@ const LayoutPreview = () => {
         }
     }, []);
 
-    const handleOpenPreview = useCallback((id: string) => router.push(`/template-preview/${id}`), [router]);
+    const handleOpenPreview = useCallback((id: string) => {
+        trackEvent(MixpanelEvent.Templates_Inbuilt_Opened, { template_id: id });
+        router.push(`/template-preview?slug=${id}`);
+    }, [router]);
 
-
-
-
-    const inbuiltTemplateCards = useMemo(
-        () =>
-            templates.map((template: TemplateLayoutsWithSettings) => (
-                <InbuiltTemplateCard key={template.id} template={template} onOpen={handleOpenPreview} />
-            )),
-        [handleOpenPreview],
-    );
+    const { nonNeoInbuilt, neoInbuilt } = useMemo(() => {
+        const nonNeo: TemplateLayoutsWithSettings[] = [];
+        const neo: TemplateLayoutsWithSettings[] = [];
+        for (const t of templates) {
+            if (t.id.startsWith("neo")) neo.push(t);
+            else nonNeo.push(t);
+        }
+        return { nonNeoInbuilt: nonNeo, neoInbuilt: neo };
+    }, []);
 
     const customTemplateCards = useMemo(
         () => customTemplates.map((template: CustomTemplates) => <CustomTemplateCard key={template.id} template={template} />),
@@ -193,7 +128,7 @@ const LayoutPreview = () => {
     return (
         <div className="min-h-screen  relative font-syne">
             <div
-                className='fixed z-0 bottom-[-16.5rem] left-0 w-full h-full'
+                className='fixed z-0 -bottom-[16.5rem] left-0 w-full h-full'
                 style={{
                     height: "341px",
                     borderRadius: '1440px',
@@ -206,12 +141,9 @@ const LayoutPreview = () => {
                         Templates
                     </h3>
                     <div className="flex  gap-2.5 max-sm:w-full max-md:justify-center max-sm:flex-wrap">
-
-
-
-
                         <Link
                             href="/custom-template"
+                            onClick={() => trackEvent(MixpanelEvent.Templates_New_Template_Clicked)}
                             className="inline-flex items-center font-syne font-semibold gap-2 rounded-xl px-4 py-2.5 text-black text-sm  shadow-sm hover:shadow-md"
                             aria-label="Create new template"
                             style={{
@@ -231,7 +163,7 @@ const LayoutPreview = () => {
             <div className="l mx-auto px-6 py-8">
                 <div className='p-1 rounded-[40px] bg-[#ffffff] w-fit border border-[#EDEEEF] flex items-center justify-center '>
                     <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-                        onClick={() => setTab('custom')}
+                        onClick={() => { trackEvent(MixpanelEvent.Templates_Tab_Switched, { tab: 'custom' }); setTab('custom'); }}
                         style={{
                             background: tab === 'custom' ? '#F4F3FF' : 'transparent',
                             color: tab === 'custom' ? '#5146E5' : '#3A3A3A'
@@ -241,7 +173,7 @@ const LayoutPreview = () => {
                         <path d="M1 0V16.5" stroke="#EDECEC" strokeWidth="2" />
                     </svg>
                     <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-                        onClick={() => setTab('default')}
+                        onClick={() => { trackEvent(MixpanelEvent.Templates_Tab_Switched, { tab: 'default' }); setTab('default'); }}
                         style={{
                             background: tab === 'default' ? '#F4F3FF' : 'transparent',
                             color: tab === 'default' ? '#5146E5' : '#3A3A3A'
@@ -249,12 +181,36 @@ const LayoutPreview = () => {
                     >Built-in</button>
                 </div>
 
-                {/* Inbuilt Templates Section */}
-                {tab === 'default' && <section className="my-12">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {inbuiltTemplateCards}
-                    </div>
-                </section>}
+                {/* Inbuilt Templates Section: non-neo first, then Report (neo) */}
+                {tab === 'default' && (
+                    <section className="my-12 space-y-12">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {nonNeoInbuilt.map((template) => (
+                                <InbuiltTemplateCard
+                                    key={template.id}
+                                    template={template}
+                                    onOpen={handleOpenPreview}
+                                />
+                            ))}
+                        </div>
+                        {neoInbuilt.length > 0 && (
+                            <div>
+                                <h4 className="text-base font-semibold text-[#101828] mb-6 font-syne tracking-tight">
+                                    Report
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    {neoInbuilt.map((template) => (
+                                        <InbuiltTemplateCard
+                                            key={template.id}
+                                            template={template}
+                                            onOpen={handleOpenPreview}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </section>
+                )}
 
 
                 {tab === 'custom' && <section className="my-12">
@@ -264,7 +220,7 @@ const LayoutPreview = () => {
                             <span className="ml-3 text-gray-600">Loading custom templates...</span>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 items-center lg:grid-cols-4 gap-6">
                             <CreateCustomTemplate />
                             {customTemplateCards}
                         </div>

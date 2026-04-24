@@ -18,9 +18,13 @@ class GeneratePresentationRequest(BaseModel):
         default=Verbosity.STANDARD, description="How verbose the presentation should be"
     )
     web_search: bool = Field(default=False, description="Whether to enable web search")
-    n_slides: int = Field(default=8, description="Number of slides to generate")
-    language: str = Field(
-        default="English", description="Language for the presentation"
+    n_slides: Optional[int] = Field(
+        default=None,
+        description="Number of slides to generate. If omitted, model auto-detects slide count.",
+    )
+    language: Optional[str] = Field(
+        default=None,
+        description="Language for the presentation. If omitted, model auto-detects language.",
     )
     template: str = Field(
         default="general", description="Template to use for the presentation"

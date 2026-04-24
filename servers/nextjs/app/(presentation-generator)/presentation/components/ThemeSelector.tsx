@@ -3,78 +3,44 @@ import React, { useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Palette } from 'lucide-react';
 
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { updateTheme } from '@/store/slices/presentationGeneration';
-import { useRouter } from 'next/navigation';
-import { useFontLoader } from '../../hooks/useFontLoad';
-import { RootState } from '@/store/store';
-const ThemeSelector = ({ presentation_id, current_theme, themes: allThemes }: { presentation_id: string, current_theme: any, themes: any[] }) => {
+import { usePathname, useRouter } from 'next/navigation';
+import {
+    applyPresentationThemeToElement,
+    clearPresentationThemeFromElement,
+} from "../utils/applyPresentationThemeDom";
+import { trackEvent, MixpanelEvent } from '@/utils/mixpanel';
+
+const ThemeSelector = ({ current_theme, themes: allThemes }: { current_theme: any, themes: any[] }) => {
     const [currentTheme, setCurrentTheme] = useState<any>(current_theme)
     const dispatch = useDispatch()
     const [isOpen, setIsOpen] = useState(false)
     const router = useRouter()
+    const pathname = usePathname()
     const applyTheme = async (theme: any) => {
-        const element = document.getElementById('presentation-slides-wrapper')
+        const element = document.getElementById("presentation-slides-wrapper");
         if (!element) return;
         if (allThemes.length === 0) return;
-        setCurrentTheme(theme)
-        clearTheme()
-        if (!theme.data.colors['graph_0']) { return; }
-        const cssVariables = {
-            '--primary-color': theme.data.colors['primary'],
-            '--background-color': theme.data.colors['background'],
-            '--card-color': theme.data.colors['card'],
-            '--stroke': theme.data.colors['stroke'],
-            '--primary-text': theme.data.colors['primary_text'],
-            '--background-text': theme.data.colors['background_text'],
-            '--graph-0': theme.data.colors['graph_0'],
-            '--graph-1': theme.data.colors['graph_1'],
-            '--graph-2': theme.data.colors['graph_2'],
-            '--graph-3': theme.data.colors['graph_3'],
-            '--graph-4': theme.data.colors['graph_4'],
-            '--graph-5': theme.data.colors['graph_5'],
-            '--graph-6': theme.data.colors['graph_6'],
-            '--graph-7': theme.data.colors['graph_7'],
-            '--graph-8': theme.data.colors['graph_8'],
-            '--graph-9': theme.data.colors['graph_9'],
-        }
-        Object.entries(cssVariables).forEach(([key, value]) => {
-            element.style.setProperty(key, value)
-        })
-        useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
-
-        // Apply fonts to preview container
-        element.style.setProperty('font-family', `"${theme.data.fonts.textFont.name}"`)
-        element.style.setProperty('--heading-font-family', `"${theme.data.fonts.textFont.name}"`)
-        element.style.setProperty('--body-font-family', `"${theme.data.fonts.textFont.name}"`)
-
-        dispatch(updateTheme(theme))
-    }
-    const clearTheme = () => {
-        const element = document.getElementById('presentation-slides-wrapper')
-        if (!element) return;
-        element.style.removeProperty('--primary-color');
-        element.style.removeProperty('--background-color');
-        element.style.removeProperty('--card-color');
-        element.style.removeProperty('--stroke');
-        element.style.removeProperty('--primary-text');
-        element.style.removeProperty('--background-text');
-        element.style.removeProperty('--graph-0');
-        element.style.removeProperty('--graph-1');
-        element.style.removeProperty('--graph-2');
-        element.style.removeProperty('--graph-3');
-        element.style.removeProperty('--graph-4');
-        element.style.removeProperty('--graph-5');
-        element.style.removeProperty('--graph-6');
-        element.style.removeProperty('--graph-7');
-        element.style.removeProperty('--graph-8');
-        element.style.removeProperty('--graph-9');
-    }
+        setCurrentTheme(theme);
+        clearPresentationThemeFromElement(element);
+        if (!theme.data?.colors?.["graph_0"]) return;
+        applyPresentationThemeToElement(element, theme);
+        dispatch(updateTheme(theme));
+        trackEvent(MixpanelEvent.Presentation_Theme_Changed, {
+            pathname,
+            theme_id: theme.id,
+            theme_name: theme.name,
+            theme_source: theme.user === "system" ? "built_in" : "custom",
+        });
+    };
     const resetTheme = async () => {
-        clearTheme();
-
-        dispatch(updateTheme(null))
-    }
+        dispatch(updateTheme(null));
+        clearPresentationThemeFromElement(
+            document.getElementById("presentation-slides-wrapper")
+        );
+        trackEvent(MixpanelEvent.Presentation_Theme_Reset, { pathname });
+    };
 
 
     return (
@@ -86,7 +52,10 @@ const ThemeSelector = ({ presentation_id, current_theme, themes: allThemes }: { 
             </PopoverTrigger>
             <PopoverContent className="w-fit rounded-[18px] max-h-80 overflow-y-auto hide-scrollbar">
                 <div className='pb-2 flex  gap-2 justify-end'>
-                    <button className='text-xs text-gray-500 pb-2 text-right underline' onClick={() => router.push(`/theme?tab=new-theme`)}>+Customize Theme</button>
+                    <button className='text-xs text-gray-500 pb-2 text-right underline' onClick={() => {
+                        trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/theme?tab=new-theme" });
+                        router.push(`/theme?tab=new-theme`)
+                    }}>+Customize Theme</button>
                     <button className='text-xs text-gray-500 pb-2 text-right underline' onClick={resetTheme}>Reset Theme</button>
                 </div>
                 <div className="grid grid-cols-3 gap-4">

@@ -4,6 +4,22 @@ from urllib.parse import urlsplit, urlunsplit, parse_qsl
 import ssl
 
 
+def _ensure_sqlite_parent_dir(database_url: str) -> None:
+    if not database_url.startswith("sqlite://"):
+        return
+
+    split_result = urlsplit(database_url)
+    db_path = split_result.path
+    if not db_path:
+        return
+
+    # sqlite URLs on Windows can start with /C:/..., normalize that for os.path.
+    if os.name == "nt" and len(db_path) >= 3 and db_path[0] == "/" and db_path[2] == ":":
+        db_path = db_path[1:]
+
+    parent = os.path.dirname(db_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
 def _int_env(name: str, default: int) -> int:
     """Read an integer from an environment variable, falling back to *default*."""
     raw = os.getenv(name)
@@ -42,6 +58,8 @@ def get_database_url_and_connect_args() -> tuple[str, dict]:
     database_url = get_database_url_env() or "sqlite:///" + os.path.join(
         get_app_data_directory_env() or "/tmp/presenton", "fastapi.db"
     )
+
+    _ensure_sqlite_parent_dir(database_url)
 
     if database_url.startswith("sqlite://"):
         database_url = database_url.replace("sqlite://", "sqlite+aiosqlite://", 1)

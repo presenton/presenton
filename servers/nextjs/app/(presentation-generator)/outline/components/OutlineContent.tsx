@@ -16,8 +16,6 @@ import {
 import { OutlineItem } from "./OutlineItem";
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2 } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
 interface OutlineContentProps {
     outlines: { content: string }[] | null;
@@ -45,8 +43,6 @@ const OutlineContent: React.FC<OutlineContentProps> = ({
         })
     );
 
-    const pathname = usePathname();
-
     return (
         <div className="space-y-6 font-syne ">
             {isLoading && (!outlines || outlines.length === 0) && (
@@ -57,18 +53,7 @@ const OutlineContent: React.FC<OutlineContentProps> = ({
                     </span>
                 </div>
             )}
-            {/* <div className="flex items-center justify-between">
-                <h5 className="text-lg font-medium">
-                    Presentation Outline
-                </h5>
-                {isStreaming && (
-                    <div className="flex items-center text-sm text-blue-600">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                        Generating outlines...
-                    </div>
-                )}
-            </div> */}
-            {/* Skeleton loading state */}
+
             {isLoading && (
                 <div className="space-y-4 bg-white">
                     {[...Array(6)].map((_, index) => (
@@ -93,7 +78,7 @@ const OutlineContent: React.FC<OutlineContentProps> = ({
             {/* Outlines content */}
 
             {outlines && outlines.length > 0 && (
-                <div className="bg-[#F9F8F8] p-7 relative z-20 rounded-[20px]">
+                <div className="bg-[#F9F8F8] p-7 relative z-20 rounded-[20px] min-h-[calc(100vh-200px)]">
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
@@ -120,7 +105,6 @@ const OutlineContent: React.FC<OutlineContentProps> = ({
                     <Button
                         variant="outline"
                         onClick={() => {
-                            trackEvent(MixpanelEvent.Outline_Add_Slide_Button_Clicked, { pathname });
                             onAddSlide();
                         }}
                         disabled={isLoading || isStreaming}
@@ -139,7 +123,6 @@ const OutlineContent: React.FC<OutlineContentProps> = ({
                     <Button
                         variant="outline"
                         onClick={() => {
-                            trackEvent(MixpanelEvent.Outline_Add_Slide_Button_Clicked, { pathname });
                             onAddSlide();
                         }}
                         className="text-blue-600 border-blue-200"

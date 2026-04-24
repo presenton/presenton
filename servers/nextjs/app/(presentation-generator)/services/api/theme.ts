@@ -1,6 +1,7 @@
 import { ApiResponseHandler } from "./api-error-handler"
 import { getHeader, getHeaderForFormData } from "./header"
 import { Theme, ThemeParams } from "./types"
+import { getApiUrl } from "@/utils/api"
 
 
 
@@ -8,7 +9,7 @@ class ThemeApi {
 
   static async getThemes(): Promise<Theme[]> {
     try {
-      const response = await fetch(`/api/v1/ppt/themes/all`, {
+      const response = await fetch(getApiUrl(`/api/v1/ppt/themes/all`), {
         method: "GET",
         headers: getHeader(),
         cache: "no-store",
@@ -22,7 +23,7 @@ class ThemeApi {
   static async createTheme(theme: ThemeParams) {
     try {
 
-      const response = await fetch(`/api/v1/ppt/themes/create`, {
+      const response = await fetch(getApiUrl(`/api/v1/ppt/themes/create`), {
         method: "POST",
         headers: getHeader(),
         body: JSON.stringify(theme),
@@ -37,7 +38,7 @@ class ThemeApi {
   }
   static async updateTheme(theme: ThemeParams) {
     try {
-      const response = await fetch(`/api/v1/ppt/themes/update/${theme.id}`, {
+      const response = await fetch(getApiUrl(`/api/v1/ppt/themes/update/${theme.id}`), {
         method: "PATCH",
         headers: getHeader(),
         body: JSON.stringify(theme),
@@ -52,7 +53,7 @@ class ThemeApi {
   }
   static async deleteTheme(themeId: string) {
     try {
-      const response = await fetch(`/api/v1/ppt/themes/delete/${themeId}`, {
+      const response = await fetch(getApiUrl(`/api/v1/ppt/themes/delete/${themeId}`), {
         method: "DELETE",
         headers: getHeader(),
         cache: "no-store",
@@ -73,7 +74,7 @@ class ThemeApi {
           background: background ?? undefined,
         }
       }
-      const response = await fetch(`/api/v1/ppt/theme/generate`, {
+      const response = await fetch(getApiUrl(`/api/v1/ppt/theme/generate`), {
         method: "POST",
         headers: getHeader(),
         body: JSON.stringify(body),
@@ -89,8 +90,8 @@ class ThemeApi {
   static async uploadFont(font: File) {
     try {
       const formData = new FormData();
-      formData.append("file", font);
-      const response = await fetch(`/api/v1/ppt/fonts/upload`, {
+      formData.append("font_file", font);
+      const response: any = await fetch(getApiUrl(`/api/v1/ppt/fonts/upload`), {
         method: "POST",
         headers: getHeaderForFormData(),
         body: formData,
@@ -104,7 +105,7 @@ class ThemeApi {
   }
   static async getUserFonts() {
     try {
-      const response = await fetch(`/api/v1/ppt/fonts/uploaded`, {
+      const response = await fetch(getApiUrl(`/api/v1/ppt/fonts/uploaded`), {
         method: "GET",
         headers: getHeader(),
       })

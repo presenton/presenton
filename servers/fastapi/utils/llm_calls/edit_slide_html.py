@@ -1,7 +1,11 @@
+import asyncio
 from typing import Optional
-from models.llm_message import LLMSystemMessage, LLMUserMessage
-from services.llm_client import LLMClient
+from fastapi import HTTPException
+from llmai import get_client
+from llmai.shared import SystemMessage, UserMessage
+from utils.llm_config import get_llm_config
 from utils.llm_client_error_handler import handle_llm_client_exceptions
+from utils.llm_utils import extract_text, get_generate_kwargs
 from utils.llm_provider import get_model
 
 system_prompt = """
@@ -32,11 +36,18 @@ system_prompt = """
 """
 
 
-def get_user_prompt(prompt: str, html: str):
+def get_user_prompt(prompt: str, html: str, memory_context: Optional[str] = None):
+    memory_block = (
+        f"\n        **Retrieved Presentation Memory Context:**\n        {memory_context}\n"
+        if memory_context
+        else ""
+    )
+
     return f"""
         Please edit the following slide HTML based on this prompt:
 
         **Edit Request:** {prompt}
+        {memory_block}
 
         **Current HTML:**
         ```html
@@ -47,19 +58,29 @@ def get_user_prompt(prompt: str, html: str):
     """
 
 
-async def get_edited_slide_html(prompt: str, html: str):
+async def get_edited_slide_html(
+    prompt: str, html: str, memory_context: Optional[str] = None
+):
     model = get_model()
 
-    client = LLMClient()
+    client = get_client(config=get_llm_config())
     try:
-        response = await client.generate(
-            model=model,
-            messages=[
-                LLMSystemMessage(content=system_prompt),
-                LLMUserMessage(content=get_user_prompt(prompt, html)),
-            ],
+        response = await asyncio.to_thread(
+            client.generate,
+            **get_generate_kwargs(
+                model=model,
+                messages=[
+                    SystemMessage(content=system_prompt),
+                    UserMessage(
+                        content=get_user_prompt(prompt, html, memory_context)
+                    ),
+                ],
+            ),
         )
-        return extract_html_from_response(response) or html
+        response_text = extract_text(response.content)
+        if response_text is None:
+            raise HTTPException(status_code=400, detail="LLM did not return any content")
+        return extract_html_from_response(response_text) or html
     except Exception as e:
         raise handle_llm_client_exceptions(e)
 

@@ -18,12 +18,3 @@ class ImageAsset(SQLModel, table=True):
     is_uploaded: bool = Field(default=False)
     path: str
     extras: Optional[dict] = Field(sa_column=Column(JSON), default=None)
-
-    @property
-    def file_url(self) -> str:
-        """
-        Non-Electron backend helper for parity with the Electron ImageAsset model.
-        For now this simply returns the stored path, allowing frontends to use
-        `image.file_url or image.path` without breaking development workflows.
-        """
-        return self.path

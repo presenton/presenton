@@ -92,7 +92,7 @@ def test_slide_to_html_missing_xml():
     """Test the endpoint with missing XML data."""
     
     test_data = {
-        "image": "/static/images/placeholder.jpg"
+        "image": "/static/images/replaceable_template_image.png"
         # No XML data provided
     }
     

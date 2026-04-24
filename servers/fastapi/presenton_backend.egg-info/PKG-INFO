@@ -1,0 +1,23 @@
+Metadata-Version: 2.4
+Name: presenton-backend
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: <3.12,>=3.11
+Requires-Dist: alembic>=1.14.0
+Requires-Dist: aiohttp>=3.12.15
+Requires-Dist: aiomysql>=0.2.0
+Requires-Dist: aiosqlite>=0.21.0
+Requires-Dist: asyncpg>=0.30.0
+Requires-Dist: dirtyjson>=1.0.8
+Requires-Dist: fastapi[standard]>=0.116.1
+Requires-Dist: fastembed-vectorstore>=0.5.2
+Requires-Dist: fastmcp>=2.11.0
+Requires-Dist: google-genai>=1.28.0
+Requires-Dist: mem0ai[nlp]>=0.1.115
+Requires-Dist: nltk>=3.9.1
+Requires-Dist: openai>=1.98.0
+Requires-Dist: pathvalidate>=3.3.1
+Requires-Dist: pdfplumber>=0.11.7
+Requires-Dist: python-pptx>=1.0.2
+Requires-Dist: sqlmodel>=0.0.24
+Requires-Dist: llmai==0.1.9

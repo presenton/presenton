@@ -73,10 +73,6 @@ def set_disable_image_generation_env(value):
     os.environ["DISABLE_IMAGE_GENERATION"] = value
 
 
-def set_tool_calls_env(value):
-    os.environ["TOOL_CALLS"] = value
-
-
 def set_disable_thinking_env(value):
     os.environ["DISABLE_THINKING"] = value
 
@@ -120,6 +116,18 @@ def set_codex_token_expires_env(value: str):
 
 def set_codex_account_id_env(value: str):
     os.environ["CODEX_ACCOUNT_ID"] = value
+
+
+def set_codex_username_env(value: str):
+    os.environ["CODEX_USERNAME"] = value
+
+
+def set_codex_email_env(value: str):
+    os.environ["CODEX_EMAIL"] = value
+
+
+def set_codex_is_pro_env(value: str):
+    os.environ["CODEX_IS_PRO"] = value
 
 
 def set_codex_model_env(value: str):

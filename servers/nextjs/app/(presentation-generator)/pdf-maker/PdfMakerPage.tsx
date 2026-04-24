@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import "../utils/prism-languages";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { AlertCircle } from "lucide-react";
 import { setPresentationData } from "@/store/slices/presentationGeneration";
 import { DashboardApi } from "../services/api/dashboard";
+import { setupImageUrlConverter } from "@/utils/image-url-converter";
 
 
 import { V1ContentRender } from "../components/V1ContentRender";
@@ -43,6 +45,13 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
       }
     }
   }, [presentationData]);
+
+  // Ensure /app_data and /static image paths resolve through the backend origin.
+  useEffect(() => {
+    const observer = setupImageUrlConverter();
+    return () => observer?.disconnect();
+  }, []);
+
   // Function to fetch the slides
   useEffect(() => {
     fetchUserSlides();
@@ -54,8 +63,17 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
       const data = await DashboardApi.getPresentation(presentation_id);
       dispatch(setPresentationData(data));
       setContentLoading(false);
+
+      if (data.fonts) {
+        useFontLoader(data.fonts);
+      }
       if (data?.theme) {
-        applyTheme(data.theme);
+        try {
+          applyTheme(data.theme);
+        } catch (themeError) {
+          // Theme issues should not block export rendering.
+          console.warn("Theme application skipped for pdf-maker:", themeError);
+        }
       }
     } catch (error) {
       setError(true);
@@ -70,6 +88,7 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
     if (!element) return;
     if (!theme || !theme.data) { return; }
     if (!theme.data.colors['graph_0']) { return; }
+    if (!theme.data.fonts?.textFont?.name || !theme.data.fonts?.textFont?.url) { return; }
     const cssVariables = {
       '--primary-color': theme.data.colors['primary'],
       '--background-color': theme.data.colors['background'],
@@ -134,7 +153,7 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
         <div className="">
           <div
             id="presentation-slides-wrapper"
-            className="mx-auto flex flex-col items-center  overflow-hidden  justify-center   "
+            className=" mx-auto flex flex-col items-center overflow-hidden justify-center  "
           >
             {!presentationData ||
 
@@ -158,8 +177,12 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
                   presentationData.slides.length > 0 &&
                   presentationData.slides.map((slide: any, index: number) => (
                     // [data-speaker-note] is used to extract the speaker note from the slide for export to pptx
-                    <div key={index} className="w-full" data-speaker-note={slide.speaker_note}>
-                      <V1ContentRender slide={slide} isEditMode={true} theme={null}
+                    <div key={index} className="w-full " data-speaker-note={slide.speaker_note}>
+                      <V1ContentRender
+                        slide={slide}
+                        isEditMode={true}
+                        theme={presentationData?.theme}
+
                       />
                     </div>
                   ))}

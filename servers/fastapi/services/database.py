@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     AsyncSession,
 )
-from sqlalchemy import text
 from sqlmodel import SQLModel
 
 from models.sql.async_presentation_generation_status import (
@@ -15,11 +14,14 @@ from models.sql.async_presentation_generation_status import (
 from models.sql.image_asset import ImageAsset
 from models.sql.key_value import KeyValueSqlModel
 from models.sql.ollama_pull_status import OllamaPullStatus
-from models.sql.presentation import PresentationModel
-from models.sql.slide import SlideModel
 from models.sql.presentation_layout_code import PresentationLayoutCodeModel
+from models.sql.presentation import PresentationModel
 from models.sql.template import TemplateModel
+from models.sql.template_create_info import TemplateCreateInfoModel
+from models.sql.slide import SlideModel
 from models.sql.webhook_subscription import WebhookSubscription
+from utils.get_env import get_app_data_directory_env
+from utils.get_env import get_migrate_database_on_startup_env
 from utils.db_utils import get_database_url_and_connect_args, get_pool_kwargs
 
 
@@ -40,8 +42,9 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-# Container DB (Lives inside the container)
-container_db_url = "sqlite+aiosqlite:////app/container.db"
+# Container DB (Lives inside the app data directory)
+_app_data_dir = get_app_data_directory_env() or "/tmp/presenton"
+container_db_url = f"sqlite+aiosqlite:///{os.path.join(_app_data_dir, 'container.db')}"
 container_db_engine: AsyncEngine = create_async_engine(
     container_db_url, connect_args={"check_same_thread": False}
 )
@@ -57,28 +60,25 @@ async def get_container_db_async_session() -> AsyncGenerator[AsyncSession, None]
 
 # Create Database and Tables
 async def create_db_and_tables():
-    async with sql_engine.begin() as conn:
-        await conn.run_sync(
-            lambda sync_conn: SQLModel.metadata.create_all(
-                sync_conn,
-                tables=[
-                    PresentationModel.__table__,
-                    SlideModel.__table__,
-                    KeyValueSqlModel.__table__,
-                    ImageAsset.__table__,
-                    PresentationLayoutCodeModel.__table__,
-                    TemplateModel.__table__,
-                    WebhookSubscription.__table__,
-                    AsyncPresentationGenerationTaskModel.__table__,
-                ],
+    should_run_alembic = get_migrate_database_on_startup_env() in ["true", "True"]
+    if not should_run_alembic:
+        async with sql_engine.begin() as conn:
+            await conn.run_sync(
+                lambda sync_conn: SQLModel.metadata.create_all(
+                    sync_conn,
+                    tables=[
+                        PresentationModel.__table__,
+                        SlideModel.__table__,
+                        KeyValueSqlModel.__table__,
+                        ImageAsset.__table__,
+                        PresentationLayoutCodeModel.__table__,
+                        TemplateCreateInfoModel.__table__,
+                        TemplateModel.__table__,
+                        WebhookSubscription.__table__,
+                        AsyncPresentationGenerationTaskModel.__table__,
+                    ],
+                )
             )
-        )
-        # Lightweight schema migration for existing DBs: ensure `presentations.theme` exists.
-        if database_url.startswith("sqlite"):
-            result = await conn.execute(text("PRAGMA table_info(presentations)"))
-            column_names = {row[1] for row in result.fetchall()}
-            if "theme" not in column_names:
-                await conn.execute(text("ALTER TABLE presentations ADD COLUMN theme JSON"))
 
     async with container_db_engine.begin() as conn:
         await conn.run_sync(

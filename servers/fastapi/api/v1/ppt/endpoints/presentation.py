@@ -1,18 +1,17 @@
 import asyncio
 from datetime import datetime
 import json
-import math
 import os
 import random
 import traceback
 from typing import Annotated, List, Literal, Optional, Tuple
 import dirtyjson
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path
 from fastapi.responses import StreamingResponse
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-from constants.presentation import DEFAULT_TEMPLATES
+from constants.presentation import DEFAULT_TEMPLATES, MAX_NUMBER_OF_SLIDES
 from enums.webhook_event import WebhookEvent
 from models.api_error_model import APIErrorModel
 from models.generate_presentation_request import GeneratePresentationRequest
@@ -25,21 +24,25 @@ from models.presentation_outline_model import (
 from enums.tone import Tone
 from enums.verbosity import Verbosity
 from models.pptx_models import PptxPresentationModel
-from models.presentation_layout import PresentationLayoutModel
 from models.presentation_structure_model import PresentationStructureModel
 from models.presentation_with_slides import (
     PresentationWithSlides,
 )
 from models.sql.template import TemplateModel
-
 from services.documents_loader import DocumentsLoader
 from services.webhook_service import WebhookService
-from utils.get_layout_by_name import get_layout_by_name
 from services.image_generation_service import ImageGenerationService
+from services.mem0_presentation_memory_service import (
+    MEM0_PRESENTATION_MEMORY_SERVICE,
+)
 from utils.dict_utils import deep_update
 from utils.export_utils import export_presentation
-from utils.llm_calls.generate_presentation_outlines import generate_ppt_outline
+from utils.llm_calls.generate_presentation_outlines import (
+    generate_ppt_outline,
+    get_messages as get_outline_messages,
+)
 from models.sql.slide import SlideModel
+from models.sql.presentation_layout_code import PresentationLayoutCodeModel
 from models.sse_response import SSECompleteResponse, SSEErrorResponse, SSEResponse
 
 from services.database import get_async_session
@@ -58,23 +61,89 @@ from utils.llm_calls.generate_slide_content import (
     get_slide_content_from_type_and_outline,
 )
 from utils.ppt_utils import (
-    get_presentation_title_from_outlines,
     select_toc_or_list_slide_layout_index,
+)
+from utils.outline_utils import (
+    get_images_for_slides_from_outline,
+    get_no_of_outlines_to_generate_for_n_slides,
+    get_no_of_toc_required_for_n_outlines,
+    get_presentation_outline_model_with_toc,
+    get_presentation_title_from_presentation_outline,
 )
 from utils.process_slides import (
     process_slide_add_placeholder_assets,
     process_slide_and_fetch_assets,
 )
+from utils.get_layout_by_name import get_layout_by_name
+from utils.llm_utils import message_content_to_text
+from models.presentation_layout import PresentationLayoutModel
 import uuid
 
 
 PRESENTATION_ROUTER = APIRouter(prefix="/presentation", tags=["Presentation"])
 
 
+def _extract_custom_template_id(layout_name: Optional[str]) -> Optional[uuid.UUID]:
+    if not layout_name or not layout_name.startswith("custom-"):
+        return None
+    try:
+        return uuid.UUID(layout_name.replace("custom-", ""))
+    except Exception:
+        return None
+
+
+async def _resolve_presentation_fonts(
+    presentation: PresentationModel,
+    slides: List[SlideModel],
+    sql_session: AsyncSession,
+):
+    candidate_template_ids: List[uuid.UUID] = []
+    seen = set()
+
+    layout_name = None
+    if isinstance(presentation.layout, dict):
+        layout_name = presentation.layout.get("name")
+    layout_template_id = _extract_custom_template_id(layout_name)
+    if layout_template_id and layout_template_id not in seen:
+        candidate_template_ids.append(layout_template_id)
+        seen.add(layout_template_id)
+
+    for slide in slides:
+        template_id = _extract_custom_template_id(slide.layout_group)
+        if template_id and template_id not in seen:
+            candidate_template_ids.append(template_id)
+            seen.add(template_id)
+
+    for template_id in candidate_template_ids:
+        result = await sql_session.execute(
+            select(PresentationLayoutCodeModel.fonts).where(
+                PresentationLayoutCodeModel.presentation == template_id
+            )
+        )
+        fonts_list = result.scalars().all()
+        for fonts in fonts_list:
+            if fonts is not None:
+                return fonts
+
+    return None
+
+
+def _insert_toc_layouts(
+    structure: PresentationStructureModel,
+    n_toc_slides: int,
+    include_title_slide: bool,
+    toc_slide_layout_index: int,
+):
+    if n_toc_slides <= 0 or toc_slide_layout_index == -1:
+        return
+
+    insertion_index = 1 if include_title_slide else 0
+    for i in range(n_toc_slides):
+        structure.slides.insert(insertion_index + i, toc_slide_layout_index)
+
+
 @PRESENTATION_ROUTER.get("/all", response_model=List[PresentationWithSlides])
 async def get_all_presentations(sql_session: AsyncSession = Depends(get_async_session)):
-    presentations_with_slides = []
-
     query = (
         select(PresentationModel, SlideModel)
         .join(
@@ -86,13 +155,17 @@ async def get_all_presentations(sql_session: AsyncSession = Depends(get_async_se
 
     results = await sql_session.execute(query)
     rows = results.all()
-    presentations_with_slides = [
-        PresentationWithSlides(
-            **presentation.model_dump(),
-            slides=[first_slide],
+    presentations_with_slides = []
+    for presentation, first_slide in rows:
+        slides = [first_slide]
+        fonts = await _resolve_presentation_fonts(presentation, slides, sql_session)
+        presentations_with_slides.append(
+            PresentationWithSlides(
+                **presentation.model_dump(),
+                slides=slides,
+                fonts=fonts,
+            )
         )
-        for presentation, first_slide in rows
-    ]
     return presentations_with_slides
 
 
@@ -103,14 +176,17 @@ async def get_presentation(
     presentation = await sql_session.get(PresentationModel, id)
     if not presentation:
         raise HTTPException(404, "Presentation not found")
-    slides = await sql_session.scalars(
+    slides_result = await sql_session.scalars(
         select(SlideModel)
         .where(SlideModel.presentation == id)
         .order_by(SlideModel.index)
     )
+    slides = list(slides_result)
+    fonts = await _resolve_presentation_fonts(presentation, slides, sql_session)
     return PresentationWithSlides(
         **presentation.model_dump(),
         slides=slides,
+        fonts=fonts,
     )
 
 
@@ -129,8 +205,8 @@ async def delete_presentation(
 @PRESENTATION_ROUTER.post("/create", response_model=PresentationModel)
 async def create_presentation(
     content: Annotated[str, Body()],
-    n_slides: Annotated[int, Body()],
-    language: Annotated[str, Body()],
+    n_slides: Annotated[Optional[int], Body()] = None,
+    language: Annotated[Optional[str], Body()] = None,
     file_paths: Annotated[Optional[List[str]], Body()] = None,
     tone: Annotated[Tone, Body()] = Tone.DEFAULT,
     verbosity: Annotated[Verbosity, Body()] = Verbosity.STANDARD,
@@ -138,23 +214,37 @@ async def create_presentation(
     include_table_of_contents: Annotated[bool, Body()] = False,
     include_title_slide: Annotated[bool, Body()] = True,
     web_search: Annotated[bool, Body()] = False,
-    theme: Annotated[Optional[dict], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
 
-    if include_table_of_contents and n_slides < 3:
+    if n_slides is not None and n_slides < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Number of slides must be greater than 0",
+        )
+
+    if n_slides is not None and n_slides > MAX_NUMBER_OF_SLIDES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Number of slides cannot be greater than {MAX_NUMBER_OF_SLIDES}",
+        )
+
+    if include_table_of_contents and n_slides is not None and n_slides < 3:
         raise HTTPException(
             status_code=400,
             detail="Number of slides cannot be less than 3 if table of contents is included",
         )
 
     presentation_id = uuid.uuid4()
+    language_to_store = (language or "").strip()
+    # DB schema stores an int; 0 is used as internal marker for auto slide count.
+    n_slides_to_store = n_slides if n_slides is not None else 0
 
     presentation = PresentationModel(
         id=presentation_id,
         content=content,
-        n_slides=n_slides,
-        language=language,
+        n_slides=n_slides_to_store,
+        language=language_to_store,
         file_paths=file_paths,
         tone=tone.value,
         verbosity=verbosity.value,
@@ -162,7 +252,6 @@ async def create_presentation(
         include_table_of_contents=include_table_of_contents,
         include_title_slide=include_title_slide,
         web_search=web_search,
-        theme=theme,
     )
 
     sql_session.add(presentation)
@@ -212,40 +301,24 @@ async def prepare_presentation(
             presentation_structure.slides[index] = random_slide_index
 
     if presentation.include_table_of_contents:
-        n_toc_slides = presentation.n_slides - total_outlines
+        n_toc_slides = get_no_of_toc_required_for_n_outlines(
+            n_outlines=total_outlines,
+            title_slide=presentation.include_title_slide,
+            target_total_slides=(presentation.n_slides if presentation.n_slides > 0 else None),
+        )
         toc_slide_layout_index = select_toc_or_list_slide_layout_index(layout)
-        if toc_slide_layout_index != -1:
-            outline_index = 1 if presentation.include_title_slide else 0
-            for i in range(n_toc_slides):
-                outlines_to = outline_index + 10
-                if total_outlines == outlines_to:
-                    outlines_to -= 1
-
-                presentation_structure.slides.insert(
-                    i + 1 if presentation.include_title_slide else i,
-                    toc_slide_layout_index,
-                )
-                toc_outline = "Table of Contents\n\n"
-
-                for outline in presentation_outline_model.slides[
-                    outline_index:outlines_to
-                ]:
-                    page_number = (
-                        outline_index - i + n_toc_slides + 1
-                        if presentation.include_title_slide
-                        else outline_index - i + n_toc_slides
-                    )
-                    toc_outline += f"Slide page number: {page_number}\n Slide Content: {outline.content[:100]}\n\n"
-                    outline_index += 1
-
-                outline_index += 1
-
-                presentation_outline_model.slides.insert(
-                    i + 1 if presentation.include_title_slide else i,
-                    SlideOutlineModel(
-                        content=toc_outline,
-                    ),
-                )
+        _insert_toc_layouts(
+            presentation_structure,
+            n_toc_slides,
+            presentation.include_title_slide,
+            toc_slide_layout_index,
+        )
+        if toc_slide_layout_index != -1 and n_toc_slides > 0:
+            presentation_outline_model = get_presentation_outline_model_with_toc(
+                outline=presentation_outline_model,
+                n_toc_slides=n_toc_slides,
+                title_slide=presentation.include_title_slide,
+            )
 
     sql_session.add(presentation)
     presentation.outlines = presentation_outline_model.model_dump(mode="json")
@@ -253,6 +326,11 @@ async def prepare_presentation(
     presentation.set_layout(layout)
     presentation.set_structure(presentation_structure)
     await sql_session.commit()
+
+    await MEM0_PRESENTATION_MEMORY_SERVICE.store_generated_outlines(
+        presentation.id,
+        presentation.outlines,
+    )
 
     return presentation
 
@@ -281,6 +359,7 @@ async def stream_presentation(
         structure = presentation.get_structure()
         layout = presentation.get_layout()
         outline = presentation.get_presentation_outline()
+        image_urls_for_slides = get_images_for_slides_from_outline(outline.slides)
 
         # These tasks will be gathered and awaited after all slides are generated
         async_assets_generation_tasks = []
@@ -321,7 +400,17 @@ async def stream_presentation(
 
             # This will mutate slide - start task immediately so it runs in parallel with next slide LLM generation
             async_assets_generation_tasks.append(
-                asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide))
+                asyncio.create_task(
+                    process_slide_and_fetch_assets(
+                        image_generation_service,
+                        slide,
+                        outline_image_urls=(
+                            image_urls_for_slides[i]
+                            if i < len(image_urls_for_slides)
+                            else None
+                        ),
+                    )
+                )
             )
 
             yield SSEResponse(
@@ -353,6 +442,7 @@ async def stream_presentation(
         response = PresentationWithSlides(
             **presentation.model_dump(),
             slides=slides,
+            fonts=await _resolve_presentation_fonts(presentation, slides, sql_session),
         )
 
         yield SSECompleteResponse(
@@ -365,7 +455,6 @@ async def stream_presentation(
 
 @PRESENTATION_ROUTER.patch("/update", response_model=PresentationWithSlides)
 async def update_presentation(
-    request: Request,
     id: Annotated[uuid.UUID, Body()],
     n_slides: Annotated[Optional[int], Body()] = None,
     title: Annotated[Optional[str], Body()] = None,
@@ -378,18 +467,15 @@ async def update_presentation(
         raise HTTPException(status_code=404, detail="Presentation not found")
 
     presentation_update_dict = {}
-    request_body = await request.json()
-    theme_provided = "theme" in request_body
-    if n_slides:
+    if n_slides is not None:
         presentation_update_dict["n_slides"] = n_slides
     if title:
         presentation_update_dict["title"] = title
-    if theme_provided:
+    if theme or theme is None:
         presentation_update_dict["theme"] = theme
 
-    if n_slides or title or theme_provided:
+    if presentation_update_dict:
         presentation.sqlmodel_update(presentation_update_dict)
-
     if slides:
         # Just to make sure id is UUID
         for slide in slides:
@@ -403,9 +489,17 @@ async def update_presentation(
 
     await sql_session.commit()
 
+    response_slides = slides or []
+    fonts = await _resolve_presentation_fonts(
+        presentation,
+        response_slides,
+        sql_session,
+    )
+
     return PresentationWithSlides(
         **presentation.model_dump(),
-        slides=slides or [],
+        slides=response_slides,
+        fonts=fonts,
     )
 
 
@@ -435,6 +529,11 @@ async def export_presentation_as_pptx_or_pdf(
     ] = "pptx",
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    """
+    Export a presentation as PPTX or PDF.
+    This Api is used to export via the nextjs app i.e using the puppeteer to export the presentation.
+    
+    """
     presentation = await sql_session.get(PresentationModel, id)
 
     if not presentation:
@@ -466,11 +565,26 @@ async def check_if_api_request_is_valid(
             detail="Either content or slides markdown or files is required to generate presentation",
         )
 
-    # Making sure number of slides is greater than 0
-    if request.n_slides <= 0:
+    if request.n_slides is not None and request.n_slides <= 0:
         raise HTTPException(
             status_code=400,
             detail="Number of slides must be greater than 0",
+        )
+
+    if request.n_slides is not None and request.n_slides > MAX_NUMBER_OF_SLIDES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Number of slides cannot be greater than {MAX_NUMBER_OF_SLIDES}",
+        )
+
+    if (
+        request.include_table_of_contents
+        and request.n_slides is not None
+        and request.n_slides < 3
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Number of slides cannot be less than 3 if table of contents is included",
         )
 
     # Checking if template is valid
@@ -503,14 +617,14 @@ async def generate_presentation_handler(
 ):
     try:
         using_slides_markdown = False
+        language_to_use = (request.language or "").strip() or None
+        additional_context = ""
 
         if request.slides_markdown:
             using_slides_markdown = True
             request.n_slides = len(request.slides_markdown)
 
         if not using_slides_markdown:
-            additional_context = ""
-
             # Updating async status
             if async_status:
                 async_status.message = "Generating presentation outlines"
@@ -519,7 +633,10 @@ async def generate_presentation_handler(
                 await sql_session.commit()
 
             if request.files:
-                documents_loader = DocumentsLoader(file_paths=request.files)
+                documents_loader = DocumentsLoader(
+                    file_paths=request.files,
+                    presentation_language=request.language,
+                )
                 await documents_loader.load_documents()
                 documents = documents_loader.documents
                 if documents:
@@ -527,30 +644,55 @@ async def generate_presentation_handler(
 
             # Finding number of slides to generate by considering table of contents
             n_slides_to_generate = request.n_slides
-            if request.include_table_of_contents:
-                needed_toc_count = math.ceil(
-                    (
-                        (request.n_slides - 1)
-                        if request.include_title_slide
-                        else request.n_slides
+            if request.include_table_of_contents and request.n_slides is not None:
+                n_slides_to_generate = (
+                    get_no_of_outlines_to_generate_for_n_slides(
+                        n_slides=request.n_slides,
+                        toc=True,
+                        title_slide=request.include_title_slide,
                     )
-                    / 10
                 )
-                n_slides_to_generate -= math.ceil(
-                    (request.n_slides - needed_toc_count) / 10
-                )
+
+            outline_messages = get_outline_messages(
+                request.content,
+                n_slides_to_generate,
+                language_to_use,
+                additional_context,
+                request.tone.value,
+                request.verbosity.value,
+                request.instructions,
+                request.include_title_slide,
+                request.include_table_of_contents,
+            )
+            await MEM0_PRESENTATION_MEMORY_SERVICE.store_generation_context(
+                presentation_id=presentation_id,
+                system_prompt=(
+                    message_content_to_text(outline_messages[0].content)
+                    if len(outline_messages) > 0
+                    else None
+                ),
+                user_prompt=(
+                    message_content_to_text(outline_messages[1].content)
+                    if len(outline_messages) > 1
+                    else None
+                ),
+                extracted_document_text=additional_context,
+                source_content=request.content,
+                instructions=request.instructions,
+            )
 
             presentation_outlines_text = ""
             async for chunk in generate_ppt_outline(
                 request.content,
                 n_slides_to_generate,
-                request.language,
+                language_to_use,
                 additional_context,
                 request.tone.value,
                 request.verbosity.value,
                 request.instructions,
                 request.include_title_slide,
                 request.web_search,
+                request.include_table_of_contents,
             ):
 
                 if isinstance(chunk, HTTPException):
@@ -571,7 +713,20 @@ async def generate_presentation_handler(
             presentation_outlines = PresentationOutlineModel(
                 **presentation_outlines_json
             )
-            total_outlines = n_slides_to_generate
+
+            if (
+                n_slides_to_generate is not None
+                and len(presentation_outlines.slides) != n_slides_to_generate
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Failed to generate presentation outlines with requested "
+                        "number of slides. Please try again."
+                    ),
+                )
+
+            total_outlines = len(presentation_outlines.slides)
 
         else:
             # Setting outlines to slides markdown
@@ -582,6 +737,20 @@ async def generate_presentation_handler(
                 ]
             )
             total_outlines = len(request.slides_markdown)
+
+            await MEM0_PRESENTATION_MEMORY_SERVICE.store_generation_context(
+                presentation_id=presentation_id,
+                system_prompt=None,
+                user_prompt=None,
+                extracted_document_text=None,
+                source_content=request.content,
+                instructions=request.instructions,
+            )
+
+        await MEM0_PRESENTATION_MEMORY_SERVICE.store_generated_outlines(
+            presentation_id,
+            presentation_outlines.model_dump(mode="json"),
+        )
 
         # Updating async status
         if async_status:
@@ -619,50 +788,42 @@ async def generate_presentation_handler(
             if presentation_structure.slides[index] >= total_slide_layouts:
                 presentation_structure.slides[index] = random_slide_index
 
-        # Injecting table of contents to the presentation structure and outlines
-        if request.include_table_of_contents and not using_slides_markdown:
-            n_toc_slides = request.n_slides - total_outlines
+        should_include_toc = (
+            request.include_table_of_contents and not using_slides_markdown
+        )
+        if should_include_toc:
+            n_toc_slides = get_no_of_toc_required_for_n_outlines(
+                n_outlines=total_outlines,
+                title_slide=request.include_title_slide,
+                target_total_slides=request.n_slides,
+            )
             toc_slide_layout_index = select_toc_or_list_slide_layout_index(layout_model)
-            if toc_slide_layout_index != -1:
-                outline_index = 1 if request.include_title_slide else 0
-                for i in range(n_toc_slides):
-                    outlines_to = outline_index + 10
-                    if total_outlines == outlines_to:
-                        outlines_to -= 1
+            _insert_toc_layouts(
+                presentation_structure,
+                n_toc_slides,
+                request.include_title_slide,
+                toc_slide_layout_index,
+            )
+            if toc_slide_layout_index != -1 and n_toc_slides > 0:
+                presentation_outlines = get_presentation_outline_model_with_toc(
+                    outline=presentation_outlines,
+                    n_toc_slides=n_toc_slides,
+                    title_slide=request.include_title_slide,
+                )
 
-                    presentation_structure.slides.insert(
-                        i + 1 if request.include_title_slide else i,
-                        toc_slide_layout_index,
-                    )
-                    toc_outline = "Table of Contents\n\n"
-
-                    for outline in presentation_outlines.slides[
-                        outline_index:outlines_to
-                    ]:
-                        page_number = (
-                            outline_index - i + n_toc_slides + 1
-                            if request.include_title_slide
-                            else outline_index - i + n_toc_slides
-                        )
-                        toc_outline += f"Slide page number: {page_number}\n Slide Content: {outline.content[:100]}\n\n"
-                        outline_index += 1
-
-                    outline_index += 1
-
-                    presentation_outlines.slides.insert(
-                        i + 1 if request.include_title_slide else i,
-                        SlideOutlineModel(
-                            content=toc_outline,
-                        ),
-                    )
+        final_n_slides = request.n_slides
+        if final_n_slides is None:
+            final_n_slides = len(presentation_outlines.slides)
 
         # Create PresentationModel
         presentation = PresentationModel(
             id=presentation_id,
             content=request.content,
-            n_slides=request.n_slides,
-            language=request.language,
-            title=get_presentation_title_from_outlines(presentation_outlines),
+            n_slides=final_n_slides,
+            language=language_to_use or "",
+            title=get_presentation_title_from_presentation_outline(
+                presentation_outlines
+            ),
             outlines=presentation_outlines.model_dump(),
             layout=layout_model.model_dump(),
             structure=presentation_structure.model_dump(),
@@ -699,7 +860,7 @@ async def generate_presentation_handler(
                 get_slide_content_from_type_and_outline(
                     slide_layouts[i],
                     presentation_outlines.slides[i],
-                    request.language,
+                    language_to_use,
                     request.tone.value,
                     request.verbosity.value,
                     request.instructions,
@@ -724,10 +885,23 @@ async def generate_presentation_handler(
                 slides.append(slide)
                 batch_slides.append(slide)
 
+            if using_slides_markdown:
+                image_urls_for_batch = get_images_for_slides_from_outline(
+                    presentation_outlines.slides[start:end]
+                )
+            else:
+                image_urls_for_batch = [[] for _ in batch_slides]
+
             # Start asset fetch tasks immediately so they run in parallel with next batch's LLM calls
             asset_tasks = [
-                asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide))
-                for slide in batch_slides
+                asyncio.create_task(
+                    process_slide_and_fetch_assets(
+                        image_generation_service,
+                        slide,
+                        outline_image_urls=image_urls_for_batch[offset],
+                    )
+                )
+                for offset, slide in enumerate(batch_slides)
             ]
             async_assets_generation_tasks.extend(asset_tasks)
 
@@ -819,6 +993,8 @@ async def generate_presentation_sync(
         return await generate_presentation_handler(
             request, presentation_id, None, sql_session
         )
+    except HTTPException:
+        raise
     except Exception:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Presentation generation failed")

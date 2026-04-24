@@ -1,5 +1,6 @@
 import React from "react"
 import * as z from "zod"
+import { resolveBackendAssetUrl } from "@/utils/api"
 
 const layoutId = "Timeline"
 const layoutName = "Timeline"
@@ -148,7 +149,7 @@ const Timeline: React.FC<SlideLayoutProps> = ({ data: slideData }) => {
                     style={{ backgroundColor: 'var(--card-color, #FFFFFF)' }}
                   >
                     <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--primary-color, #BFF4FF)' }}>
-                      <img src={it.icon.__icon_url__} alt={it.icon.__icon_query__} className="w-6 h-6 object-contain" />
+                      <img src={resolveBackendAssetUrl(it.icon.__icon_url__)} alt={it.icon.__icon_query__} className="w-6 h-6 object-contain" />
                     </div>
                     <div className="text-[18px] font-semibold" style={{ color: 'var(--background-text, #111827)' }}>{it.heading}</div>
                     <p className="mt-3 text-[14px]" style={{ color: 'var(--background-text, #6B7280)' }}>{it.body}</p>

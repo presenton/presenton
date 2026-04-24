@@ -24,6 +24,7 @@ from models.sql.presentation_layout_code import (  # noqa: F401, E402
 )
 from models.sql.slide import SlideModel  # noqa: F401, E402
 from models.sql.template import TemplateModel  # noqa: F401, E402
+from models.sql.template_create_info import TemplateCreateInfoModel  # noqa: F401, E402
 from models.sql.webhook_subscription import WebhookSubscription  # noqa: F401, E402
 
 alembic_config = context.config
@@ -33,6 +34,20 @@ if alembic_config.config_file_name is not None:
 
 target_metadata = SQLModel.metadata
 
+# alembic.ini sets this so Config validates; treat it as "unset" for URL resolution.
+_CLI_PLACEHOLDER_DB_URL = "sqlite:///placeholder"
+
+
+def _to_sync_database_url(database_url: str) -> str:
+    # Preserve slash counts for sqlite URLs so Windows paths stay valid.
+    if database_url.startswith("sqlite+aiosqlite:///"):
+        return "sqlite:///" + database_url[len("sqlite+aiosqlite:///") :]
+    if database_url.startswith("postgresql+asyncpg://"):
+        return "postgresql://" + database_url[len("postgresql+asyncpg://") :]
+    if database_url.startswith("mysql+aiomysql://"):
+        return "mysql://" + database_url[len("mysql+aiomysql://") :]
+    return database_url
+
 
 def _get_url() -> str:
     """
@@ -40,18 +55,13 @@ def _get_url() -> str:
     falling back to the DATABASE_URL environment variable or a local SQLite DB.
     """
     configured = alembic_config.get_main_option("sqlalchemy.url")
-    if configured:
+    if configured and configured != _CLI_PLACEHOLDER_DB_URL:
         return configured
 
     from utils.db_utils import get_database_url_and_connect_args
 
     url, _ = get_database_url_and_connect_args()
-    return (
-        url
-        .replace("sqlite+aiosqlite://", "sqlite:///")
-        .replace("postgresql+asyncpg://", "postgresql://")
-        .replace("mysql+aiomysql://", "mysql://")
-    )
+    return _to_sync_database_url(url)
 
 
 def run_migrations_offline() -> None:

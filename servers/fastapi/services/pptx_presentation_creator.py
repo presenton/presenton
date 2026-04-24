@@ -220,7 +220,7 @@ class PptxPresentationCreator:
                     each_shape.picture.path = os.path.join("/app_data", relative_path)
                 each_shape.picture.is_network = False
                 return
-            # Resolve HTTP URLs that contain absolute filesystem paths (Mac/Electron)
+            # Resolve HTTP URLs that contain absolute filesystem paths.
             local_path = resolve_image_path_to_filesystem(image_path)
             if local_path:
                 each_shape.picture.path = local_path
@@ -315,7 +315,7 @@ class PptxPresentationCreator:
 
     def add_picture(self, slide: Slide, picture_model: PptxPictureBoxModel):
         image_path = picture_model.picture.path
-        # Resolve /app_data/... to actual filesystem path (Electron)
+        # Resolve /app_data/... to actual filesystem path.
         if image_path.startswith("/app_data/"):
             app_data_dir = get_app_data_directory_env()
             if app_data_dir:

@@ -15,8 +15,6 @@ Thanks for helping improve **Presenton — the open-source AI presentation gener
 
 # Current Contribution Scope
 
-⚠️ **We are currently accepting Pull Requests only inside the `electron/` directory.**
-
 The Electron application contains:
 
 - Desktop application

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
-import { Check, CheckCircle, ChevronLeft, ChevronUp, Download, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ArrowUpRight, Check, CheckCircle, ChevronLeft, ChevronUp, Download, Eye, EyeOff, Info, Loader2 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { DALLE_3_QUALITY_OPTIONS, GPT_IMAGE_1_5_QUALITY_OPTIONS, IMAGE_PROVIDERS, LLM_PROVIDERS } from '@/utils/providerConstants';
 import { cn } from '@/lib/utils';
@@ -231,7 +231,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                         DALL·E 3 Image Quality
                     </label>
                     <div className="">
-                        <Select value={llmConfig.DALL_E_3_QUALITY} onValueChange={(value) => setLlmConfig((prev) => ({
+                        <Select value={llmConfig.DALL_E_3_QUALITY || 'standard'} onValueChange={(value) => setLlmConfig((prev) => ({
                             ...prev,
                             DALL_E_3_QUALITY: value
                         }))}>
@@ -258,7 +258,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                     </label>
                     <div className="">
                         <Select
-                            value={llmConfig.GPT_IMAGE_1_5_QUALITY}
+                            value={llmConfig.GPT_IMAGE_1_5_QUALITY || 'low'}
                             onValueChange={(value) => setLlmConfig((prev) => ({
                                 ...prev,
                                 GPT_IMAGE_1_5_QUALITY: value
@@ -292,8 +292,31 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
             setShowDownloadModal(false);
         }
     };
+    const checkCurrentAuthStatus = async () => {
+        try {
+            const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/status"));
+            if (!res.ok) {
+                return false;
+            }
+            const data = await res.json();
+            if (data.status === "authenticated") {
+                return true;
+            } else {
+                return false;
+            }
+        } catch {
+            return false;
+        }
+    };
     const handleSaveConfig = async () => {
         try {
+            if (llmConfig.LLM === 'codex') {
+                const isAuthenticated = await checkCurrentAuthStatus();
+                if (!isAuthenticated) {
+                    toast.error("Please sign in to ChatGPT to continue");
+                    return;
+                }
+            }
             setSavingConfig(true);
             await handleSaveLLMConfig(llmConfig);
 
@@ -350,25 +373,20 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
     }, [llmConfig.LLM, modelsChecked, modelsLoading]);
 
     return (
-        <div className='w-full max-w-[640px] font-syne'>
+        <div className='w-full max-w-[660px] font-syne pb-10'>
             <p className='px-2.5 py-0.5 w-fit text-[#7A5AF8] rounded-[50px]  border border-[#EDEEEF] text-[10px] font-medium mb-5 font-syne'>PRESENTON</p>
-            <div className='mb-[54px]'>
+            <div className=''>
 
                 <h2 className='mb-4 text-black text-[26px] font-normal font-unbounded '>Choose your content providers</h2>
                 <p className='text-[#000000CC] text-xl font-normal font-syne'>Select the AI engines that will generate your slide text and visuals.</p>
             </div>
-            <CodexConfig
-                codexModel={llmConfig.CODEX_MODEL || ''}
-                onInputChange={(value, field) => {
-                    const normalizedField = field === 'codex_model' ? 'CODEX_MODEL' : field;
-                    setLlmConfig(prev => ({
-                        ...prev,
-                        [normalizedField]: value
-                    }));
-                }}
-            />
+            <div className='flex items-center gap-2 bg-[#F0F3F9B2] rounded-[8px]  px-6 py-2.5 my-[54px]'>
+                <Info className='w-4 h-4 fill-[#003399] stroke-white' />
+                <p className='text-sm text-[#5F6062] font-medium'>Runs locally on your device. Your API keys and generation setup stay on your machine.</p>
+            </div>
+
             {/* Text Provider */}
-            <div className='p-3 border border-[#EDEEEF] rounded-[11px] '>
+            <div className='p-3 border border-[#EDEEEF] rounded-[11px] bg-white '>
                 <div className="flex items-center gap-[24.3px]  mb-[42px]">
                     <div className='w-[74px] h-[74px] rounded-[4px] pt-[16.8px] pr-[17.15px] pb-[17.2px] pl-[16.85px] flex items-center justify-center'
                         style={{ backgroundColor: '#4C55541A' }}
@@ -387,7 +405,22 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                         </p>
                     </div>
                 </div>
-                <div className='flex items-start gap-4 '>
+                <CodexConfig
+                    codexModel={llmConfig.CODEX_MODEL || ''}
+                    onInputChange={(value, field) => {
+                        const normalizedField = field === 'codex_model' ? 'CODEX_MODEL' : field;
+                        setLlmConfig(prev => ({
+                            ...prev,
+                            [normalizedField]: value
+                        }));
+                    }}
+                />
+                <div className='flex items-center gap-2.5 my-[30px]'>
+                    <div className='w-full h-[1px] bg-[#E1E1E5]' />
+                    <p className='text-xs font-normal text-[#999999]'>OR</p>
+                    <div className='w-full h-[1px] bg-[#E1E1E5]' />
+                </div>
+                <div className='flex flex-col items-start gap-4 '>
                     <div className="flex flex-col justify-start w-full ">
 
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -416,8 +449,8 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent
-                                className="p-0 w-[215px] "
-                                align="start"
+                                className="p-0 w-full "
+                                align="end"
 
                             >
                                 <Command>
@@ -473,7 +506,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                                 USE_CUSTOM_URL: true,
                                                 OLLAMA_URL: prev.OLLAMA_URL || 'http://localhost:11434'
                                             }))}
-                                            className="mt-8 py-2.5 bg-[#EDEEEF] px-3.5 w-fit rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border border-[#EDEEEF] hover:bg-[#E8F0FF]/90 focus:ring-2 focus:ring-blue-500/20"
+                                            className="py-2.5 bg-[#EDEEEF] px-3.5 w-fit rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border border-[#EDEEEF] hover:bg-[#E8F0FF]/90 focus:ring-2 focus:ring-blue-500/20"
                                         >
                                             Use Ollama URL
                                         </button>
@@ -508,7 +541,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                         </>
                                     )}
                                 </>
-                            ) : llmConfig.LLM === 'codex' ? (
+                            ) : llmConfig.LLM === 'codex' || llmConfig.LLM === 'chatgpt' ? (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Select GPT Model
@@ -570,9 +603,14 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                 </div>
                             ) : (
                                 <>
-                                    <label className="block text-sm font-medium capitalize text-gray-700 mb-2">
-                                        {llmConfig.LLM === 'custom' ? 'Custom LLM API Key' : `${llmConfig.LLM} API Key`}
-                                    </label>
+                                    <div className='flex items-center justify-between mb-2'>
+
+                                        <label className="block text-sm font-medium capitalize text-gray-700 ">
+                                            {llmConfig.LLM === 'custom' ? 'Custom LLM API Key' : `${llmConfig.LLM} API Key`}
+                                        </label>
+                                        {llmConfig.LLM && LLM_PROVIDERS[llmConfig.LLM!]?.getApiKeyUrl && <a href={LLM_PROVIDERS[llmConfig.LLM!]?.getApiKeyUrl || ""} target='_blank' className='text-[#666666] text-xs font-normal flex items-center gap-1'>Get API Key <ArrowUpRight className='w-3.5 h-3.5' /></a>}
+                                    </div>
+
                                     <div className="relative">
                                         <input
                                             type={showApiKey ? 'text' : 'password'}
@@ -611,7 +649,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                         </div>
 
 
-                        {llmConfig.LLM !== 'ollama' && llmConfig.LLM !== 'codex' && (!modelsChecked || (modelsChecked && availableModels.length === 0)) && (
+                        {llmConfig.LLM !== 'ollama' && llmConfig.LLM !== 'codex' && llmConfig.LLM !== 'chatgpt' && (!modelsChecked || (modelsChecked && availableModels.length === 0)) && (
 
                             <button
                                 onClick={fetchAvailableModels}
@@ -622,9 +660,9 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                     (llmConfig.LLM === 'anthropic' && !currentApiKey) ||
                                     (llmConfig.LLM === 'custom' && !llmConfig.CUSTOM_LLM_URL)
                                 }
-                                className={`mt-4 py-2.5 bg-[#EDEEEF] disabled:opacity-50 disabled:cursor-not-allowed px-3.5 w-fit  rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border ${modelsLoading
+                                className={`mt-4 py-2.5 bg-[#EDEEEF] disabled:opacity-50 disabled:cursor-not-allowed px-3.5 w-full  rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border ${modelsLoading
                                     ? " border-gray-300 cursor-not-allowed text-gray-500"
-                                    : " border-[#EDEEEF] text-[#101323] hover:bg-[#E8F0FF]/90 focus:ring-2 focus:ring-blue-500/20"
+                                    : " border-[#EDEEEF] text-[#101323] hover:bg-[#EDEEEF]/90 focus:ring-2 focus:ring-blue-500/20"
                                     }`}
                             >
                                 {modelsLoading ? (
@@ -633,7 +671,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                         Checking for models...
                                     </span>
                                 ) : (
-                                    "Check models"
+                                    "Validate & Load Models"
                                 )}
                             </button>
                         )}
@@ -641,7 +679,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
 
                 </div>
                 <div className='flex items-start gap-4 mt-4'>
-                    <p className='text-sm font-medium text-gray-700 mb-2 w-full'></p>
+
 
                     {/* Model Selection - only show if models are available */}
                     {llmConfig.LLM !== 'codex' && modelsChecked && availableModels.length > 0 && (
@@ -729,7 +767,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                 </div>
             </div>
             {/* Image Provider */}
-            <div className={`p-3 border border-[#EDEEEF] rounded-[11px] relative mt-5 ${llmConfig.DISABLE_IMAGE_GENERATION ? "bg-[#F9FAFB]" : ""}`}>
+            <div className={`p-3 border border-[#EDEEEF] rounded-[11px] relative mt-5 bg-white ${llmConfig.DISABLE_IMAGE_GENERATION ? "bg-[#F9FAFB]" : ""}`}>
                 <ToolTip content="Enable/Disable Image Generation" className='flex justify-end items-center absolute top-3 right-3'>
                     <div className='flex justify-end items-center'>
                         <Switch
@@ -758,7 +796,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                     </div>
                 </div>
                 {!llmConfig.DISABLE_IMAGE_GENERATION && (
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4'>
                         {/* Image Provider Selection */}
                         <div className="w-full">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -884,9 +922,13 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                 // Show API key input for other providers
                                 return (
                                     <div className="w-full ">
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            {provider.apiKeyFieldLabel}
-                                        </label>
+                                        <div className='flex items-center justify-between mb-2'>
+
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                {provider.apiKeyFieldLabel}
+                                            </label>
+                                            {provider.getApiKeyUrl && <a href={provider.getApiKeyUrl || ""} target='_blank' className='text-[#666666] text-xs font-normal flex items-center gap-1'>Get API Key <ArrowUpRight className='w-3.5 h-3.5' /></a>}
+                                        </div>
                                         <div className="relative">
                                             <input
                                                 type={showApiKey ? 'text' : 'password'}
@@ -917,9 +959,9 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
 
                     </div>
                 )}
-                {!llmConfig.DISABLE_IMAGE_GENERATION && <div className='flex justify-end items-center mt-[18px]'>
+                {!llmConfig.DISABLE_IMAGE_GENERATION && <div className='flex flex-col justify-end items-center mt-[18px]'>
                     <div className='w-full flex items-center gap-4'>
-                        <p className='w-full'></p>
+
                         {renderQualitySelector(llmConfig)}
                     </div>
                     {llmConfig.IMAGE_PROVIDER === "comfyui" && <div className='w-full'>

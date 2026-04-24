@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
+  output: "standalone",
   
 
   // Rewrites for development - proxy font requests to FastAPI backend
@@ -9,7 +10,7 @@ const nextConfig = {
     return [
       {
         source: '/app_data/fonts/:path*',
-        destination: 'http://localhost:8000/app_data/fonts/:path*',
+        destination: 'http://localhost:5000/app_data/fonts/:path*',
       },
     ];
   },

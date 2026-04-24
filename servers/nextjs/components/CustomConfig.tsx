@@ -13,13 +13,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getApiUrl } from "@/utils/api";
 import { Switch } from "./ui/switch";
 
 interface CustomConfigProps {
   customLlmUrl: string;
   customLlmApiKey: string;
   customModel: string;
-  toolCalls: boolean;
   disableThinking: boolean;
   onInputChange: (value: string | boolean, field: string) => void;
 }
@@ -28,7 +28,6 @@ export default function CustomConfig({
   customLlmUrl,
   customLlmApiKey,
   customModel,
-  toolCalls,
   disableThinking,
   onInputChange,
 }: CustomConfigProps) {
@@ -60,7 +59,7 @@ export default function CustomConfig({
 
     try {
       setCustomModelsLoading(true);
-      const response = await fetch("/api/v1/ppt/openai/models/available", {
+      const response = await fetch(getApiUrl("/api/v1/ppt/openai/models/available"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -164,9 +163,8 @@ export default function CustomConfig({
         <div className="mb-4">
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm text-amber-800">
-              <strong>Important:</strong> Only models with function
-              calling capabilities (tool calls) or JSON schema support
-              will work.
+              <strong>Important:</strong> Only models with structured
+              JSON schema output support will work reliably.
             </p>
           </div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -230,23 +228,6 @@ export default function CustomConfig({
           </div>
         </div>
       )}
-
-      {/* Tool Calls Toggle */}
-      <div>
-        <div className="flex items-center justify-between mb-4 bg-green-50 p-2 rounded-sm">
-          <label className="text-sm font-medium text-gray-700">
-            Use Tool Calls
-          </label>
-          <Switch
-            checked={toolCalls}
-            onCheckedChange={(checked) => onInputChange(checked, "tool_calls")}
-          />
-        </div>
-        <p className="mt-2 text-sm text-gray-500 flex items-center gap-2">
-          <span className="block w-1 h-1 rounded-full bg-gray-400"></span>
-          If enabled, Tool Calls will be used instead of JSON Schema for Structured Output.
-        </p>
-      </div>
       {/* Disable Thinking Toggle */}
       <div>
         <div className="flex items-center justify-between mb-4 bg-green-50 p-2 rounded-sm">

@@ -3,7 +3,7 @@ import React from 'react'
 
 const OnBoardingHeader = ({ currentStep, setStep }: { currentStep: number, setStep: (step: number) => void }) => {
     return (
-        <div className='relative z-20 flex items-center font-syne justify-end gap-1 mt-7 mb-[52px]'>
+        <div className='sticky top-8 z-20 flex items-center font-syne justify-end gap-1 mt-7 mb-[52px]'>
 
             <div className='flex items-center gap-1 cursor-pointer'
                 onClick={() => {
