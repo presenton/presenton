@@ -225,11 +225,11 @@ const PresentationHeader = ({
       } else {
         throw new Error("No path returned from export");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Export failed:", error);
-      const detail = error?.message || String(error);
       toast.error("Having trouble exporting!", {
-        description: detail || "We are having trouble exporting your presentation. Please try again.",
+        description:
+          "We are having trouble exporting your presentation. Please try again.",
       });
     } finally {
       setIsExporting(false);

@@ -51,17 +51,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const id = await getPresentationId(request);
-    console.log(`[PPTX] Starting export for presentation id=${id}`);
     const cookieHeader = request.headers.get("cookie") ?? "";
     [browser, page] = await getBrowserAndPage(id, cookieHeader);
-    console.log(`[PPTX] Page loaded, getting screenshots dir`);
     const screenshotsDir = getScreenshotsDir();
 
-    console.log(`[PPTX] Getting slides and speaker notes`);
     const { slides, speakerNotes } = await getSlidesAndSpeakerNotes(page);
-    console.log(`[PPTX] Found ${slides.length} slides, ${speakerNotes.length} speaker notes`);
     const slides_attributes = await getSlidesAttributes(slides, screenshotsDir);
-    console.log(`[PPTX] Got slide attributes, post-processing`);
     await postProcessSlidesAttributes(
       slides_attributes,
       screenshotsDir,
@@ -74,11 +69,10 @@ export async function GET(request: NextRequest) {
     };
 
     await closeBrowserAndPage(browser, page);
-    console.log(`[PPTX] Export complete, returning model`);
 
     return NextResponse.json(presentation_pptx_model);
   } catch (error: any) {
-    console.error(`[PPTX] Export failed:`, error?.message || error);
+    console.error(error);
     await closeBrowserAndPage(browser, page);
     if (error instanceof ApiError) {
       return NextResponse.json(error, { status: 400 });
@@ -129,16 +123,13 @@ async function getBrowserAndPage(id: string, cookieHeader: string): Promise<[Bro
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
   page.setDefaultNavigationTimeout(300000);
   page.setDefaultTimeout(300000);
-  console.log(`[PPTX] Navigating to pdf-maker page for id=${id}`);
   await page.goto(`http://localhost/pdf-maker?id=${id}`, {
     waitUntil: "networkidle0",
     timeout: 300000,
   });
-  console.log(`[PPTX] networkidle0 done, waiting for slide elements`);
   await page.waitForSelector("#presentation-slides-wrapper [data-slide-ready='true']", {
-    timeout: 120000,
+    timeout: 60000,
   });
-  console.log(`[PPTX] Slide elements found`);
   return [browser, page];
 }
 
