@@ -32,6 +32,7 @@ except ImportError:
 SUPPORTED_FONT_EXTENSIONS = {
     ".ttf": "font/ttf",
     ".otf": "font/otf",
+    ".ttc": "font/ttf",
     ".woff": "font/woff",
     ".woff2": "font/woff2",
     ".eot": "application/vnd.ms-fontobject",
@@ -120,27 +121,31 @@ def _extract_font_name_from_file(file_path: str) -> str:
     if not FONTTOOLS_AVAILABLE:
         return base_name
 
+    is_ttc = file_path.lower().endswith(".ttc")
+    font_indices = range(TTFont(file_path).reader.numFonts) if is_ttc else [None]
+
     try:
-        font = TTFont(file_path)
-        if "name" in font:
-            name_table = font["name"]
-            for name_id in (1, 4, 6):
+        for idx in font_indices:
+            font = TTFont(file_path, fontNumber=idx) if idx is not None else TTFont(file_path)
+            if "name" in font:
+                name_table = font["name"]
+                for name_id in (1, 4, 6):
+                    for record in name_table.names:
+                        if record.nameID != name_id:
+                            continue
+                        if record.langID in (0x409, 0):
+                            font_name = record.toUnicode().strip()
+                            if font_name:
+                                font.close()
+                                return font_name
                 for record in name_table.names:
-                    if record.nameID != name_id:
+                    if record.nameID != 1:
                         continue
-                    if record.langID in (0x409, 0):
-                        font_name = record.toUnicode().strip()
-                        if font_name:
-                            font.close()
-                            return font_name
-            for record in name_table.names:
-                if record.nameID != 1:
-                    continue
-                font_name = record.toUnicode().strip()
-                if font_name:
-                    font.close()
-                    return font_name
-        font.close()
+                    font_name = record.toUnicode().strip()
+                    if font_name:
+                        font.close()
+                        return font_name
+            font.close()
     except Exception:
         pass
 
