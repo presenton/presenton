@@ -32,6 +32,7 @@ except ImportError:
 SUPPORTED_FONT_EXTENSIONS = {
     ".ttf": "font/ttf",
     ".otf": "font/otf",
+    ".ttc": "font/ttf",
     ".woff": "font/woff",
     ".woff2": "font/woff2",
     ".eot": "application/vnd.ms-fontobject",

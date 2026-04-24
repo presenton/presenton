@@ -19,7 +19,8 @@ FONTS_ROUTER = APIRouter(prefix="/fonts", tags=["fonts"])
 # Supported font file extensions
 SUPPORTED_FONT_EXTENSIONS = {
     '.ttf': 'font/ttf',
-    '.otf': 'font/otf', 
+    '.otf': 'font/otf',
+    '.ttc': 'font/ttf',
     '.woff': 'font/woff',
     '.woff2': 'font/woff2',
     '.eot': 'application/vnd.ms-fontobject'
