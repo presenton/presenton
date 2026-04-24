@@ -118,6 +118,9 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
     waitUntil: "networkidle0",
     timeout: 300000,
   });
+  await page.waitForSelector("#presentation-slides-wrapper [data-slide-ready='true']", {
+    timeout: 60000,
+  });
   return [browser, page];
 }
 

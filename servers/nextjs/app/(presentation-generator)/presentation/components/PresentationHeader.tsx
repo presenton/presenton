@@ -183,6 +183,10 @@ const PresentationHeader = ({
 
   const get_presentation_pptx_model = async (id: string): Promise<PptxPresentationModel> => {
     const response = await fetch(`/api/presentation_to_pptx_model?id=${id}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData?.detail || errorData?.error || `Failed to convert presentation (${response.status})`);
+    }
     const pptx_model = await response.json();
     return pptx_model;
   };
