@@ -459,7 +459,7 @@ def _build_provider_call(
     if spec.provider == LLMProvider.CUSTOM:
         return PlainLLMProvider(
             name="Custom",
-            call=lambda: _call_openai_chat(
+            call=lambda: _call_openai_like(
                 client=_get_custom_client(),
                 model=spec.model,
                 system_prompt=system_prompt,
