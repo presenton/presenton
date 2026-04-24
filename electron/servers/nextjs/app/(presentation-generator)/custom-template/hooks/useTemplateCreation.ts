@@ -12,6 +12,7 @@ import {
     ProcessedSlide,
 } from "../types";
 import { getApiUrl } from "@/utils/api";
+import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 const initialState: TemplateCreationState = {
     step: 'file-upload',
@@ -48,6 +49,14 @@ export const useTemplateCreation = () => {
         updateState({ isLoading: true, error: null });
 
         try {
+            const extensionIndex = pptxFile.name.lastIndexOf(".");
+            const fileExtension = extensionIndex >= 0 ? pptxFile.name.slice(extensionIndex).toLowerCase() : "";
+            trackEvent(MixpanelEvent.CustomTemplate_Creation_Started, {
+                source: "pptx_upload",
+                file_name: pptxFile.name,
+                file_size_bytes: pptxFile.size,
+                file_extension: fileExtension,
+            });
             const formData = new FormData();
             formData.append("pptx_file", pptxFile);
 
@@ -223,6 +232,12 @@ export const useTemplateCreation = () => {
                 totalSlides: state.previewData.slide_image_urls.length,
                 isLoading: false
             });
+            trackEvent(MixpanelEvent.CustomTemplate_Creation_Started, {
+                source: "template_init",
+                template_id: typeof data === "string" ? data : data.id,
+                total_slides: state.previewData.slide_image_urls.length,
+                uploaded_font_count: state.previewData.fonts?.length || 0,
+            });
 
             toast.success("Template creation initialized");
 
@@ -300,6 +315,12 @@ export const useTemplateCreation = () => {
                         const allProcessed = newSlides.every(s => s.processed || s.error);
                         if (allProcessed) {
                             updateState({ step: 'completed' });
+                            trackEvent(MixpanelEvent.CustomTemplate_Creation_Completed, {
+                                template_id: templateId,
+                                total_slides: newSlides.length,
+                                processed_slides: newSlides.filter(s => s.processed).length,
+                                failed_slides: newSlides.filter(s => Boolean(s.error)).length,
+                            });
                             toast.success("All slides processed successfully!");
                         }
                     }
@@ -399,4 +420,3 @@ export const useTemplateCreation = () => {
         updateState,
     };
 };
-
