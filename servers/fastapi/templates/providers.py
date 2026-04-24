@@ -203,6 +203,40 @@ def _read_llmai_response_text(response: Any) -> str:
     return getattr(content, "text", None) or ""
 
 
+async def _call_openai_chat(
+    *,
+    client: AsyncOpenAI,
+    model: str,
+    system_prompt: str,
+    user_text: str,
+    image_bytes: Optional[bytes] = None,
+    media_type: str = "image/png",
+) -> str:
+    content: list = [{"type": "text", "text": user_text}]
+    if image_bytes:
+        content.insert(
+            0,
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{media_type};base64,{base64.b64encode(image_bytes).decode('utf-8')}"
+                },
+            },
+        )
+    response = await client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content},
+        ],
+        max_tokens=16384,
+    )
+    output_text = (response.choices[0].message.content or "") if response.choices else ""
+    if not output_text:
+        raise HTTPException(status_code=500, detail="No output from template provider")
+    return output_text
+
+
 async def _call_openai_like(
     *,
     client: AsyncOpenAI,
@@ -425,7 +459,7 @@ def _build_provider_call(
     if spec.provider == LLMProvider.CUSTOM:
         return PlainLLMProvider(
             name="Custom",
-            call=lambda: _call_openai_like(
+            call=lambda: _call_openai_chat(
                 client=_get_custom_client(),
                 model=spec.model,
                 system_prompt=system_prompt,
