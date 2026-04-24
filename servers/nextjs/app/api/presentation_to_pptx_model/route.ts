@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const id = await getPresentationId(request);
-    [browser, page] = await getBrowserAndPage(id);
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    [browser, page] = await getBrowserAndPage(id, cookieHeader);
     const screenshotsDir = getScreenshotsDir();
 
     const { slides, speakerNotes } = await getSlidesAndSpeakerNotes(page);
@@ -91,7 +92,7 @@ async function getPresentationId(request: NextRequest) {
   return id;
 }
 
-async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
+async function getBrowserAndPage(id: string, cookieHeader: string): Promise<[Browser, Page]> {
   const browser = await puppeteer.launch({
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     headless: true,
@@ -110,6 +111,14 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
   });
 
   const page = await browser.newPage();
+
+  if (cookieHeader) {
+    const cookies = cookieHeader.split(";").map((pair) => {
+      const [name, ...rest] = pair.trim().split("=");
+      return { name: name.trim(), value: rest.join("=").trim(), domain: "localhost" };
+    }).filter((c) => c.name);
+    await page.setCookie(...cookies);
+  }
 
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
   page.setDefaultNavigationTimeout(300000);
