@@ -126,8 +126,8 @@ async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
     timeout: 300000,
   });
   console.log(`[PPTX] networkidle0 done, waiting for slide elements`);
-  await page.waitForSelector("#presentation-slides-wrapper > div > div", {
-    timeout: 60000,
+  await page.waitForSelector("#presentation-slides-wrapper [data-slide-ready='true']", {
+    timeout: 120000,
   });
   console.log(`[PPTX] Slide elements found`);
   return [browser, page];
