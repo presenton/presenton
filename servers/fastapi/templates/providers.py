@@ -24,6 +24,8 @@ from utils.get_env import (
     get_codex_account_id_env,
     get_codex_refresh_token_env,
     get_codex_token_expires_env,
+    get_custom_llm_api_key_env,
+    get_custom_llm_url_env,
     get_google_api_key_env,
     get_openai_api_key_env,
 )
@@ -59,10 +61,12 @@ def get_template_provider_spec() -> TemplateProviderSpec:
         return TemplateProviderSpec(provider=provider, model=get_model())
     if provider == LLMProvider.ANTHROPIC:
         return TemplateProviderSpec(provider=provider, model=get_model())
+    if provider == LLMProvider.CUSTOM:
+        return TemplateProviderSpec(provider=provider, model=get_model())
 
     raise HTTPException(
         status_code=400,
-        detail="Template generation only supports OpenAI, Codex, Google, or Anthropic.",
+        detail="Template generation only supports OpenAI, Codex, Google, Anthropic, or Custom (OpenAI-compatible).",
     )
 
 
@@ -99,6 +103,14 @@ def _get_openai_client() -> AsyncOpenAI:
     if not api_key:
         raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
     return AsyncOpenAI(api_key=api_key, timeout=120.0)
+
+
+def _get_custom_client() -> AsyncOpenAI:
+    base_url = get_custom_llm_url_env()
+    if not base_url:
+        raise HTTPException(status_code=400, detail="CUSTOM_LLM_URL is not set")
+    api_key = get_custom_llm_api_key_env() or "custom"
+    return AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=120.0)
 
 
 def _get_codex_headers() -> dict:
@@ -410,10 +422,22 @@ def _build_provider_call(
                 media_type=media_type,
             ),
         )
+    if spec.provider == LLMProvider.CUSTOM:
+        return PlainLLMProvider(
+            name="Custom",
+            call=lambda: _call_openai_like(
+                client=_get_custom_client(),
+                model=spec.model,
+                system_prompt=system_prompt,
+                user_text=user_text,
+                image_bytes=image_bytes,
+                media_type=media_type,
+            ),
+        )
 
     raise HTTPException(
         status_code=400,
-        detail="Template generation only supports OpenAI, Codex, Google, or Anthropic.",
+        detail="Template generation only supports OpenAI, Codex, Google, Anthropic, or Custom (OpenAI-compatible).",
     )
 
 
