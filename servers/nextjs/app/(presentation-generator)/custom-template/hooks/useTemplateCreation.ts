@@ -96,11 +96,11 @@ export const useTemplateCreation = () => {
         }
 
         // Validate file type
-        const validExtensions = [".ttf", ".otf", ".woff", ".woff2", ".eot"];
+        const validExtensions = [".ttf", ".otf", ".ttc", ".woff", ".woff2", ".eot"];
         const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
 
         if (!validExtensions.includes(fileExtension)) {
-            toast.error("Invalid font file type. Please upload .ttf, .otf, .woff, .woff2, or .eot files");
+            toast.error("Invalid font file type. Please upload .ttf, .otf, .ttc, .woff, .woff2, or .eot files");
             return null;
         }
 

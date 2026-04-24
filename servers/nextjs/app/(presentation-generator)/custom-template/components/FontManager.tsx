@@ -120,7 +120,7 @@ const FontManager: React.FC<FontManagerProps> = ({
                           {font.name}
                         </span>
                         <span className="text-xs text-[#6B7280]">
-                          .ttf, .otf, .woff, .woff2
+                          .ttf, .otf, .ttc, .woff, .woff2
                         </span>
                       </div>
                     </div>
@@ -130,7 +130,7 @@ const FontManager: React.FC<FontManagerProps> = ({
                           fileInputRefs.current[font.name] = el;
                         }}
                         type="file"
-                        accept=".ttf,.otf,.woff,.woff2,.eot"
+                        accept=".ttf,.otf,.ttc,.woff,.woff2,.eot"
                         onChange={(e) => handleFileInputChange(font.name, e)}
                         className="hidden"
                         id={`font-upload-${index}`}
