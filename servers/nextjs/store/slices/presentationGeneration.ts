@@ -57,7 +57,7 @@ const presentationGenerationSlice = createSlice({
       state.presentation_id = action.payload;
       state.error = null;
     },
-    // Slides rendereimport { useEffect } from "react"d
+    // Slides rendered
     setSlidesRendered: (state, action: PayloadAction<boolean>) => {
       state.isSlidesRendered = action.payload;
     },
@@ -80,6 +80,11 @@ const presentationGenerationSlice = createSlice({
     // Set presentation data
     setPresentationData: (state, action: PayloadAction<PresentationData>) => {
       state.presentationData = action.payload;
+    },
+    updateTitle: (state, action: PayloadAction<string>) => {
+      if (state.presentationData) {
+        state.presentationData.title = action.payload;
+      }
     },
     deleteSlideOutline: (state, action: PayloadAction<{ index: number }>) => {
       if (state.outlines) {
@@ -399,6 +404,7 @@ export const {
   clearOutlines,
   deleteSlideOutline,
   setPresentationData,
+  updateTitle,
   setOutlines,
   // slides operations
   addSlide,

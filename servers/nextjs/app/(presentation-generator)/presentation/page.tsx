@@ -3,6 +3,7 @@ import React from "react";
 import PresentationPage from "./components/PresentationPage";
 import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
+import "../utils/prism-languages";
 const page = () => {
 
   const router = useRouter();

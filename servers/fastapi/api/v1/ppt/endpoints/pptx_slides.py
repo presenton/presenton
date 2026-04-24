@@ -378,7 +378,7 @@ async def process_pptx_slides(
                     )
                 else:
                     # Fallback if screenshot generation failed or file is empty placeholder
-                    screenshot_url = "/static/images/placeholder.jpg"
+                    screenshot_url = "/static/images/replaceable_template_image.png"
 
                 # Compute normalized fonts for this slide
                 raw_slide_fonts = extract_fonts_from_oxml(xml_content)

@@ -1,3 +1,4 @@
+import copy
 import uuid
 from typing import Any, List, Optional
 
@@ -67,7 +68,9 @@ def _read_themes_from_row(row: Optional[KeyValueSqlModel]) -> list[dict[str, Any
         return []
     value = row.value if isinstance(row.value, dict) else {}
     themes = value.get("themes", [])
-    return themes if isinstance(themes, list) else []
+    if not isinstance(themes, list):
+        return []
+    return copy.deepcopy(themes)
 
 
 async def _resolve_logo_url(

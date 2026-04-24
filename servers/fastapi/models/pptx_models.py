@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, List, Literal, Optional, Union
 from annotated_types import Len
-from pydantic import BaseModel
+from pydantic import BaseModel, Discriminator, field_validator
 from pptx.util import Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE, MSO_CONNECTOR_TYPE
@@ -130,6 +130,16 @@ class PptxAutoShapeBoxModel(PptxShapeModel):
     text_wrap: bool = True
     border_radius: Optional[int] = None
     paragraphs: Optional[List[PptxParagraphModel]] = None
+    
+    @field_validator('border_radius', mode='before')
+    @classmethod
+    def convert_border_radius_to_int(cls, v):
+        """Convert float border_radius values to int."""
+        if v is None:
+            return None
+        if isinstance(v, float):
+            return int(round(v))
+        return v
 
 
 class PptxPictureBoxModel(PptxShapeModel):
@@ -143,6 +153,16 @@ class PptxPictureBoxModel(PptxShapeModel):
     shape: Optional[PptxBoxShapeEnum] = None
     object_fit: Optional[PptxObjectFitModel] = None
     picture: PptxPictureModel
+    
+    @field_validator('border_radius', mode='before')
+    @classmethod
+    def convert_border_radius_list_to_int(cls, v):
+        """Convert float values in border_radius list to int."""
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return [int(round(item)) if isinstance(item, float) else int(item) for item in v]
+        return v
 
 
 class PptxConnectorModel(PptxShapeModel):
@@ -154,15 +174,22 @@ class PptxConnectorModel(PptxShapeModel):
     opacity: float = 1.0
 
 
+# Define a discriminated union for shapes
+PptxShapeUnion = Annotated[
+    Union[
+        PptxTextBoxModel,
+        PptxAutoShapeBoxModel,
+        PptxConnectorModel,
+        PptxPictureBoxModel,
+    ],
+    Discriminator("shape_type"),
+]
+
+
 class PptxSlideModel(BaseModel):
     background: Optional[PptxFillModel] = None
     note: Optional[str] = None
-    shapes: List[
-        PptxTextBoxModel
-        | PptxAutoShapeBoxModel
-        | PptxConnectorModel
-        | PptxPictureBoxModel
-    ]
+    shapes: List[PptxShapeUnion]
 
 
 class PptxPresentationModel(BaseModel):

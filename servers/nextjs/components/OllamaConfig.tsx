@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { Switch } from "./ui/switch";
 import { toast } from "sonner";
+import { getApiUrl } from "@/utils/api";
 
 interface OllamaModel {
   label: string;
@@ -41,7 +42,7 @@ export default function OllamaConfig({
   const fetchOllamaModels = async () => {
     try {
       setOllamaModelsLoading(true);
-      const response = await fetch('/api/v1/ppt/ollama/models/supported');
+      const response = await fetch(getApiUrl("/api/v1/ppt/ollama/models/supported"));
 
       if (response.ok) {
         const data = await response.json();

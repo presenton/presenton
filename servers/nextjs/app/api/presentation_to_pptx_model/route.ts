@@ -30,6 +30,22 @@ interface GetAllChildElementsAttributesArgs {
 }
 
 export async function GET(request: NextRequest) {
+  // This route requires server-side Puppeteer execution and is unavailable in static/edge builds.
+  const isStaticMode =
+    process.env.IS_STATIC_EXPORT === "true" ||
+    process.env.NEXT_RUNTIME === "edge";
+  
+  if (isStaticMode) {
+    return NextResponse.json(
+      { 
+        error: "This API route requires a server runtime and is not available in static export mode",
+        message: "This functionality is only available in server deployments with Puppeteer support"
+      },
+      { status: 501 }
+    );
+  }
+
+  // Full functionality for development/Docker
   let browser: Browser | null = null;
   let page: Page | null = null;
 
@@ -424,11 +440,26 @@ async function getAllChildElementsAttributes({
       );
     });
 
-    for (const { attributes } of elementsWithRootPosition) {
-      if (attributes.background && attributes.background.color) {
-        backgroundColor = attributes.background.color;
-        break;
-      }
+    const rootBackgroundCandidates = elementsWithRootPosition
+      .filter(({ attributes }) => {
+        return Boolean(attributes.background && attributes.background.color);
+      })
+      .sort((a, b) => {
+        const zIndexA = a.attributes.zIndex || 0;
+        const zIndexB = b.attributes.zIndex || 0;
+
+        // Prefer deeper nodes when z-index is tied so nested full-size backgrounds
+        // can override outer wrappers.
+        if (zIndexA === zIndexB) {
+          return b.depth - a.depth;
+        }
+
+        // Prefer lower z-index candidates for slide background.
+        return zIndexA - zIndexB;
+      });
+
+    if (rootBackgroundCandidates.length > 0) {
+      backgroundColor = rootBackgroundCandidates[0].attributes.background?.color;
     }
   }
 

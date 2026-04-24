@@ -1,6 +1,15 @@
 {
   "name": "presenton",
   "version": "1.0.0",
+  "presentationExportVersion": "v0.2.0",
   "type": "module",
-  "description": "Open-source AI presentation generator"
+  "description": "Open-source AI presentation generator",
+  "scripts": {
+    "sync:presentation-export": "node scripts/sync-presentation-export.cjs",
+    "sync:presentation-export:force": "node scripts/sync-presentation-export.cjs --force",
+    "check:presentation-export": "node scripts/sync-presentation-export.cjs --check-only"
+  },
+  "dependencies": {
+    "sharp": "^0.34.5"
+  }
 }

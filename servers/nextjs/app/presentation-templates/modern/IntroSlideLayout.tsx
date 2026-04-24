@@ -28,7 +28,7 @@ const introPitchDeckSchema = z.object({
     .meta({ description: "Optional intro card shown below description" }),
   image: ImageSchema.default({
     __image_url__:
-      "",
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1600&auto=format&fit=crop",
     __image_prompt__: "Abstract business background",
   }),
 

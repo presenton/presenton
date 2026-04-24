@@ -27,11 +27,12 @@ import { Theme, ThemeParams } from '@/app/(presentation-generator)/services/api/
 import { ImagesApi } from '@/app/(presentation-generator)/services/api/images'
 import { Input } from '@/components/ui/input'
 import { getTemplatesByTemplateName } from '@/app/presentation-templates'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import CustomTabEmpty from './CustomTabEmpty'
 import ThemeApi from '@/app/(presentation-generator)/services/api/theme'
 import { useFontLoader } from '@/app/(presentation-generator)/hooks/useFontLoad'
 import Link from 'next/link'
+import { MixpanelEvent, trackEvent } from '@/utils/mixpanel'
 
 // Fallback theme used before defaults are loaded from API (unified Theme type)
 const FALLBACK_THEME: Theme = {
@@ -67,6 +68,7 @@ const FALLBACK_THEME: Theme = {
 }
 const ThemePanel: React.FC = () => {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
 
 
   const [selectedTheme, setSelectedTheme] = useState<Theme>(FALLBACK_THEME)
@@ -90,6 +92,10 @@ const ThemePanel: React.FC = () => {
   const previewContainerRef = useRef<HTMLDivElement>(null)
   const slideContainerRef = useRef<HTMLDivElement>(null)
   const [slideContainerWidth, setSlideContainerWidth] = useState<number>(0)
+
+  useEffect(() => {
+    trackEvent(MixpanelEvent.Theme_Page_Viewed, { pathname })
+  }, [pathname])
 
   // Calculate scale dynamically based on container width
   const slideScale = () => {
@@ -258,6 +264,18 @@ const ThemePanel: React.FC = () => {
 
     setThemeCompanyName(theme.company_name || '')
     applyTheme(theme)
+    trackEvent(MixpanelEvent.Theme_Selected, {
+      pathname,
+      theme_id: theme.id,
+      theme_name: theme.name,
+      theme_source: theme.user === 'system' ? 'built_in' : 'custom',
+    })
+    trackEvent(MixpanelEvent.Theme_Editor_Opened, {
+      pathname,
+      theme_id: theme.id,
+      theme_name: theme.name,
+      theme_source: theme.user === 'system' ? 'built_in' : 'custom',
+    })
   }
 
   const handleColorChange = (colorKey: keyof ThemeColors, value: string) => {
@@ -272,6 +290,12 @@ const ThemePanel: React.FC = () => {
 
   const handleFontSelect = (fontName: string, url: string) => {
     setCustomFonts({ textFont: { name: fontName, url: url } })
+    trackEvent(MixpanelEvent.Theme_Font_Changed, {
+      pathname,
+      font_name: fontName,
+      font_url: url,
+      theme_id: selectedTheme.id,
+    })
   }
 
   const handleBrandLogoUpload = async (file: File) => {
@@ -280,6 +304,12 @@ const ThemePanel: React.FC = () => {
       const uploaded = await ImagesApi.uploadImage(file)
       setCustomBrandLogo(uploaded.path)
       setCustomBrandLogoId(uploaded.id)
+      trackEvent(MixpanelEvent.Theme_Logo_Uploaded, {
+        pathname,
+        theme_id: selectedTheme.id,
+        file_name: file.name,
+        file_size_bytes: file.size,
+      })
     } catch (error: any) {
       console.error('Failed to upload logo', error)
       toast.error(error?.message || 'Failed to upload logo')
@@ -288,8 +318,19 @@ const ThemePanel: React.FC = () => {
     }
   }
 
-  const generateTheme = async ({ primary, background }: { primary?: string, background?: string }): Promise<ThemeColors> => {
+  const generateTheme = async ({
+    primary,
+    background,
+    source,
+  }: { primary?: string, background?: string; source: "new_theme" | "refresh" }): Promise<ThemeColors> => {
     const generatedTheme = await ThemeApi.generateTheme({ primary, background })
+    trackEvent(MixpanelEvent.Theme_Palette_Generated, {
+      pathname,
+      source,
+      theme_id: selectedTheme.id,
+      has_primary_seed: Boolean(primary),
+      has_background_seed: Boolean(background),
+    })
     return {
       'primary': generatedTheme.primary,
       'background': generatedTheme.background,
@@ -311,6 +352,7 @@ const ThemePanel: React.FC = () => {
   }
 
   const createNewCustomTheme = async () => {
+    trackEvent(MixpanelEvent.Theme_New_Theme_Clicked, { pathname })
     setIsNewTheme(true)
     const newTheme: Theme = {
       id: `custom-${Date.now()}`,
@@ -345,7 +387,7 @@ const ThemePanel: React.FC = () => {
       }
     }
 
-    const generatedColors = await generateTheme({})
+    const generatedColors = await generateTheme({ source: "new_theme" })
 
 
     const theme = {
@@ -365,10 +407,16 @@ const ThemePanel: React.FC = () => {
 
     setThemeCompanyName('')
     applyTheme(theme)
+    trackEvent(MixpanelEvent.Theme_Editor_Opened, {
+      pathname,
+      theme_id: theme.id,
+      theme_name: theme.name,
+      theme_source: "new_draft",
+    })
   }
 
   const refeshTheme = async ({ primary, background }: { primary?: string, background?: string }) => {
-    const generatedTheme = await generateTheme({ primary, background })
+    const generatedTheme = await generateTheme({ primary, background, source: "refresh" })
     setCustomColors(generatedTheme)
   }
   const saveAsCustom = async () => {
@@ -376,6 +424,12 @@ const ThemePanel: React.FC = () => {
     if (selectedTheme.user && selectedTheme.user !== 'system' && !selectedTheme.id.startsWith('custom-')) {
       ; (async () => {
         try {
+          trackEvent(MixpanelEvent.Theme_Save_Started, {
+            pathname,
+            mode: "update",
+            theme_id: selectedTheme.id,
+            theme_name: selectedTheme.name,
+          })
           const params: ThemeParams = {
             id: selectedTheme.id,
             name: selectedTheme.name,
@@ -392,6 +446,14 @@ const ThemePanel: React.FC = () => {
           setCustomThemes(customThemes.map(t => t.id === updated.id ? updated : t))
           setSelectedTheme(updated)
           setIsSheetOpen(false)
+          trackEvent(MixpanelEvent.Theme_Saved, {
+            pathname,
+            mode: "update",
+            theme_id: updated.id,
+            theme_name: updated.name,
+            has_logo: Boolean(updated.logo_url),
+            font_name: updated.data?.fonts?.textFont?.name || "",
+          })
           toast.success('Theme updated')
         } catch (error: any) {
           console.error('Failed to update theme', error)
@@ -401,6 +463,12 @@ const ThemePanel: React.FC = () => {
       return
     }
     try {
+      trackEvent(MixpanelEvent.Theme_Save_Started, {
+        pathname,
+        mode: "create",
+        theme_id: selectedTheme.id,
+        theme_name: selectedTheme.name,
+      })
       const params: ThemeParams = {
         name: selectedTheme.name,
         description: selectedTheme.description || `Custom version of ${selectedTheme.name}`,
@@ -419,6 +487,14 @@ const ThemePanel: React.FC = () => {
 
 
       window.history.pushState({}, '', '/theme')
+      trackEvent(MixpanelEvent.Theme_Saved, {
+        pathname,
+        mode: "create",
+        theme_id: created.id,
+        theme_name: created.name,
+        has_logo: Boolean(created.logo_url),
+        font_name: created.data?.fonts?.textFont?.name || "",
+      })
       toast.success('Theme saved')
     } catch (error: any) {
       console.error('Failed to save theme', error)
@@ -432,25 +508,42 @@ const ThemePanel: React.FC = () => {
   const handleDelete = async (themeId: string) => {
     await ThemeApi.deleteTheme(themeId)
     setCustomThemes(customThemes.filter(theme => theme.id !== themeId))
+    trackEvent(MixpanelEvent.Theme_Deleted, {
+      pathname,
+      theme_id: themeId,
+    })
     toast.success("Theme deleted successfully")
   }
   const handleCustomFontChange = async (fontFile: File) => {
     try {
       setIsFontUploading(true)
-      const { name, url } = await ThemeApi.uploadFont(fontFile)
+      const { font_name, font_url } = await ThemeApi.uploadFont(fontFile)
       setCustomFonts({
         textFont: {
-          name: name,
-          url: url,
+          name: font_name,
+          url: font_url,
         }
       })
+      trackEvent(MixpanelEvent.Theme_Custom_Font_Uploaded, {
+        pathname,
+        font_name: name,
+        file_name: fontFile.name,
+        file_size_bytes: fontFile.size,
+      })
+      trackEvent(MixpanelEvent.Theme_Font_Changed, {
+        pathname,
+        theme_id: selectedTheme.id,
+        font_name: font_name,
+        font_url: font_url,
+        source: "uploaded_font",
+      })
       // Add the newly uploaded font to userFonts if not already present
-      if (!userFonts.fonts.find(f => f.name === name)) {
+      if (!userFonts.fonts.find(f => f.name === font_name)) {
         setUserFonts(prev => ({
-          fonts: [...prev.fonts, { name, url }]
+          fonts: [...prev.fonts, { name: font_name, url: font_url }]
         }))
       }
-      toast.success(`Font "${name}" uploaded successfully`)
+      toast.success(`Font "${font_name}" uploaded successfully`)
     } catch (error: any) {
       console.error('Failed to upload font', error)
       toast.error(error?.message || 'Failed to upload font')
@@ -853,6 +946,10 @@ const ThemePanel: React.FC = () => {
         </h3>
         <Link
           href="/theme?tab=new-theme"
+          onClick={() => trackEvent(MixpanelEvent.Theme_New_Theme_Clicked, {
+            pathname,
+            source: "theme_page_header",
+          })}
           className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-black text-sm font-semibold font-syne shadow-sm hover:shadow-md"
           aria-label="Create new theme"
           style={{
@@ -869,7 +966,10 @@ const ThemePanel: React.FC = () => {
       {/* Tabs */}
       <div className='p-1 rounded-[40px] bg-[#F7F6F9] w-fit border border-[#F4F4F4] flex items-center justify-center '>
         <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-          onClick={() => setTab('custom')}
+          onClick={() => {
+            trackEvent(MixpanelEvent.Theme_Tab_Switched, { pathname, tab: 'custom' })
+            setTab('custom')
+          }}
           style={{
             background: tab === 'custom' ? 'linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)' : 'transparent'
           }}
@@ -878,7 +978,10 @@ const ThemePanel: React.FC = () => {
           <path d="M1 0V16.5" stroke="#EDECEC" strokeWidth="2" />
         </svg>
         <button className='px-5  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-          onClick={() => setTab('default')}
+          onClick={() => {
+            trackEvent(MixpanelEvent.Theme_Tab_Switched, { pathname, tab: 'default' })
+            setTab('default')
+          }}
           style={{
             background: tab === 'default' ? 'linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)' : 'transparent'
           }}

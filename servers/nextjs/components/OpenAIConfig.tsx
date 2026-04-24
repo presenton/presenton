@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Switch } from "./ui/switch";
 import { LLMConfig } from "@/types/llm_config";
+import { getApiUrl } from "@/utils/api";
 
 interface OpenAIConfigProps {
   openaiApiKey: string;
@@ -56,7 +57,7 @@ const isImageGenerationDisabled = llmConfig?.DISABLE_IMAGE_GENERATION ?? false;
 
     setModelsLoading(true);
     try {
-      const response = await fetch('/api/v1/ppt/openai/models/available', {
+      const response = await fetch(getApiUrl("/api/v1/ppt/openai/models/available"), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

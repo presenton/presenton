@@ -3,7 +3,7 @@ import React from 'react'
 const OnBoardingSlidebar = ({ step }: { step: number }) => {
     return (
         <div className={`${step === 3 ? "bg-white" : "bg-[#F6F6F9]"} w-[300px] relative`}>
-            <img src="/Logo.png" alt="Presenton logo" className="absolute top-0 left-0 w-[128px] m-6" />
+            <img src="/Logo.png" alt="Presenton logo" className="sticky top-6 left-0 w-[128px] m-6" />
             {step !== 3 && <svg xmlns="http://www.w3.org/2000/svg" width="296" height="591" viewBox="0 0 296 591" fill="none">
                 <path d="M291.5 183.5C311.916 183.5 328.5 200.271 328.5 221C328.5 241.729 311.916 258.5 291.5 258.5C271.084 258.5 254.5 241.729 254.5 221C254.5 200.271 271.084 183.5 291.5 183.5Z" stroke="#EDEEEF" strokeWidth="3" />
                 <path d="M291.5 131.238C340.408 131.238 380.089 171.407 380.09 220.998C380.09 270.589 340.408 310.758 291.5 310.758C242.591 310.758 202.91 270.589 202.91 220.998C202.91 171.407 242.591 131.238 291.5 131.238Z" stroke="#EDEEEF" strokeWidth="3" />

@@ -5,6 +5,9 @@ import { useState, useEffect, useCallback } from "react";
 import { compileCustomLayout, CompiledLayout } from "./compileLayout";
 import TemplateService from "../(presentation-generator)/services/api/template";
 
+/**
+ * API response types
+ */
 
 
 export interface TemplateSummary {
@@ -216,26 +219,16 @@ export function useCustomTemplateSummaries() {
             setLoading(true);
             setError(null);
 
-            const data = await TemplateService.getCustomTemplateSummaries();
-            // const mappedTemplates: CustomTemplates[] = data.filter(item => item.total_layouts && item.total_layouts > 0).map((item) => {
+            const data: TemplateSummary[] = await TemplateService.getCustomTemplateSummaries();
+            const mappedTemplates: CustomTemplates[] = data.filter(item => item.total_layouts && item.total_layouts > 0).map((item) => {
 
-            //     return {
-            //         id: item.id,
-            //         name: item.name || "Custom Template",
-            //         layoutCount: item.total_layouts,
-            //         isCustom: true as const,
-            //     }
-            // });
-
-            const mappedTemplates: CustomTemplates[] = data.presentations.map((item: any) => {
                 return {
-                    id: item.template.id,
-                    name: item.template.name || "Custom Template",
-                    layoutCount: 0,
+                    id: item.id,
+                    name: item.name || "Custom Template",
+                    layoutCount: item.total_layouts,
                     isCustom: true as const,
                 }
             });
-
 
             setTemplates(mappedTemplates);
         } catch (err) {
@@ -389,7 +382,6 @@ export function useCustomTemplateDetails(templateDetail: { id: string, name: str
 export function useCustomTemplatePreview(presentationId: string) {
     const [previewLayouts, setPreviewLayouts] = useState<CompiledLayout[]>([]);
     const [loading, setLoading] = useState(true);
-    const [totalLayouts, setTotalLayouts] = useState(0);
 
 
 
@@ -400,7 +392,7 @@ export function useCustomTemplatePreview(presentationId: string) {
             try {
                 setLoading(true);
                 const data = await TemplateService.getCustomTemplateDetails(presentationId);
-                setTotalLayouts(data.layouts.length);
+
                 // Compile first 4 layouts for preview
                 const compiled: CompiledLayout[] = [];
                 const layoutsToPreview = data.layouts.slice(0, 4);
@@ -427,7 +419,7 @@ export function useCustomTemplatePreview(presentationId: string) {
         fetchPreviews();
     }, [presentationId]);
 
-    return { previewLayouts, loading: loading, totalLayouts: totalLayouts };
+    return { previewLayouts, loading: loading };
 }
 
 /**

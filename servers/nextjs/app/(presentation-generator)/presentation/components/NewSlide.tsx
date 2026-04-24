@@ -7,6 +7,8 @@ import { v4 as uuidv4 } from "uuid";
 import { toast } from 'sonner';
 import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
 import { getTemplatesByTemplateName } from "@/app/presentation-templates";
+import { usePathname } from "next/navigation";
+import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
 interface LayoutItemProps {
   layout: any;
@@ -42,6 +44,7 @@ const NewSlideV1 = ({
   presentationId,
 }: NewSlideV1Props) => {
   const dispatch = useDispatch();
+  const pathname = usePathname();
   const [layouts, setLayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -57,12 +60,20 @@ const NewSlideV1 = ({
         presentation: presentationId,
       };
       dispatch(addNewSlide({ slideData: newSlide, index }));
+      trackEvent(MixpanelEvent.Presentation_Slide_Added, {
+        pathname,
+        presentation_id: presentationId,
+        inserted_after_index: index,
+        template_id: templateID,
+        layout_id: id,
+        is_custom_template: isCustomTemplate,
+      });
       setShowNewSlideSelection(false);
     } catch (error: any) {
       console.error(error);
       toast.error("Error adding new slide");
     }
-  }, [index, templateID, presentationId, dispatch, setShowNewSlideSelection]);
+  }, [index, templateID, presentationId, dispatch, setShowNewSlideSelection, isCustomTemplate, pathname]);
 
 
 
@@ -129,7 +140,6 @@ const NewSlideV1 = ({
 };
 
 export default NewSlideV1;
-
 
 
 

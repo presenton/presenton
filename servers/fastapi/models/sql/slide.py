@@ -15,7 +15,7 @@ class SlideModel(SQLModel, table=True):
     layout: str
     index: int
     content: dict = Field(sa_column=Column(JSON))
-    html_content: Optional[str]
+    html_content: Optional[str] = None
     speaker_note: Optional[str] = None
     properties: Optional[dict] = Field(sa_column=Column(JSON))
 

@@ -1,9 +1,7 @@
-import Home from "@/components/Home"
+import AuthGate from "@/components/Auth/AuthGate";
 
 const page = () => {
-    return (
-        <Home />
-    )
-}
+    return <AuthGate />;
+};
 
-export default page
+export default page;

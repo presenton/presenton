@@ -1,4 +1,4 @@
-from anthropic import AsyncAnthropic
+import aiohttp
 from openai import AsyncOpenAI
 from google import genai
 
@@ -12,8 +12,21 @@ async def list_available_openai_compatible_models(url: str, api_key: str) -> lis
 
 
 async def list_available_anthropic_models(api_key: str) -> list[str]:
-    client = AsyncAnthropic(api_key=api_key)
-    return list(map(lambda x: x.id, (await client.models.list(limit=50)).data))
+    async with aiohttp.ClientSession(
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        }
+    ) as session:
+        async with session.get(
+            "https://api.anthropic.com/v1/models",
+            params={"limit": 50},
+        ) as response:
+            response.raise_for_status()
+            data = await response.json()
+
+    models = data.get("data", [])
+    return [model.get("id") for model in models if model.get("id")]
 
 
 async def list_available_google_models(api_key: str) -> list[str]:

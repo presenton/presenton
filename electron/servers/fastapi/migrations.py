@@ -11,6 +11,8 @@ from utils.get_env import get_migrate_database_on_startup_env
 
 
 LEGACY_BASELINE_REVISION = "00b3c27a13bc"
+# Revision before 95b5127e93cd (template_create_infos); used when DB has theme but not that table.
+REVISION_BEFORE_TEMPLATE_CREATE_INFO = "82abdbc476a7"
 
 
 async def migrate_database_on_startup() -> None:
@@ -49,6 +51,7 @@ def _run_migrations() -> None:
     database_url = _to_sync_database_url(database_url)
 
     config.set_main_option("sqlalchemy.url", database_url)
+    _repair_orphan_alembic_revision(config, database_url)
     _stamp_legacy_database_if_needed(config, database_url)
 
     try:
@@ -60,6 +63,52 @@ def _run_migrations() -> None:
             command.upgrade(config, "head")
             return
         raise
+
+
+def _repair_orphan_alembic_revision(config: Config, database_url: str) -> None:
+    """
+    If alembic_version points at a revision id that no longer exists in alembic/versions
+    (removed branch, old image, etc.), re-stamp from the live schema so upgrade can run.
+    """
+    script = ScriptDirectory.from_config(config)
+    known = {rev.revision for rev in script.walk_revisions()}
+    heads = script.get_heads()
+    if len(heads) != 1:
+        return
+    head = heads[0]
+
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            inspector = inspect(connection)
+            tables = set(inspector.get_table_names())
+            if "alembic_version" not in tables:
+                return
+            version_num = connection.execute(
+                text("SELECT version_num FROM alembic_version LIMIT 1")
+            ).scalar_one_or_none()
+            if not version_num or version_num in known:
+                return
+            print(
+                f"Alembic revision {version_num!r} is missing from the codebase; "
+                "inferring applied migrations from schema and re-stamping.",
+                flush=True,
+            )
+            target = _infer_revision_from_schema(inspector, tables, head)
+            command.stamp(config, target)
+    finally:
+        engine.dispose()
+
+
+def _infer_revision_from_schema(inspector, tables: set[str], head_revision: str) -> str:
+    """Best-effort: map existing SQLite/Postgres schema to our linear migration chain."""
+    if "template_create_infos" in tables:
+        return head_revision
+    if "presentations" in tables:
+        cols = {c["name"] for c in inspector.get_columns("presentations")}
+        if "theme" in cols:
+            return REVISION_BEFORE_TEMPLATE_CREATE_INFO
+    return LEGACY_BASELINE_REVISION
 
 
 def _stamp_legacy_database_if_needed(config: Config, database_url: str) -> None:

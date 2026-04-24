@@ -113,10 +113,10 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
                       <span className='text-[#808080] underline underline-offset-4'>Click to Upload</span> or drag &amp; drop.
                     </p>
                   </div>
-                </> : <div className="flex gap-2 items-center justify-center h-full">
-                  <div className="flex gap-2 items-center">
+                </> : <div className="flex gap-2 items-center justify-center h-full w-fit mx-auto">
+                  <div className="flex gap-2 items-center justify-center mx-10 w-full">
 
-                    <div className="w-[55px] h-[55px] ml-auto mr-0 rounded-[9px] bg-[#8E8F8F] flex items-center justify-center relative">
+                    <div className="w-[55px] h-[55px] rounded-[9px] bg-[#8E8F8F] flex items-center justify-center relative">
                       <button className="absolute w-[16px] h-[16px] flex items-center justify-center -top-1.5 -right-1.5"
                         style={{
                           borderRadius: '54.545px',
@@ -132,8 +132,8 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 
                       <FileText className="w-5 h-5 text-white" />
                     </div>
-                    <div className="w-4/5">
-                      <h3 className="text-[#4C4C4C] text-sm font-medium w-full truncate"> {selectedFile.name}</h3>
+                    <div className="flex-1">
+                      <h3 className="text-[#4C4C4C] text-sm font-medium line-clamp-1"> {selectedFile.name}</h3>
                       <p className="text-xs font-normal text-[#808080] tracking-[-0.12px]">Presentation ( {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)</p>
                     </div>
 

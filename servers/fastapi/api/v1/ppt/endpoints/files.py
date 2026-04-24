@@ -59,7 +59,7 @@ async def decompose_files(file_paths: Annotated[List[str], Body(embed=True)]):
             f"{uuid.uuid4()}.txt", temp_dir
         )
         parsed_doc = parsed_doc.replace("<br>", "\n")
-        with open(file_path, "w") as text_file:
+        with open(file_path, "w", encoding="utf-8") as text_file:
             text_file.write(parsed_doc)
         response.append(
             DecomposedFileInfo(

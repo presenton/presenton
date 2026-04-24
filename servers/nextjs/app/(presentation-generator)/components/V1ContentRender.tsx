@@ -23,14 +23,12 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
     const isCustomTemplate = uuidValidate(customTemplateId) || slide.layout_group.startsWith("custom-");
 
     // Always call the hook (React hooks rule), but with empty id when not a custom template
-    const { template: customTemplate, loading: customLoading, fonts } = useCustomTemplateDetails({
+    const { template: customTemplate, loading: customLoading } = useCustomTemplateDetails({
         id: isCustomTemplate ? customTemplateId : "",
         name: isCustomTemplate ? slide.layout_group : "",
         description: ""
     });
-    if (fonts && typeof fonts === 'object') {
-        // useFontLoader(fonts as unknown as Record<string, string>);
-    }
+
 
     // Memoize layout resolution to prevent unnecessary recalculations
     const Layout = useMemo(() => {

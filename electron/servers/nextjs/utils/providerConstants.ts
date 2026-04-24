@@ -14,6 +14,7 @@ export interface ImageProviderOption {
   requiresApiKey?: boolean;
   apiKeyField?: string;
   apiKeyFieldLabel?: string;
+  getApiKeyUrl?: string;
 }
 
 export interface LLMProviderOption {
@@ -24,7 +25,9 @@ export interface LLMProviderOption {
   model_label?: string;
   url?: string;
   icon?: string;
+  getApiKeyUrl?: string;
 }
+
 
 export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
   pexels: {
@@ -35,6 +38,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     requiresApiKey: true,
     apiKeyField: "PEXELS_API_KEY",
     apiKeyFieldLabel: "Pexels API Key",
+    getApiKeyUrl: "https://docs.presenton.ai/help/get-api-keys/get-pexels-api-key",
   },
   pixabay: {
     value: "pixabay",
@@ -44,6 +48,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     requiresApiKey: true,
     apiKeyField: "PIXABAY_API_KEY",
     apiKeyFieldLabel: "Pixabay API Key",
+    getApiKeyUrl: "https://docs.presenton.ai/help/get-api-keys/get-pixabay-api-keyhttps://www.google.com/search?q=how+to+get+openai+api+key&ie=UTF-8",
   },
   "dall-e-3": {
     value: "dall-e-3",
@@ -53,6 +58,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     requiresApiKey: true,
     apiKeyField: "OPENAI_API_KEY",
     apiKeyFieldLabel: "OpenAI API Key",
+    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+openai+api+key&ie=UTF-8",
   },
   "gpt-image-1.5": {
     value: "gpt-image-1.5",
@@ -62,6 +68,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     requiresApiKey: true,
     apiKeyField: "OPENAI_API_KEY",
     apiKeyFieldLabel: "OpenAI API Key",
+    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+openai+api+key&ie=UTF-8",
   },
   gemini_flash: {
     value: "gemini_flash",
@@ -71,6 +78,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     requiresApiKey: true,
     apiKeyField: "GOOGLE_API_KEY",
     apiKeyFieldLabel: "Google API Key",
+    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+google+AI+studio+api+key&sxsrf=ANbL-n5_hUGaEiG9v6k9VxZWyv0mqO0Jew%3A1776339625724",
   },
   nanobanana_pro: {
     value: "nanobanana_pro",
@@ -80,6 +88,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     requiresApiKey: true,
     apiKeyField: "GOOGLE_API_KEY",
     apiKeyFieldLabel: "Google API Key",
+    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+google+AI+studio+api+key&sxsrf=ANbL-n5_hUGaEiG9v6k9VxZWyv0mqO0Jew%3A1776339625724",
   },
   comfyui: {
     value: "comfyui",
@@ -98,6 +107,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     label: "ChatGPT",
     description: "ChatGPT Plus/Pro via OAuth",
     icon: "/providers/openai.png",
+    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+openai+api+key&ie=UTF-8",
   },
   openai: {
     value: "openai",
@@ -105,6 +115,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     description: "OpenAI's latest text generation model",
     url: "https://api.openai.com/v1",
     icon: "/providers/openai.png",
+    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+openai+api+key&ie=UTF-8",
   },
   google: {
     value: "google",
@@ -112,6 +123,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     description: "Google's primary text generation model",
     url: "https://api.google.com/v1",
     icon: "/providers/gemini-color.svg",
+    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+google+AI+studio+api+key&sxsrf=ANbL-n5_hUGaEiG9v6k9VxZWyv0mqO0Jew%3A1776339625724",
   },
   anthropic: {
     value: "anthropic",
@@ -119,6 +131,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     description: "Anthropic's Claude models",
     url: "https://api.anthropic.com/v1",
     icon: "/providers/claude-color.svg",
+    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+anthropic+api+key&sxsrf=ANbL-n7lsueZQ88L56HhqC1ch2PGD0rbNQ%3A1776339632265",
   },
   ollama: {
     value: "ollama",

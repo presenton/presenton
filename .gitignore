@@ -26,3 +26,7 @@ skills-lock.json
 docker-compose-dch.yml
 litellm-config.yaml
 .claude
+# presentation-export runtime (downloaded via scripts/sync-presentation-export.cjs or Docker build)
+presentation-export/index.js
+presentation-export/py/
+.cache/presentation-export/

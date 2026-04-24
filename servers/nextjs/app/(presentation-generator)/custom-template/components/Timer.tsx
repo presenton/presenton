@@ -14,34 +14,18 @@ const Timer = ({ duration }: TimerProps) => {
     // Guard against invalid durations
     const totalMs = Math.max(0, duration * 1000)
 
-    const easeOutCubic = (x: number) => 1 - Math.pow(1 - x, 3)
-    const easeOutSine = (x: number) => Math.sin((x * Math.PI) / 2)
-
     const tick = (now: number) => {
       if (startTimeRef.current === null) startTimeRef.current = now
       const elapsed = now - startTimeRef.current
       const t = totalMs === 0 ? 1 : Math.min(elapsed / totalMs, 1)
 
-      // Piecewise progression:
-      // - Reach ~75% around 60% of the total duration (faster start)
-      // - Then ease slowly towards 99% for the remainder
-      let nextProgress: number
-      if (t <= 0.6) {
-        nextProgress = 75 * easeOutCubic(t / 0.6)
-      } else {
-        nextProgress = 75 + 24 * easeOutSine((t - 0.6) / 0.4)
-      }
+      setProgress(prev => (t <= prev ? prev : t))
 
-      // Clamp and ensure we never hit 100
-      nextProgress = Math.min(99, nextProgress)
-
-      setProgress(prev => (nextProgress < prev ? prev : nextProgress))
-
-      if (t < 1 && nextProgress < 99) {
+      if (t < 1) {
         rafIdRef.current = requestAnimationFrame(tick)
       } else {
-        // End at 99 and stop
-        setProgress(99)
+        // Ensure we finish at 100%
+        setProgress(1)
         if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current)
         rafIdRef.current = null
       }
@@ -59,41 +43,55 @@ const Timer = ({ duration }: TimerProps) => {
     }
   }, [duration])
 
+  const progressValue = Math.min(1, Number(progress.toFixed(4)))
+  const displayedProgress = Math.round(progressValue * 100)
+
   return (
-    <div className="w-full space-y-2">
-      <div className="flex justify-end items-center text-gray-800 text-sm">
-        <span className="font-inter text-end font-semibold text-xs">{Math.round(progress)}%</span>
-      </div>
+    <div className="w-full">
+      {/* Progress bar container */}
       <div
-        className="w-full rounded-full h-3 overflow-hidden shadow-inner"
+        className="relative w-full h-2 rounded-full bg-[#E5E7EB] overflow-hidden"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={Math.round(progress)}
+        aria-valuenow={displayedProgress}
       >
-        <div className="relative h-full rounded-full" style={{
-          width: `${progress}%`,
-          backgroundImage: 'linear-gradient(90deg, #9034EA, #5146E5, #9034EA)',
-          backgroundSize: '200% 100%',
-          animation: 'gradient 2s linear infinite'
-        }}>
-          <div className="absolute inset-0 opacity-25" style={{
-            backgroundImage:
-              'linear-gradient(45deg, rgba(255,255,255,.8) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.8) 50%, rgba(255,255,255,.8) 75%, transparent 75%, transparent)',
-            backgroundSize: '16px 16px',
-            animation: 'stripes 1s linear infinite'
-          }} />
+        {/* Progress fill */}
+        <div
+          className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-100 ease-out"
+          style={{
+            width: `${progressValue * 100}%`,
+            background: 'linear-gradient(90deg, #7A5AF8, #9B8AFB, #7A5AF8)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 2s linear infinite',
+          }}
+        >
+          {/* Animated stripes overlay */}
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.4) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.4) 75%, transparent 75%, transparent)',
+              backgroundSize: '12px 12px',
+              animation: 'stripes 0.8s linear infinite',
+            }}
+          />
         </div>
-        <div className="absolute inset-0" />
       </div>
+
+      {/* Percentage text */}
+      <div className="flex justify-end mt-1.5">
+        <span className="text-xs font-medium text-[#6B7280] tabular-nums">
+          {displayedProgress}%
+        </span>
+      </div>
+
       <style jsx>{`
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+        @keyframes shimmer {
+          0% { background-position: 200% 50%; }
           100% { background-position: 0% 50%; }
         }
         @keyframes stripes {
-          to { background-position: 16px 0; }
+          to { background-position: 12px 0; }
         }
       `}</style>
     </div>

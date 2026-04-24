@@ -10,7 +10,7 @@ import OutlineContent from "./OutlineContent";
 import EmptyStateView from "./EmptyStateView";
 import GenerateButton from "./GenerateButton";
 
-import { TABS, Template } from "../types/index";
+import { TABS } from "../types/index";
 import { useOutlineStreaming } from "../hooks/useOutlineStreaming";
 import { useOutlineManagement } from "../hooks/useOutlineManagement";
 import { usePresentationGeneration } from "../hooks/usePresentationGeneration";
@@ -37,6 +37,13 @@ const OutlinePage: React.FC = () => {
   if (!presentation_id) {
     return <EmptyStateView />;
   }
+  const handleTabChange = (tab: string) => {
+    if (streamState.isStreaming) {
+      return;
+    }
+    setActiveTab(tab);
+
+  };
 
 
   return (
@@ -51,9 +58,10 @@ const OutlinePage: React.FC = () => {
 
       <Wrapper className="flex flex-col w-full relative px-5 sm:px-10 lg:px-20 ">
         <div className="w-full mx-auto">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex w-full flex-col">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="flex w-full flex-col">
+            {/* Reserves vertical space so content does not sit under the fixed tab bar */}
             <div className="h-[4.75rem] shrink-0 sm:h-[5rem]" aria-hidden />
-            <div className="fixed top-26 left-0 right-0 z-40 bg-[#FAFAFA] pb-2">
+            <div className="fixed top-26 left-0 right-0 z-50  pb-2">
               <div className="mx-auto w-full max-w-[1440px] px-5 sm:px-10 lg:px-20">
                 <TabsList className="my-4 h-auto w-fit rounded-full border border-[#EDEEEF] bg-white p-1.5">
                   <TabsTrigger
@@ -97,7 +105,6 @@ const OutlinePage: React.FC = () => {
 
           <div className="fixed bottom-[26px] right-[26px] z-50">
             <GenerateButton
-              outlineCount={outlines.length}
               loadingState={loadingState}
               streamState={streamState}
               selectedTemplate={selectedTemplate}

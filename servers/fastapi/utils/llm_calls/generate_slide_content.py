@@ -1,98 +1,151 @@
+import asyncio
 from datetime import datetime
+import json
 from typing import Optional
-from models.llm_message import LLMSystemMessage, LLMUserMessage
+from fastapi import HTTPException
+from llmai import get_client
+from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 from models.presentation_layout import SlideLayoutModel
 from models.presentation_outline_model import SlideOutlineModel
-from services.llm_client import LLMClient
+from utils.llm_config import get_llm_config
 from utils.llm_client_error_handler import handle_llm_client_exceptions
+from utils.llm_utils import extract_structured_content, get_generate_kwargs
 from utils.llm_provider import get_model
 from utils.schema_utils import add_field_in_schema, remove_fields_from_schema
+
+
+SLIDE_CONTENT_SYSTEM_PROMPT = """
+You will be given slide content and response schema.
+You need to generate structured content json based on the schema.
+
+# Steps
+1. Analyze the content.
+2. Analyze the response schema.
+3. Generate structured content json based on the schema.
+4. Generate speaker note if required.
+5. Provide structured content json as output.
+
+# General Rules
+- Make sure to follow language guidelines.
+- Speaker note should be normal text, not markdown.
+- Never ever go over the max character limit.
+- Do not add emoji in the content.
+- Don't provide $schema field in content json.
+{markdown_emphasis_rules}
+
+{user_instructions}
+
+{tone_instructions}
+
+{verbosity_instructions}
+
+{output_fields_instructions}
+"""
+
+
+SLIDE_CONTENT_USER_PROMPT = """
+# Current Date and Time:
+{current_date_time}
+
+# Icon Query And Image Prompt Language:
+English
+
+# Slide Language:
+{language}
+
+# SLIDE CONTENT: START
+{content}
+# SLIDE CONTENT: END
+"""
+
+
+def _resolve_prompt_language(language: Optional[str]) -> str:
+    if language is None:
+        return "auto-detect"
+    s = str(language).strip()
+    if not s:
+        return "auto-detect"
+    if s.lower() in {"auto", "auto-detect"}:
+        return "auto-detect"
+    return s
+
+
+def _get_schema_markdown(response_schema: Optional[dict]) -> str:
+    if not response_schema:
+        return "- Follow the provided response schema strictly."
+    try:
+        schema_text = json.dumps(response_schema, ensure_ascii=False)
+    except Exception:
+        return "- Follow the provided response schema strictly."
+    return f"- Follow this response schema exactly: {schema_text}"
 
 
 def get_system_prompt(
     tone: Optional[str] = None,
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
+    response_schema: Optional[dict] = None,
 ):
-    return f"""
-        Generate structured slide based on provided outline, follow mentioned steps and notes and provide structured output.
+    markdown_emphasis_rules = (
+        "- Strictly use markdown to emphasize important points, by bolding or "
+        "italicizing the part of text."
+    )
 
-        {"# User Instructions:" if instructions else ""}
-        {instructions or ""}
+    user_instructions = f"# User Instructions:\n{instructions}" if instructions else ""
+    tone_instructions = (
+        f"# Tone Instructions:\nMake slide as {tone} as possible." if tone else ""
+    )
 
-        {"# Tone:" if tone else ""}
-        {tone or ""}
+    verbosity_instructions = ""
+    if verbosity:
+        verbosity_instructions = "# Verbosity Instructions:\n"
+        if verbosity == "concise":
+            verbosity_instructions += "Make slide as concise as possible."
+        elif verbosity == "standard":
+            verbosity_instructions += "Make slide as standard as possible."
+        elif verbosity == "text-heavy":
+            verbosity_instructions += "Make slide as text-heavy as possible."
 
-        {"# Verbosity:" if verbosity else ""}
-        {verbosity or ""}
+    output_fields_instructions = "# Output Fields:\n" + _get_schema_markdown(
+        response_schema
+    )
 
-        # Steps
-        1. Analyze the outline.
-        2. Generate structured slide based on the outline.
-        3. Generate speaker note that is simple, clear, concise and to the point.
-
-        # Notes
-        - Slide body should not use words like "This slide", "This presentation".
-        - Rephrase the slide body to make it flow naturally.
-        - Only use markdown to highlight important points.
-        - Make sure to follow language guidelines.
-        - Speaker note should be normal text, not markdown.
-        - Strictly follow the max and min character limit for every property in the slide.
-        - Never ever go over the max character limit. Limit your narration to make sure you never go over the max character limit.
-        - Number of items should not be more than max number of items specified in slide schema. If you have to put multiple points then merge them to obey max numebr of items.
-        - Generate content as per the given tone.
-        - Be very careful with number of words to generate for given field. As generating more than max characters will overflow in the design. So, analyze early and never generate more characters than allowed.
-        - Do not add emoji in the content.
-        - Metrics should be in abbreviated form with least possible characters. Do not add long sequence of words for metrics.
-        - For verbosity:
-            - If verbosity is 'concise', then generate description as 1/3 or lower of the max character limit. Don't worry if you miss content or context.
-            - If verbosity is 'standard', then generate description as 2/3 of the max character limit.
-            - If verbosity is 'text-heavy', then generate description as 3/4 or higher of the max character limit. Make sure it does not exceed the max character limit.
-
-        User instructions, tone and verbosity should always be followed and should supercede any other instruction, except for max and min character limit, slide schema and number of items.
-
-        - Provide output in json format and **don't include <parameters> tags**.
-
-        # Image and Icon Output Format
-        image: {{
-            __image_prompt__: string,
-        }}
-        icon: {{
-            __icon_query__: string,
-        }}
-
-    """
+    return SLIDE_CONTENT_SYSTEM_PROMPT.format(
+        markdown_emphasis_rules=markdown_emphasis_rules,
+        user_instructions=user_instructions,
+        tone_instructions=tone_instructions,
+        verbosity_instructions=verbosity_instructions,
+        output_fields_instructions=output_fields_instructions,
+    )
 
 
-def get_user_prompt(outline: str, language: str):
-    return f"""
-        ## Current Date and Time
-        {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-
-        ## Icon Query And Image Prompt Language
-        English
-
-        ## Slide Content Language
-        {language}
-
-        ## Slide Outline
-        {outline}
-    """
+def get_user_prompt(outline: str, language: Optional[str]):
+    return SLIDE_CONTENT_USER_PROMPT.format(
+        current_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        language=_resolve_prompt_language(language),
+        content=outline,
+    )
 
 
 def get_messages(
     outline: str,
-    language: str,
+    language: Optional[str],
     tone: Optional[str] = None,
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
-):
+    response_schema: Optional[dict] = None,
+) -> list[Message]:
 
     return [
-        LLMSystemMessage(
-            content=get_system_prompt(tone, verbosity, instructions),
+        SystemMessage(
+            content=get_system_prompt(
+                tone,
+                verbosity,
+                instructions,
+                response_schema,
+            ),
         ),
-        LLMUserMessage(
+        UserMessage(
             content=get_user_prompt(outline, language),
         ),
     ]
@@ -101,12 +154,12 @@ def get_messages(
 async def get_slide_content_from_type_and_outline(
     slide_layout: SlideLayoutModel,
     outline: SlideOutlineModel,
-    language: str,
+    language: Optional[str],
     tone: Optional[str] = None,
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
 ):
-    client = LLMClient()
+    client = get_client(config=get_llm_config())
     model = get_model()
 
     response_schema = remove_fields_from_schema(
@@ -125,28 +178,38 @@ async def get_slide_content_from_type_and_outline(
         True,
     )
 
-    messages = get_messages(
-        outline.content,
-        language,
-        tone,
-        verbosity,
-        instructions,
-    )
-    print(
-        f"get_slide_content_from_type_and_outline: model={model} outline_len={len(outline.content or '')} language={language}"
-    )
     try:
-        response = await client.generate_structured(
-            model=model,
-            messages=messages,
-            response_format=response_schema,
+        response_format = JSONSchemaResponse(
+            name="response",
+            json_schema=response_schema,
             strict=False,
         )
-        print(
-            f"get_slide_content_from_type_and_outline: response is None={response is None} keys={list(response.keys())[:6] if isinstance(response, dict) else None}"
+        messages = get_messages(
+            outline.content,
+            language,
+            tone,
+            verbosity,
+            instructions,
+            response_schema,
         )
-        return response
+
+        for attempt in range(3):
+            response = await asyncio.to_thread(
+                client.generate,
+                **get_generate_kwargs(
+                    model=model,
+                    messages=messages,
+                    response_format=response_format,
+                ),
+            )
+            content = extract_structured_content(response.content)
+            if content is not None:
+                return content
+
+            if attempt < 2:
+                await asyncio.sleep(0.5 * (attempt + 1))
+
+        raise HTTPException(status_code=400, detail="LLM did not return any content")
 
     except Exception as e:
-        print(f"get_slide_content_from_type_and_outline: exception={e}")
         raise handle_llm_client_exceptions(e)

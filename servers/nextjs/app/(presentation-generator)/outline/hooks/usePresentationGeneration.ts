@@ -1,13 +1,13 @@
 import { useState, useCallback } from "react";
 import { useDispatch } from "react-redux";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { clearPresentationData } from "@/store/slices/presentationGeneration";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
-import { Template, LoadingState, TABS } from "../types/index";
-import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
+import { LoadingState, TABS } from "../types/index";
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
+import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 const DEFAULT_LOADING_STATE: LoadingState = {
   message: "",
@@ -24,6 +24,7 @@ export const usePresentationGeneration = (
 ) => {
   const dispatch = useDispatch();
   const router = useRouter();
+  const pathname = usePathname();
   const [loadingState, setLoadingState] = useState<LoadingState>(DEFAULT_LOADING_STATE);
 
   const validateInputs = useCallback(() => {
@@ -75,6 +76,27 @@ export const usePresentationGeneration = (
       return;
     }
     if (!validateInputs()) return;
+
+    const selectedTemplateId =
+      typeof selectedTemplate === "string"
+        ? selectedTemplate
+        : selectedTemplate?.id || null;
+    const selectedTemplateType =
+      typeof selectedTemplate === "string" ? "custom" : "built_in";
+    const selectedTemplateName =
+      typeof selectedTemplate === "string" ? null : selectedTemplate?.name || null;
+    const selectedTemplateLayoutCount =
+      typeof selectedTemplate === "string" ? null : selectedTemplate?.layouts?.length || 0;
+
+    trackEvent(MixpanelEvent.Outline_Presentation_Generation_Started, {
+      pathname,
+      presentation_id: presentationId,
+      outline_count: outlines?.length || 0,
+      template_id: selectedTemplateId,
+      template_type: selectedTemplateType,
+      template_name: selectedTemplateName,
+      template_layout_count: selectedTemplateLayoutCount,
+    });
 
     setLoadingState({
       message: "Generating presentation data...",
@@ -159,7 +181,7 @@ export const usePresentationGeneration = (
     } finally {
       setLoadingState(DEFAULT_LOADING_STATE);
     }
-  }, [validateInputs, presentationId, outlines, dispatch, router, selectedTemplate]);
+  }, [validateInputs, presentationId, outlines, dispatch, router, selectedTemplate, pathname]);
 
   return { loadingState, handleSubmit };
 }; 

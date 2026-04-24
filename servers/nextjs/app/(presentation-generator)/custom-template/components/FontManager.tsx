@@ -1,77 +1,44 @@
-import React, { useState, useRef } from "react";
+import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Upload,
-  CheckCircle,
-  AlertCircle,
+  CheckCircle2,
+  AlertTriangle,
   X,
   Loader2,
   Type,
+  ChevronRight,
+  FileType,
+  Info,
 } from "lucide-react";
-
-interface UploadedFont {
-  fontName: string;
-  fontUrl: string;
-  fontPath: string;
-}
-
-interface FontData {
-  internally_supported_fonts: {
-    name: string;
-    google_fonts_url: string;
-  }[];
-  not_supported_fonts: string[];
-}
-
-interface FontManagerProps {
-  fontsData: FontData;
-  UploadedFonts: UploadedFont[];
-  uploadFont: (fontName: string, file: File) => Promise<string | null>;
-  removeFont: (fontUrl: string) => void;
-  getAllUnsupportedFonts: () => string[];
-  processSlideToHtml: () => void;
-}
+import { FontManagerProps, FontItem } from "../types";
 
 const FontManager: React.FC<FontManagerProps> = ({
   fontsData,
-  UploadedFonts,
+  uploadedFonts,
   uploadFont,
   removeFont,
-  getAllUnsupportedFonts,
-  processSlideToHtml,
+  onContinue,
+  isUploading = false,
 }) => {
-  const [uploadingFonts, setUploadingFonts] = useState<Set<string>>(new Set());
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
-  const allUnsupportedFonts = getAllUnsupportedFonts();
-
-  // Filter out fonts that are already uploaded
-  const fontsNeedingUpload = allUnsupportedFonts.filter(
-    (fontName) =>
-      !UploadedFonts.some((uploadedFont) => uploadedFont.fontName === fontName)
+  // Get fonts that still need to be uploaded (unavailable fonts not yet uploaded)
+  const fontsNeedingUpload = fontsData.unavailable_fonts.filter(
+    (font) => !uploadedFonts.some((uploaded) => uploaded.fontName === font.name)
   );
 
-  const handleFontUpload = async (fontName: string, file: File) => {
+  const allFontsUploaded = fontsNeedingUpload.length === 0;
+  const hasAvailableFonts = fontsData.available_fonts.length > 0;
+  const hasUploadedFonts = uploadedFonts.length > 0;
+
+  const handleFontUpload = (fontName: string, file: File) => {
     if (!file) return;
 
-    setUploadingFonts((prev) => new Set(prev).add(fontName));
+    const result = uploadFont(fontName, file);
 
-    try {
-      const fontUrl = await uploadFont(fontName, file);
-
-      if (fontUrl) {
-        // Clear the file input
-        if (fileInputRefs.current[fontName]) {
-          fileInputRefs.current[fontName]!.value = "";
-        }
-      }
-    } finally {
-      setUploadingFonts((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(fontName);
-        return newSet;
-      });
+    if (result && fileInputRefs.current[fontName]) {
+      fileInputRefs.current[fontName]!.value = "";
     }
   };
 
@@ -85,149 +52,188 @@ const FontManager: React.FC<FontManagerProps> = ({
     }
   };
 
-  if (allUnsupportedFonts.length === 0 && UploadedFonts.length === 0) {
-    return null;
-  }
-
   return (
-    <Card className="my-6">
-      <CardHeader>
-        <CardTitle className="text-xl flex items-center gap-2">
-          <Type className="w-6 h-6" />
-          Font Management
-        </CardTitle>
-        <p className="text-sm text-gray-600">
-          We couldn't load these fonts automatically. Please upload them manually. Make sure naem of the font should be exactly as shown. 
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Supported Fonts */}
-        {fontsData.internally_supported_fonts.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium text-green-700 mb-3 flex items-center gap-1">
-              <CheckCircle className="w-4 h-4" />
-              Supported Fonts ({fontsData.internally_supported_fonts.length})
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {fontsData.internally_supported_fonts.map((font, index) => (
-                <div
-                  key={index}
-                  className="p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800"
-                >
-                  {font.name}
-                </div>
-              ))}
+    <div className="my-8 max-w-[900px] mx-auto">
+      <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-[#F3F4F6] bg-[#FAFAFA]">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[#EBE9FE] flex items-center justify-center">
+              <Type className="w-6 h-6 text-[#7A5AF8]" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-[#111827]">Font Management</h2>
+              <p className="text-sm text-[#6B7280] mt-0.5">
+                {allFontsUploaded
+                  ? "All fonts are ready! You can proceed to preview."
+                  : "Upload missing fonts to ensure your presentation displays correctly."}
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Fonts Needing Upload */}
-        {fontsNeedingUpload.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium text-orange-700 mb-3 flex items-center gap-1">
-              <AlertCircle className="w-4 h-4" />
-              Fonts Needing Upload ({fontsNeedingUpload.length})
-            </h4>
-            <div className="space-y-3">
-              {fontsNeedingUpload.map((fontName: string, index: number) => (
-                <div
-                  key={index}
-                  className="p-4 bg-orange-50 border border-orange-200 rounded-lg"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-sm font-medium text-orange-800">
-                        {fontName}
-                      </span>
-                      <p className="text-xs text-orange-600 mt-1">
-                        Required for presentation
-                      </p>
+        <div className="p-6 space-y-6">
+          {/* Available Fonts */}
+          {hasAvailableFonts && (
+            <div className="p-4 bg-[#F0FDF4] rounded-xl border border-[#BBF7D0]">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
+                <h4 className="text-sm font-semibold text-[#166534]">
+                  Available Fonts ({fontsData.available_fonts.length})
+                </h4>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {fontsData.available_fonts.map((font, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1.5 bg-white border border-[#D1FAE5] rounded-full text-xs font-medium text-[#166534] shadow-sm"
+                  >
+                    {font.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Fonts Needing Upload */}
+          {fontsNeedingUpload.length > 0 && (
+            <div className="p-4 bg-[#FFFBEB] rounded-xl border border-[#FDE68A]">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="w-5 h-5 text-[#D97706]" />
+                <h4 className="text-sm font-semibold text-[#92400E]">
+                  Missing Fonts ({fontsNeedingUpload.length})
+                </h4>
+              </div>
+
+              <div className="space-y-3">
+                {fontsNeedingUpload.map((font, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#FDE68A] shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#FEF3C7] flex items-center justify-center">
+                        <FileType className="w-5 h-5 text-[#D97706]" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-[#111827] block">
+                          {font.name}
+                        </span>
+                        <span className="text-xs text-[#6B7280]">
+                          .ttf, .otf, .woff, .woff2
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div>
                       <input
                         ref={(el) => {
-                          fileInputRefs.current[fontName] = el;
+                          fileInputRefs.current[font.name] = el;
                         }}
                         type="file"
                         accept=".ttf,.otf,.woff,.woff2,.eot"
-                        onChange={(e) => handleFileInputChange(fontName, e)}
+                        onChange={(e) => handleFileInputChange(font.name, e)}
                         className="hidden"
-                        id={`global-font-upload-${index}`}
+                        id={`font-upload-${index}`}
                       />
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={uploadingFonts.has(fontName)}
-                        onClick={() => fileInputRefs.current[fontName]?.click()}
-                        className="text-xs bg-blue-600 text-white hover:text-white hover:bg-blue-700 border-blue-600"
+                        onClick={() => fileInputRefs.current[font.name]?.click()}
+                        className="rounded-full px-4 h-9 text-sm font-medium transition-all text-[#D97706] border-[#D97706] hover:bg-[#FFFBEB] hover:border-[#D97706]"
                       >
-                        {uploadingFonts.has(fontName) ? (
-                          <>
-                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-3 h-3 mr-1" />
-                            Upload Font
-                          </>
-                        )}
+                        <Upload className="w-4 h-4 mr-1" />
+                        Upload
                       </Button>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Successfully Uploaded Fonts */}
-        {UploadedFonts.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium text-green-700 mb-3 flex items-center gap-1">
-              <CheckCircle className="w-4 h-4" />
-              Uploaded Fonts ({UploadedFonts.length})
-            </h4>
-            <div className="space-y-2">
-              {UploadedFonts.map((font, index) => (
-                <div
-                  key={index}
-                  className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between"
-                >
-                  <div>
-                    <span className="text-sm font-medium text-green-800">
-                      {font.fontName}
-                    </span>
-                    <p className="text-xs text-green-600 mt-1">
-                      Available for all slides
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removeFont(font.fontUrl)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1"
+          {/* Uploaded Fonts */}
+          {hasUploadedFonts && (
+            <div className="p-4 bg-[#F0FDF4] rounded-xl border border-[#BBF7D0]">
+              <div className="flex items-center gap-2 mb-4">
+                <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
+                <h4 className="text-sm font-semibold text-[#166534]">
+                  Uploaded Fonts ({uploadedFonts.length})
+                </h4>
+              </div>
+              <div className="space-y-2">
+                {uploadedFonts.map((font, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-white rounded-xl border border-[#D1FAE5] shadow-sm"
                   >
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#DCFCE7] flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
+                      </div>
+                      <span className="text-sm font-medium text-[#166534]">
+                        {font.fontName}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => removeFont(font.fontName)}
+                      className="p-2 rounded-full text-[#6B7280] hover:text-[#DC2626] hover:bg-[#FEE2E2] transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-        <div className="flex justify-center mt-4">
+          )}
+        </div>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={processSlideToHtml}
-          className="text-xs px-8 py-2 font-semibold bg-blue-600 text-white hover:text-white hover:bg-blue-700 border-blue-600"
-          >
-            Extract Template
-        </Button>
+        {/* Action Footer */}
+        <div className={`px-6 py-5 border-t transition-colors duration-300 ${allFontsUploaded
+          ? 'bg-[#F0FDF4] border-[#BBF7D0]'
+          : 'bg-[#FAFAFA] border-[#F3F4F6]'
+          }`}>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {!allFontsUploaded && (
+              <div className="flex items-start gap-2 text-sm text-[#6B7280]">
+                <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <p>You can continue without all fonts, but some text may not display correctly.</p>
+              </div>
+            )}
+            {allFontsUploaded && (
+              <p className="text-sm text-[#16A34A] font-medium">
+                ✓ All fonts are ready
+              </p>
+            )}
+            <Button
+              size="lg"
+              onClick={onContinue}
+              disabled={isUploading}
+              className={`
+                px-5 py-2 h-auto text-sm font-semibold rounded-full transition-all duration-300
+                ${isUploading
+                  ? 'bg-[#E5E7EB] text-[#9CA3AF]'
+                  : allFontsUploaded
+                    ? 'bg-[#16A34A] text-white hover:bg-[#15803D] shadow-sm'
+                    : 'bg-white text-[#374151] border border-[#E5E7EB] hover:bg-[#F9FAFB]'
+                }
+              `}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  {allFontsUploaded ? 'Continue to Preview' : 'Continue'}
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </>
+              )}
+            </Button>
           </div>
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </div>
   );
 };
 

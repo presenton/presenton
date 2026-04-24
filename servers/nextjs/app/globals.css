@@ -4,7 +4,7 @@
 
 
 body {
-  font-family: var(--font-inter), var(--font-unbounded), var(--font-syne), sans-serif;
+  font-family: var(--font-syne), var(--font-unbounded), var(--font-inter), sans-serif;
 }
 
 @layer utilities {

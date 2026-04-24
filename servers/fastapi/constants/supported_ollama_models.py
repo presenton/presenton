@@ -171,10 +171,141 @@ SUPPORTED_GPT_OSS_MODELS = {
     ),
 }
 
+SUPPORTED_GEMMA4_MODELS = {
+    "gemma4:latest": OllamaModelMetadata(
+        label="Gemma 4:latest",
+        value="gemma4:latest",
+        size="9.6GB",
+    ),
+    "gemma4:e2b": OllamaModelMetadata(
+        label="Gemma 4:e2b",
+        value="gemma4:e2b",
+        size="7.2GB",
+    ),
+    "gemma4:e4b": OllamaModelMetadata(
+        label="Gemma 4:e4b",
+        value="gemma4:e4b",
+        size="9.6GB",
+    ),
+    "gemma4:26b": OllamaModelMetadata(
+        label="Gemma 4:26b",
+        value="gemma4:26b",
+        size="18GB",
+    ),
+    "gemma4:31b": OllamaModelMetadata(
+        label="Gemma 4:31b",
+        value="gemma4:31b",
+        size="20GB",
+    ),
+
+    # e2b variants
+    "gemma4:e2b-it-q4_K_M": OllamaModelMetadata(
+        label="Gemma 4:e2b-it-q4_K_M",
+        value="gemma4:e2b-it-q4_K_M",
+        size="7.2GB",
+    ),
+    "gemma4:e2b-it-q8_0": OllamaModelMetadata(
+        label="Gemma 4:e2b-it-q8_0",
+        value="gemma4:e2b-it-q8_0",
+        size="8.1GB",
+    ),
+    "gemma4:e2b-it-bf16": OllamaModelMetadata(
+        label="Gemma 4:e2b-it-bf16",
+        value="gemma4:e2b-it-bf16",
+        size="10GB",
+    ),
+
+    # e4b variants
+    "gemma4:e4b-it-q4_K_M": OllamaModelMetadata(
+        label="Gemma 4:e4b-it-q4_K_M",
+        value="gemma4:e4b-it-q4_K_M",
+        size="9.6GB",
+    ),
+    "gemma4:e4b-it-q8_0": OllamaModelMetadata(
+        label="Gemma 4:e4b-it-q8_0",
+        value="gemma4:e4b-it-q8_0",
+        size="12GB",
+    ),
+    "gemma4:e4b-it-bf16": OllamaModelMetadata(
+        label="Gemma 4:e4b-it-bf16",
+        value="gemma4:e4b-it-bf16",
+        size="16GB",
+    ),
+
+    # 26b variants
+    "gemma4:26b-a4b-it-q4_K_M": OllamaModelMetadata(
+        label="Gemma 4:26b-a4b-it-q4_K_M",
+        value="gemma4:26b-a4b-it-q4_K_M",
+        size="18GB",
+    ),
+    "gemma4:26b-a4b-it-q8_0": OllamaModelMetadata(
+        label="Gemma 4:26b-a4b-it-q8_0",
+        value="gemma4:26b-a4b-it-q8_0",
+        size="28GB",
+    ),
+
+    # 31b variants
+    "gemma4:31b-it-q4_K_M": OllamaModelMetadata(
+        label="Gemma 4:31b-it-q4_K_M",
+        value="gemma4:31b-it-q4_K_M",
+        size="20GB",
+    ),
+    "gemma4:31b-it-q8_0": OllamaModelMetadata(
+        label="Gemma 4:31b-it-q8_0",
+        value="gemma4:31b-it-q8_0",
+        size="34GB",
+    ),
+    "gemma4:31b-it-bf16": OllamaModelMetadata(
+        label="Gemma 4:31b-it-bf16",
+        value="gemma4:31b-it-bf16",
+        size="63GB",
+    )
+}
+
+SUPPORTED_QWEN35_MODELS = {
+    "qwen3.5:latest": OllamaModelMetadata(
+        label="Qwen 3.5:latest",
+        value="qwen3.5:latest",
+        size="6.6GB",
+    ),
+    "qwen3.5:2b": OllamaModelMetadata(
+        label="Qwen 3.5:2b",
+        value="qwen3.5:2b",
+        size="2.7GB",
+    ),
+    "qwen3.5:4b": OllamaModelMetadata(
+        label="Qwen 3.5:4b",
+        value="qwen3.5:4b",
+        size="3.4GB",
+    ),
+    "qwen3.5:9b": OllamaModelMetadata(
+        label="Qwen 3.5:9b",
+        value="qwen3.5:9b",
+        size="6.6GB",
+    ),
+    "qwen3.5:27b": OllamaModelMetadata(
+        label="Qwen 3.5:27b",
+        value="qwen3.5:27b",
+        size="17GB",
+    ),
+    "qwen3.5:35b": OllamaModelMetadata(
+        label="Qwen 3.5:35b",
+        value="qwen3.5:35b",
+        size="24GB",
+    ),
+    "qwen3.5:122b": OllamaModelMetadata(
+        label="Qwen 3.5:122b",
+        value="qwen3.5:122b",
+        size="81GB",
+    )
+}
+
 SUPPORTED_OLLAMA_MODELS = {
     **SUPPORTED_OLLAMA_MODELS,
     **SUPPORTED_GEMMA_MODELS,
     **SUPPORTED_DEEPSEEK_MODELS,
     **SUPPORTED_QWEN_MODELS,
     **SUPPORTED_GPT_OSS_MODELS,
+    **SUPPORTED_GEMMA4_MODELS,
+    **SUPPORTED_QWEN35_MODELS,
 }

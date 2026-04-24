@@ -7,7 +7,7 @@ export const getIconFromFile = (file: string): string => {
   } else if (file_ext == "docx") {
     return "/report.png";
   } else if (file_ext == "pptx") {
-    return "/ppt.svg";
+    return "/pptx.svg";
   }
   return "/report.png";
 };
@@ -63,10 +63,10 @@ export function sanitizeFilename(input: string | null | undefined, replacement =
   let sanitized = (input ?? '').toString();
   // Remove any null bytes first
   sanitized = sanitized.replace(/\0/g, '');
-  
+
   // Remove or replace path traversal sequences
   sanitized = sanitized.replace(/\.\./g, replacement);
-  
+
   // Regular filename sanitization (but preserve forward slashes for paths)
   const illegalRe = /[\?<>\\:\*\|"]/g; // Removed / from illegal characters
   const controlRe = /[\x00-\x1f\x80-\x9f]/g;
@@ -85,10 +85,10 @@ export function sanitizeFilename(input: string | null | undefined, replacement =
       .replace(reservedRe, replacement)
       .replace(windowsReservedRe, replacement)
       .replace(windowsTrailingRe, replacement);
-    
+
     // Remove any remaining path traversal attempts in individual segments
     cleanSegment = cleanSegment.replace(/\.\./g, replacement);
-    
+
     return cleanSegment;
   });
 
@@ -96,7 +96,7 @@ export function sanitizeFilename(input: string | null | undefined, replacement =
 
   // Remove any remaining path traversal attempts after other replacements
   sanitized = sanitized.replace(/\.\./g, replacement);
-  
+
   // Normalize multiple consecutive slashes to single slash
   sanitized = sanitized.replace(/\/+/g, '/');
 

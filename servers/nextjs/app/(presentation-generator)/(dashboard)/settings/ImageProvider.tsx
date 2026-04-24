@@ -60,7 +60,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                         DALL·E 3 Image Quality
                     </label>
                     <div className="">
-                        <Select value={llmConfig.DALL_E_3_QUALITY} onValueChange={(value) => input_field_changed(value, "DALL_E_3_QUALITY")}>
+                        <Select value={llmConfig.DALL_E_3_QUALITY || 'standard'} onValueChange={(value) => input_field_changed(value, "DALL_E_3_QUALITY")}>
                             <SelectTrigger className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between">
                                 <SelectValue placeholder="Select a quality" />
                             </SelectTrigger>
@@ -84,7 +84,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                     </label>
                     <div className="">
                         <Select
-                            value={llmConfig.GPT_IMAGE_1_5_QUALITY}
+                            value={llmConfig.GPT_IMAGE_1_5_QUALITY || 'low'}
                             onValueChange={(value) => input_field_changed(value, "GPT_IMAGE_1_5_QUALITY")}
                         >
                             <SelectTrigger
@@ -175,7 +175,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                                 <PopoverContent
                                                     className="p-0"
                                                     align="start"
-                                                    style={{ width: "var(--radix-popover-trigger-width)" }}
+                                                    style={{ width: "300px" }}
                                                 >
                                                     <Command>
                                                         <CommandInput placeholder="Search provider..." />

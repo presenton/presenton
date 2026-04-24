@@ -16,25 +16,32 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from utils.oauth.openai_codex import (
+    CodexAccountProfile,
     OAuthCallbackServer,
     TokenSuccess,
     create_authorization_flow,
     exchange_authorization_code,
-    get_account_id,
+    get_account_profile,
     parse_authorization_input,
     refresh_access_token,
 )
 from utils.get_env import (
     get_codex_access_token_env,
+    get_codex_email_env,
+    get_codex_is_pro_env,
     get_codex_refresh_token_env,
     get_codex_token_expires_env,
+    get_codex_username_env,
 )
 from utils.set_env import (
     set_codex_access_token_env,
     set_codex_account_id_env,
+    set_codex_email_env,
+    set_codex_is_pro_env,
     set_codex_refresh_token_env,
     set_codex_token_expires_env,
     set_codex_model_env,
+    set_codex_username_env,
 )
 from utils.user_config import save_codex_tokens_to_user_config
 
@@ -60,6 +67,9 @@ class InitiateResponse(BaseModel):
 class StatusResponse(BaseModel):
     status: str  # "pending" | "success" | "failed"
     account_id: Optional[str] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    is_pro: Optional[bool] = None
     detail: Optional[str] = None
 
 
@@ -69,11 +79,17 @@ class ExchangeRequest(BaseModel):
 
 
 class ExchangeResponse(BaseModel):
-    account_id: str
+    account_id: Optional[str] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    is_pro: Optional[bool] = None
 
 
 class RefreshResponse(BaseModel):
     account_id: Optional[str]
+    username: Optional[str] = None
+    email: Optional[str] = None
+    is_pro: Optional[bool] = None
     detail: str
 
 
@@ -81,16 +97,31 @@ class RefreshResponse(BaseModel):
 # Helper
 # ---------------------------------------------------------------------------
 
-def _store_token(result: TokenSuccess) -> Optional[str]:
-    """Persist token fields in env vars and userConfig.json. Returns account_id or None."""
+def _parse_optional_bool(value: Optional[str]) -> Optional[bool]:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if normalized in {"true", "1", "yes", "y"}:
+        return True
+    if normalized in {"false", "0", "no", "n"}:
+        return False
+    return None
+
+
+def _store_token(result: TokenSuccess) -> CodexAccountProfile:
+    """Persist token fields in env vars and userConfig.json. Returns parsed profile."""
     set_codex_access_token_env(result.access)
     set_codex_refresh_token_env(result.refresh)
     set_codex_token_expires_env(str(result.expires))
-    account_id = get_account_id(result.access)
-    if account_id:
-        set_codex_account_id_env(account_id)
+
+    profile = get_account_profile(result.access, result.id_token)
+    set_codex_account_id_env(profile.account_id or "")
+    set_codex_username_env(profile.username or "")
+    set_codex_email_env(profile.email or "")
+    set_codex_is_pro_env("" if profile.is_pro is None else str(profile.is_pro))
+
     save_codex_tokens_to_user_config()
-    return account_id
+    return profile
 
 
 # ---------------------------------------------------------------------------
@@ -166,8 +197,14 @@ async def poll_codex_auth_status(session_id: str):
     if not isinstance(result, TokenSuccess):
         return StatusResponse(status="failed", detail=result.reason)
 
-    account_id = _store_token(result)
-    return StatusResponse(status="success", account_id=account_id)
+    profile = _store_token(result)
+    return StatusResponse(
+        status="success",
+        account_id=profile.account_id,
+        username=profile.username,
+        email=profile.email,
+        is_pro=profile.is_pro,
+    )
 
 
 @CODEX_AUTH_ROUTER.post("/exchange", response_model=ExchangeResponse)
@@ -207,11 +244,16 @@ async def exchange_codex_code(body: ExchangeRequest):
     if not isinstance(result, TokenSuccess):
         raise HTTPException(status_code=502, detail=f"Token exchange failed: {result.reason}")
 
-    account_id = _store_token(result)
-    if not account_id:
+    profile = _store_token(result)
+    if not profile.account_id:
         raise HTTPException(status_code=502, detail="Token exchanged but could not extract account ID")
 
-    return ExchangeResponse(account_id=account_id)
+    return ExchangeResponse(
+        account_id=profile.account_id,
+        username=profile.username,
+        email=profile.email,
+        is_pro=profile.is_pro,
+    )
 
 
 @CODEX_AUTH_ROUTER.post("/refresh", response_model=RefreshResponse)
@@ -232,9 +274,12 @@ async def refresh_codex_token():
     if not isinstance(result, TokenSuccess):
         raise HTTPException(status_code=502, detail=f"Token refresh failed: {result.reason}")
 
-    account_id = _store_token(result)
+    profile = _store_token(result)
     return RefreshResponse(
-        account_id=account_id,
+        account_id=profile.account_id,
+        username=profile.username,
+        email=profile.email,
+        is_pro=profile.is_pro,
         detail="Token refreshed successfully",
     )
 
@@ -260,8 +305,18 @@ async def get_codex_auth_status():
         except (ValueError, TypeError):
             pass
 
-    account_id = get_account_id(access_token)
-    return StatusResponse(status="authenticated", account_id=account_id)
+    profile = get_account_profile(access_token)
+    return StatusResponse(
+        status="authenticated",
+        account_id=profile.account_id,
+        username=profile.username or get_codex_username_env(),
+        email=profile.email or get_codex_email_env(),
+        is_pro=(
+            profile.is_pro
+            if profile.is_pro is not None
+            else _parse_optional_bool(get_codex_is_pro_env())
+        ),
+    )
 
 
 @CODEX_AUTH_ROUTER.post("/logout")
@@ -273,6 +328,9 @@ async def logout_codex():
     set_codex_refresh_token_env("")
     set_codex_token_expires_env("")
     set_codex_account_id_env("")
+    set_codex_username_env("")
+    set_codex_email_env("")
+    set_codex_is_pro_env("")
     set_codex_model_env("")
     save_codex_tokens_to_user_config()
     return {"detail": "Logged out successfully"}

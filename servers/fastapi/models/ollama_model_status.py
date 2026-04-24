@@ -8,3 +8,4 @@ class OllamaModelStatus(BaseModel):
     downloaded: Optional[int] = None
     status: str
     done: bool
+    error: Optional[str] = None

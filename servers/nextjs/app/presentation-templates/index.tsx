@@ -3,6 +3,63 @@ import { TemplateWithData, TemplateGroupSettings, createTemplateEntry, TemplateL
 
 // TODO: Step 1: Import All templates Layouts Here (like the ones below)
 
+// Code templates
+import CodeSlide01RoadmapCover, { Schema as CodeRoadmapCoverSchema, slideLayoutId as CodeRoadmapCoverId, slideLayoutName as CodeRoadmapCoverName, slideLayoutDescription as CodeRoadmapCoverDesc } from "./Code/CoverSlide";
+import CodeSlide02CodeExplanationSplit, { Schema as CodeExplanationSplitSchema, slideLayoutId as CodeExplanationSplitId, slideLayoutName as CodeExplanationSplitName, slideLayoutDescription as CodeExplanationSplitDesc } from "./Code/CodeExplanationSplitSlide";
+import CodeSlide03ApiRequestResponse, { Schema as CodeApiRequestResponseSchema, slideLayoutId as CodeApiRequestResponseId, slideLayoutName as CodeApiRequestResponseName, slideLayoutDescription as CodeApiRequestResponseDesc } from "./Code/APIRequestResponseSlide";
+import CodeSlide04FeatureGrid, { Schema as CodeFeatureGridSchema, slideLayoutId as CodeFeatureGridId, slideLayoutName as CodeFeatureGridName, slideLayoutDescription as CodeFeatureGridDesc } from "./Code/CardsGridSlide";
+import CodeSlide05ComparisonTable, { Schema as CodeComparisonTableSchema, slideLayoutId as CodeComparisonTableId, slideLayoutName as CodeComparisonTableName, slideLayoutDescription as CodeComparisonTableDesc } from "./Code/TableSlide";
+import CodeSlide06Workflow, { Schema as CodeWorkflowSchema, slideLayoutId as CodeWorkflowId, slideLayoutName as CodeWorkflowName, slideLayoutDescription as CodeWorkflowDesc } from "./Code/WorkflowSlide";
+import CodeSlide07UseCaseList, { Schema as CodeUseCaseListSchema, slideLayoutId as CodeUseCaseListId, slideLayoutName as CodeUseCaseListName, slideLayoutDescription as CodeUseCaseListDesc } from "./Code/TwoColumnBulletListSlide";
+import CodeSlide08CodeExplanationText, { Schema as CodeExplanationTextSchema, slideLayoutId as CodeExplanationTextId, slideLayoutName as CodeExplanationTextName, slideLayoutDescription as CodeExplanationTextDesc } from "./Code/DescriptionTextSlide";
+import CodeSlide09TableOfContent, { Schema as CodeTableOfContentSchema, slideLayoutId as CodeTableOfContentId, slideLayoutName as CodeTableOfContentName, slideLayoutDescription as CodeTableOfContentDesc } from "./Code/TableOfContentSlide";
+import CodeSlide10MetricsSplit, { Schema as CodeMetricsSplitSchema, slideLayoutId as CodeMetricsSplitId, slideLayoutName as CodeMetricsSplitName, slideLayoutDescription as CodeMetricsSplitDesc } from "./Code/DescriptionAndMetricsSlide";
+import CodeSlide11MetricsGrid, { Schema as CodeMetricsGridSchema, slideLayoutId as CodeMetricsGridId, slideLayoutName as CodeMetricsGridName, slideLayoutDescription as CodeMetricsGridDesc } from "./Code/MetricsGridSlide";
+
+// Education templates
+import EducationCoverSlide, { Schema as EduCoverSchema, slideLayoutId as EduCoverId, slideLayoutName as EduCoverName, slideLayoutDescription as EduCoverDesc } from "./Education/EducationCoverSlide";
+import EducationTableOfContentsSlide, { Schema as EduTocSchema, slideLayoutId as EduTocId, slideLayoutName as EduTocName, slideLayoutDescription as EduTocDesc } from "./Education/EducationTableOfContentsSlide";
+import EducationAboutSlide, { Schema as EduAboutSchema, slideLayoutId as EduAboutId, slideLayoutName as EduAboutName, slideLayoutDescription as EduAboutDesc } from "./Education/EducationAboutSlide";
+import EducationContentSplitSlide, { Schema as EduContentSplitSchema, slideLayoutId as EduContentSplitId, slideLayoutName as EduContentSplitName, slideLayoutDescription as EduContentSplitDesc } from "./Education/EducationContentSplitSlide";
+import EducationImageGallerySlide, { Schema as EduImageGallerySchema, slideLayoutId as EduImageGalleryId, slideLayoutName as EduImageGalleryName, slideLayoutDescription as EduImageGalleryDesc } from "./Education/EducationImageGallerySlide";
+import EducationReportDonutSlide, { Schema as EduReportDonutSchema, slideLayoutId as EduReportDonutId, slideLayoutName as EduReportDonutName, slideLayoutDescription as EduReportDonutDesc } from "./Education/EducationReportChartSlide";
+import EducationServicesSplitSlide, { Schema as EduServicesSplitSchema, slideLayoutId as EduServicesSplitId, slideLayoutName as EduServicesSplitName, slideLayoutDescription as EduServicesSplitDesc } from "./Education/EducationServicesSplitSlide";
+import EducationStatisticsGridSlide, { Schema as EduStatisticsGridSchema, slideLayoutId as EduStatisticsGridId, slideLayoutName as EduStatisticsGridName, slideLayoutDescription as EduStatisticsGridDesc } from "./Education/EducationStatisticsGridSlide";
+import EducationTimelineSlide, { Schema as EduTimelineSchema, slideLayoutId as EduTimelineId, slideLayoutName as EduTimelineName, slideLayoutDescription as EduTimelineDesc } from "./Education/EducationTimelineSlide";
+
+// Product Overview templates
+import BusinessChallengesCardsSlide, { Schema as PoBizChallengesCardsSchema, slideLayoutId as PoBizChallengesCardsId, slideLayoutName as PoBizChallengesCardsName, slideLayoutDescription as PoBizChallengesCardsDesc } from "./ProductOverview/BusinessChallengesCardsSlide";
+import BusinessChallengesGridSlide, { Schema as PoBizChallengesGridSchema, slideLayoutId as PoBizChallengesGridId, slideLayoutName as PoBizChallengesGridName, slideLayoutDescription as PoBizChallengesGridDesc } from "./ProductOverview/BusinessChallengesGridSlide";
+import ComparisonChartSlide, { Schema as PoComparisonChartSchema, slideLayoutId as PoComparisonChartId, slideLayoutName as PoComparisonChartName, slideLayoutDescription as PoComparisonChartDesc } from "./ProductOverview/ComparisonChartSlide";
+import ComparisonTableWithTextSlide, { Schema as PoComparisonTableSchema, slideLayoutId as PoComparisonTableId, slideLayoutName as PoComparisonTableName, slideLayoutDescription as PoComparisonTableDesc } from "./ProductOverview/ComparisonTableWithTextSlide";
+import CoverSlide, { Schema as PoCoverSchema, slideLayoutId as PoCoverId, slideLayoutName as PoCoverName, slideLayoutDescription as PoCoverDesc } from "./ProductOverview/CoverSlide";
+import ImageGallerySlide, { Schema as PoImageGallerySchema, slideLayoutId as PoImageGalleryId, slideLayoutName as PoImageGalleryName, slideLayoutDescription as PoImageGalleryDesc } from "./ProductOverview/ImageGallerySlide";
+import IntroductionSlide, { Schema as PoIntroductionSchema, slideLayoutId as PoIntroductionId, slideLayoutName as PoIntroductionName, slideLayoutDescription as PoIntroductionDesc } from "./ProductOverview/IntroductionSlide";
+import KpiCardsSlide, { Schema as PoKpiCardsSchema, slideLayoutId as PoKpiCardsId, slideLayoutName as PoKpiCardsName, slideLayoutDescription as PoKpiCardsDesc } from "./ProductOverview/KpiCardsSlide";
+// import MarketOpportunitySlide, { Schema as PoMarketOpportunitySchema, slideLayoutId as PoMarketOpportunityId, slideLayoutName as PoMarketOpportunityName, slideLayoutDescription as PoMarketOpportunityDesc } from "./ProductOverview/MarketOpportunitySlide";
+import MeetTeamSlide, { Schema as PoMeetTeamSchema, slideLayoutId as PoMeetTeamId, slideLayoutName as PoMeetTeamName, slideLayoutDescription as PoMeetTeamDesc } from "./ProductOverview/MeetTeamSlide";
+import MissionVisionSlide, { Schema as PoMissionVisionSchema, slideLayoutId as PoMissionVisionId, slideLayoutName as PoMissionVisionName, slideLayoutDescription as PoMissionVisionDesc } from "./ProductOverview/MissionVisionSlide";
+import OurServicesSlide, { Schema as PoOurServicesSchema, slideLayoutId as PoOurServicesId, slideLayoutName as PoOurServicesName, slideLayoutDescription as PoOurServicesDesc } from "./ProductOverview/OurServicesSlide";
+import PricingPlanSlide, { Schema as PoPricingPlanSchema, slideLayoutId as PoPricingPlanId, slideLayoutName as PoPricingPlanName, slideLayoutDescription as PoPricingPlanDesc } from "./ProductOverview/PricingPlanSlide";
+import ProcessSlide, { Schema as PoProcessSchema, slideLayoutId as PoProcessId, slideLayoutName as PoProcessName, slideLayoutDescription as PoProcessDesc } from "./ProductOverview/ProcessSlide";
+import ReportSnapshotSlide, { Schema as PoReportSnapshotSchema, slideLayoutId as PoReportSnapshotId, slideLayoutName as PoReportSnapshotName, slideLayoutDescription as PoReportSnapshotDesc } from "./ProductOverview/ReportSnapshotSlide";
+import TableOfContentSlide, { Schema as PoTableOfContentSchema, slideLayoutId as PoTableOfContentId, slideLayoutName as PoTableOfContentName, slideLayoutDescription as PoTableOfContentDesc } from "./ProductOverview/TableOfContentSlide";
+
+// Report templates
+import ReportIntroSlide, { Schema as RepIntroSchema, slideLayoutId as RepIntroId, slideLayoutName as RepIntroName, slideLayoutDescription as RepIntroDesc } from "./Report/IntroCoverSlide";
+import TitleDescriptionImageSlide, { Schema as RepIntroductionImageSchema, slideLayoutId as RepIntroductionImageId, slideLayoutName as RepIntroductionImageName, slideLayoutDescription as RepIntroductionImageDesc } from "./Report/TitleDescriptionImageSlide";
+import IntroductionStatsSlide, { Schema as RepIntroductionStatsSchema, slideLayoutId as RepIntroductionStatsId, slideLayoutName as RepIntroductionStatsName, slideLayoutDescription as RepIntroductionStatsDesc } from "./Report/MetricsSlide";
+import SolutionSlide, { Schema as RepSolutionSchema, slideLayoutId as RepSolutionId, slideLayoutName as RepSolutionName, slideLayoutDescription as RepSolutionDesc } from "./Report/TitleImageBulletCardsSlide";
+import MilestoneSlide, { Schema as RepMilestoneSchema, slideLayoutId as RepMilestoneId, slideLayoutName as RepMilestoneName, slideLayoutDescription as RepMilestoneDesc } from "./Report/MilestoneSlide";
+import DataAnalysisListSlide, { Schema as RepDataAnalysisListSchema, slideLayoutId as RepDataAnalysisListId, slideLayoutName as RepDataAnalysisListName, slideLayoutDescription as RepDataAnalysisListDesc } from "./Report/BulletListWithIconTitleDescriptionSlide";
+import DataAnalysisBarSlide, { Schema as RepDataAnalysisBarSchema, slideLayoutId as RepDataAnalysisBarId, slideLayoutName as RepDataAnalysisBarName, slideLayoutDescription as RepDataAnalysisBarDesc } from "./Report/BarChartWithBulletListWithTitleDescriptionIconSlide";
+import DataAnalysisInsightBarSlide, { Schema as RepDataAnalysisInsightBarSchema, slideLayoutId as RepDataAnalysisInsightBarId, slideLayoutName as RepDataAnalysisInsightBarName, slideLayoutDescription as RepDataAnalysisInsightBarDesc } from "./Report/TitleDescriptionChartSlide";
+import DataAnalysisLineStatsSlide, { Schema as RepDataAnalysisLineStatsSchema, slideLayoutId as RepDataAnalysisLineStatsId, slideLayoutName as RepDataAnalysisLineStatsName, slideLayoutDescription as RepDataAnalysisLineStatsDesc } from "./Report/TitleChartWithMetricsCardsSlide";
+import DataAnalysisDashboardSlide, { Schema as RepDataAnalysisDashboardSchema, slideLayoutId as RepDataAnalysisDashboardId, slideLayoutName as RepDataAnalysisDashboardName, slideLayoutDescription as RepDataAnalysisDashboardDesc } from "./Report/DataAnalysisDashboardSlide";
+import PerformanceSnapshotSlide, { Schema as RepPerformanceSnapshotSchema, slideLayoutId as RepPerformanceSnapshotId, slideLayoutName as RepPerformanceSnapshotName, slideLayoutDescription as RepPerformanceSnapshotDesc } from "./Report/TitleMetricsSlide";
+import ReportServicesSlide, { Schema as RepServicesSchema, slideLayoutId as RepServicesId, slideLayoutName as RepServicesName, slideLayoutDescription as RepServicesDesc } from "./Report/TitleWorkflowWithTitleDescriptionSlide";
+import ReportTeamSlide, { Schema as RepTeamSchema, slideLayoutId as RepTeamId, slideLayoutName as RepTeamName, slideLayoutDescription as RepTeamDesc } from "./Report/HorizontalHeightSpanningImagesWithTitleSlide";
+
 // General templates
 import GeneralIntroSlideLayout, { Schema as GeneralIntroSchema, layoutId as GeneralIntroId, layoutName as GeneralIntroName, layoutDescription as GeneralIntroDesc } from "./general/IntroSlideLayout";
 import BasicInfoSlideLayout, { Schema as BasicInfoSchema, layoutId as BasicInfoId, layoutName as BasicInfoName, layoutDescription as BasicInfoDesc } from "./general/BasicInfoSlideLayout";
@@ -175,12 +232,77 @@ import neoGeneralSettings from "./neo-general/settings.json";
 import neoStandardSettings from "./neo-standard/settings.json";
 import neoModernSettings from "./neo-modern/settings.json";
 import neoSwiftSettings from "./neo-swift/settings.json";
+import codeSettings from "./Code/settings.json";
+import educationSettings from "./Education/settings.json";
+import productOverviewSettings from "./ProductOverview/settings.json";
+import reportSettings from "./Report/settings.json";
 
 
 // Helper to create template entry
 
 
 // TODO: Step 3: Create template entries for each template (like the ones below)
+
+export const codeTemplates: TemplateWithData[] = [
+    createTemplateEntry(CodeSlide01RoadmapCover, CodeRoadmapCoverSchema, CodeRoadmapCoverId, CodeRoadmapCoverName, CodeRoadmapCoverDesc, "code", "CoverSlide"),
+    createTemplateEntry(CodeSlide02CodeExplanationSplit, CodeExplanationSplitSchema, CodeExplanationSplitId, CodeExplanationSplitName, CodeExplanationSplitDesc, "code", "CodeExplanationSplitSlide"),
+    createTemplateEntry(CodeSlide03ApiRequestResponse, CodeApiRequestResponseSchema, CodeApiRequestResponseId, CodeApiRequestResponseName, CodeApiRequestResponseDesc, "code", "APIRequestResponseSlide"),
+    createTemplateEntry(CodeSlide04FeatureGrid, CodeFeatureGridSchema, CodeFeatureGridId, CodeFeatureGridName, CodeFeatureGridDesc, "code", "CardsGridSlide"),
+    createTemplateEntry(CodeSlide05ComparisonTable, CodeComparisonTableSchema, CodeComparisonTableId, CodeComparisonTableName, CodeComparisonTableDesc, "code", "TableSlide"),
+    createTemplateEntry(CodeSlide06Workflow, CodeWorkflowSchema, CodeWorkflowId, CodeWorkflowName, CodeWorkflowDesc, "code", "WorkflowSlide"),
+    createTemplateEntry(CodeSlide07UseCaseList, CodeUseCaseListSchema, CodeUseCaseListId, CodeUseCaseListName, CodeUseCaseListDesc, "code", "TwoColumnBulletListSlide"),
+    createTemplateEntry(CodeSlide08CodeExplanationText, CodeExplanationTextSchema, CodeExplanationTextId, CodeExplanationTextName, CodeExplanationTextDesc, "code", "DescriptionTextSlide"),
+    createTemplateEntry(CodeSlide09TableOfContent, CodeTableOfContentSchema, CodeTableOfContentId, CodeTableOfContentName, CodeTableOfContentDesc, "code", "TableOfContentSlide"),
+    createTemplateEntry(CodeSlide10MetricsSplit, CodeMetricsSplitSchema, CodeMetricsSplitId, CodeMetricsSplitName, CodeMetricsSplitDesc, "code", "DescriptionAndMetricsSlide"),
+    createTemplateEntry(CodeSlide11MetricsGrid, CodeMetricsGridSchema, CodeMetricsGridId, CodeMetricsGridName, CodeMetricsGridDesc, "code", "MetricsGridSlide"),
+];
+
+export const educationTemplates: TemplateWithData[] = [
+    createTemplateEntry(EducationCoverSlide, EduCoverSchema, EduCoverId, EduCoverName, EduCoverDesc, "education", "EducationCoverSlide"),
+    createTemplateEntry(EducationTableOfContentsSlide, EduTocSchema, EduTocId, EduTocName, EduTocDesc, "education", "EducationTableOfContentsSlide"),
+    createTemplateEntry(EducationAboutSlide, EduAboutSchema, EduAboutId, EduAboutName, EduAboutDesc, "education", "EducationAboutSlide"),
+    createTemplateEntry(EducationContentSplitSlide, EduContentSplitSchema, EduContentSplitId, EduContentSplitName, EduContentSplitDesc, "education", "EducationContentSplitSlide"),
+    createTemplateEntry(EducationImageGallerySlide, EduImageGallerySchema, EduImageGalleryId, EduImageGalleryName, EduImageGalleryDesc, "education", "EducationImageGallerySlide"),
+    createTemplateEntry(EducationReportDonutSlide, EduReportDonutSchema, EduReportDonutId, EduReportDonutName, EduReportDonutDesc, "education", "EducationReportDonutSlide"),
+    createTemplateEntry(EducationServicesSplitSlide, EduServicesSplitSchema, EduServicesSplitId, EduServicesSplitName, EduServicesSplitDesc, "education", "EducationServicesSplitSlide"),
+    createTemplateEntry(EducationStatisticsGridSlide, EduStatisticsGridSchema, EduStatisticsGridId, EduStatisticsGridName, EduStatisticsGridDesc, "education", "EducationStatisticsGridSlide"),
+    createTemplateEntry(EducationTimelineSlide, EduTimelineSchema, EduTimelineId, EduTimelineName, EduTimelineDesc, "education", "EducationTimelineSlide"),
+];
+
+export const productOverviewTemplates: TemplateWithData[] = [
+    createTemplateEntry(CoverSlide, PoCoverSchema, PoCoverId, PoCoverName, PoCoverDesc, "product-overview", "CoverSlide"),
+    createTemplateEntry(TableOfContentSlide, PoTableOfContentSchema, PoTableOfContentId, PoTableOfContentName, PoTableOfContentDesc, "product-overview", "TableOfContentSlide"),
+    createTemplateEntry(IntroductionSlide, PoIntroductionSchema, PoIntroductionId, PoIntroductionName, PoIntroductionDesc, "product-overview", "IntroductionSlide"),
+    createTemplateEntry(MissionVisionSlide, PoMissionVisionSchema, PoMissionVisionId, PoMissionVisionName, PoMissionVisionDesc, "product-overview", "MissionVisionSlide"),
+    // createTemplateEntry(MarketOpportunitySlide, PoMarketOpportunitySchema, PoMarketOpportunityId, PoMarketOpportunityName, PoMarketOpportunityDesc, "product-overview", "MarketOpportunitySlide"),
+    createTemplateEntry(BusinessChallengesGridSlide, PoBizChallengesGridSchema, PoBizChallengesGridId, PoBizChallengesGridName, PoBizChallengesGridDesc, "product-overview", "BusinessChallengesGridSlide"),
+    createTemplateEntry(BusinessChallengesCardsSlide, PoBizChallengesCardsSchema, PoBizChallengesCardsId, PoBizChallengesCardsName, PoBizChallengesCardsDesc, "product-overview", "BusinessChallengesCardsSlide"),
+    createTemplateEntry(OurServicesSlide, PoOurServicesSchema, PoOurServicesId, PoOurServicesName, PoOurServicesDesc, "product-overview", "OurServicesSlide"),
+    createTemplateEntry(ProcessSlide, PoProcessSchema, PoProcessId, PoProcessName, PoProcessDesc, "product-overview", "ProcessSlide"),
+    createTemplateEntry(ComparisonChartSlide, PoComparisonChartSchema, PoComparisonChartId, PoComparisonChartName, PoComparisonChartDesc, "product-overview", "ComparisonChartSlide"),
+    createTemplateEntry(ComparisonTableWithTextSlide, PoComparisonTableSchema, PoComparisonTableId, PoComparisonTableName, PoComparisonTableDesc, "product-overview", "ComparisonTableWithTextSlide"),
+    createTemplateEntry(KpiCardsSlide, PoKpiCardsSchema, PoKpiCardsId, PoKpiCardsName, PoKpiCardsDesc, "product-overview", "KpiCardsSlide"),
+    createTemplateEntry(ReportSnapshotSlide, PoReportSnapshotSchema, PoReportSnapshotId, PoReportSnapshotName, PoReportSnapshotDesc, "product-overview", "ReportSnapshotSlide"),
+    createTemplateEntry(PricingPlanSlide, PoPricingPlanSchema, PoPricingPlanId, PoPricingPlanName, PoPricingPlanDesc, "product-overview", "PricingPlanSlide"),
+    createTemplateEntry(MeetTeamSlide, PoMeetTeamSchema, PoMeetTeamId, PoMeetTeamName, PoMeetTeamDesc, "product-overview", "MeetTeamSlide"),
+    createTemplateEntry(ImageGallerySlide, PoImageGallerySchema, PoImageGalleryId, PoImageGalleryName, PoImageGalleryDesc, "product-overview", "ImageGallerySlide"),
+];
+
+export const reportTemplates: TemplateWithData[] = [
+    createTemplateEntry(ReportIntroSlide, RepIntroSchema, RepIntroId, RepIntroName, RepIntroDesc, "report", "IntroCoverSlide"),
+    createTemplateEntry(TitleDescriptionImageSlide, RepIntroductionImageSchema, RepIntroductionImageId, RepIntroductionImageName, RepIntroductionImageDesc, "report", "TitleDescriptionImageSlide"),
+    createTemplateEntry(IntroductionStatsSlide, RepIntroductionStatsSchema, RepIntroductionStatsId, RepIntroductionStatsName, RepIntroductionStatsDesc, "report", "MetricsSlide"),
+    createTemplateEntry(SolutionSlide, RepSolutionSchema, RepSolutionId, RepSolutionName, RepSolutionDesc, "report", "TitleImageBulletCardsSlide"),
+    createTemplateEntry(MilestoneSlide, RepMilestoneSchema, RepMilestoneId, RepMilestoneName, RepMilestoneDesc, "report", "MilestoneSlide"),
+    createTemplateEntry(DataAnalysisListSlide, RepDataAnalysisListSchema, RepDataAnalysisListId, RepDataAnalysisListName, RepDataAnalysisListDesc, "report", "BulletListWithIconTitleDescriptionSlide"),
+    createTemplateEntry(DataAnalysisBarSlide, RepDataAnalysisBarSchema, RepDataAnalysisBarId, RepDataAnalysisBarName, RepDataAnalysisBarDesc, "report", "BarChartWithBulletListWithTitleDescriptionIconSlide"),
+    createTemplateEntry(DataAnalysisInsightBarSlide, RepDataAnalysisInsightBarSchema, RepDataAnalysisInsightBarId, RepDataAnalysisInsightBarName, RepDataAnalysisInsightBarDesc, "report", "TitleDescriptionChartSlide"),
+    createTemplateEntry(DataAnalysisLineStatsSlide, RepDataAnalysisLineStatsSchema, RepDataAnalysisLineStatsId, RepDataAnalysisLineStatsName, RepDataAnalysisLineStatsDesc, "report", "TitleChartWithMetricsCardsSlide"),
+    createTemplateEntry(DataAnalysisDashboardSlide, RepDataAnalysisDashboardSchema, RepDataAnalysisDashboardId, RepDataAnalysisDashboardName, RepDataAnalysisDashboardDesc, "report", "DataAnalysisDashboardSlide"),
+    createTemplateEntry(PerformanceSnapshotSlide, RepPerformanceSnapshotSchema, RepPerformanceSnapshotId, RepPerformanceSnapshotName, RepPerformanceSnapshotDesc, "report", "TitleMetricsSlide"),
+    createTemplateEntry(ReportServicesSlide, RepServicesSchema, RepServicesId, RepServicesName, RepServicesDesc, "report", "TitleWorkflowWithTitleDescriptionSlide"),
+    createTemplateEntry(ReportTeamSlide, RepTeamSchema, RepTeamId, RepTeamName, RepTeamDesc, "report", "HorizontalHeightSpanningImagesWithTitleSlide"),
+];
 
 export const neoGeneralTemplates: TemplateWithData[] = [
 
@@ -352,42 +474,16 @@ export const allLayouts: TemplateWithData[] = [
     ...modernTemplates,
     ...standardTemplates,
     ...swiftTemplates,
-
-
+    ...codeTemplates,
+    ...educationTemplates,
+    ...productOverviewTemplates,
+    ...reportTemplates,
 ];
 
 
 // TODO: Step 5: Combine all templates into a single array For UseCases (like the ones below)
 // For UseCases we need to combine all templates into a single array with settings
 export const templates: TemplateLayoutsWithSettings[] = [
-    {
-        id: "neo-general",
-        name: "Neo General",
-        description: neoGeneralSettings.description,
-        settings: neoGeneralSettings as TemplateGroupSettings,
-        layouts: neoGeneralTemplates,
-    },
-    {
-        id: "neo-standard",
-        name: "Neo Standard",
-        description: neoStandardSettings.description,
-        settings: neoStandardSettings as TemplateGroupSettings,
-        layouts: neoStandardTemplates,
-    },
-    {
-        id: "neo-modern",
-        name: "Neo Modern",
-        description: neoModernSettings.description,
-        settings: neoModernSettings as TemplateGroupSettings,
-        layouts: neoModernTemplates,
-    },
-    {
-        id: "neo-swift",
-        name: "Neo Swift",
-        description: neoSwiftSettings.description,
-        settings: neoSwiftSettings as TemplateGroupSettings,
-        layouts: neoSwiftTemplates,
-    },
     {
         id: "general",
         name: "General",
@@ -416,6 +512,63 @@ export const templates: TemplateLayoutsWithSettings[] = [
         settings: swiftSettings as TemplateGroupSettings,
         layouts: swiftTemplates,
     },
+    {
+        id: "code",
+        name: "Code",
+        description: codeSettings.description,
+        settings: codeSettings as TemplateGroupSettings,
+        layouts: codeTemplates,
+    },
+    {
+        id: "education",
+        name: "Education",
+        description: educationSettings.description,
+        settings: educationSettings as TemplateGroupSettings,
+        layouts: educationTemplates,
+    },
+    {
+        id: "product-overview",
+        name: "Product Overview",
+        description: productOverviewSettings.description,
+        settings: productOverviewSettings as TemplateGroupSettings,
+        layouts: productOverviewTemplates,
+    },
+    {
+        id: "report",
+        name: "Report",
+        description: reportSettings.description,
+        settings: reportSettings as TemplateGroupSettings,
+        layouts: reportTemplates,
+    },
+    {
+        id: "neo-general",
+        name: "Neo General",
+        description: neoGeneralSettings.description,
+        settings: neoGeneralSettings as TemplateGroupSettings,
+        layouts: neoGeneralTemplates,
+    },
+    {
+        id: "neo-standard",
+        name: "Neo Standard",
+        description: neoStandardSettings.description,
+        settings: neoStandardSettings as TemplateGroupSettings,
+        layouts: neoStandardTemplates,
+    },
+    {
+        id: "neo-modern",
+        name: "Neo Modern",
+        description: neoModernSettings.description,
+        settings: neoModernSettings as TemplateGroupSettings,
+        layouts: neoModernTemplates,
+    },
+    {
+        id: "neo-swift",
+        name: "Neo Swift",
+        description: neoSwiftSettings.description,
+        settings: neoSwiftSettings as TemplateGroupSettings,
+        layouts: neoSwiftTemplates,
+    },
+
 
 ];
 
@@ -447,8 +600,8 @@ export function getTemplateByLayoutId(layoutId: string): TemplateWithData | unde
 export function getLayoutByLayoutId(layout: string): TemplateWithData | undefined {
     const templateName = layout.split(':')[0]
 
-
     const template = templates.find((t) => t.id === templateName)
+
     if (template) {
         return template.layouts.find((t) => t.layoutId === layout);
     }

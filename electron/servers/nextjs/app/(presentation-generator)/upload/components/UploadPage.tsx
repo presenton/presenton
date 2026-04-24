@@ -347,7 +347,7 @@ const UploadPage = () => {
   };
 
   return (
-    <Wrapper className="pb-10 lg:max-w-[70%] xl:max-w-[65%]">
+    <Wrapper className="pb-10 lg:max-w-[65%] xl:max-w-[60%]">
       <OverlayLoader
         show={loadingState.isLoading}
         text={loadingState.message}

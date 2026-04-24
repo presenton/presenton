@@ -1,15 +1,14 @@
-import ToolTip from '@/components/ToolTip';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { LLMConfig } from '@/types/llm_config';
+import { getApiUrl } from '@/utils/api';
 import { LLM_PROVIDERS } from '@/utils/providerConstants';
-import { Check, Loader2, Eye, EyeOff, ChevronUp, User, RefreshCw, LogOut } from 'lucide-react';
+import { Check, Loader2, Eye, EyeOff, ChevronUp } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { notify } from '@/components/ui/sonner';
-import { toast } from 'sonner';
+import CodexConfig from './SettingCodex';
 
 
 interface OpenAIConfigProps {
@@ -17,6 +16,13 @@ interface OpenAIConfigProps {
     onInputChange: (value: string | boolean, field: string) => void;
     llmConfig: LLMConfig;
 }
+
+interface ModelOption {
+    value: string;
+    label: string;
+    size?: string;
+}
+
 const TextProvider = ({
 
     onInputChange,
@@ -26,7 +32,7 @@ const TextProvider = ({
 ) => {
     const [openProviderSelect, setOpenProviderSelect] = useState(false);
     const [openModelSelect, setOpenModelSelect] = useState(false);
-    const [availableModels, setAvailableModels] = useState<string[]>([]);
+    const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
     const [modelsLoading, setModelsLoading] = useState(false);
     const [modelsChecked, setModelsChecked] = useState(false);
     const [showApiKey, setShowApiKey] = useState(false);
@@ -46,6 +52,8 @@ const TextProvider = ({
                 return 'OLLAMA_MODEL';
             case 'custom':
                 return 'CUSTOM_MODEL';
+            case 'codex':
+                return 'CODEX_MODEL';
             default:
                 return '';
         }
@@ -119,7 +127,7 @@ const TextProvider = ({
         try {
             let response: Response;
             if (selectedProvider === 'google') {
-                response = await fetch('/api/v1/ppt/google/models/available', {
+                response = await fetch(getApiUrl('/api/v1/ppt/google/models/available'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -129,7 +137,7 @@ const TextProvider = ({
                     }),
                 });
             } else if (selectedProvider === 'anthropic') {
-                response = await fetch('/api/v1/ppt/anthropic/models/available', {
+                response = await fetch(getApiUrl('/api/v1/ppt/anthropic/models/available'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -139,9 +147,9 @@ const TextProvider = ({
                     }),
                 });
             } else if (selectedProvider === 'ollama') {
-                response = await fetch('/api/v1/ppt/ollama/models/supported');
+                response = await fetch(getApiUrl('/api/v1/ppt/ollama/models/supported'));
             } else {
-                response = await fetch('/api/v1/ppt/openai/models/available', {
+                response = await fetch(getApiUrl('/api/v1/ppt/openai/models/available'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -155,19 +163,48 @@ const TextProvider = ({
 
             if (response.ok) {
                 const data = await response.json();
-                const normalizedModels: string[] = selectedProvider === 'ollama'
+                const normalizedModels: ModelOption[] = selectedProvider === 'ollama'
                     ? Array.isArray(data)
-                        ? data.map((model: { value?: string; label?: string }) => model.value || model.label || '').filter(Boolean)
+                        ? data
+                            .map((model) => {
+                                if (typeof model === 'string') {
+                                    return {
+                                        value: model,
+                                        label: model,
+                                    };
+                                }
+
+                                if (model && typeof model === 'object') {
+                                    const typedModel = model as { value?: string; label?: string; size?: string };
+                                    return {
+                                        value: typedModel.value || typedModel.label || '',
+                                        label: typedModel.label || typedModel.value || '',
+                                        size: typedModel.size,
+                                    };
+                                }
+
+                                return {
+                                    value: '',
+                                    label: '',
+                                };
+                            })
+                            .filter((model: ModelOption) => Boolean(model.value))
                         : []
                     : Array.isArray(data)
                         ? data
+                            .filter((model): model is string => typeof model === 'string')
+                            .map((model) => ({
+                                value: model,
+                                label: model,
+                            }))
                         : [];
 
                 setAvailableModels(normalizedModels);
                 setModelsChecked(true);
 
                 if (normalizedModels.length > 0 && currentModelField) {
-                    if (currentModel && normalizedModels.includes(currentModel)) {
+                    const modelValues = normalizedModels.map((model) => model.value);
+                    if (currentModel && modelValues.includes(currentModel)) {
                         onInputChange(currentModel, currentModelField);
                         return;
                     }
@@ -179,16 +216,19 @@ const TextProvider = ({
                                 ? 'models/gemini-2.5-flash'
                                 : selectedProvider === 'anthropic'
                                     ? 'claude-sonnet-4-20250514'
-                                    : normalizedModels[0];
+                                    : modelValues[0];
 
-                    const nextModel = normalizedModels.includes(preferredDefault) ? preferredDefault : normalizedModels[0];
+                    const nextModel = modelValues.includes(preferredDefault) ? preferredDefault : modelValues[0];
                     onInputChange(nextModel, currentModelField);
                 }
             } else {
                 console.error('Failed to fetch models');
                 setAvailableModels([]);
                 setModelsChecked(true);
-                toast.error(`Failed to fetch ${modelLabel} models`);
+                notify.error(
+                    'Could not load models',
+                    `The server could not list ${modelLabel} models. Check your API key or endpoint and try again.`
+                );
             }
         } catch (error) {
             console.error('Error fetching models:', error);
@@ -208,11 +248,12 @@ const TextProvider = ({
             fetchAvailableModels();
         }
     }, [selectedProvider, modelsChecked, modelsLoading]);
+
     return (
         <div className="space-y-6 bg-[#F9F8F8] p-7 rounded-[12px] ">
             {/* API Key Input */}
-            <div className="mb-4 flex items-center justify-between rounded-[12px] bg-white pt-5 pb-10 px-10">
-                <div className=" max-w-[290px] pb-[50px]">
+            <div className="mb-4 flex items-end justify-between rounded-[12px] bg-white pt-5 pb-10 px-10">
+                <div className=" max-w-[290px] ">
                     <div className='w-[60px] h-[60px] rounded-[4px] flex items-center justify-center'
                         style={{ backgroundColor: '#4C55541A' }}
                     >
@@ -227,38 +268,10 @@ const TextProvider = ({
                         Choosing where text content comes from
                     </p>
                 </div>
-                <div>
-                    {selectedProvider === 'codex' && false && <div className='border border-[#EDEEEF] mb-4 rounded-[8px] p-5 flex justify-between items-center'>
-                        <div className='flex items-center gap-2.5'>
-                            <User className='w-4 h-4 text-gray-500' />
-                            <div>
-                                <h4 className='text-[#19001F] text-sm font-medium'>Acc: 123-455-acghk</h4>
-                                <p className='text-xs text-[#B3B3B3]'>Signed in to ChatGPT</p>
-                            </div>
-
-                        </div>
-                        <div className='flex items-center gap-2.5'>
-                            <ToolTip content='Refresh ChatGPT account'>
-
-
-                                <button className='px-3.5 py-2.5 rounded-full bg-[#EDEEEF]'>
-
-                                    <RefreshCw className='w-4 h-4 text-black' />
-                                </button>
-                            </ToolTip>
-                            <ToolTip content='Logout from ChatGPT'>
-                                <button className='px-3.5 py-2.5 rounded-full bg-[#EDEEEF]'>
-
-                                    <LogOut className='w-4 h-4 text-black' />
-                                </button>
-                            </ToolTip>
-                        </div>
-                    </div>}
-
-                    <div className={`flex  gap-4 justify-end ${selectedProvider === 'codex' ? 'items-end' : 'items-start'}`}>
-                        <div className="relative  w-[205px] ">
+                <div className='flex flex-col justify-end items-end gap-4'>
+                    <div className={`flex gap-4 justify-end ${selectedProvider === 'codex' ? 'items-end' : 'items-start'}`}>
+                        <div className={`relative ${selectedProvider === 'codex' ? 'w-[240px]' : 'w-[222px]'}`}>
                             <div className="flex flex-col justify-start ">
-
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Select Text Provider
                                 </label>
@@ -271,7 +284,7 @@ const TextProvider = ({
                                             variant="outline"
                                             role="combobox"
                                             aria-expanded={openProviderSelect}
-                                            className="w-[205px] h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
+                                            className="w-[222px] h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
                                         >
                                             <div className="flex gap-3 items-center">
                                                 <span className="text-sm font-medium text-gray-900">
@@ -287,7 +300,7 @@ const TextProvider = ({
                                     <PopoverContent
                                         className="p-0"
                                         align="start"
-                                        style={{ width: "var(--radix-popover-trigger-width)" }}
+                                        style={{ width: "300px" }}
                                     >
                                         <Command>
                                             <CommandInput placeholder="Search provider..." />
@@ -333,10 +346,8 @@ const TextProvider = ({
                                     </PopoverContent>
                                 </Popover>
                             </div>
-
-
                         </div>
-                        <div className="relative flex flex-col justify-end  items-end w-[205px] ">
+                        <div className={`relative flex flex-col justify-end ${selectedProvider === 'codex' ? 'items-end w-[262px] max-w-full' : 'items-end w-[222px]'}`}>
                             <div className="flex flex-col justify-start w-full ">
                                 {selectedProvider === 'ollama' ? (
                                     <>
@@ -381,9 +392,16 @@ const TextProvider = ({
                                         )}
                                     </>
                                 ) : selectedProvider === 'codex' ?
-                                    <>
-                                        <button className='px-3.5 py-2.5 bg-[#EDEEEF]  mt-auto rounded-[58px] w-full  text-xs font-medium text-[#101323]'>Sign in with ChatGPT</button>
-                                    </>
+                                    <div className='w-full mt-0 rounded-[12px]  '>
+
+                                        <CodexConfig
+                                            codexModel={llmConfig.CODEX_MODEL || ''}
+                                            onInputChange={(value, field) => {
+                                                const normalizedField = field === 'codex_model' ? 'CODEX_MODEL' : field;
+                                                onInputChange(value, normalizedField);
+                                            }}
+                                        />
+                                    </div>
                                     : (
                                         <>
                                             <label className="block text-sm font-medium capitalize text-gray-700 mb-2">
@@ -419,8 +437,6 @@ const TextProvider = ({
 
 
                             </div>
-
-
                             {selectedProvider !== 'ollama' && selectedProvider !== 'codex' && (!modelsChecked || (modelsChecked && availableModels.length === 0)) && (
 
                                 <button
@@ -446,89 +462,97 @@ const TextProvider = ({
                                         "Check models"
                                     )}
                                 </button>
-
                             )}
                         </div>
-
-
-                        {/* Model Selection - only show if models are available */}
-                        {modelsChecked && availableModels.length > 0 ? (
-                            <div className="w-[205px]">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                                        {selectedProvider === 'ollama' ? 'Choose a supported model' : `Select ${modelLabel} Model`}
-                                    </label>
-                                    <div className="w-full">
-                                        <Popover
-                                            open={openModelSelect}
-                                            onOpenChange={setOpenModelSelect}
-                                        >
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    role="combobox"
-                                                    aria-expanded={openModelSelect}
-                                                    className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
-                                                >
-                                                    <span className="text-sm truncate font-medium text-gray-900">
-                                                        {currentModel
-                                                            ? availableModels.find(model => model === currentModel) || currentModel
-                                                            : "Select a model"}
-                                                    </span>
-
-                                                    <ChevronUp className="w-4 h-4 text-gray-500" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent
-                                                className="p-0"
-                                                align="start"
-                                                style={{ width: "var(--radix-popover-trigger-width)" }}
+                    </div>
+                    {/* Model Selection - only show if models are available */}
+                    {selectedProvider !== 'codex' && modelsChecked && availableModels.length > 0 ? (
+                        <div className="w-[222px]">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-3">
+                                    {selectedProvider === 'ollama' ? 'Choose a supported model' : `Select ${modelLabel} Model`}
+                                </label>
+                                <div className="w-full">
+                                    <Popover
+                                        open={openModelSelect}
+                                        onOpenChange={setOpenModelSelect}
+                                    >
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={openModelSelect}
+                                                className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
                                             >
-                                                <Command>
-                                                    <CommandInput placeholder="Search models..." />
-                                                    <CommandList>
-                                                        <CommandEmpty>No model found.</CommandEmpty>
-                                                        <CommandGroup>
-                                                            {availableModels.map((model, index) => (
-                                                                <CommandItem
-                                                                    key={index}
-                                                                    value={model}
-                                                                    onSelect={(value) => {
-                                                                        if (currentModelField) {
-                                                                            onInputChange(value, currentModelField);
-                                                                        }
-                                                                        setOpenModelSelect(false);
-                                                                    }}
-                                                                >
-                                                                    <Check
-                                                                        className={cn(
-                                                                            "mr-2 h-4 w-4",
-                                                                            currentModel === model
-                                                                                ? "opacity-100"
-                                                                                : "opacity-0"
-                                                                        )}
-                                                                    />
-                                                                    <div className="flex gap-3 items-center">
-                                                                        <div className="flex flex-col space-y-1 flex-1">
-                                                                            <div className="flex items-center justify-between gap-2">
-                                                                                <span className="text-sm font-medium text-gray-900">
-                                                                                    {model}
+                                                <span className="text-sm truncate font-medium text-gray-900">
+                                                    {(() => {
+                                                        if (!currentModel) return "Select a model";
+                                                        const selectedModel = availableModels.find((model) => model.value === currentModel);
+                                                        if (!selectedModel) return currentModel;
+                                                        if (selectedProvider === 'ollama' && selectedModel.size) {
+                                                            return `${selectedModel.label} (${selectedModel.size})`;
+                                                        }
+                                                        return selectedModel.label;
+                                                    })()}
+                                                </span>
+
+                                                <ChevronUp className="w-4 h-4 text-gray-500" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                            className="p-0"
+                                            align="start"
+                                            style={{ width: "var(--radix-popover-trigger-width)" }}
+                                        >
+                                            <Command>
+                                                <CommandInput placeholder="Search models..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No model found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {availableModels.map((model) => (
+                                                            <CommandItem
+                                                                key={model.value}
+                                                                value={model.value}
+                                                                onSelect={() => {
+                                                                    if (currentModelField) {
+                                                                        onInputChange(model.value, currentModelField);
+                                                                    }
+                                                                    setOpenModelSelect(false);
+                                                                }}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        currentModel === model.value
+                                                                            ? "opacity-100"
+                                                                            : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                <div className="flex gap-3 items-center">
+                                                                    <div className="flex flex-col space-y-1 flex-1">
+                                                                        <div className="flex items-center justify-between gap-2">
+                                                                            <span className="text-sm font-medium text-gray-900">
+                                                                                {model.label}
+                                                                            </span>
+                                                                            {selectedProvider === 'ollama' && model.size ? (
+                                                                                <span className="text-xs font-medium text-gray-500">
+                                                                                    {model.size}
                                                                                 </span>
-                                                                            </div>
+                                                                            ) : null}
                                                                         </div>
                                                                     </div>
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
+                                                                </div>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                             </div>
-                        ) : null}
-                    </div>
+                        </div>
+                    ) : null}
                 </div>
             </div>
             {/* Show message if no models found */}
@@ -541,8 +565,8 @@ const TextProvider = ({
             )}
 
 
-            {/* Web Grounding Toggle - show at the end, below models dropdown */}
-            <div className="bg-white flex justify-between items-center p-10 rounded-[12px]">
+
+            {/* <div className="bg-white flex justify-between items-center p-10 rounded-[12px]">
                 <div className=' max-w-[290px]'>
 
                     <h4 className="text-xl font-normal text-[#191919]">Advanced</h4>
@@ -551,8 +575,7 @@ const TextProvider = ({
                     </p>
                 </div>
                 <div className="flex items-center gap-4">
-
-                    <div className="w-[205px]">
+                    <div className="w-[222px]">
                         <div className="flex items-center  mb-4 gap-2.5 ">
                             <Switch
                                 checked={!!llmConfig.WEB_GROUNDING}
@@ -562,16 +585,9 @@ const TextProvider = ({
                                 Enable Web Grounding
                             </label>
                         </div>
-
-
                     </div>
-                    {/* <div className="w-[295px]"></div> */}
                 </div>
-
-
-            </div>
-
-
+            </div> */}
         </div>
     )
 }

@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Optional
 import uuid
+
 from sqlalchemy import Column, DateTime
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 from utils.datetime_utils import get_current_utc_datetime
 

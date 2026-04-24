@@ -146,7 +146,7 @@ export function OutlineItem({
 
 
                 <div id={`outline-item-${index}`} className="flex flex-col basis-full gap-2">
-                    <p className="text-black w-fit text-[10px] font-medium  bg-white border border-[#EDEEEF] rounded-[80px] px-2.5">slide {index}</p>
+                    <p className="text-black w-fit text-[10px] font-medium  bg-white border border-[#EDEEEF] rounded-[80px] px-2.5">Slide {index}</p>
                     {/* Editable Markdown Content */}
                     {isStreaming ? (
                         isActiveStreaming ? (

@@ -8,6 +8,30 @@ import {
 import { jsonrepair } from "jsonrepair";
 import { toast } from "sonner";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
+import { getFastAPIUrl, resolveBackendAssetUrl } from "@/utils/api";
+
+const MAX_STREAM_RETRIES = 3;
+const STREAM_RETRY_DELAY_MS = 1_000;
+
+const normalizePresentationAssets = <T,>(input: T): T => {
+  if (Array.isArray(input)) {
+    return input.map((item) => normalizePresentationAssets(item)) as T;
+  }
+
+  if (input && typeof input === "object") {
+    const normalized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+      if (typeof value === "string") {
+        normalized[key] = resolveBackendAssetUrl(value);
+      } else {
+        normalized[key] = normalizePresentationAssets(value);
+      }
+    }
+    return normalized as T;
+  }
+
+  return input;
+};
 
 export const usePresentationStreaming = (
   presentationId: string,
@@ -20,21 +44,81 @@ export const usePresentationStreaming = (
   const previousSlidesLength = useRef(0);
 
   useEffect(() => {
-    let eventSource: EventSource;
+    if (!stream) {
+      fetchUserSlides();
+      return;
+    }
+
+    let eventSource: EventSource | null = null;
     let accumulatedChunks = "";
+    let retryCount = 0;
+    let isClosed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const initializeStream = async () => {
-      dispatch(setStreaming(true));
-      dispatch(clearPresentationData());
+    const closeEventSource = () => {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+    };
 
-      trackEvent(MixpanelEvent.Presentation_Stream_API_Call);
+    const clearRetryTimer = () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+    };
 
+    const finalizeFailure = (description: string) => {
+      closeEventSource();
+      clearRetryTimer();
+      setLoading(false);
+      dispatch(setStreaming(false));
+      setError(true);
+      toast.error("Presentation streaming failed", { description });
+    };
+
+    const scheduleRetry = (reason: string): boolean => {
+      if (retryCount >= MAX_STREAM_RETRIES || isClosed) {
+        return false;
+      }
+
+      retryCount += 1;
+      const retryDelay = STREAM_RETRY_DELAY_MS * retryCount;
+      console.warn(
+        `Presentation stream retry ${retryCount}/${MAX_STREAM_RETRIES}: ${reason}`
+      );
+
+      closeEventSource();
+      clearRetryTimer();
+      accumulatedChunks = "";
+      previousSlidesLength.current = 0;
+
+      retryTimer = setTimeout(() => {
+        if (!isClosed) {
+          openStream();
+        }
+      }, retryDelay);
+
+      return true;
+    };
+
+    const openStream = () => {
+      closeEventSource();
       eventSource = new EventSource(
-        `/api/v1/ppt/presentation/stream/${presentationId}`
+        `${getFastAPIUrl()}/api/v1/ppt/presentation/stream/${presentationId}`
       );
 
       eventSource.addEventListener("response", (event) => {
-        const data = JSON.parse(event.data);
+        let data: any;
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          if (!scheduleRetry("invalid SSE payload")) {
+            finalizeFailure("Failed to parse stream response.");
+          }
+          return;
+        }
 
         switch (data.type) {
           case "chunk":
@@ -42,19 +126,20 @@ export const usePresentationStreaming = (
             try {
               const repairedJson = jsonrepair(accumulatedChunks);
               const partialData = JSON.parse(repairedJson);
+              const normalizedPartialData = normalizePresentationAssets(partialData);
 
-              if (partialData.slides) {
+              if (normalizedPartialData.slides) {
                 if (
-                  partialData.slides.length !== previousSlidesLength.current &&
-                  partialData.slides.length > 0
+                  normalizedPartialData.slides.length !== previousSlidesLength.current &&
+                  normalizedPartialData.slides.length > 0
                 ) {
                   dispatch(
                     setPresentationData({
-                      ...partialData,
-                      slides: partialData.slides,
+                      ...normalizedPartialData,
+                      slides: normalizedPartialData.slides,
                     })
                   );
-                  previousSlidesLength.current = partialData.slides.length;
+                  previousSlidesLength.current = normalizedPartialData.slides.length;
                   setLoading(false);
                 }
               }
@@ -65,27 +150,34 @@ export const usePresentationStreaming = (
 
           case "complete":
             try {
-              dispatch(setPresentationData(data.presentation));
+              dispatch(setPresentationData(normalizePresentationAssets(data.presentation)));
               dispatch(setStreaming(false));
               setLoading(false);
-              eventSource.close();
+              isClosed = true;
+              closeEventSource();
+              clearRetryTimer();
+              retryCount = 0;
 
               // Remove stream parameter from URL
               const newUrl = new URL(window.location.href);
               newUrl.searchParams.delete("stream");
               window.history.replaceState({}, "", newUrl.toString());
             } catch (error) {
-              eventSource.close();
-              console.error("Error parsing accumulated chunks:", error);
+              if (!scheduleRetry("failed to parse complete payload")) {
+                finalizeFailure("Failed to parse final presentation payload.");
+              }
             }
             accumulatedChunks = "";
             break;
 
           case "closing":
-            dispatch(setPresentationData(data.presentation));
+            dispatch(setPresentationData(normalizePresentationAssets(data.presentation)));
             setLoading(false);
             dispatch(setStreaming(false));
-            eventSource.close();
+            isClosed = true;
+            closeEventSource();
+            clearRetryTimer();
+            retryCount = 0;
 
             // Remove stream parameter from URL
             const newUrl = new URL(window.location.href);
@@ -93,38 +185,37 @@ export const usePresentationStreaming = (
             window.history.replaceState({}, "", newUrl.toString());
             break;
           case "error":
-            eventSource.close();
-            toast.error("Error in outline streaming", {
-              description:
+            if (
+              !scheduleRetry(
+                data.detail || "server returned stream error response"
+              )
+            ) {
+              finalizeFailure(
                 data.detail ||
-                "Failed to connect to the server. Please try again.",
-            });
-            setLoading(false);
-            dispatch(setStreaming(false));
-            setError(true);
+                  "Failed to connect to the server. Please try again."
+              );
+            }
             break;
         }
       });
 
       eventSource.onerror = (error) => {
         console.error("EventSource failed:", error);
-        setLoading(false);
-        dispatch(setStreaming(false));
-        setError(true);
-        eventSource.close();
+        if (!scheduleRetry("connection lost")) {
+          finalizeFailure("Failed to connect to the server. Please try again.");
+        }
       };
     };
 
-    if (stream) {
-      initializeStream();
-    } else {
-      fetchUserSlides();
-    }
+    dispatch(setStreaming(true));
+    dispatch(clearPresentationData());
+    trackEvent(MixpanelEvent.Presentation_Stream_API_Call);
+    openStream();
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
+      isClosed = true;
+      closeEventSource();
+      clearRetryTimer();
     };
   }, [presentationId, stream, dispatch, setLoading, setError, fetchUserSlides]);
 };

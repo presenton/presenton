@@ -1,43 +1,55 @@
-FROM python:3.11-slim-bookworm
+# syntax=docker/dockerfile:1.4
+FROM python:3.11-slim-trixie
 
-# Install Node.js and npm
-RUN apt-get update && apt-get install -y \
-  nginx \
-  curl \
-  libreoffice \
-  fontconfig \
-  chromium \
-  zstd
-
-# Install Node.js 20 using NodeSource repository
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-  apt-get install -y nodejs
-
-
-# Change working directory
 WORKDIR /app
 
-RUN ls -a
+# LiteParse (Node + @llamaindex/liteparse) for document extraction; OCR via Tesseract.
+ENV APP_DATA_DIRECTORY=/app_data \
+    TEMP_DIRECTORY=/tmp/presenton \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    UV_SYSTEM_PYTHON=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/root/.local/bin:${PATH}" \
+    EXPORT_PACKAGE_ROOT=/app/presentation-export \
+    EXPORT_RUNTIME_DIR=/app/presentation-export \
+    BUILT_PYTHON_MODULE_PATH=/app/presentation-export/py/convert-linux-x64 \
+    PRESENTON_APP_ROOT=/app
 
-# Set environment variables
-ENV APP_DATA_DIRECTORY=/app_data
-ENV TEMP_DIRECTORY=/tmp/presenton
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl unzip \
+      nginx libreoffice fontconfig chromium imagemagick zstd \
+      tesseract-ocr tesseract-ocr-eng \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install ollama
-# RUN curl -fsSL http://ollama.com/install.sh | sh
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies for FastAPI
-RUN pip install alembic aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
-  pathvalidate pdfplumber chromadb sqlmodel \
-  anthropic google-genai openai fastmcp dirtyjson
-RUN pip install docling --extra-index-url https://download.pytorch.org/whl/cpu
+COPY package.json package-lock.json /app/
+RUN npm --prefix /app install --omit=dev
 
-# Copy nginx configuration
+RUN mkdir -p /app/document-extraction-liteparse \
+    && npm --prefix /app/document-extraction-liteparse init -y \
+    && npm --prefix /app/document-extraction-liteparse install @llamaindex/liteparse@1.4.0 --omit=dev
+COPY electron/resources/document-extraction/liteparse_runner.mjs /app/document-extraction-liteparse/liteparse_runner.mjs
+
+COPY scripts/sync-presentation-export.cjs /app/scripts/sync-presentation-export.cjs
+RUN node /app/scripts/sync-presentation-export.cjs --force \
+    && chmod +x /app/presentation-export/py/convert-linux-x64
+
+# Bind mount `.:/app` hides any .venv under servers/fastapi at runtime — install deps into
+# system site-packages (same interpreter `start.js` uses as `python`).
+COPY servers/fastapi /app/servers/fastapi
+WORKDIR /app/servers/fastapi
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv export --frozen --no-dev --no-emit-project -o /tmp/requirements.txt \
+    && uv pip install --system -r /tmp/requirements.txt \
+    && uv pip install --system --no-deps .
+
+WORKDIR /app
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Expose the port
 EXPOSE 80
-
-# Start the servers
 CMD ["node", "/app/start.js", "--dev"]

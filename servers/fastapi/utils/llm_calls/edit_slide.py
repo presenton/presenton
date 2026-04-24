@@ -1,19 +1,44 @@
+import asyncio
 from datetime import datetime
 from typing import Optional
-from models.llm_message import LLMSystemMessage, LLMUserMessage
+from fastapi import HTTPException
+from llmai import get_client
+from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 from models.presentation_layout import SlideLayoutModel
 from models.sql.slide import SlideModel
-from services.llm_client import LLMClient
+from utils.llm_config import get_llm_config
 from utils.llm_client_error_handler import handle_llm_client_exceptions
+from utils.llm_utils import extract_structured_content, get_generate_kwargs
 from utils.llm_provider import get_model
 from utils.schema_utils import add_field_in_schema, remove_fields_from_schema
+
+
+def _resolve_prompt_language(language: Optional[str]) -> str:
+    if language is None:
+        return "auto-detect"
+    s = str(language).strip()
+    if not s:
+        return "auto-detect"
+    if s.lower() in {"auto", "auto-detect"}:
+        return "auto-detect"
+    return s
 
 
 def get_system_prompt(
     tone: Optional[str] = None,
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
+    memory_context: Optional[str] = None,
 ):
+    memory_block = (
+        "\n    # Retrieved Presentation Memory Context\n"
+        f"    {memory_context}\n"
+        "    - Use this context only if it is relevant to the user prompt.\n"
+        "    - Prefer this context over assumptions when resolving ambiguity.\n"
+        if memory_context
+        else ""
+    )
+
     return f"""
     Edit Slide data and speaker note based on provided prompt, follow mentioned steps and notes and provide structured output.
 
@@ -34,12 +59,14 @@ def get_system_prompt(
     - Make sure to follow language guidelines.
     - Speaker note should be normal text, not markdown.
     - Speaker note should be simple, clear, concise and to the point.
+    {memory_block}
 
     **Go through all notes and steps and make sure they are followed, including mentioned constraints**
     """
 
 
 def get_user_prompt(prompt: str, slide_data: dict, language: str):
+    display_language = _resolve_prompt_language(language)
     return f"""
         ## Icon Query And Image Prompt Language
         English
@@ -48,7 +75,7 @@ def get_user_prompt(prompt: str, slide_data: dict, language: str):
         {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         ## Slide Content Language
-        {language}
+        {display_language}
 
         ## Prompt
         {prompt}
@@ -61,16 +88,17 @@ def get_user_prompt(prompt: str, slide_data: dict, language: str):
 def get_messages(
     prompt: str,
     slide_data: dict,
-    language: str,
+    language: Optional[str],
     tone: Optional[str] = None,
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
-):
+    memory_context: Optional[str] = None,
+) -> list[Message]:
     return [
-        LLMSystemMessage(
-            content=get_system_prompt(tone, verbosity, instructions),
+        SystemMessage(
+            content=get_system_prompt(tone, verbosity, instructions, memory_context),
         ),
-        LLMUserMessage(
+        UserMessage(
             content=get_user_prompt(prompt, slide_data, language),
         ),
     ]
@@ -79,11 +107,12 @@ def get_messages(
 async def get_edited_slide_content(
     prompt: str,
     slide: SlideModel,
-    language: str,
+    language: Optional[str],
     slide_layout: SlideLayoutModel,
     tone: Optional[str] = None,
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
+    memory_context: Optional[str] = None,
 ):
     model = get_model()
 
@@ -103,17 +132,40 @@ async def get_edited_slide_content(
         True,
     )
 
-    client = LLMClient()
+    client = get_client(config=get_llm_config())
     try:
-        response = await client.generate_structured(
-            model=model,
-            messages=get_messages(
-                prompt, slide.content, language, tone, verbosity, instructions
-            ),
-            response_format=response_schema,
+        response_format = JSONSchemaResponse(
+            name="response",
+            json_schema=response_schema,
             strict=False,
         )
-        return response
+        messages = get_messages(
+            prompt,
+            slide.content,
+            language,
+            tone,
+            verbosity,
+            instructions,
+            memory_context,
+        )
+
+        for attempt in range(3):
+            response = await asyncio.to_thread(
+                client.generate,
+                **get_generate_kwargs(
+                    model=model,
+                    messages=messages,
+                    response_format=response_format,
+                ),
+            )
+            content = extract_structured_content(response.content)
+            if content is not None:
+                return content
+
+            if attempt < 2:
+                await asyncio.sleep(0.5 * (attempt + 1))
+
+        raise HTTPException(status_code=400, detail="LLM did not return any content")
 
     except Exception as e:
         raise handle_llm_client_exceptions(e)

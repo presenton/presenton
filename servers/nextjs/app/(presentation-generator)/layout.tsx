@@ -1,13 +1,13 @@
-import React from 'react'
-import { ConfigurationInitializer } from '../ConfigurationInitializer'
-const layout = ({ children }: { children: React.ReactNode }) => {
+import React from "react";
+
+import { requireAppSession } from "@/utils/serverAuth";
+import { ConfigurationInitializer } from "../ConfigurationInitializer";
+
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  await requireAppSession();
   return (
     <div>
-      <ConfigurationInitializer>
-        {children}
-      </ConfigurationInitializer>
+      <ConfigurationInitializer>{children}</ConfigurationInitializer>
     </div>
-  )
+  );
 }
-
-export default layout
