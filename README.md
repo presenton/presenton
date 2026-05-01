@@ -560,3 +560,68 @@ Prepend your server’s root URL to <code>path</code> and
 ### 🚀 Roadmap
 
 Track the public roadmap on GitHub Projects: [https://github.com/orgs/presenton/projects/2](https://github.com/orgs/presenton/projects/2)
+
+#
+
+### ❓ FAQ
+
+#### General
+
+**What is Presenton?**
+Presenton is an open-source AI presentation generator that helps you create professional presentations using AI. It supports self-hosted deployment via Docker or desktop apps (Mac, Windows, Linux), and works with multiple LLM providers including OpenAI, Gemini, Vertex AI, Azure OpenAI, Anthropic, and Ollama.
+
+**How is Presenton different from Gamma or Beautiful AI?**
+Presenton is fully open-source (Apache 2.0), supports self-hosting for complete data privacy, and lets you bring your own API keys (BYOK) — no forced subscriptions or SaaS lock-in.
+
+**Is Presenton free to use?**
+Yes, Presenton is open-source under Apache 2.0. You only pay for your own LLM API usage when using AI features.
+
+#### Setup & Configuration
+
+**What are the system requirements?**
+- **Desktop App**: macOS (Apple Silicon/Intel), Windows (x64), or Linux (x64)
+- **Docker**: Docker and Docker Compose installed
+- **API**: Python environment with FastAPI dependencies
+
+**Which LLM providers are supported?**
+OpenAI, Google Gemini, Vertex AI, Azure OpenAI, Anthropic Claude, Ollama, and any compatible OpenAI-format provider.
+
+**How do I configure my API keys?**
+Use the Bring Your Own Key (BYOK) feature — enter your API keys in the settings. Presenton never stores or shares your keys; they remain local to your instance.
+
+#### Usage
+
+**Can I create presentations from existing files?**
+Yes, Presenton supports AI template generation from existing PowerPoint documents, and you can build presentations from prompts or uploaded documents.
+
+**What export formats are supported?**
+PowerPoint (PPTX) and PDF with professional formatting.
+
+**What is the Built-In MCP Server?**
+Presenton includes a Model Context Protocol (MCP) server that lets you generate presentations programmatically over MCP, enabling integration with AI agents and automation workflows.
+
+**Can I use custom templates?**
+Yes, create unlimited presentation designs with HTML and Tailwind CSS, or use the AI template generation feature to create templates from existing Powerpoint documents.
+
+#### Troubleshooting
+
+**Presentation generation fails**
+- Verify your API key is valid and has sufficient quota
+- Check your internet connection
+- Ensure the selected model supports the features you are using (e.g., function calling for graph generation)
+
+**Desktop app won't start**
+- Ensure your OS version meets the minimum requirements
+- Check that no firewall is blocking the application
+- Try reinstalling the latest version from presenton.ai/download
+
+**Docker deployment issues**
+- Verify Docker and Docker Compose are installed and running
+- Check the logs: `docker compose logs`
+- Ensure ports are not conflicting with other services
+
+**AI generation returns poor results**
+- Try a more capable model (e.g., gpt-4o instead of gpt-3.5-turbo)
+- Provide more detailed prompts with specific requirements
+- Use the custom template feature for better control over output
+
