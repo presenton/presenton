@@ -70,6 +70,45 @@ def resolve_image_path_to_filesystem(path_or_url: str) -> Optional[str]:
     return resolve_app_path_to_filesystem(path_or_url)
 
 
+def app_data_path_to_url(path: str) -> Optional[str]:
+    """
+    Convert an absolute filesystem path that lies under the app_data directory
+    into a browser-loadable URL served by the ``/app_data`` StaticFiles mount
+    (see ``api/main.py``).
+
+    Inputs that are already URLs (``http://``/``https://``) or already web
+    paths (``/app_data/...``, ``/static/...``) are passed through unchanged so
+    this helper is safe to apply to any image/asset URL the pipeline produces.
+
+    Returns ``None`` only for empty inputs.
+
+    The reverse direction is :func:`resolve_app_path_to_filesystem`.
+    """
+    if not path:
+        return None
+    # Already a URL or web path — pass through unchanged.
+    if path.startswith(("http://", "https://", "/app_data/", "/static/")):
+        return path
+
+    app_data = get_app_data_directory_env()
+    if not app_data:
+        return path
+
+    try:
+        norm_path = os.path.normpath(path)
+        norm_app_data = os.path.normpath(app_data)
+        common = os.path.commonpath([norm_path, norm_app_data])
+    except ValueError:
+        # commonpath raises on Windows when paths are on different drives.
+        return path
+
+    if common != norm_app_data:
+        return path
+
+    relative = os.path.relpath(norm_path, norm_app_data).replace(os.sep, "/")
+    return f"/app_data/{relative}"
+
+
 def get_images_directory():
     images_directory = os.path.join(get_app_data_directory_env(), "images")
     os.makedirs(images_directory, exist_ok=True)

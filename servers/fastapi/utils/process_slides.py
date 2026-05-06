@@ -5,6 +5,7 @@ from models.sql.image_asset import ImageAsset
 from models.sql.slide import SlideModel
 from services.icon_finder_service import ICON_FINDER_SERVICE
 from services.image_generation_service import ImageGenerationService
+from utils.asset_directory_utils import app_data_path_to_url
 from utils.dict_utils import get_dict_at_path, get_dict_paths_with_key, set_dict_at_path
 
 
@@ -56,7 +57,15 @@ async def process_slide_and_fetch_assets(
             image_dict = get_dict_at_path(slide.content, asset_path)
             if isinstance(result, ImageAsset):
                 return_assets.append(result)
-                image_dict["__image_url__"] = result.path
+                # Locally-generated images (DALL-E, GPT-Image, Gemini Flash,
+                # ComfyUI, ...) come back as absolute filesystem paths. Convert
+                # them to web URLs served by the /app_data StaticFiles mount so
+                # the browser (editor preview + Puppeteer PDF/PPTX export) can
+                # actually load them. Stock providers (Pexels/Pixabay) already
+                # return http URLs and are handled by the else branch.
+                image_dict["__image_url__"] = (
+                    app_data_path_to_url(result.path) or result.path
+                )
             else:
                 image_dict["__image_url__"] = result
             set_dict_at_path(slide.content, asset_path, image_dict)
@@ -169,7 +178,12 @@ async def process_old_and_new_slides_and_fetch_assets(
             fetched_image = new_images[i]
             if isinstance(fetched_image, ImageAsset):
                 new_assets.append(fetched_image)
-                image_url = fetched_image.path
+                # See note in process_slide_and_fetch_assets: convert the
+                # absolute filesystem path returned by local image providers
+                # to a /app_data/... URL so the browser can render it.
+                image_url = (
+                    app_data_path_to_url(fetched_image.path) or fetched_image.path
+                )
             else:
                 image_url = fetched_image
             new_image_dicts[i]["__image_url__"] = image_url

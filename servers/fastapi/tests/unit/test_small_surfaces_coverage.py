@@ -29,6 +29,7 @@ from services.export_task_service import EXPORT_TASK_SERVICE
 from templates import get_layout_by_name as tpl_layout_fetcher
 from templates.presentation_layout import PresentationLayoutModel, SlideLayoutModel
 from utils import ocr_language
+from utils.asset_directory_utils import app_data_path_to_url
 from utils.datetime_utils import get_current_utc_datetime
 from utils.export_utils import export_presentation
 from utils.file_utils import (
@@ -276,6 +277,46 @@ def test_get_writable_path_app_data_fallback(monkeypatch, tmp_path):
     monkeypatch.delenv("APP_DATA_DIRECTORY", raising=False)
     cwd_path = get_writable_path("other/dir")
     assert cwd_path.startswith(os.path.abspath(str(tmp_path)))
+
+
+def test_app_data_path_to_url_converts_absolute_path(monkeypatch, tmp_path):
+    """Locally-generated images live under app_data and must be served via the
+    /app_data StaticFiles mount; an absolute filesystem path in <img src>
+    cannot be loaded by the browser."""
+    base = tmp_path / "appdata"
+    base.mkdir()
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(base))
+
+    abs_path = str(base / "presentations" / "abc" / "image.png")
+    assert app_data_path_to_url(abs_path) == "/app_data/presentations/abc/image.png"
+
+
+def test_app_data_path_to_url_passes_through_urls_and_web_paths(monkeypatch, tmp_path):
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(tmp_path))
+
+    # Stock providers (Pexels, Pixabay) and Open WebUI return http(s) URLs.
+    assert app_data_path_to_url("https://example.com/x.jpg") == "https://example.com/x.jpg"
+    # Already-served web paths must remain untouched.
+    assert app_data_path_to_url("/app_data/foo.png") == "/app_data/foo.png"
+    assert app_data_path_to_url("/static/icons/placeholder.svg") == "/static/icons/placeholder.svg"
+
+
+def test_app_data_path_to_url_returns_input_when_outside_app_data(monkeypatch, tmp_path):
+    base = tmp_path / "appdata"
+    base.mkdir()
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(base))
+
+    outside = str(other / "image.png")
+    # Paths outside app_data are passed through unchanged so callers can
+    # decide how to handle them (current behaviour: keep as-is).
+    assert app_data_path_to_url(outside) == outside
+
+
+def test_app_data_path_to_url_handles_empty_input():
+    assert app_data_path_to_url("") is None
+    assert app_data_path_to_url(None) is None  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
