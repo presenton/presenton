@@ -7,6 +7,7 @@ from pathvalidate import sanitize_filename
 
 from models.presentation_and_path import PresentationAndPath
 from services.export_task_service import EXPORT_TASK_SERVICE
+from utils.get_env import get_fastapi_internal_url
 
 
 def _get_next_public_url() -> str:
@@ -14,19 +15,26 @@ def _get_next_public_url() -> str:
 
 
 def _get_next_public_fastapi_url() -> str | None:
+    """Browser-facing FastAPI origin (Electron). Returns None in Docker/reverse-proxy
+    setups where the browser should use same-origin via nginx."""
     value = (os.getenv("NEXT_PUBLIC_FAST_API") or "").strip()
     return value or None
 
 
 def _build_presentation_export_url(presentation_id: uuid.UUID) -> tuple[str, str | None]:
     params = {"id": str(presentation_id)}
+    # Only add fastapiUrl for Electron (where NEXT_PUBLIC_FAST_API is set for browser use).
+    # In Docker, the PDF-maker page should use same-origin via nginx reverse proxy.
     fastapi_url = _get_next_public_fastapi_url()
     if fastapi_url:
         params["fastapiUrl"] = fastapi_url
 
+    # Internal URL for the export task service (loopback inside container).
+    internal_url = get_fastapi_internal_url()
+
     return (
         f"{_get_next_public_url().rstrip('/')}/pdf-maker?{urlencode(params)}",
-        fastapi_url,
+        internal_url,
     )
 
 

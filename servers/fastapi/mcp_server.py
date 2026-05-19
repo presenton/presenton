@@ -7,7 +7,9 @@ import httpx
 from fastmcp import FastMCP
 import json
 
-with open("openai_spec.json", "r") as f:
+from utils.get_env import get_fastapi_internal_url
+
+with open("openapi_spec.json", "r") as f:
     openapi_spec = json.load(f)
 
 
@@ -30,8 +32,11 @@ async def main():
         args = parser.parse_args()
         print(f"DEBUG: Parsed args - port={args.port}")
 
+        # Use the internal URL (loopback inside container) for service-to-service calls.
+        internal_url = get_fastapi_internal_url() or "http://127.0.0.1:8000"
+
         # Create an HTTP client that the MCP server will use to call the API
-        api_client = httpx.AsyncClient(base_url="http://127.0.0.1:8000", timeout=60.0)
+        api_client = httpx.AsyncClient(base_url=internal_url, timeout=60.0)
 
         # Build MCP server from OpenAPI
         print("DEBUG: Creating FastMCP server from OpenAPI spec...")

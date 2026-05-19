@@ -30,6 +30,20 @@ def get_fastapi_public_base_url() -> str | None:
     return v or None
 
 
+def get_fastapi_internal_url() -> str | None:
+    """
+    Internal origin where FastAPI is reachable (loopback inside the container).
+    Used for service-to-service calls (export runtime, MCP server, etc.).
+    Falls back to NEXT_PUBLIC_FAST_API for backwards compatibility (Electron).
+    """
+    v = (os.getenv("FAST_API_INTERNAL_URL") or "").strip().rstrip("/")
+    if v:
+        return v
+    # Fallback for Electron where NEXT_PUBLIC_FAST_API is set by the app
+    fallback = (os.getenv("NEXT_PUBLIC_FAST_API") or "").strip().rstrip("/")
+    return fallback or None
+
+
 def get_temp_directory_env():
     return os.getenv("TEMP_DIRECTORY")
 

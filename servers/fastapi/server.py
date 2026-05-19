@@ -15,8 +15,11 @@ if __name__ == "__main__":
     reload = args.reload == "true"
     host = "127.0.0.1"
 
-    # Bind asset/base URL generation to the active runtime port (same env name as Next/Electron).
-    os.environ["NEXT_PUBLIC_FAST_API"] = f"http://{host}:{args.port}"
+    # Internal service-to-service URL (loopback inside container; not browser-facing).
+    # NEXT_PUBLIC_FAST_API is intentionally NOT set here so that Docker/reverse-proxy
+    # deployments return path-only asset URLs (/app_data/...) instead of absolute
+    # http://127.0.0.1:8000/... URLs that browsers cannot reach.
+    os.environ["FAST_API_INTERNAL_URL"] = f"http://{host}:{args.port}"
     
     uvicorn.run(
         "api.main:app",

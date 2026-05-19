@@ -12,7 +12,7 @@ from pydantic import BaseModel, ValidationError
 
 from services.liteparse_service import _snippet, _subprocess_text_kwargs
 from utils.asset_directory_utils import resolve_app_path_to_filesystem
-from utils.get_env import get_app_data_directory_env, get_temp_directory_env
+from utils.get_env import get_app_data_directory_env, get_fastapi_internal_url, get_temp_directory_env
 
 LOGGER = logging.getLogger(__name__)
 
@@ -134,11 +134,11 @@ class ExportTaskService:
         os.makedirs(temp_directory, exist_ok=True)
         env["TEMP_DIRECTORY"] = temp_directory
 
-        fastapi_base = (os.getenv("NEXT_PUBLIC_FAST_API") or "").strip()
+        fastapi_base = get_fastapi_internal_url()
         if not fastapi_base:
             raise HTTPException(
                 status_code=500,
-                detail="NEXT_PUBLIC_FAST_API must be set for PPTX-to-HTML export",
+                detail="FAST_API_INTERNAL_URL must be set for PPTX-to-HTML export",
             )
         env["ASSETS_BASE_URL"] = f"{fastapi_base.rstrip('/')}/app_data"
         env["BUILT_PYTHON_MODULE_PATH"] = self.converter_path
