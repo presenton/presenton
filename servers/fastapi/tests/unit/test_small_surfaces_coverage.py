@@ -616,3 +616,30 @@ def test_is_image_generation_disabled_falsey(monkeypatch, raw: str | None):
     else:
         monkeypatch.setenv("DISABLE_IMAGE_GENERATION", raw)
     assert is_image_generation_disabled() is False
+
+def test_export_docker_uses_internal_url():
+    """In Docker, FAST_API_INTERNAL_URL is set but NEXT_PUBLIC_FAST_API is not.
+    The export service should use the internal URL for service-to-service calls,
+    while the browser URL should NOT include fastapiUrl (same-origin via nginx)."""
+    async def runner():
+        fake_result = MagicMock(path="/exports/deck.pdf")
+        dummy = uuid.uuid4()
+        mock_export = AsyncMock(return_value=fake_result)
+        with patch.dict(
+            os.environ,
+            {
+                "NEXT_PUBLIC_URL": "https://next.example",
+                "FAST_API_INTERNAL_URL": "http://127.0.0.1:8000",
+                "NEXT_PUBLIC_FAST_API": "",  # Not set in Docker
+            },
+            clear=False,
+        ), patch.object(EXPORT_TASK_SERVICE, "export_from_url", mock_export):
+            await export_presentation(dummy, title="docker", export_as="pdf")
+
+        call_kwargs = mock_export.await_args.kwargs
+        # URL should NOT contain fastapiUrl param (browser uses same-origin)
+        assert "fastapiUrl" not in call_kwargs["url"]
+        # But the internal URL should be passed for service-to-service calls
+        assert call_kwargs["fastapi_url"] == "http://127.0.0.1:8000"
+
+    asyncio.run(runner())
