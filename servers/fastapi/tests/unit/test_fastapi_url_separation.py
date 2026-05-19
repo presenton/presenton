@@ -93,6 +93,17 @@ class TestDockerImageUrls:
         assert get_fastapi_public_base_url() is None
         assert absolute_fastapi_asset_url("/app_data/images/test.png") == "/app_data/images/test.png"
 
+    def test_misconfigured_docker_public_loopback_still_returns_absolute_url(self, monkeypatch):
+        """Regression coverage for Unraid-style env misconfiguration.
+
+        If NEXT_PUBLIC_FAST_API is explicitly set to loopback in Docker,
+        browser-facing image URLs remain absolute to 127.0.0.1 and are unreachable
+        from remote clients.
+        """
+        monkeypatch.setenv("NEXT_PUBLIC_FAST_API", "http://127.0.0.1:8000")
+        result = absolute_fastapi_asset_url("/app_data/images/test.png")
+        assert result == "http://127.0.0.1:8000/app_data/images/test.png"
+
     def test_http_urls_passed_through(self, monkeypatch):
         """Absolute HTTP URLs should be passed through unchanged."""
         monkeypatch.delenv("NEXT_PUBLIC_FAST_API", raising=False)
