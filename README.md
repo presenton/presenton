@@ -617,3 +617,22 @@ Prepend your server’s root URL to <code>path</code> and
 ### 🚀 Roadmap
 
 Track the public roadmap on GitHub Projects: [https://github.com/orgs/presenton/projects/2](https://github.com/orgs/presenton/projects/2)
+---
+
+##  Troubleshooting
+
+### Manual Chromium Download
+If Chromium fails to download automatically during setup, 
+you can download it manually from the links below:
+
+- **Windows**: https://chromium.woolyss.com/
+- **Linux**: `sudo apt-get install chromium-browser`
+- **macOS**: `brew install chromium`
+
+After downloading, set the executable path in your environment variables:
+
+```bash
+CHROMIUM_PATH=/path/to/your/chromium
+```
+
+> Related issue: #459
