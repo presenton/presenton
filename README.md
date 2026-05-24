@@ -15,6 +15,11 @@
   <a href="https://presenton.ai/"><img src="https://img.shields.io/badge/Platform-Docker%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat" alt="Platform" /></a>
 </p>
 
+<p align="center">
+  <strong>English</strong> ·
+  <a href="./README.zh-CN.md">简体中文</a>
+</p>
+
 # Open-Source AI Presentation Generator and API (Gamma, Beautiful AI, Decktopus Alternative)
 
 
