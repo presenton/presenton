@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 import pdfplumber
+from docx import Document
 from fastapi import HTTPException
 
 from constants.documents import (
@@ -15,6 +16,7 @@ from constants.documents import (
     OFFICE_EXTENSIONS,
     PDF_EXTENSIONS,
     TEXT_EXTENSIONS,
+    WORD_EXTENSIONS,
 )
 from services.document_conversion_service import (
     DocumentConversionError,
@@ -138,6 +140,44 @@ def _clean_extracted_one_pass(t: str) -> str:
     return t
 
 
+def _iter_docx_table_rows(table) -> list[str]:
+    rows: list[str] = []
+    for row in table.rows:
+        cells = [cell.text.strip() for cell in row.cells]
+        cells = [cell for cell in cells if cell]
+        if cells:
+            rows.append(" | ".join(cells))
+    return rows
+
+
+def docx_to_markdown(file_path: str) -> str:
+    """Extract DOCX text directly to preserve CJK text and document structure."""
+    document = Document(file_path)
+    blocks: list[str] = []
+
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+        if not text:
+            continue
+
+        style_name = (paragraph.style.name if paragraph.style else "").lower()
+        if style_name.startswith("heading"):
+            level = "".join(ch for ch in style_name if ch.isdigit())
+            heading_level = min(max(int(level or "1"), 1), 6)
+            blocks.append(f"{'#' * heading_level} {text}")
+        elif "list" in style_name:
+            blocks.append(f"- {text}")
+        else:
+            blocks.append(text)
+
+    for table in document.tables:
+        rows = _iter_docx_table_rows(table)
+        if rows:
+            blocks.extend(rows)
+
+    return "\n\n".join(blocks)
+
+
 def clean_extracted_document_text(text: str) -> str:
     """
     Return only the document body: strip LiteParse JSON wrappers, then drop any
@@ -217,6 +257,8 @@ class DocumentsLoader:
                 )
             elif extension in TEXT_EXTENSIONS:
                 document = await self.load_text(file_path)
+            elif extension == ".docx":
+                document = await asyncio.to_thread(self.load_docx_document, file_path)
             elif extension in OFFICE_EXTENSIONS:
                 document = await asyncio.to_thread(
                     self.load_office_document,
@@ -265,6 +307,9 @@ class DocumentsLoader:
     async def load_text(self, file_path: str) -> str:
         with open(file_path, "r", encoding="utf-8") as file:
             return await asyncio.to_thread(file.read)
+
+    def load_docx_document(self, file_path: str) -> str:
+        return docx_to_markdown(file_path)
 
     def load_office_document(self, file_path: str, temp_dir: Optional[str] = None) -> str:
         if temp_dir:

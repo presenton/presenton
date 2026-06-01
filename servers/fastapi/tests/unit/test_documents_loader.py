@@ -61,3 +61,28 @@ def test_load_pdf_requires_temp_dir_when_images_are_requested():
 
     assert exc.value.status_code == 400
     assert "temp_dir is required" in exc.value.detail
+
+
+def test_docx_to_markdown_preserves_chinese_text_and_structure(tmp_path):
+    from docx import Document
+    from services.documents_loader import docx_to_markdown
+
+    path = tmp_path / "中文方案.docx"
+    document = Document()
+    document.add_heading("人工智能项目方案", level=1)
+    document.add_paragraph("这是第一段中文正文，包含关键背景和目标。")
+    document.add_paragraph("第一项行动", style="List Bullet")
+    table = document.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "阶段"
+    table.cell(0, 1).text = "说明"
+    table.cell(1, 0).text = "启动"
+    table.cell(1, 1).text = "完成需求确认"
+    document.save(path)
+
+    markdown = docx_to_markdown(str(path))
+
+    assert "# 人工智能项目方案" in markdown
+    assert "这是第一段中文正文，包含关键背景和目标。" in markdown
+    assert "- 第一项行动" in markdown
+    assert "阶段 | 说明" in markdown
+    assert "启动 | 完成需求确认" in markdown
