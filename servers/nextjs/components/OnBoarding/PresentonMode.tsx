@@ -79,6 +79,8 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                 return 'BEDROCK_MODEL';
             case 'openrouter':
                 return 'OPENROUTER_MODEL';
+            case 'rodiumai':
+                return 'RODIUMAI_MODEL';
             case 'fireworks':
                 return 'FIREWORKS_MODEL';
             case 'together':
@@ -113,6 +115,8 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                 return 'BEDROCK_API_KEY';
             case 'openrouter':
                 return 'OPENROUTER_API_KEY';
+            case 'rodiumai':
+                return 'RODIUMAI_API_KEY';
             case 'fireworks':
                 return 'FIREWORKS_API_KEY';
             case 'together':
@@ -145,6 +149,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
     const currentLmStudioUrl = (llmConfig.LMSTUDIO_BASE_URL || '').trim();
     const currentFireworksUrl = (llmConfig.FIREWORKS_BASE_URL || '').trim();
     const currentTogetherUrl = (llmConfig.TOGETHER_BASE_URL || '').trim();
+    const currentRodiumaiUrl = (llmConfig.RODIUMAI_BASE_URL || '').trim();
     const currentOllamaUrl = llmConfig.OLLAMA_URL || '';
     const useCustomOllamaUrl = !!llmConfig.USE_CUSTOM_URL;
     const providerApiKeyLabel =
@@ -158,6 +163,8 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                         ? 'Bedrock API Key (optional)'
                     : llmConfig.LLM === 'openrouter'
                         ? 'OpenRouter API Key'
+                        : llmConfig.LLM === 'rodiumai'
+                            ? 'RodiumAi API Key'
                         : llmConfig.LLM === 'fireworks'
                             ? 'Fireworks API Key'
                             : llmConfig.LLM === 'together'
@@ -184,6 +191,8 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                 return config.BEDROCK_MODEL || '';
             case 'openrouter':
                 return config.OPENROUTER_MODEL || '';
+            case 'rodiumai':
+                return config.RODIUMAI_MODEL || '';
             case 'fireworks':
                 return config.FIREWORKS_MODEL || '';
             case 'together':
@@ -220,6 +229,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
         if (llmConfig.LLM === 'google' && !currentApiKey) return;
         if (llmConfig.LLM === 'anthropic' && !currentApiKey) return;
         if (llmConfig.LLM === 'openrouter' && !currentApiKey) return;
+        if (llmConfig.LLM === 'rodiumai' && !currentApiKey) return;
         if (llmConfig.LLM === 'fireworks' && !currentApiKey) return;
         if (llmConfig.LLM === 'together' && !currentApiKey) return;
         if (llmConfig.LLM === 'cerebras' && !currentApiKey) return;
@@ -262,6 +272,8 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                 ? currentFireworksUrl || LLM_PROVIDERS[llmConfig.LLM!]?.url || ''
                                 : llmConfig.LLM === 'together'
                                     ? currentTogetherUrl || LLM_PROVIDERS[llmConfig.LLM!]?.url || ''
+                                : llmConfig.LLM === 'rodiumai'
+                                    ? currentRodiumaiUrl || LLM_PROVIDERS[llmConfig.LLM!]?.url || ''
                             : LLM_PROVIDERS[llmConfig.LLM!]?.url || '';
                 response = await fetch(getApiUrl('/api/v1/ppt/openai/models/available'), {
                     method: 'POST',
@@ -306,6 +318,8 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                     ? 'claude-sonnet-4-20250514'
                                     : llmConfig.LLM === 'openrouter'
                                         ? 'openai/gpt-4o'
+                                        : llmConfig.LLM === 'rodiumai'
+                                            ? 'openai/gpt-4o-mini'
                                         : llmConfig.LLM === 'fireworks'
                                             ? 'accounts/fireworks/models/llama-v3p1-8b-instruct'
                                             : llmConfig.LLM === 'together'
@@ -848,6 +862,23 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                     />
                                 </>
                             )}
+                            {llmConfig.LLM === 'rodiumai' && (
+                                <>
+                                    <label className="mt-3 block text-sm font-medium text-gray-700 mb-2">
+                                        RodiumAi base URL (optional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={llmConfig.RODIUMAI_BASE_URL || ''}
+                                        onChange={(e) => setLlmConfig(prev => ({
+                                            ...prev,
+                                            RODIUMAI_BASE_URL: e.target.value
+                                        }))}
+                                        className="w-full px-2 py-3 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                        placeholder="https://api.rodiumai.io/v1"
+                                    />
+                                </>
+                            )}
                             {(llmConfig.LLM === 'vertex' || llmConfig.LLM === 'azure') && (
                                 <VertexAzureManualFields
                                     key={llmConfig.LLM}
@@ -871,6 +902,7 @@ const PresentonMode = ({ currentStep, setStep }: { currentStep: number, setStep:
                                     (llmConfig.LLM === 'google' && !currentApiKey) ||
                                     (llmConfig.LLM === 'anthropic' && !currentApiKey) ||
                                     (llmConfig.LLM === 'openrouter' && !currentApiKey) ||
+                                    (llmConfig.LLM === 'rodiumai' && !currentApiKey) ||
                                     (llmConfig.LLM === 'fireworks' && !currentApiKey) ||
                                     (llmConfig.LLM === 'together' && !currentApiKey) ||
                                     (llmConfig.LLM === 'cerebras' && !currentApiKey) ||

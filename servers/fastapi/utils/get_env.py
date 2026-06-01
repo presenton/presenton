@@ -166,6 +166,18 @@ def get_openrouter_base_url_env():
     return os.getenv("OPENROUTER_BASE_URL")
 
 
+def get_rodiumai_api_key_env():
+    return os.getenv("RODIUMAI_API_KEY")
+
+
+def get_rodiumai_model_env():
+    return os.getenv("RODIUMAI_MODEL")
+
+
+def get_rodiumai_base_url_env():
+    return os.getenv("RODIUMAI_BASE_URL")
+
+
 def get_fireworks_api_key_env():
     return os.getenv("FIREWORKS_API_KEY")
 

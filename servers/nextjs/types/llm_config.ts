@@ -71,6 +71,11 @@ export interface LLMConfig {
   OLLAMA_URL?: string;
   OLLAMA_MODEL?: string;
 
+  // RodiumAi (OpenAI-compatible gateway)
+  RODIUMAI_API_KEY?: string;
+  RODIUMAI_MODEL?: string;
+  RODIUMAI_BASE_URL?: string;
+
   // Custom LLM
   CUSTOM_LLM_URL?: string;
   CUSTOM_LLM_API_KEY?: string;

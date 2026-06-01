@@ -121,6 +121,18 @@ def set_openrouter_base_url_env(value):
     os.environ["OPENROUTER_BASE_URL"] = value
 
 
+def set_rodiumai_api_key_env(value):
+    os.environ["RODIUMAI_API_KEY"] = value
+
+
+def set_rodiumai_model_env(value):
+    os.environ["RODIUMAI_MODEL"] = value
+
+
+def set_rodiumai_base_url_env(value):
+    os.environ["RODIUMAI_BASE_URL"] = value
+
+
 def set_fireworks_api_key_env(value):
     os.environ["FIREWORKS_API_KEY"] = value
 

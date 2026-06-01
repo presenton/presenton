@@ -56,6 +56,8 @@ from utils.get_env import (
     get_openai_api_key_env,
     get_openrouter_api_key_env,
     get_openrouter_base_url_env,
+    get_rodiumai_api_key_env,
+    get_rodiumai_base_url_env,
     get_together_api_key_env,
     get_together_base_url_env,
     get_vertex_api_key_env,
@@ -64,6 +66,7 @@ from utils.get_env import (
     get_vertex_project_env,
     get_web_grounding_env,
 )
+from constants.llm import RODIUMAI_URL
 from utils.available_models import normalize_openai_compatible_base_url
 from utils.llm_provider import get_llm_provider
 from utils.parsers import parse_bool_or_none
@@ -329,6 +332,17 @@ def get_llm_config() -> ClientConfig:
                 base_url=base_url,
                 api_key=get_custom_llm_api_key_env() or "null",
             )
+        case LLMProvider.RODIUMAI:
+            api_key = (get_rodiumai_api_key_env() or "").strip()
+            if not api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="RodiumAi API key is not set",
+                )
+            base_url = normalize_openai_compatible_base_url(
+                (get_rodiumai_base_url_env() or RODIUMAI_URL).strip()
+            )
+            return OpenAIClientConfig(base_url=base_url, api_key=api_key)
         case LLMProvider.CODEX:
             return ChatGPTClientConfig(
                 access_token=_get_codex_access_token(),
@@ -340,7 +354,7 @@ def get_llm_config() -> ClientConfig:
                 detail=(
                     "LLM Provider must be either openai, google, vertex, azure, "
                     "bedrock, openrouter, fireworks, together, cerebras, "
-                    "anthropic, litellm, lmstudio, ollama, custom, or codex"
+                    "anthropic, litellm, lmstudio, ollama, custom, rodiumai, or codex"
                 ),
             )
 

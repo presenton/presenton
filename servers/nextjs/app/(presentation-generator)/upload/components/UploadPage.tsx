@@ -80,6 +80,8 @@ const getSelectedTextModel = (config?: LLMConfig): string => {
       return config.BEDROCK_MODEL || "";
     case "openrouter":
       return config.OPENROUTER_MODEL || "";
+    case "rodiumai":
+      return config.RODIUMAI_MODEL || "";
     case "fireworks":
       return config.FIREWORKS_MODEL || "";
     case "together":

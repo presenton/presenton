@@ -75,6 +75,11 @@ class UserConfig(BaseModel):
     OLLAMA_URL: Optional[str] = None
     OLLAMA_MODEL: Optional[str] = None
 
+    # RodiumAi (OpenAI-compatible gateway)
+    RODIUMAI_API_KEY: Optional[str] = None
+    RODIUMAI_MODEL: Optional[str] = None
+    RODIUMAI_BASE_URL: Optional[str] = None
+
     # Custom LLM
     CUSTOM_LLM_URL: Optional[str] = None
     CUSTOM_LLM_API_KEY: Optional[str] = None

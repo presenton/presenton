@@ -27,7 +27,7 @@ What makes Presenton different?
 
 - Use Fully **self-hosted** in Web through [Docker Package](https://docs.presenton.ai/v3/get-started/quickstart)
 - Or Download [Desktop App](https://presenton.ai/download) (Mac, Windows & Linux)
-- Works with OpenAI, Gemini, Vertex AI, Azure OpenAI, Amazon Bedrock, Fireworks, Together AI, Anthropic, LM Studio, Ollama, or custom models
+- Works with OpenAI, Gemini, Vertex AI, Azure OpenAI, Amazon Bedrock, Fireworks, Together AI, Anthropic, RodiumAi, LM Studio, Ollama, or custom models
 - Comes with AI Presentation Generation API
 - Fully open-source (Apache 2.0)
 - Works with your own design/templates
