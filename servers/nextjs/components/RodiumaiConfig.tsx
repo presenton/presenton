@@ -17,20 +17,18 @@ import { notify } from "@/components/ui/sonner";
 import { getApiUrl } from "@/utils/api";
 import { LLM_PROVIDERS } from "@/utils/providerConstants";
 
-const DEFAULT_RODIUMAI_BASE_URL =
+const RODIUMAI_API_URL =
   LLM_PROVIDERS.rodiumai.url ?? "https://api.rodiumai.io/v1";
 
 interface RodiumaiConfigProps {
   rodiumaiApiKey: string;
   rodiumaiModel: string;
-  rodiumaiBaseUrl: string;
   onInputChange: (value: string | boolean, field: string) => void;
 }
 
 export default function RodiumaiConfig({
   rodiumaiApiKey,
   rodiumaiModel,
-  rodiumaiBaseUrl,
   onInputChange,
 }: RodiumaiConfigProps) {
   const [models, setModels] = useState<string[]>([]);
@@ -38,33 +36,16 @@ export default function RodiumaiConfig({
   const [modelsChecked, setModelsChecked] = useState(false);
   const [openModelSelect, setOpenModelSelect] = useState(false);
   const [apiKey, setApiKey] = useState(rodiumaiApiKey);
-  const [baseUrl, setBaseUrl] = useState(
-    rodiumaiBaseUrl || DEFAULT_RODIUMAI_BASE_URL,
-  );
-
-  useEffect(() => {
-    if (!rodiumaiBaseUrl) {
-      onInputChange(DEFAULT_RODIUMAI_BASE_URL, "rodiumai_base_url");
-      setBaseUrl(DEFAULT_RODIUMAI_BASE_URL);
-    }
-  }, []);
 
   useEffect(() => {
     setModels([]);
     setModelsChecked(false);
     onInputChange("", "rodiumai_model");
-  }, [baseUrl, apiKey]);
-
-  const effectiveBaseUrl = (baseUrl || DEFAULT_RODIUMAI_BASE_URL).trim();
+  }, [apiKey]);
 
   const onApiKeyChange = (value: string) => {
     setApiKey(value);
     onInputChange(value, "rodiumai_api_key");
-  };
-
-  const onBaseUrlChange = (value: string) => {
-    setBaseUrl(value);
-    onInputChange(value, "rodiumai_base_url");
   };
 
   const fetchModels = async () => {
@@ -78,7 +59,7 @@ export default function RodiumaiConfig({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            url: effectiveBaseUrl,
+            url: RODIUMAI_API_URL,
             api_key: apiKey,
           }),
         },
@@ -93,7 +74,7 @@ export default function RodiumaiConfig({
         setModelsChecked(true);
         notify.error(
           "Could not load models",
-          "Check your RodiumAi API key and base URL, then try again.",
+          "Check your RodiumAi API key, then try again.",
         );
       }
     } catch {
@@ -101,7 +82,7 @@ export default function RodiumaiConfig({
       setModelsChecked(true);
       notify.error(
         "Could not load models",
-        "Check your RodiumAi API key and base URL, then try again.",
+        "Check your RodiumAi API key, then try again.",
       );
     } finally {
       setModelsLoading(false);
@@ -138,22 +119,6 @@ export default function RodiumaiConfig({
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Base URL (optional)
-        </label>
-        <input
-          type="text"
-          placeholder={DEFAULT_RODIUMAI_BASE_URL}
-          className="w-full px-4 py-2.5 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-          value={baseUrl}
-          onChange={(e) => onBaseUrlChange(e.target.value)}
-        />
-        <p className="mt-1.5 text-xs text-gray-500">
-          Use http://localhost:8001/v1 for local development.
-        </p>
-      </div>
-
       {(!modelsChecked || (modelsChecked && models.length === 0)) && (
         <button
           type="button"
@@ -179,7 +144,7 @@ export default function RodiumaiConfig({
       {modelsChecked && models.length === 0 && (
         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
-            No models found. Verify your API key and base URL.
+            No models found. Verify your API key.
           </p>
         </div>
       )}

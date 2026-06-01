@@ -136,7 +136,6 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
   const currentLmStudioUrl = (llmConfig.LMSTUDIO_BASE_URL || "").trim();
   const currentFireworksUrl = (llmConfig.FIREWORKS_BASE_URL || "").trim();
   const currentTogetherUrl = (llmConfig.TOGETHER_BASE_URL || "").trim();
-  const currentRodiumaiUrl = (llmConfig.RODIUMAI_BASE_URL || "").trim();
   const currentOllamaUrl = llmConfig.OLLAMA_URL || "";
   const useCustomOllamaUrl = !!llmConfig.USE_CUSTOM_URL;
   const modelLabel = selectedProviderMeta?.label || selectedProvider;
@@ -184,7 +183,6 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
     currentLmStudioUrl,
     currentFireworksUrl,
     currentTogetherUrl,
-    currentRodiumaiUrl,
     currentModelField,
   ]);
 
@@ -287,8 +285,6 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
             ? currentFireworksUrl || selectedProviderMeta?.url || ""
             : selectedProvider === "together"
             ? currentTogetherUrl || selectedProviderMeta?.url || ""
-            : selectedProvider === "rodiumai"
-            ? currentRodiumaiUrl || selectedProviderMeta?.url || ""
             : selectedProviderMeta?.url || "";
         response = await fetch(
           getApiUrl("/api/v1/ppt/openai/models/available"),
@@ -741,26 +737,6 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                       className="w-full px-2 py-3 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                       placeholder="https://api.together.ai/v1"
                     />
-                  </>
-                )}
-                {selectedProvider === "rodiumai" && (
-                  <>
-                    <label className="mt-3 block text-sm font-medium text-gray-700 mb-2">
-                      RodiumAi base URL (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={llmConfig.RODIUMAI_BASE_URL || ""}
-                      onChange={(e) =>
-                        onInputChange(e.target.value, "RODIUMAI_BASE_URL")
-                      }
-                      className="w-full px-2 py-3 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                      placeholder="https://api.rodiumai.io/v1"
-                    />
-                    <p className="mt-1.5 text-xs text-gray-500">
-                      Leave empty to use the production gateway. Use
-                      http://localhost:8001/v1 for local development.
-                    </p>
                   </>
                 )}
                 {(selectedProvider === "vertex" ||

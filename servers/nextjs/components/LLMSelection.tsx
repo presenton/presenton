@@ -313,7 +313,6 @@ export default function LLMProviderSelection({
             <RodiumaiConfig
               rodiumaiApiKey={llmConfig.RODIUMAI_API_KEY || ""}
               rodiumaiModel={llmConfig.RODIUMAI_MODEL || ""}
-              rodiumaiBaseUrl={llmConfig.RODIUMAI_BASE_URL || ""}
               onInputChange={input_field_changed}
             />
           </TabsContent>
