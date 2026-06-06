@@ -61,8 +61,49 @@ from utils.image_provider import (
 )
 
 
+def _check_image_provider_configuration() -> None:
+    selected_image_provider = get_selected_image_provider()
+    if not selected_image_provider:
+        raise Exception("IMAGE_PROVIDER must be provided")
+
+    if selected_image_provider == ImageProvider.PEXELS:
+        pexels_api_key = get_pexels_api_key_env()
+        if not pexels_api_key:
+            raise Exception("PEXELS_API_KEY must be provided")
+
+    elif selected_image_provider == ImageProvider.PIXABAY:
+        pixabay_api_key = get_pixabay_api_key_env()
+        if not pixabay_api_key:
+            raise Exception("PIXABAY_API_KEY must be provided")
+
+    elif (
+        selected_image_provider == ImageProvider.GEMINI_FLASH
+        or selected_image_provider == ImageProvider.NANOBANANA_PRO
+    ):
+        google_api_key = get_google_api_key_env()
+        if not google_api_key:
+            raise Exception("GOOGLE_API_KEY must be provided")
+
+    elif (
+        selected_image_provider == ImageProvider.DALLE3
+        or selected_image_provider == ImageProvider.GPT_IMAGE_1_5
+    ):
+        openai_api_key = get_openai_api_key_env()
+        if not openai_api_key:
+            raise Exception("OPENAI_API_KEY must be provided")
+
+    elif selected_image_provider == ImageProvider.COMFYUI:
+        comfyui_url = get_comfyui_url_env()
+        if not comfyui_url:
+            raise Exception("COMFYUI_URL must be provided")
+        workflow_json = get_comfyui_workflow_env()
+        if not workflow_json:
+            raise Exception("COMFYUI_WORKFLOW must be provided")
+
+
 async def check_llm_and_image_provider_api_or_model_availability():
     can_change_keys = get_can_change_keys_env() != "false"
+    skip_image_validation = is_image_generation_disabled()
     if not can_change_keys:
         if get_llm_provider() == LLMProvider.OPENAI:
             openai_api_key = get_openai_api_key_env()
@@ -240,45 +281,5 @@ async def check_llm_and_image_provider_api_or_model_availability():
             if custom_model not in available_models:
                 raise Exception(f"Model {custom_model} is not available")
 
-        # Skip image provider and API key checks if image generation is disabled
-        if is_image_generation_disabled():
-            return
-
-        # Check for Image Provider and API keys
-        selected_image_provider = get_selected_image_provider()
-        if not selected_image_provider:
-            raise Exception("IMAGE_PROVIDER must be provided")
-
-        if selected_image_provider == ImageProvider.PEXELS:
-            pexels_api_key = get_pexels_api_key_env()
-            if not pexels_api_key:
-                raise Exception("PEXELS_API_KEY must be provided")
-
-        elif selected_image_provider == ImageProvider.PIXABAY:
-            pixabay_api_key = get_pixabay_api_key_env()
-            if not pixabay_api_key:
-                raise Exception("PIXABAY_API_KEY must be provided")
-
-        elif (
-            selected_image_provider == ImageProvider.GEMINI_FLASH
-            or selected_image_provider == ImageProvider.NANOBANANA_PRO
-        ):
-            google_api_key = get_google_api_key_env()
-            if not google_api_key:
-                raise Exception("GOOGLE_API_KEY must be provided")
-
-        elif (
-            selected_image_provider == ImageProvider.DALLE3
-            or selected_image_provider == ImageProvider.GPT_IMAGE_1_5
-        ):
-            openai_api_key = get_openai_api_key_env()
-            if not openai_api_key:
-                raise Exception("OPENAI_API_KEY must be provided")
-
-        elif selected_image_provider == ImageProvider.COMFYUI:
-            comfyui_url = get_comfyui_url_env()
-            if not comfyui_url:
-                raise Exception("COMFYUI_URL must be provided")
-            workflow_json = get_comfyui_workflow_env()
-            if not workflow_json:
-                raise Exception("COMFYUI_WORKFLOW must be provided")
+        if not skip_image_validation:
+            _check_image_provider_configuration()

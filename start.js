@@ -439,6 +439,8 @@ const setupUserConfigFromEnv = () => {
     PIXABAY_API_KEY:
       process.env.PIXABAY_API_KEY || existingConfig.PIXABAY_API_KEY,
     IMAGE_PROVIDER: process.env.IMAGE_PROVIDER || existingConfig.IMAGE_PROVIDER,
+    DISABLE_IMAGE_GENERATION:
+      configValue("DISABLE_IMAGE_GENERATION") ?? existingConfig.DISABLE_IMAGE_GENERATION,
     DISABLE_THINKING:
       process.env.DISABLE_THINKING || existingConfig.DISABLE_THINKING,
     EXTENDED_REASONING:
