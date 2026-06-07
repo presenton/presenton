@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 import os
@@ -11,6 +12,7 @@ from utils.model_availability import (
     check_llm_and_image_provider_api_or_model_availability,
 )
 from utils.user_config import update_env_with_user_config
+from services.data_retention_service import retention_scheduler
 from utils.simple_auth import (
     clear_stored_credentials,
     force_set_credentials,
@@ -98,6 +100,8 @@ async def app_lifespan(_: FastAPI):
     if get_can_change_keys_env() != "false":
         update_env_with_user_config()
     await check_llm_and_image_provider_api_or_model_availability()
+    retention_task = asyncio.create_task(retention_scheduler())
     yield
+    retention_task.cancel()
     # Shutdown: release all database connections to prevent stale/leaked pools.
     await dispose_engines()
