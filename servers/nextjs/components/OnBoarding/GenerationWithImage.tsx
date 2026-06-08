@@ -1,6 +1,6 @@
 import React from 'react'
 
-const GenerationWithImage = () => {
+const GenerationWithImage: React.FC = () => {
     return (
         <div>
 
