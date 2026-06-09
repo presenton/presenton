@@ -30,6 +30,7 @@ from utils.llm_calls.generate_presentation_outlines import (
     generate_ppt_outline,
     get_messages as get_outline_messages,
 )
+from utils.web_search import build_search_context
 
 OUTLINES_ROUTER = APIRouter(prefix="/outlines", tags=["Outlines"])
 
@@ -49,6 +50,10 @@ async def stream_outlines(
         yield SSEStatusResponse(
             status="Generating presentation outlines..."
         ).to_string()
+
+        search_context = await build_search_context(
+            presentation.content, presentation.web_search
+        )
 
         additional_context = ""
         if presentation.file_paths:
@@ -111,6 +116,7 @@ async def stream_outlines(
             presentation.include_title_slide,
             presentation.web_search,
             presentation.include_table_of_contents,
+            search_context=search_context,
         ):
             # Give control to the event loop
             await asyncio.sleep(0)

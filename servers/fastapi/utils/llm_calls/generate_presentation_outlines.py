@@ -28,6 +28,7 @@ def get_system_prompt(
     verbosity: Optional[str] = None,
     include_title_slide: bool = True,
     include_table_of_contents: bool = False,
+    search_context: Optional[str] = None,
 ):
     verbosity_instruction = (
         "Slide content should be around 20 words but detailed enough to generate a good slide."
@@ -89,7 +90,8 @@ def get_system_prompt(
         "If the answer may be outdated or uncertain, prefer using the web search tool.\n"
     )
 
-    return system
+    search_context_block = (search_context + "\n\n") if search_context else ""
+    return search_context_block + system
 
 
 def _resolve_prompt_language(language: Optional[str]) -> str:
@@ -145,6 +147,7 @@ def get_messages(
     instructions: Optional[str] = None,
     include_title_slide: bool = True,
     include_table_of_contents: bool = False,
+    search_context: Optional[str] = None,
 ) -> list[Message]:
     return [
         SystemMessage(
@@ -152,6 +155,7 @@ def get_messages(
                 verbosity,
                 include_title_slide,
                 include_table_of_contents,
+                search_context,
             ),
         ),
         UserMessage(
@@ -180,6 +184,7 @@ async def generate_ppt_outline(
     include_title_slide: bool = True,
     web_search: bool = False,
     include_table_of_contents: bool = False,
+    search_context: Optional[str] = None,
 ):
     model = get_model()
     response_model = (
@@ -216,6 +221,7 @@ async def generate_ppt_outline(
                     instructions,
                     include_title_slide,
                     include_table_of_contents,
+                    search_context,
                 ),
                 response_format=response_format,
                 tools=([WebSearchTool()] if use_search_tool else None),

@@ -58,6 +58,7 @@ from utils.llm_calls.generate_presentation_structure import (
 from utils.llm_calls.generate_slide_content import (
     get_slide_content_from_type_and_outline,
 )
+from utils.web_search import build_search_context
 from utils.ppt_utils import (
     select_toc_or_list_slide_layout_index,
 )
@@ -382,6 +383,10 @@ async def stream_presentation(
 
     image_generation_service = ImageGenerationService(get_images_directory())
 
+    search_context = await build_search_context(
+        presentation.content, presentation.web_search
+    )
+
     async def inner():
         structure = presentation.get_structure()
         layout = presentation.get_layout()
@@ -414,6 +419,7 @@ async def stream_presentation(
                     presentation.tone,
                     presentation.verbosity,
                     presentation.instructions,
+                    search_context=search_context,
                 )
             except HTTPException as e:
                 yield SSEErrorResponse(detail=e.detail).to_string()
@@ -636,6 +642,7 @@ async def generate_presentation_handler(
         using_slides_markdown = False
         language_to_use = (request.language or "").strip() or None
         additional_context = ""
+        search_context = await build_search_context(request.content, request.web_search)
 
         if request.slides_markdown:
             using_slides_markdown = True
@@ -710,6 +717,7 @@ async def generate_presentation_handler(
                 request.include_title_slide,
                 request.web_search,
                 request.include_table_of_contents,
+                search_context=search_context,
             ):
 
                 if isinstance(chunk, HTTPException):
@@ -892,6 +900,7 @@ async def generate_presentation_handler(
                     request.tone.value,
                     request.verbosity.value,
                     request.instructions,
+                    search_context=search_context,
                 )
                 for i in range(start, end)
             ]

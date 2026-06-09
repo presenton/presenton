@@ -14,6 +14,7 @@ dependencies = [
     "aiosqlite>=0.21.0",
     "asyncpg>=0.30.0",
     "dirtyjson>=1.0.8",
+    "duckduckgo-search>=6.0.0",
     "fastapi[standard]>=0.116.1",
     "fastembed-vectorstore>=0.5.2",
     "fastmcp>=2.11.0",
