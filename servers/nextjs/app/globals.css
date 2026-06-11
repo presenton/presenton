@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-
 body {
-  font-family: var(--font-syne), var(--font-unbounded), var(--font-inter), sans-serif;
+  font-family: var(--font-syne), var(--font-unbounded), var(--font-inter),
+    sans-serif;
 }
 
 @layer utilities {
@@ -71,7 +71,6 @@ body {
 }
 
 @layer base {
-
   body {
     @apply bg-background text-foreground;
   }
@@ -80,8 +79,6 @@ body {
 strong {
   @apply font-black;
 }
-
-
 
 ::selection {
   background-color: hsl(var(--chart-1));
@@ -108,8 +105,8 @@ tbody tr {
 }
 
 thead {
-  width: calc(100% - 1em)
-    /* scrollbar is average 1em/16px width, remove it from thead width */
+  width: calc(100% - 1em);
+  /* scrollbar is average 1em/16px width, remove it from thead width */
 }
 
 /* Add this to your global CSS or a specific CSS module */
@@ -148,7 +145,6 @@ thead {
 }
 
 @keyframes blink {
-
   from,
   to {
     opacity: 1;
@@ -167,7 +163,6 @@ thead {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
 
 .custom_scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -198,7 +193,6 @@ thead {
   scrollbar-width: thin;
   scrollbar-color: #d1d5db #f9fafb;
 }
-
 
 /* word animation */
 
@@ -244,13 +238,17 @@ thead {
 }
 
 .research-mode-bg::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
   width: 0;
   height: 0;
-  background: radial-gradient(circle, rgba(56, 48, 161, 0.1) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(56, 48, 161, 0.1) 0%,
+    transparent 70%
+  );
   transform: translate(-50%, -50%);
   border-radius: 50%;
   animation: rippleEffect 0.6s ease-out forwards;
@@ -286,8 +284,7 @@ thead {
     rgba(99, 102, 241, 0.04) 100%
   );
   border: 1px solid rgba(196, 181, 253, 0.56);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16),
     0 8px 26px rgba(99, 102, 241, 0.08);
   overflow: hidden;
   will-change: transform;
@@ -334,24 +331,6 @@ thead {
   }
 }
 
-.chat-slide-glow {
-  border-radius: 14px;
-  box-shadow:
-    0 0 0 1px rgba(216, 180, 254, 0.32),
-    0 0 0 5px rgba(139, 92, 246, 0.08),
-    0 10px 24px rgba(99, 102, 241, 0.08);
-  will-change: box-shadow;
-}
-
-.chat-slide-target {
-  border-radius: 14px;
-  box-shadow:
-    0 0 0 1px rgba(216, 180, 254, 0.24),
-    0 0 0 3px rgba(139, 92, 246, 0.06),
-    0 6px 16px rgba(99, 102, 241, 0.06);
-  will-change: box-shadow;
-}
-
 /* Markdown Styles */
 .markdown-content {
   @apply prose prose-slate max-w-none;
@@ -365,7 +344,14 @@ thead {
   margin-bottom: 0.75rem;
 }
 
-.chat-markdown :where(p:last-child, ul:last-child, ol:last-child, pre:last-child, blockquote:last-child) {
+.chat-markdown
+  :where(
+    p:last-child,
+    ul:last-child,
+    ol:last-child,
+    pre:last-child,
+    blockquote:last-child
+  ) {
   margin-bottom: 0;
 }
 
@@ -437,7 +423,7 @@ thead {
   @apply p-1 rounded hover:bg-gray-100 transition-colors;
 }
 
-.mdxeditor-button[data-active=true] {
+.mdxeditor-button[data-active="true"] {
   @apply bg-gray-100;
 }
 
@@ -496,7 +482,6 @@ thead {
 }
 
 .container__editor {
-
   font-variant-ligatures: common-ligatures;
   background-color: #fafafa;
   border-radius: 3px;
@@ -576,4 +561,65 @@ thead {
 
 .token.entity {
   cursor: help;
+}
+@keyframes backgroundAnimation {
+}
+.background-animate {
+  animation: backgroundAnimation 3s linear infinite;
+}
+
+.generating-slides-background {
+  left: -18%;
+  top: -30%;
+  width: 76%;
+  height: 54%;
+  border-radius: 9999px;
+  background: #f2e1fb;
+  filter: blur(10px);
+  opacity: 0.95;
+  transform-origin: center;
+  animation: generatingSlidesBackgroundOrbit 3s linear infinite;
+  will-change: transform;
+}
+
+@keyframes generatingSlidesBackgroundOrbit {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  18% {
+    transform: translate3d(82%, 0, 0) rotate(0deg);
+  }
+
+  25% {
+    transform: translate3d(102%, 48%, 0) rotate(45deg);
+  }
+
+  32% {
+    transform: translate3d(102%, 96%, 0) rotate(90deg);
+  }
+
+  43% {
+    transform: translate3d(102%, 152%, 0) rotate(90deg);
+  }
+
+  50% {
+    transform: translate3d(82%, 186%, 0) rotate(180deg);
+  }
+
+  68% {
+    transform: translate3d(0, 186%, 0) rotate(180deg);
+  }
+
+  75% {
+    transform: translate3d(-20%, 152%, 0) rotate(225deg);
+  }
+
+  82% {
+    transform: translate3d(-20%, 48%, 0) rotate(270deg);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(360deg);
+  }
 }

@@ -19,7 +19,7 @@ class LiteParseError(Exception):
 LOGGER = logging.getLogger(__name__)
 _LOG_SNIPPET_LIMIT = 600
 _DEFAULT_DPI = 120
-_DEFAULT_NUM_WORKERS = 1
+_DEFAULT_NUM_WORKERS = max(os.cpu_count() - 2, 1)
 
 
 def _snippet(value: str, limit: int = _LOG_SNIPPET_LIMIT) -> str:
@@ -65,7 +65,7 @@ def _env_int(name: str, default: int, minimum: int, maximum: int) -> int:
 
 
 class LiteParseService:
-    def __init__(self, timeout_seconds: int = 180):
+    def __init__(self, timeout_seconds: int = 600):
         self.timeout_seconds = timeout_seconds
         self.node_binary = os.getenv("LITEPARSE_NODE_BINARY", "node")
         self.dpi = _env_int("LITEPARSE_DPI", _DEFAULT_DPI, minimum=72, maximum=600)
@@ -83,9 +83,6 @@ class LiteParseService:
         """Build environment for Node subprocesses."""
         env = os.environ.copy()
 
-        # LiteParse checks ImageMagick availability with `which magick`.
-        # On macOS app launches, PATH often excludes Homebrew bins, even when
-        # IMAGEMAGICK_BINARY is configured to an absolute executable path.
         path_entries = [p for p in (env.get("PATH") or "").split(os.pathsep) if p]
         additional_entries = []
 
@@ -95,11 +92,9 @@ class LiteParseService:
             if magick_dir:
                 additional_entries.append(magick_dir)
 
-        soffice_binary = (env.get("SOFFICE_PATH") or "").strip()
-        if soffice_binary:
-            soffice_dir = os.path.dirname(soffice_binary)
-            if soffice_dir:
-                additional_entries.append(soffice_dir)
+        magick_home = (env.get("MAGICK_HOME") or "").strip()
+        if magick_home:
+            additional_entries.extend([magick_home, os.path.join(magick_home, "bin")])
 
         if os.name != "nt":
             additional_entries.extend([
@@ -129,6 +124,7 @@ class LiteParseService:
         candidates = [
             self.runner_dir,
             os.path.abspath(os.path.join(self.runner_dir, "..")),
+            os.path.abspath(os.path.join(self.runner_dir, "..", "..")),
             os.path.abspath(os.path.join(os.getcwd(), "..", "..", "document-extraction-liteparse")),
             os.path.abspath(os.path.join(os.getcwd(), "..", "..")),
             "/app/document-extraction-liteparse",
@@ -179,6 +175,17 @@ class LiteParseService:
             os.path.abspath(
                 os.path.join(
                     cwd, "..", "..", "app", "resources", "document-extraction", "liteparse_runner.mjs"
+                )
+            ),
+            os.path.abspath(
+                os.path.join(
+                    cwd,
+                    "..",
+                    "..",
+                    "electron",
+                    "resources",
+                    "document-extraction",
+                    "liteparse_runner.mjs",
                 )
             ),
         ]
@@ -244,11 +251,13 @@ class LiteParseService:
         file_path: str,
         ocr_enabled: bool = True,
         ocr_language: str = "eng",
+        dpi: int = None,
     ) -> str:
         result = self.parse(
             file_path=file_path,
             ocr_enabled=ocr_enabled,
             ocr_language=ocr_language,
+            dpi=dpi,
         )
         return str(result.get("text") or "")
 
@@ -257,10 +266,13 @@ class LiteParseService:
         file_path: str,
         ocr_enabled: bool = True,
         ocr_language: str = "eng",
+        dpi: int = None,
     ) -> Dict[str, Any]:
         is_ready, reason = self.check_runtime_ready()
         if not is_ready:
             raise LiteParseError(reason)
+
+        effective_dpi = dpi if dpi is not None else self.dpi
 
         command = [
             self.node_binary,
@@ -272,7 +284,7 @@ class LiteParseService:
             "--ocr-language",
             ocr_language,
             "--dpi",
-            str(self.dpi),
+            str(effective_dpi),
             "--num-workers",
             str(self.num_workers),
         ]
@@ -291,7 +303,7 @@ class LiteParseService:
             file_path,
             ocr_enabled,
             ocr_language,
-            self.dpi,
+            effective_dpi,
             self.num_workers,
         )
 

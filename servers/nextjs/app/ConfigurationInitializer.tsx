@@ -24,6 +24,11 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
   }, []);
 
   const setLoadingToFalseAfterNavigatingTo = (pathname: string) => {
+    if (window.location.pathname === pathname) {
+      setIsLoading(false);
+      return;
+    }
+
     const interval = setInterval(() => {
       if (window.location.pathname === pathname) {
         clearInterval(interval);
@@ -74,6 +79,7 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
       llmConfig = normalizeLLMConfig(llmConfig);
 
       dispatch(setLLMConfig(llmConfig));
+
       const isValid = hasValidLLMConfig(llmConfig);
       if (route.startsWith('/pdf-maker')) {
         setIsLoading(false);

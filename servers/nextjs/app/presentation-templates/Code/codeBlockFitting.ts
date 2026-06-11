@@ -10,22 +10,27 @@ import "prismjs/components/prism-bash";
 import "prismjs/components/prism-yaml";
 import "prismjs/components/prism-markdown";
 
-const DEFAULT_CODE_CHAR_WIDTH_RATIO = 0.62;
+const DEFAULT_CODE_CHAR_WIDTH_RATIO = 0.66;
 const DEFAULT_CODE_LINE_HEIGHT_RATIO = 1.25;
 const DEFAULT_FONT_STEP = 0.5;
 const HARD_MIN_FONT_SIZE = 4;
+const MIN_CODE_LINE_CHARS = 34;
+const MAX_CODE_LINE_CHARS = 96;
 
 export const DEFAULT_CODE_FONT_FAMILY = "var(--code-font-family,'Liberation Mono', monospace)";
 export const PRISM_CODE_BLOCK_STYLES = `
 .prism-code-block .token {
   display: inline !important;
-  white-space: inherit !important;
+  white-space: pre !important;
 }
 
 .prism-code-block {
   --code-fg: var(--background-text, #dbe5ff);
   --code-accent: var(--primary-color, #7aa2ff);
   color: var(--code-fg);
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .prism-code-block .token.comment,
@@ -111,6 +116,7 @@ interface TypographyCandidate {
   lineHeight: number;
   maxCharsPerLine: number;
   renderedLineCount: number;
+  longestLineLength: number;
 }
 
 export interface FittedCodeBlock {
@@ -177,6 +183,148 @@ function normalizePythonCode(content: string) {
   }
 
   return normalizedLines.join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+function countUnquotedCharacters(line: string, targetCharacter: string) {
+  let count = 0;
+  let quote: "'" | '"' | "`" | null = null;
+  let escaped = false;
+
+  for (const character of line) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (character === "'" || character === '"' || character === "`") {
+      quote = character;
+      continue;
+    }
+
+    if (character === targetCharacter) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function splitCollapsedJavaScriptCode(content: string) {
+  let result = "";
+  let quote: "'" | '"' | "`" | null = null;
+  let escaped = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index];
+    const nextCharacter = content[index + 1];
+
+    if (escaped) {
+      result += character;
+      escaped = false;
+      continue;
+    }
+
+    if (character === "\\") {
+      result += character;
+      escaped = true;
+      continue;
+    }
+
+    if (quote) {
+      result += character;
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (character === "'" || character === '"' || character === "`") {
+      result += character;
+      quote = character;
+      continue;
+    }
+
+    if (character === "{") {
+      result = result.replace(/[ \t]+$/g, "");
+      result += "{\n";
+      continue;
+    }
+
+    if (character === "}") {
+      result = result.replace(/[ \t]+$/g, "");
+      if (!result.endsWith("\n")) {
+        result += "\n";
+      }
+      result += "}";
+      if (nextCharacter !== ";" && nextCharacter !== ")" && nextCharacter !== "," && nextCharacter !== "]") {
+        result += "\n";
+      }
+      continue;
+    }
+
+    if (character === ";") {
+      result = result.replace(/[ \t]+$/g, "");
+      result += ";\n";
+      continue;
+    }
+
+    result += character;
+  }
+
+  return result;
+}
+
+function indentJavaScriptLikeCode(content: string) {
+  const formattedLines: string[] = [];
+  let indentLevel = 0;
+
+  for (const rawLine of content.split("\n")) {
+    const trimmedLine = rawLine.trim();
+
+    if (!trimmedLine) {
+      continue;
+    }
+
+    if (trimmedLine.startsWith("}") || trimmedLine.startsWith(");") || trimmedLine.startsWith("],")) {
+      indentLevel = Math.max(0, indentLevel - 1);
+    }
+
+    formattedLines.push(`${"  ".repeat(indentLevel)}${trimmedLine}`);
+
+    const openBraces = countUnquotedCharacters(trimmedLine, "{");
+    const closeBraces = countUnquotedCharacters(trimmedLine, "}");
+    indentLevel = Math.max(0, indentLevel + openBraces - closeBraces);
+  }
+
+  return formattedLines.join("\n");
+}
+
+function normalizeJavaScriptLikeCode(content: string) {
+  const lines = content.split("\n");
+  const hasCollapsedStructure =
+    lines.length <= 3 &&
+    /[;{}]/.test(content) &&
+    (content.length > 100 || /;\s*(const|let|var|function|export|import|if|return|await)\b/.test(content));
+
+  if (!hasCollapsedStructure) {
+    return content;
+  }
+
+  return indentJavaScriptLikeCode(splitCollapsedJavaScriptCode(content))
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
 }
 
 function tryFormatJson(content: string) {
@@ -418,11 +566,46 @@ function resolvePrismLanguage(language?: string) {
     return "yaml";
   }
 
+  if (
+    normalizedLanguage === "text" ||
+    normalizedLanguage === "plain" ||
+    normalizedLanguage === "plaintext" ||
+    normalizedLanguage === "terminal" ||
+    normalizedLanguage === "tree"
+  ) {
+    return "none";
+  }
+
   if (Prism.languages[normalizedLanguage]) {
     return normalizedLanguage;
   }
 
   return "clike";
+}
+
+function isJavaScriptLikeLanguage(language?: string) {
+  const prismLanguage = resolvePrismLanguage(language);
+
+  return [
+    "javascript",
+    "typescript",
+    "jsx",
+    "tsx",
+  ].includes(prismLanguage);
+}
+
+function shouldTreatAsJsonForDisplay(language: string | undefined, content: string) {
+  const normalizedLanguage = language?.toLowerCase()?.trim();
+  const allowsJsonDetection =
+    !normalizedLanguage ||
+    normalizedLanguage === "text" ||
+    normalizedLanguage === "plain" ||
+    normalizedLanguage === "plaintext";
+
+  return (
+    Boolean(normalizedLanguage?.includes("json")) ||
+    (allowsJsonDetection && (isValidJsonContent(content) || seemsJsonLike(content)))
+  );
 }
 
 function highlightCode(content: string, language?: string) {
@@ -458,12 +641,17 @@ export function normalizeCodeContent(language?: string, content?: string) {
   normalizedContent = unwrappedContent.content.trimEnd();
 
   const normalizedLanguage = language?.toLowerCase()?.trim() || unwrappedContent.fenceLanguage;
+  const allowsJsonDetection =
+    !normalizedLanguage ||
+    normalizedLanguage === "text" ||
+    normalizedLanguage === "plain" ||
+    normalizedLanguage === "plaintext";
   const isJsonLanguage = normalizedLanguage?.includes("json");
   const looksLikeJsonPayload = seemsJsonLike(normalizedContent);
 
   if (normalizedLanguage === "python") {
     normalizedContent = normalizePythonCode(normalizedContent);
-  } else if (isJsonLanguage || looksLikeJsonPayload) {
+  } else if (isJsonLanguage || (allowsJsonDetection && looksLikeJsonPayload)) {
     const formattedJson = tryFormatJson(normalizedContent);
     normalizedContent = formattedJson;
   }
@@ -471,67 +659,91 @@ export function normalizeCodeContent(language?: string, content?: string) {
   return normalizedContent;
 }
 
-function countRenderedLines(content: string, maxCharsPerLine: number) {
+function getCodeLineMetrics(content: string) {
   const rawLines = content.split("\n");
-  let renderedLineCount = 0;
+  let longestLineLength = 0;
 
   for (const rawLine of rawLines) {
     const expandedLine = rawLine.replace(/\t/g, "  ");
+    longestLineLength = Math.max(longestLineLength, expandedLine.length);
+  }
 
-    if (expandedLine.length === 0) {
-      renderedLineCount += 1;
-      continue;
+  return {
+    lineCount: Math.max(1, rawLines.length),
+    longestLineLength: Math.max(1, longestLineLength),
+  };
+}
+
+function findSoftBreakIndex(text: string, maxChars: number) {
+  const limit = Math.min(maxChars, text.length);
+  const minimumUsefulBreak = Math.max(1, Math.floor(limit * 0.55));
+  const breakAfterCharacters = new Set([",", ";", ")", "}", "{", "]"]);
+
+  for (let index = limit - 1; index >= minimumUsefulBreak; index -= 1) {
+    if (breakAfterCharacters.has(text[index])) {
+      return index + 1;
     }
-
-    renderedLineCount += Math.max(1, Math.ceil(expandedLine.length / maxCharsPerLine));
   }
 
-  return Math.max(1, renderedLineCount);
+  for (let index = limit - 1; index >= minimumUsefulBreak; index -= 1) {
+    if (/\s/.test(text[index])) {
+      return index;
+    }
+  }
+
+  return Math.max(1, limit);
 }
 
-function splitLineForLineBudget(line: string, maxCharsPerLine: number) {
-  if (line.length === 0) {
-    return [""];
+function wrapLongCodeLine(line: string, maxCharsPerLine: number) {
+  if (line.length <= maxCharsPerLine) {
+    return [line];
   }
 
-  const chunks: string[] = [];
+  const indentation = line.match(/^\s*/)?.[0] ?? "";
+  const continuationIndentation = `${indentation}  `;
+  const wrappedLines: string[] = [];
+  let remainingText = line.trimStart();
+  let currentIndentation = indentation;
 
-  for (let start = 0; start < line.length; start += maxCharsPerLine) {
-    chunks.push(line.slice(start, start + maxCharsPerLine));
+  while (`${currentIndentation}${remainingText}`.length > maxCharsPerLine) {
+    const availableCharacters = Math.max(1, maxCharsPerLine - currentIndentation.length);
+    const breakIndex = findSoftBreakIndex(remainingText, availableCharacters);
+    const chunk = remainingText.slice(0, breakIndex).trimEnd();
+
+    wrappedLines.push(`${currentIndentation}${chunk}`);
+    remainingText = remainingText.slice(breakIndex).trimStart();
+    currentIndentation = continuationIndentation;
+
+    if (!remainingText) {
+      return wrappedLines;
+    }
   }
 
-  return chunks;
+  wrappedLines.push(`${currentIndentation}${remainingText}`);
+  return wrappedLines;
 }
 
-function truncateContentToLineBudget(
+function wrapLongCodeLines(content: string, maxCharsPerLine: number) {
+  const safeMaxCharsPerLine = Math.max(1, maxCharsPerLine);
+
+  return content
+    .split("\n")
+    .flatMap((line) => wrapLongCodeLine(line, safeMaxCharsPerLine))
+    .join("\n");
+}
+
+function prepareCodeForDisplay(
   content: string,
-  lineBudget: number,
+  language: string | undefined,
   maxCharsPerLine: number
 ) {
-  const linesForDisplay: string[] = [];
-  const rawLines = content.split("\n");
+  const normalizedContent = isJavaScriptLikeLanguage(language)
+    ? normalizeJavaScriptLikeCode(content)
+    : content;
 
-  for (const rawLine of rawLines) {
-    const expandedLine = rawLine.replace(/\t/g, "  ");
-    const chunks = splitLineForLineBudget(expandedLine, maxCharsPerLine);
-
-    for (const chunk of chunks) {
-      if (linesForDisplay.length >= lineBudget) {
-        const lastLineIndex = Math.max(0, lineBudget - 1);
-        const ellipsis = "...";
-        const existingLastLine = linesForDisplay[lastLineIndex] ?? "";
-        linesForDisplay[lastLineIndex] = `${existingLastLine.slice(
-          0,
-          Math.max(0, maxCharsPerLine - ellipsis.length)
-        )}${ellipsis}`;
-        return linesForDisplay.join("\n");
-      }
-
-      linesForDisplay.push(chunk);
-    }
-  }
-
-  return linesForDisplay.join("\n");
+  return wrapLongCodeLines(normalizedContent, maxCharsPerLine)
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{4,}/g, "\n\n\n");
 }
 
 function createTypographyCandidate(
@@ -543,12 +755,13 @@ function createTypographyCandidate(
 ): TypographyCandidate {
   const lineHeight = Math.max(1, Math.round(fontSize * lineHeightRatio));
   const maxCharsPerLine = Math.max(1, Math.floor(maxWidth / (fontSize * charWidthRatio)));
-  const renderedLineCount = countRenderedLines(normalizedContent, maxCharsPerLine);
+  const { lineCount, longestLineLength } = getCodeLineMetrics(normalizedContent);
 
   return {
     lineHeight,
     maxCharsPerLine,
-    renderedLineCount,
+    renderedLineCount: lineCount,
+    longestLineLength,
   };
 }
 
@@ -571,7 +784,10 @@ function findFittingTypography(
       lineHeightRatio
     );
 
-    if (candidate.renderedLineCount * candidate.lineHeight <= maxHeight) {
+    if (
+      candidate.longestLineLength <= candidate.maxCharsPerLine &&
+      candidate.renderedLineCount * candidate.lineHeight <= maxHeight
+    ) {
       return {
         candidate,
         fontSize,
@@ -593,11 +809,22 @@ export function fitCodeBlock({
   charWidthRatio = DEFAULT_CODE_CHAR_WIDTH_RATIO,
   lineHeightRatio = DEFAULT_CODE_LINE_HEIGHT_RATIO,
 }: FitCodeBlockOptions): FittedCodeBlock {
-  const normalizedContent = normalizeCodeContent(language, content);
-  const highlightLanguage =
-    isValidJsonContent(normalizedContent) || seemsJsonLike(normalizedContent)
-      ? "json"
-      : language;
+  const initialNormalizedContent = normalizeCodeContent(language, content);
+  const displayMaxCharsPerLine = Math.max(
+    MIN_CODE_LINE_CHARS,
+    Math.min(
+      MAX_CODE_LINE_CHARS,
+      Math.floor(maxWidth / (maxFontSize * charWidthRatio))
+    )
+  );
+  const normalizedContent = prepareCodeForDisplay(
+    initialNormalizedContent,
+    language,
+    displayMaxCharsPerLine
+  );
+  const highlightLanguage = shouldTreatAsJsonForDisplay(language, normalizedContent)
+    ? "json"
+    : language;
   const preferredMinFont = Math.max(1, minFontSize);
   const hardMinFont = Math.max(1, Math.min(preferredMinFont, HARD_MIN_FONT_SIZE));
   const startFont = Math.max(maxFontSize, preferredMinFont);
@@ -657,19 +884,27 @@ export function fitCodeBlock({
     charWidthRatio,
     lineHeightRatio
   );
-  const fallbackLineBudget = Math.max(1, Math.floor(maxHeight / fallback.lineHeight));
-  const fallbackText = truncateContentToLineBudget(
-    normalizedContent,
-    fallbackLineBudget,
-    fallback.maxCharsPerLine
+  const emergencyFontSize = Math.max(
+    1,
+    Math.min(
+      hardMinFont,
+      maxHeight / Math.max(1, fallback.renderedLineCount * lineHeightRatio)
+    )
   );
-  const highlighted = highlightCode(fallbackText, highlightLanguage);
+  const emergencyCandidate = createTypographyCandidate(
+    normalizedContent,
+    emergencyFontSize,
+    maxWidth,
+    charWidthRatio,
+    lineHeightRatio
+  );
+  const highlighted = highlightCode(normalizedContent, highlightLanguage);
   return {
-    text: fallbackText,
+    text: normalizedContent,
     highlightedHtml: highlighted.html,
     prismLanguage: highlighted.prismLanguage,
-    fontSize: Math.round(hardMinFont * 10) / 10,
-    lineHeight: fallback.lineHeight,
+    fontSize: Math.round(emergencyFontSize * 10) / 10,
+    lineHeight: emergencyCandidate.lineHeight,
     fontFamily: DEFAULT_CODE_FONT_FAMILY,
   };
 }

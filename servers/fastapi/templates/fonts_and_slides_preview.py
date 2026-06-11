@@ -1,16 +1,20 @@
 import asyncio
+import base64
 import contextlib
+import html
+import mimetypes
 import os
+import re
 import urllib.parse
 import tempfile
 import uuid
 import shutil
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 from fastapi import HTTPException, UploadFile
 from pydantic import BaseModel
 
-from services.documents_loader import DocumentsLoader
-from templates.pptx_convert import convert_pptx_to_pdf
+from services.export_task_service import EXPORT_TASK_SERVICE
 from templates.pptx_font_utils import (
     FontDetail,
     _font_style_variant,
@@ -29,7 +33,10 @@ from templates.pptx_font_utils import (
     normalize_font_variants,
     replace_fonts_in_pptx,
 )
-from utils.asset_directory_utils import absolute_fastapi_asset_url
+from utils.asset_directory_utils import (
+    absolute_fastapi_asset_url,
+    resolve_app_path_to_filesystem,
+)
 from utils.download_helpers import download_file
 from utils.get_env import get_app_data_directory_env
 
@@ -66,6 +73,174 @@ class _PreviewLogger:
         print(f"[fonts-preview] ERROR: {message}")
 
 
+PREVIEW_WIDTH = 1280
+PREVIEW_HEIGHT = 720
+
+
+def _preview_dimensions_from_document(width: float, height: float) -> Tuple[int, int]:
+    try:
+        resolved_width = int(round(float(width)))
+        resolved_height = int(round(float(height)))
+    except (TypeError, ValueError):
+        return PREVIEW_WIDTH, PREVIEW_HEIGHT
+
+    if resolved_width <= 0 or resolved_height <= 0:
+        return PREVIEW_WIDTH, PREVIEW_HEIGHT
+
+    return resolved_width, resolved_height
+
+
+def _css_string(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _font_weight_for_css(font_detail: FontDetail, variant: str) -> int:
+    if font_detail.weight_class is not None:
+        return int(font_detail.weight_class)
+    if "bold" in variant:
+        return 700
+    return 400
+
+
+def _font_style_for_css(variant: str) -> str:
+    if "italic" in variant:
+        return "italic"
+    return "normal"
+
+
+def _font_face_css_for_local_fonts(font_paths: List[str]) -> str:
+    rules: List[str] = []
+    seen: Set[Tuple[str, str]] = set()
+    for font_path in font_paths:
+        if not os.path.isfile(font_path):
+            continue
+
+        font_detail = get_font_details(font_path)
+        if font_detail.error:
+            continue
+
+        variant = _font_detail_variant(font_detail, os.path.basename(font_path))
+        if variant == "unsupported":
+            variant = "regular"
+
+        family_names = {
+            name
+            for name in (
+                font_detail.family_name,
+                font_detail.full_name,
+                font_detail.postscript_name,
+                _actual_uploaded_font_name(font_detail, variant, font_path),
+            )
+            if name
+        }
+
+        font_url = Path(font_path).resolve().as_uri()
+        font_weight = _font_weight_for_css(font_detail, variant)
+        font_style = _font_style_for_css(variant)
+        for family_name in sorted(family_names):
+            key = (family_name, font_url)
+            if key in seen:
+                continue
+            seen.add(key)
+            rules.append(
+                '@font-face { '
+                f'font-family: "{_css_string(family_name)}"; '
+                f'src: url("{font_url}"); '
+                f"font-weight: {font_weight}; "
+                f"font-style: {font_style}; "
+                "font-display: block; "
+                "}"
+            )
+
+    return "\n".join(rules)
+
+
+def _preview_asset_url_to_data_uri(url: str) -> str:
+    if not url:
+        return url
+
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme in ("http", "https"):
+        if not parsed.path.startswith(("/app_data/", "/static/")):
+            return url
+        candidate = urllib.parse.unquote(parsed.path)
+    elif parsed.scheme == "file":
+        candidate = urllib.parse.unquote(parsed.path)
+    elif url.startswith(("/app_data/", "/static/")):
+        candidate = url
+    else:
+        return url
+
+    resolved = resolve_app_path_to_filesystem(candidate)
+    if not resolved:
+        return url
+
+    try:
+        data = Path(resolved).read_bytes()
+    except OSError:
+        return url
+
+    mime_type = mimetypes.guess_type(resolved)[0] or "application/octet-stream"
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def _localize_preview_asset_urls(html: str) -> str:
+    def replace_attr(match: re.Match[str]) -> str:
+        return (
+            f"{match.group('prefix')}"
+            f"{_preview_asset_url_to_data_uri(match.group('url'))}"
+            f"{match.group('suffix')}"
+        )
+
+    def replace_css_url(match: re.Match[str]) -> str:
+        quote = match.group("quote") or ""
+        return f"url({quote}{_preview_asset_url_to_data_uri(match.group('url'))}{quote})"
+
+    html = re.sub(
+        r"(?P<prefix>\b(?:src|href|xlink:href)=['\"])(?P<url>[^'\"]+)(?P<suffix>['\"])",
+        replace_attr,
+        html,
+        flags=re.IGNORECASE,
+    )
+    return re.sub(
+        r"url\((?P<quote>['\"]?)(?P<url>[^)'\"]+)(?P=quote)\)",
+        replace_css_url,
+        html,
+        flags=re.IGNORECASE,
+    )
+
+
+def _normalized_css_font_family(value: str) -> str:
+    return " ".join(value.replace("_", " ").split()).casefold()
+
+
+def _font_stylesheet_links_for_slide_html(
+    slide_html: str, declared_font_css: str = ""
+) -> str:
+    declared_font_names = {
+        _normalized_css_font_family(font_name)
+        for font_name in re.findall(
+            r"font-family\s*:\s*['\"]?([^;'\"}]+)",
+            declared_font_css,
+            flags=re.IGNORECASE,
+        )
+        if font_name.strip()
+    }
+    font_names = sorted(
+        {
+            font_name.replace("_", " ").strip()
+            for font_name in re.findall(r"font-\[\s*['\"]([^'\"]+)['\"]\s*\]", slide_html)
+            if font_name.strip()
+            and _normalized_css_font_family(font_name) not in declared_font_names
+        }
+    )
+    return "\n".join(
+        f'<link href="{html.escape(build_google_fonts_stylesheet_url(font_name), quote=True)}" rel="stylesheet">'
+        for font_name in font_names
+    )
+
+
 def _app_data_directory() -> str:
     app_data_dir = get_app_data_directory_env() or "/tmp/presenton"
     os.makedirs(app_data_dir, exist_ok=True)
@@ -84,6 +259,147 @@ def _get_template_preview_session_dir(session_id: uuid.UUID) -> str:
     )
     os.makedirs(session_dir, exist_ok=True)
     return session_dir
+
+
+def _build_slide_preview_html(
+    slide_html: str,
+    font_css: str,
+    font_links: str = "",
+    width: int = PREVIEW_WIDTH,
+    height: int = PREVIEW_HEIGHT,
+) -> str:
+    fastapi_base = absolute_fastapi_asset_url("/").rstrip("/") + "/"
+    return f"""<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <base href="{fastapi_base}" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  {font_links}
+  <style>
+    html,
+    body {{
+      width: {width}px;
+      height: {height}px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #ffffff;
+    }}
+
+    *,
+    *::before,
+    *::after {{
+      box-sizing: border-box;
+    }}
+
+    #slide-preview-root {{
+      position: relative;
+      width: {width}px;
+      height: {height}px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #ffffff;
+    }}
+
+    .slide-container {{
+      width: {width}px;
+      height: {height}px;
+      margin: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow: hidden;
+    }}
+
+    .slide-content {{
+      position: relative;
+      width: {width}px;
+      height: {height}px;
+      margin: 0;
+      flex: 0 0 auto;
+      overflow: hidden;
+      box-shadow: none;
+    }}
+
+    img,
+    svg,
+    video,
+    canvas {{
+      max-width: none;
+    }}
+
+    {font_css or ""}
+  </style>
+</head>
+<body>
+  <div id="slide-preview-root">{slide_html}</div>
+</body>
+</html>"""
+
+
+async def render_pptx_slides_to_images(
+    modified_pptx_path: str,
+    font_paths_for_install: List[str],
+    max_slides: Optional[int],
+    logger,
+) -> List[str]:
+    local_font_css = ""
+    if font_paths_for_install:
+        local_font_css = await asyncio.to_thread(
+            _font_face_css_for_local_fonts,
+            font_paths_for_install,
+        )
+        logger.info("Prepared custom font CSS for HTML preview rendering")
+
+    pptx_document = await EXPORT_TASK_SERVICE.convert_pptx_to_html(
+        modified_pptx_path, get_fonts=True
+    )
+    if not pptx_document.slides:
+        raise RuntimeError("PPTX-to-HTML returned no slides")
+
+    slide_htmls = pptx_document.slides
+    if max_slides:
+        slide_htmls = slide_htmls[:max_slides]
+
+    # The enterprise converter normalizes decks to a 1280px target width and
+    # derives height from the source slide size. Keep that aspect ratio here.
+    width, height = _preview_dimensions_from_document(
+        pptx_document.width,
+        pptx_document.height,
+    )
+    logger.info(
+        f"Rendering {len(slide_htmls)} slide previews from PPTX-to-HTML at {width}x{height}"
+    )
+
+    localized_slide_htmls = []
+    localized_font_css = _localize_preview_asset_urls(
+        "\n".join(css for css in (pptx_document.font_css, local_font_css) if css)
+    )
+    for slide_html in slide_htmls:
+        localized_slide_html = _localize_preview_asset_urls(slide_html)
+        localized_slide_htmls.append(
+            _build_slide_preview_html(
+                localized_slide_html,
+                localized_font_css,
+                font_links=_font_stylesheet_links_for_slide_html(
+                    localized_slide_html, localized_font_css
+                ),
+                width=width,
+                height=height,
+            )
+        )
+
+    rendered = await EXPORT_TASK_SERVICE.render_htmls_to_images(
+        htmls=localized_slide_htmls,
+        width=width,
+        height=height,
+    )
+    logger.info(
+        f"Rendered {len(rendered.paths)} HTML slide previews in one Chromium task"
+    )
+    return rendered.paths
 
 
 def _font_variants_by_normalized_name(pptx_path: str) -> Dict[str, Set[str]]:
@@ -631,61 +947,15 @@ async def create_slide_previews(
     logger,
     session_dir: str,
 ) -> List[str]:
-    # Also try to fetch and install Google Fonts present in the PPTX (post-replacement)
-    try:
-        present_fonts = await asyncio.to_thread(
-            extract_used_fonts_from_pptx, modified_pptx_path
-        )
-        # Exclude empties and fonts we already replaced with custom files
-        exclude_fonts = set(font_mapping.values()) if font_mapping else set()
-        candidate_google_fonts = {
-            normalize_font_family_name(f)
-            for f in present_fonts
-            if f and f not in exclude_fonts
-        }
-        variants_by_normalized_name = await asyncio.to_thread(
-            _font_variants_by_normalized_name, modified_pptx_path
-        )
+    del temp_dir, font_mapping, explicit_font_aliases, protected_font_names
 
-        downloaded_google_fonts = await _download_available_google_fonts(
-            candidate_google_fonts, temp_dir, logger, variants_by_normalized_name
-        )
-        if downloaded_google_fonts:
-            font_paths_for_install.extend(downloaded_google_fonts)
-        logger.info("Prepared Google Fonts for install")
-    except Exception as e:
-        logger.warning(f"Error while preparing Google Fonts for install: {e}")
-
-    # Convert PPTX to PDF using shared helper (respects custom font config)
-    logger.info("Converting PPTX to PDF")
-    try:
-        actual_pdf_path = await convert_pptx_to_pdf(
-            modified_pptx_path,
-            temp_dir,
-            font_paths=font_paths_for_install if font_paths_for_install else None,
-            explicit_font_aliases=explicit_font_aliases,
-            protected_font_names=protected_font_names,
-            logger=logger,
-        )
-        logger.info(f"PDF generated at {actual_pdf_path}")
-    except Exception as e:
-        logger.error(f"LibreOffice conversion failed: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to convert PPTX to PDF: {str(e)}",
-        )
-
-    # Generate screenshots from PDF (limit to first 25 slides)
-    logger.info("Generating slide images from PDF")
-    screenshot_paths = await DocumentsLoader.get_page_images_from_pdf_async(
-        actual_pdf_path, temp_dir
+    screenshot_paths = await render_pptx_slides_to_images(
+        modified_pptx_path=modified_pptx_path,
+        font_paths_for_install=font_paths_for_install,
+        max_slides=max_slides,
+        logger=logger,
     )
-    if max_slides and len(screenshot_paths) > max_slides:
-        logger.info(
-            f"Capping slide images from {len(screenshot_paths)} to {max_slides}"
-        )
-        screenshot_paths = screenshot_paths[:max_slides]
-    logger.info(f"Prepared {len(screenshot_paths)} slide images for upload")
+    logger.info("Generated slide previews from PPTX-to-HTML with Chromium")
 
     if not screenshot_paths:
         raise HTTPException(status_code=500, detail="Failed to generate slide images")

@@ -19,8 +19,13 @@ import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import SettingSideBar from "./SettingSideBar";
 import TextProvider from "./TextProvider";
 import ImageProvider from "./ImageProvider";
+import WebSearchProvider from "./WebSearchProvider";
 import PrivacySettings from "./PrivacySettings";
-import { IMAGE_PROVIDERS, LLM_PROVIDERS } from "@/utils/providerConstants";
+import {
+  IMAGE_PROVIDERS,
+  LLM_PROVIDERS,
+  WEB_SEARCH_PROVIDERS,
+} from "@/utils/providerConstants";
 import { ImagesApi } from "@/app/(presentation-generator)/services/api/images";
 import { getApiUrl } from "@/utils/api";
 import LogoutButton from "@/components/Auth/LogoutButton";
@@ -42,7 +47,7 @@ const SettingsPage = () => {
   const pathname = usePathname();
   const [mode, setMode] = useState<'nanobanana' | 'presenton'>('presenton')
   const [selectedProvider, setSelectedProvider] = useState<
-    "text-provider" | "image-provider" | "privacy" | "session"
+    "text-provider" | "image-provider" | "web-search-provider" | "privacy" | "session"
   >("text-provider");
   const userConfigState = useSelector((state: RootState) => state.userConfig);
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(
@@ -77,7 +82,7 @@ const SettingsPage = () => {
       );
     }
     return 0;
-  }, [downloadingModel?.downloaded, downloadingModel?.size]);
+  }, [downloadingModel]);
 
   const ensureSelectedStockProviderReady = async (): Promise<boolean> => {
     if (llmConfig.DISABLE_IMAGE_GENERATION) {
@@ -334,6 +339,10 @@ const SettingsPage = () => {
       ? IMAGE_PROVIDERS[llmConfig.IMAGE_PROVIDER]?.label ||
       llmConfig.IMAGE_PROVIDER
       : "No image provider";
+  const webSearchProviderKey = (llmConfig.WEB_SEARCH_PROVIDER || "auto").toLowerCase();
+  const webSearchSummary = `Web: ${
+    WEB_SEARCH_PROVIDERS[webSearchProviderKey]?.label || webSearchProviderKey
+  }`;
 
 
   useEffect(() => {
@@ -429,7 +438,7 @@ const SettingsPage = () => {
                 Settings
               </h3>
               <p className="text-[10px] px-2.5 py-0.5 rounded-[50px] text-[#7A5AF8] border border-[#EDEEEF]  font-medium ">
-                {textSummary} · {imageSummary}
+                {textSummary} · {imageSummary} · {webSearchSummary}
               </p>
             </div>
           </div>
@@ -449,6 +458,7 @@ const SettingsPage = () => {
             llmConfig={llmConfig}
           />}
           {mode === 'presenton' && selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
+          {mode === 'presenton' && selectedProvider === 'web-search-provider' && <WebSearchProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === 'privacy' && <PrivacySettings />}
           {selectedProvider === "session" && (
             <div className="w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">

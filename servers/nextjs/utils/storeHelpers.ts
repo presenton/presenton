@@ -37,6 +37,12 @@ export const normalizeLLMConfig = (llmConfig: LLMConfig): LLMConfig => {
   if (parsedDisableImageGeneration !== undefined) {
     normalizedConfig.DISABLE_IMAGE_GENERATION = parsedDisableImageGeneration;
   }
+  const parsedWebGrounding = parseOptionalBool(
+    (normalizedConfig as Record<string, unknown>).WEB_GROUNDING
+  );
+  if (parsedWebGrounding !== undefined) {
+    normalizedConfig.WEB_GROUNDING = parsedWebGrounding;
+  }
 
   if (normalizedConfig.DISABLE_IMAGE_GENERATION || normalizedConfig.IMAGE_PROVIDER) {
     return normalizedConfig;
@@ -268,6 +274,26 @@ export const getLLMConfigValidationError = (
         break;
       default:
         return "Select a valid image provider.";
+    }
+  }
+
+  if (llmConfig.WEB_GROUNDING) {
+    switch (llmConfig.WEB_SEARCH_PROVIDER) {
+      case "searxng":
+        if (!isProvided(llmConfig.SEARXNG_BASE_URL)) {
+          return "SearXNG base URL is required.";
+        }
+        break;
+      case "tavily":
+        if (!isProvided(llmConfig.TAVILY_API_KEY)) {
+          return "Tavily API key is required.";
+        }
+        break;
+      case "exa":
+        if (!isProvided(llmConfig.EXA_API_KEY)) {
+          return "Exa API key is required.";
+        }
+        break;
     }
   }
 

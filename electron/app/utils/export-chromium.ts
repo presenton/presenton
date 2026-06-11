@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { spawn } from "child_process";
 import {
   Browser,
   Cache,
@@ -8,11 +9,23 @@ import {
   detectBrowserPlatform,
   install,
 } from "@puppeteer/browsers";
-import { safeLog } from "./safe-console";
+import { baseDir, getCacheDir } from "./constants";
+import { isWindowsStoreInstall } from "./export-msix-runtime";
+import { safeError, safeLog } from "./safe-console";
 
 /** Must match the Chrome revision expected by the bundled presentation-export runtime. */
 const EXPORT_CHROME_BUILD_ID =
   process.env.EXPORT_CHROME_BUILD_ID?.trim() || "146.0.7680.76";
+const BUNDLED_CHROMIUM_MANIFEST = "presenton-runtime.json";
+
+type BundledChromiumManifest = {
+  browser?: string;
+  buildId?: string;
+  platform?: string;
+  nodePlatform?: string;
+  arch?: string;
+  executable?: string;
+};
 
 export type ChromiumInstallProgress = {
   phase: "downloading" | "installing" | "done" | "error";
@@ -28,7 +41,45 @@ function resolvePuppeteerCacheRoot(): string {
   return path.join(os.homedir(), ".cache", "puppeteer");
 }
 
-function resolveExportChromeInstallOptions():
+export function getBundledExportChromiumCacheRoot(): string {
+  return path.join(baseDir, "resources", "chromium");
+}
+
+function readBundledChromiumManifest(): BundledChromiumManifest | null {
+  const manifestPath = path.join(getBundledExportChromiumCacheRoot(), BUNDLED_CHROMIUM_MANIFEST);
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as BundledChromiumManifest;
+    if (manifest.browser && manifest.browser !== Browser.CHROME) {
+      return null;
+    }
+    if (manifest.buildId && manifest.buildId !== EXPORT_CHROME_BUILD_ID) {
+      return null;
+    }
+    if (manifest.nodePlatform && manifest.nodePlatform !== process.platform) {
+      return null;
+    }
+    if (manifest.arch && manifest.arch !== process.arch) {
+      return null;
+    }
+    if (!manifest.executable) {
+      return null;
+    }
+    return manifest;
+  } catch {
+    return null;
+  }
+}
+
+function resolveManifestBundledExportChromiumPath(): string | null {
+  const manifest = readBundledChromiumManifest();
+  if (!manifest?.executable) {
+    return null;
+  }
+  const executablePath = path.join(getBundledExportChromiumCacheRoot(), manifest.executable);
+  return isMaterializedChromiumComplete(executablePath) ? executablePath : null;
+}
+
+function resolveExportChromeInstallOptions(cacheDir = resolvePuppeteerCacheRoot()):
   | { browser: Browser.CHROME; buildId: string; cacheDir: string; platform: NonNullable<ReturnType<typeof detectBrowserPlatform>> }
   | null {
   const platform = detectBrowserPlatform();
@@ -38,7 +89,7 @@ function resolveExportChromeInstallOptions():
   return {
     browser: Browser.CHROME,
     buildId: EXPORT_CHROME_BUILD_ID,
-    cacheDir: resolvePuppeteerCacheRoot(),
+    cacheDir,
     platform,
   };
 }
@@ -86,6 +137,29 @@ function resolveLegacyInstalledExportChromiumPath(): string | null {
 }
 
 export function resolveInstalledExportChromiumPath(): string | null {
+  const manifestBundledPath = resolveManifestBundledExportChromiumPath();
+  if (manifestBundledPath) {
+    return manifestBundledPath;
+  }
+
+  const bundledOptions = resolveExportChromeInstallOptions(getBundledExportChromiumCacheRoot());
+  if (bundledOptions) {
+    const bundledExpectedPath = computeExecutablePath(bundledOptions);
+    if (fs.existsSync(bundledExpectedPath)) {
+      return bundledExpectedPath;
+    }
+
+    const bundledCache = new Cache(bundledOptions.cacheDir);
+    for (const installed of bundledCache.getInstalledBrowsers()) {
+      if (installed.browser !== Browser.CHROME || installed.buildId !== bundledOptions.buildId) {
+        continue;
+      }
+      if (fs.existsSync(installed.executablePath)) {
+        return installed.executablePath;
+      }
+    }
+  }
+
   const options = resolveExportChromeInstallOptions();
   if (options) {
     const expectedPath = computeExecutablePath(options);
@@ -109,6 +183,157 @@ export function resolveInstalledExportChromiumPath(): string | null {
 
 export function isExportChromiumAvailable(): boolean {
   return Boolean(resolveInstalledExportChromiumPath());
+}
+
+function isPathUnderWindowsApps(filePath: string): boolean {
+  return /\\windowsapps\\/i.test(filePath);
+}
+
+function getMsixChromiumCacheRoot(): string {
+  return path.join(getCacheDir(), "msix-export-chromium", EXPORT_CHROME_BUILD_ID);
+}
+
+/**
+ * MSIX/APPX installs keep the app under Program Files\\WindowsApps. Chrome cannot
+ * reliably launch from that read-only package, so copy the browser folder to user cache.
+ */
+async function materializeBundledChromiumForMsix(bundledExePath: string): Promise<string> {
+  const browserDir = path.dirname(bundledExePath);
+  const revisionDir = path.dirname(browserDir);
+  const revisionName = path.basename(revisionDir);
+  const cacheRoot = getMsixChromiumCacheRoot();
+  const destRevisionDir = path.join(cacheRoot, "chrome", revisionName);
+  const destExe = path.join(destRevisionDir, path.basename(browserDir), path.basename(bundledExePath));
+  const stampPath = path.join(cacheRoot, ".source-revision-dir");
+  const sourceStamp = `${revisionDir}\n${await getDirectoryMtimeFingerprint(revisionDir)}`;
+
+  if (isMaterializedChromiumComplete(destExe)) {
+    try {
+      if ((await fs.promises.readFile(stampPath, "utf8")).trim() === sourceStamp.trim()) {
+        return destExe;
+      }
+    } catch {
+      // Stale cache; recopy below.
+    }
+  }
+
+  safeLog(
+    "[Chromium] Copying bundled Chrome for Microsoft Store install:",
+    destRevisionDir
+  );
+  await fs.promises.rm(cacheRoot, { recursive: true, force: true });
+  await fs.promises.mkdir(path.dirname(destRevisionDir), { recursive: true });
+  await fs.promises.cp(revisionDir, destRevisionDir, { recursive: true });
+  await fs.promises.writeFile(stampPath, sourceStamp, "utf8");
+
+  if (!isMaterializedChromiumComplete(destExe)) {
+    throw new Error(`Chrome executable missing after MSIX materialization: ${destExe}`);
+  }
+  return destExe;
+}
+
+function isMaterializedChromiumComplete(executablePath: string): boolean {
+  if (!fs.existsSync(executablePath)) {
+    return false;
+  }
+  if (process.platform !== "win32") {
+    return true;
+  }
+
+  const chromeDir = path.dirname(executablePath);
+  return ["chrome.dll", "icudtl.dat"].every((fileName) =>
+    fs.existsSync(path.join(chromeDir, fileName))
+  );
+}
+
+async function getDirectoryMtimeFingerprint(directory: string): Promise<string> {
+  let newestMtime = 0;
+  let fileCount = 0;
+  const visit = async (current: string) => {
+    const entries = await fs.promises.readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        await visit(fullPath);
+        continue;
+      }
+      const stat = await fs.promises.stat(fullPath);
+      newestMtime = Math.max(newestMtime, stat.mtimeMs);
+      fileCount += 1;
+    }
+  };
+  await visit(directory);
+  return `${fileCount}:${newestMtime}`;
+}
+
+function verifyChromiumCanStart(executablePath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const probe = spawn(
+      executablePath,
+      [
+        "--headless=new",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--no-sandbox",
+        "--no-first-run",
+        "--disable-extensions",
+        "about:blank",
+      ],
+      {
+        stdio: "ignore",
+        windowsHide: process.platform === "win32",
+      }
+    );
+
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      probe.kill();
+      resolve();
+    }, 3000);
+
+    probe.once("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    probe.once("exit", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      code === 0
+        ? resolve()
+        : reject(new Error(`Chrome probe exited with code ${code ?? "unknown"}`));
+    });
+  });
+}
+
+/**
+ * Resolves a Chrome binary path that can actually be spawned (writable on MSIX/APPX).
+ */
+export async function resolveLaunchableExportChromiumPath(): Promise<string | null> {
+  const installed = resolveInstalledExportChromiumPath();
+  if (!installed) {
+    return null;
+  }
+
+  const mustMaterialize =
+    isWindowsStoreInstall() || isPathUnderWindowsApps(installed);
+  if (!mustMaterialize) {
+    return installed;
+  }
+
+  try {
+    const materializedPath = await materializeBundledChromiumForMsix(installed);
+    await verifyChromiumCanStart(materializedPath);
+    return materializedPath;
+  } catch (error) {
+    safeError("[Chromium] Failed to prepare Chrome for Microsoft Store export", error);
+    return null;
+  }
 }
 
 export async function removeBrokenExportChromiumCaches(): Promise<number> {

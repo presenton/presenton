@@ -158,7 +158,9 @@ export const Schema = z.object({
     .meta({
       description: "Data for Image #4 dual-line chart.",
     }),
-  legendLabels: z.array(z.string().min(1).max(18)).min(2).max(3).default(["Option A", "Option B", "Option C"]).meta({
+  legendLabels: z.array(z.string().min(1).max(18).meta({
+    description: "Single legend label used by chart variants.",
+  })).min(2).max(3).default(["Option A", "Option B", "Option C"]).meta({
     description: "Legend labels used by donut/grouped/line variants.",
   }),
   xAxisName: z.string().min(3).max(16).default("X axis name").meta({

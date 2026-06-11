@@ -24,7 +24,6 @@ const AdvanceSettings = ({ config, onConfigChange }: ConfigurationSelectsProps) 
         instructions: config.instructions,
         includeTableOfContents: config.includeTableOfContents,
         includeTitleSlide: config.includeTitleSlide,
-        webSearch: config.webSearch,
     });
 
     const syncDraftFromConfig = () => {
@@ -34,7 +33,6 @@ const AdvanceSettings = ({ config, onConfigChange }: ConfigurationSelectsProps) 
             instructions: config.instructions,
             includeTableOfContents: config.includeTableOfContents,
             includeTitleSlide: config.includeTitleSlide,
-            webSearch: config.webSearch,
         });
     };
 
@@ -53,7 +51,6 @@ const AdvanceSettings = ({ config, onConfigChange }: ConfigurationSelectsProps) 
         onConfigChange('instructions', advancedDraft.instructions);
         onConfigChange('includeTableOfContents', advancedDraft.includeTableOfContents);
         onConfigChange('includeTitleSlide', advancedDraft.includeTitleSlide);
-        onConfigChange('webSearch', advancedDraft.webSearch);
         setOpenAdvanced(false);
     };
 
@@ -233,16 +230,6 @@ const AdvanceSettings = ({ config, onConfigChange }: ConfigurationSelectsProps) 
                                     />
                                 </div>
 
-                                <div className="flex items-center justify-between gap-3">
-                                    <label className="font-syne text-sm font-semibold leading-none text-[#1F1D2A]">Web Search</label>
-                                    <Switch
-                                        checked={advancedDraft.webSearch}
-                                        onCheckedChange={(checked) =>
-                                            setAdvancedDraft((prev) => ({ ...prev, webSearch: checked }))
-                                        }
-                                        className={toggleClassName}
-                                    />
-                                </div>
                             </div>
                         </div>
                     </div>

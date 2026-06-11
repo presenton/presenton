@@ -6,6 +6,7 @@ from typing import Any, Awaitable, Callable
 import dirtyjson  # type: ignore[import-untyped]
 from llmai.shared import AssistantToolCall, Tool  # type: ignore[import-not-found]
 
+from enums.llm_provider import LLMProvider
 from services.chat.schemas import (
     DeleteSlideInput,
     GenerateAssetsInput,
@@ -19,6 +20,8 @@ from services.chat.schemas import (
     SetPresentationThemeInput,
 )
 from services.chat.presentation_context_store import PresentationContextStore
+from utils.llm_provider import get_llm_provider
+from utils.web_search import search_web, should_expose_external_web_search_tool
 
 LOGGER = logging.getLogger(__name__)
 
@@ -41,10 +44,11 @@ class ChatTools:
             "saveSlide": self._save_slide,
             "deleteSlide": self._delete_slide,
             "setPresentationTheme": self._set_presentation_theme,
+            "webSearch": self._web_search,
         }
 
     def get_tool_definitions(self) -> list[Tool]:
-        return [
+        tools = [
             Tool(
                 name="getPresentationOutline",
                 description=(
@@ -154,6 +158,35 @@ class ChatTools:
                 strict=True,
             ),
         ]
+        native_search_available = get_llm_provider() not in {
+            LLMProvider.GOOGLE,
+            LLMProvider.VERTEX,
+        }
+        if should_expose_external_web_search_tool(native_search_available):
+            tools.append(
+                Tool(
+                    name="webSearch",
+                    description=(
+                        "Search the public web for current or external facts. "
+                        "Use concise search-engine-style queries and cite returned URLs."
+                    ),
+                    input_schema={
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string"},
+                            "max_results": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 10,
+                            },
+                        },
+                        "required": ["query"],
+                        "additionalProperties": False,
+                    },
+                    strict=True,
+                )
+            )
+        return tools
 
     async def execute_tool_call(self, tool_call: AssistantToolCall) -> dict[str, Any]:
         handler = self._tool_handlers.get(tool_call.name)
@@ -176,6 +209,27 @@ class ChatTools:
                 "tool": tool_call.name,
                 "error": str(exc),
             }
+
+    async def _web_search(self, args: dict[str, Any]) -> dict[str, Any]:
+        results = await search_web(
+            str(args.get("query") or ""),
+            (
+                args.get("max_results")
+                if isinstance(args.get("max_results"), int)
+                else None
+            ),
+        )
+        return {
+            "count": len(results),
+            "results": [
+                {
+                    "title": result.title,
+                    "url": result.url,
+                    "snippet": result.snippet,
+                }
+                for result in results
+            ],
+        }
 
     async def _get_presentation_outline(self, _: dict[str, Any]) -> dict[str, Any]:
         outline = await self._memory.get("presentation_outline")

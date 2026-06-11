@@ -1,7 +1,6 @@
 import * as z from "zod";
 import { fitCodeBlock, PRISM_CODE_BLOCK_STYLES } from "./codeBlockFitting";
 
-
 export const slideLayoutId = "api-request-response-slide";
 export const slideLayoutName = "API Request Response Slide";
 export const slideLayoutDescription =
@@ -74,6 +73,12 @@ function normalizeApiJsonSnippet(content?: string) {
     .trimEnd();
 }
 
+const REQUEST_CODE_MAX_WIDTH = 540;
+const REQUEST_CODE_MAX_HEIGHT = 204;
+const RESPONSE_CODE_MAX_WIDTH = 540;
+const RESPONSE_CODE_MAX_HEIGHT = 424;
+const API_CODE_LINE_HEIGHT_RATIO = 1.18;
+
 const CodeSlide03ApiRequestResponse = ({
   data,
 }: {
@@ -82,19 +87,21 @@ const CodeSlide03ApiRequestResponse = ({
   const requestCode = fitCodeBlock({
     language: "json",
     content: normalizeApiJsonSnippet(data.requestSnippet?.content),
-    maxWidth: 540,
-    maxHeight: 230,
+    maxWidth: REQUEST_CODE_MAX_WIDTH,
+    maxHeight: REQUEST_CODE_MAX_HEIGHT,
     maxFontSize: 14,
     minFontSize: 8,
+    lineHeightRatio: API_CODE_LINE_HEIGHT_RATIO,
   });
 
   const responseCode = fitCodeBlock({
     language: "json",
     content: normalizeApiJsonSnippet(data.responseSnippet?.content),
-    maxWidth: 540,
-    maxHeight: 430,
+    maxWidth: RESPONSE_CODE_MAX_WIDTH,
+    maxHeight: RESPONSE_CODE_MAX_HEIGHT,
     maxFontSize: 14,
     minFontSize: 8,
+    lineHeightRatio: API_CODE_LINE_HEIGHT_RATIO,
   });
 
   return (
@@ -110,18 +117,18 @@ const CodeSlide03ApiRequestResponse = ({
       >
 
         <div className="relative z-10 flex h-full flex-col">
-          <h2 className="text-[64px] font-medium" style={{ color: "var(--background-text,#ffffff)" }}>{data.title}</h2>
+          <h2 className="text-[64px] font-medium leading-[105%]" style={{ color: "var(--background-text,#ffffff)" }}>{data.title}</h2>
 
           <div className="mt-[22px] grid min-h-0 flex-1 grid-cols-2 gap-[22px]">
             <div className="flex min-h-0 flex-col gap-[12px]">
               <div
-                className="rounded-[14px] border p-[14px]"
+                className="rounded-[14px] border p-[12px]"
                 style={{
                   borderColor: "var(--stroke,#1D293D80)",
                   backgroundColor: "var(--card-color,#0F172B80)",
                 }}
               >
-                <div className="flex items-center gap-5 pb-[14px] border-b" style={{ borderColor: "var(--stroke,#1D293D80)" }}>
+                <div className="flex items-center gap-5 border-b pb-[12px]" style={{ borderColor: "var(--stroke,#1D293D80)" }}>
                   <p
                     className="rounded-[12px] px-[23px] py-[10px] text-[14px] uppercase tracking-[0.06em]"
                     style={{
@@ -133,8 +140,8 @@ const CodeSlide03ApiRequestResponse = ({
                   </p>
                   <p className="text-[23px]" style={{ color: "var(--background-text,#dde5ff)" }}>{data.endpoint}</p>
                 </div>
-                <p className="mt-[21px] text-[18px] uppercase tracking-[0.08em]" style={{ color: "var(--background-text,#90a1d8)" }}>Headers</p>
-                <div className="mt-[15px] space-y-[4px] text-[24px]" style={{ color: "var(--background-text,#cbd4f8)" }}>
+                <p className="mt-[14px] text-[18px] uppercase tracking-[0.08em]" style={{ color: "var(--background-text,#90a1d8)" }}>Headers</p>
+                <div className="mt-[10px] space-y-[4px] text-[24px]" style={{ color: "var(--background-text,#cbd4f8)" }}>
                   {data.headers?.map((item) => (
                     <p key={item} className="text-[18px]" style={{ color: "var(--background-text,#CAD5E2)" }}>{item}</p>
                   ))}
@@ -149,7 +156,7 @@ const CodeSlide03ApiRequestResponse = ({
                 }}
               >
                 <p
-                  className="text-[18px] capitalize rounded-t-[18px] border p-[14px]"
+                  className="rounded-t-[18px] border p-[14px] text-[18px]"
                   style={{
                     color: "var(--background-text,#CAD5E2)",
                     backgroundColor: "var(--card-color,#1D293D80)",
@@ -158,16 +165,17 @@ const CodeSlide03ApiRequestResponse = ({
                 >
                   {data.requestSnippet?.fileName}
                 </p>
-                <div className="min-h-0 w-full flex-1 overflow-hidden px-[14px] py-[20px]">
+                <div className="min-h-0 w-full flex-1 overflow-hidden px-[14px] py-[14px]">
                   <pre
+                    data-code-block="true"
                     className="prism-code-block m-0 w-full overflow-hidden"
                     style={{
                       color: "var(--background-text,#ffffff)",
                       fontFamily: requestCode.fontFamily,
                       fontSize: `${requestCode.fontSize}px`,
                       lineHeight: `${requestCode.lineHeight}px`,
-                      whiteSpace: "pre-wrap",
-                      overflowWrap: "break-word",
+                      whiteSpace: "pre",
+                      overflowWrap: "normal",
                       wordBreak: "normal",
                       tabSize: 2,
                     }}
@@ -185,7 +193,7 @@ const CodeSlide03ApiRequestResponse = ({
               }}
             >
               <p
-                className="text-[18px] capitalize rounded-t-[18px] border p-[14px]"
+                className="rounded-t-[18px] border p-[14px] text-[18px]"
                 style={{
                   color: "var(--background-text,#CAD5E2)",
                   backgroundColor: "var(--card-color,#1D293D80)",
@@ -194,16 +202,17 @@ const CodeSlide03ApiRequestResponse = ({
               >
                 {data.responseSnippet?.fileName}
               </p>
-              <div className="min-h-0 w-full flex-1 overflow-hidden px-[14px] py-[20px]">
+              <div className="min-h-0 w-full flex-1 overflow-hidden px-[14px] py-[14px]">
                 <pre
+                  data-code-block="true"
                   className="prism-code-block m-0 w-full overflow-hidden"
                   style={{
                     color: "var(--background-text,#ffffff)",
                     fontFamily: responseCode.fontFamily,
                     fontSize: `${responseCode.fontSize}px`,
                     lineHeight: `${responseCode.lineHeight}px`,
-                    whiteSpace: "pre-wrap",
-                    overflowWrap: "break-word",
+                    whiteSpace: "pre",
+                    overflowWrap: "normal",
                     wordBreak: "normal",
                     tabSize: 2,
                   }}

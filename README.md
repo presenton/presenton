@@ -15,9 +15,11 @@
   <a href="https://presenton.ai/"><img src="https://img.shields.io/badge/Platform-Docker%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat" alt="Platform" /></a>
 </p>
 
-# Open-Source AI Presentation Generator and API (Gamma, Beautiful AI, Decktopus Alternative)
+# Open-Source AI Presentation Generator and API (Gamma, Canva, Beautiful AI, Decktopus, Presentations AI Alternative)
 
+Discover what Presenton can do from AI-powered presentation generation to editing, exporting, and flexible model providers.
 
+[▶ Watch Presenton in Action](https://github.com/user-attachments/assets/93e541dc-8487-4dcf-a9a0-95ad5ca94453)
 
 ### ✨ Why Presenton
 
@@ -268,7 +270,14 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **LMSTUDIO_API_KEY**: Optional API key if **LLM** is **lmstudio**.
 - **LMSTUDIO_MODEL**: Required if **LLM** is **lmstudio** (example: `openai/gpt-oss-20b`).
 - **DISABLE_THINKING**=[true/false]: If **true**, disables “thinking” on the custom LLM.
-- **WEB_GROUNDING**=[true/false]: If **true**, enables web search for OpenAI, Google, and Anthropic models.
+- **WEB_GROUNDING**=[true/false]: If **true**, enables web search by default.
+- **WEB_SEARCH_PROVIDER**=[auto/native/searxng/tavily/exa]: Selects the web search mode. `auto` uses native search for OpenAI, Google, and Anthropic, and otherwise leaves web search off unless you choose an external provider.
+<!-- Brave and Serper search providers are hidden until they are tested. -->
+<!-- - **WEB_SEARCH_PROVIDER** also supports `brave` and `serper`. -->
+- **WEB_SEARCH_MAX_RESULTS**: Maximum external search results to add to model context (default `5`, maximum `10`).
+- **SEARXNG_BASE_URL**: Base URL for a self-hosted SearXNG instance.
+- **TAVILY_API_KEY**, **EXA_API_KEY**: Credentials for optional hosted search APIs.
+<!-- - **BRAVE_SEARCH_API_KEY**, **SERPER_API_KEY**: Credentials for hidden, untested hosted search APIs. -->
 - **EXTENDED_REASONING**=[true/false]: Enables extended reasoning where supported by the configured stack.
 
 #### Ollama
@@ -598,12 +607,17 @@ Prepend your server’s root URL to <code>path</code> and
 
 <ul>
   <li>
-    <a href="https://docs.presenton.ai/using-presenton-api">
+    <a href="https://docs.presenton.ai/v3/get-started/quickstart">
+      Deploy Presenton
+    </a>
+  </li>
+  <li>
+    <a href="https://docs.presenton.ai/v3/get-started/api-introduction">
       Full API Documentation
     </a>
   </li>
   <li>
-    <a href="https://docs.presenton.ai/tutorial/generate-presentation-over-api">
+    <a href="https://docs.presenton.ai/v3/guide/using-presenton-api">
       Generate Presentations via API in 5 Minutes
     </a>
   </li>

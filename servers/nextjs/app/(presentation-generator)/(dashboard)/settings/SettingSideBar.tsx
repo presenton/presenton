@@ -1,10 +1,10 @@
 import React from 'react'
-import { LogOut, Shield } from 'lucide-react'
+import { LogOut, Search, Shield } from 'lucide-react'
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from '@/utils/providerConstants'
 import { useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
 
-type SettingsSection = 'text-provider' | 'image-provider' | 'privacy' | 'session'
+type SettingsSection = 'text-provider' | 'image-provider' | 'web-search-provider' | 'privacy' | 'session'
 
 const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }: { mode: 'nanobanana' | 'presenton', setMode: (mode: 'nanobanana' | 'presenton') => void, selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void }) => {
     const { llm_config } = useSelector((state: RootState) => state.userConfig)
@@ -58,6 +58,12 @@ const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }
                             <img src={imageProviderIcon} className=' object-cover w-full h-full overflow-hidden' alt='google' />
                         </div>
                         <p className='text-[#191919] text-xs  font-medium' >Image Provider</p>
+                    </button>
+                    <button className={` w-full rounded-[6px] px-3 py-4 flex items-center gap-1.5 border  ${selectedProvider === 'web-search-provider' ? 'bg-[#F4F3FF] border-[#D9D6FE]' : 'bg-white border-[#EDEEEF]'}`} onClick={() => setSelectedProvider('web-search-provider')}>
+                        <div className='relative w-[18px] h-[18px] rounded-full overflow-hidden border border-[#EDEEEF] flex items-center justify-center bg-white'>
+                            <Search className='w-3 h-3 text-[#5146E5]' />
+                        </div>
+                        <p className='text-[#191919] text-xs font-medium'>Web Search Provider</p>
                     </button>
                 </div>}
                 {

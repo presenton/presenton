@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { IpcRendererEvent } from 'electron';
 
 contextBridge.exposeInMainWorld('env', {
   NEXT_PUBLIC_FAST_API: process.env.NEXT_PUBLIC_FAST_API || '',
@@ -7,6 +6,7 @@ contextBridge.exposeInMainWorld('env', {
   TEMP_DIRECTORY: process.env.TEMP_DIRECTORY || '',
   NEXT_PUBLIC_USER_CONFIG_PATH: process.env.NEXT_PUBLIC_USER_CONFIG_PATH || '',
   APP_VERSION: process.env.APP_VERSION || '',
+  DISABLE_AUTH: process.env.DISABLE_AUTH || '',
 });
 
 
@@ -31,11 +31,4 @@ contextBridge.exposeInMainWorld('electron', {
   hasRequiredKey: () => ipcRenderer.invoke("api:has-required-key"),
   telemetryStatus: () => ipcRenderer.invoke("api:telemetry-status"),
   getTemplates: () => ipcRenderer.invoke("api:templates"),
-  onStartupStatus: (callback: (payload: { name: string; status: string }) => void) => {
-    const listener = (_event: IpcRendererEvent, payload: { name: string; status: string }) =>
-      callback(payload);
-    ipcRenderer.on("startup:status", listener);
-    return () => ipcRenderer.removeListener("startup:status", listener);
-  },
-  getStartupStatus: () => ipcRenderer.invoke("startup:get-status"),
 });

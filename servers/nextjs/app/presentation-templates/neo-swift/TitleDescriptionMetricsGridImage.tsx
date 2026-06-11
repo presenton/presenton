@@ -125,7 +125,7 @@ const dynamicSlideLayout = ({ data }: { data: Partial<z.infer<typeof Schema>> })
                                         </div>
                                     </div>
                                     <div className="mt-auto text-center border-t border-[#EBEBEB] pt-1">
-                                        <p className="text-[12.6px] text-[#4D5463]  truncate"
+                                        <p className="text-[12.6px] text-[#4D5463]  "
 
                                             style={{ color: 'var(--primary-text,#4D5463)' }}
                                         >

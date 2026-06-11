@@ -2,7 +2,6 @@ import os
 import shutil
 import zipfile
 import tempfile
-import subprocess
 import uuid
 from typing import List, Optional, Dict
 from fastapi import APIRouter, UploadFile, File, HTTPException
@@ -12,9 +11,11 @@ import asyncio
 import xml.etree.ElementTree as ET
 import re
 
-from services.documents_loader import DocumentsLoader
+from templates.fonts_and_slides_preview import (
+    _PreviewLogger,
+    render_pptx_slides_to_images,
+)
 from utils.asset_directory_utils import absolute_fastapi_asset_url, get_images_directory
-import uuid
 from constants.documents import POWERPOINT_TYPES
 
 
@@ -296,9 +297,9 @@ async def process_pptx_slides(
 
     This endpoint:
     1. Validates the uploaded PPTX file
-    2. Installs any provided font files
+    2. Loads any provided font files for Chromium rendering
     3. Unzips the PPTX to extract slide XMLs
-    4. Uses LibreOffice to generate slide screenshots
+    4. Converts PPTX slides to HTML and renders screenshots with Chromium
     5. Returns both screenshot URLs and XML content for each slide
     """
 
@@ -328,20 +329,25 @@ async def process_pptx_slides(
                 pptx_content = await pptx_file.read()
                 f.write(pptx_content)
 
-            # Install fonts if provided
-            if fonts:
-                await _install_fonts(fonts, temp_dir)
+            font_paths = await _save_fonts(fonts or [], temp_dir)
 
             # Extract slide XMLs from PPTX
             slide_xmls = _extract_slide_xmls(pptx_path, temp_dir)
 
-            # Convert PPTX to PDF
-            pdf_path = await _convert_pptx_to_pdf(pptx_path, temp_dir)
-
-            # Generate screenshots using LibreOffice
-            screenshot_paths = await DocumentsLoader.get_page_images_from_pdf_async(
-                pdf_path, temp_dir
+            screenshot_paths = await render_pptx_slides_to_images(
+                modified_pptx_path=pptx_path,
+                font_paths_for_install=font_paths,
+                max_slides=None,
+                logger=_PreviewLogger(),
             )
+            if len(screenshot_paths) != len(slide_xmls):
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "PPTX preview renderer returned an unexpected slide count: "
+                        f"expected {len(slide_xmls)}, got {len(screenshot_paths)}"
+                    ),
+                )
             print(f"Screenshot paths: {screenshot_paths}")
 
             # Analyze fonts across all slides
@@ -442,71 +448,20 @@ async def process_pptx_fonts(
         )
 
 
-def _create_font_alias_config(raw_fonts: List[str]) -> str:
-    """Create a temporary fontconfig configuration that aliases variant family names to normalized root families.
-    Returns the path to the config file.
-    """
-    # Build mapping from raw -> normalized where different
-    mappings: Dict[str, str] = {}
-    for f in raw_fonts:
-        normalized = normalize_font_family_name(f)
-        if normalized and normalized != f:
-            mappings[f] = normalized
-    # Create config only if we have mappings
-    fd, fonts_conf_path = tempfile.mkstemp(prefix="fonts_alias_", suffix=".conf")
-    os.close(fd)
-    with open(fonts_conf_path, "w", encoding="utf-8") as cfg:
-        cfg.write(
-            """<?xml version='1.0'?>
-<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
-<fontconfig>
-  <include>/etc/fonts/fonts.conf</include>
-"""
-        )
-        for src, dst in mappings.items():
-            cfg.write(
-                f"""
-  <match target="pattern">
-    <test name="family" compare="eq">
-      <string>{src}</string>
-    </test>
-    <edit name="family" mode="assign" binding="strong">
-      <string>{dst}</string>
-    </edit>
-  </match>
-"""
-            )
-        cfg.write("\n</fontconfig>\n")
-    return fonts_conf_path
-
-
-async def _install_fonts(fonts: List[UploadFile], temp_dir: str) -> None:
-    """Install provided font files to the system."""
+async def _save_fonts(fonts: List[UploadFile], temp_dir: str) -> List[str]:
+    """Save provided fonts so the HTML preview renderer can load them."""
     fonts_dir = os.path.join(temp_dir, "fonts")
     os.makedirs(fonts_dir, exist_ok=True)
+    font_paths: List[str] = []
 
     for font_file in fonts:
-        # Save font file
         font_path = os.path.join(fonts_dir, font_file.filename)
         with open(font_path, "wb") as f:
             font_content = await font_file.read()
             f.write(font_content)
+        font_paths.append(font_path)
 
-        # Install font (copy to system fonts directory)
-        try:
-            subprocess.run(
-                ["cp", font_path, "/usr/share/fonts/truetype/"],
-                check=True,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"Warning: Failed to install font {font_file.filename}: {e}")
-
-    # Refresh font cache
-    try:
-        subprocess.run(["fc-cache", "-f", "-v"], check=True, capture_output=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Warning: Failed to refresh font cache: {e}")
+    return font_paths
 
 
 def _extract_slide_xmls(pptx_path: str, temp_dir: str) -> List[str]:
@@ -543,73 +498,3 @@ def _extract_slide_xmls(pptx_path: str, temp_dir: str) -> List[str]:
 
     except Exception as e:
         raise Exception(f"Failed to extract slide XMLs: {str(e)}")
-
-
-async def _convert_pptx_to_pdf(pptx_path: str, temp_dir: str) -> str:
-    """Generate PNG screenshots of PPTX slides using LibreOffice + ImageMagick."""
-    screenshots_dir = os.path.join(temp_dir, "screenshots")
-    os.makedirs(screenshots_dir, exist_ok=True)
-
-    try:
-        # First, get the number of slides by extracting XMLs
-        slide_xmls = _extract_slide_xmls(pptx_path, temp_dir)
-        slide_count = len(slide_xmls)
-
-        # Build font alias config to force variant families to resolve to normalized root families
-        raw_fonts: List[str] = []
-        for xml in slide_xmls:
-            raw_fonts.extend(extract_fonts_from_oxml(xml))
-        raw_fonts = list({f for f in raw_fonts if f})
-        fonts_conf_path = _create_font_alias_config(raw_fonts)
-        env = os.environ.copy()
-        env["FONTCONFIG_FILE"] = fonts_conf_path
-
-        print(f"Found {slide_count} slides in presentation")
-
-        # Step 1: Convert PPTX to PDF using LibreOffice
-        print("Starting LibreOffice PDF conversion...")
-        pdf_filename = "temp_presentation.pdf"
-        pdf_path = os.path.join(screenshots_dir, pdf_filename)
-
-        try:
-            result = subprocess.run(
-                [
-                    "libreoffice",
-                    "--headless",
-                    "--convert-to",
-                    "pdf",
-                    "--outdir",
-                    screenshots_dir,
-                    pptx_path,
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=500,
-                env=env,
-            )
-
-            print(f"LibreOffice PDF conversion output: {result.stdout}")
-            if result.stderr:
-                print(f"LibreOffice PDF conversion warnings: {result.stderr}")
-        except subprocess.TimeoutExpired:
-            raise Exception("LibreOffice PDF conversion timed out after 120 seconds")
-        except subprocess.CalledProcessError as e:
-            error_msg = e.stderr if e.stderr else str(e)
-            raise Exception(f"LibreOffice PDF conversion failed: {error_msg}")
-
-        # Find the generated PDF file (LibreOffice uses original filename)
-        pdf_files = [f for f in os.listdir(screenshots_dir) if f.endswith(".pdf")]
-        if not pdf_files:
-            raise Exception("LibreOffice failed to generate PDF file")
-
-        actual_pdf_path = os.path.join(screenshots_dir, pdf_files[0])
-        print(f"Generated PDF: {actual_pdf_path}")
-        return actual_pdf_path
-
-    except Exception as e:
-        # Re-raise the specific exceptions we've already handled
-        if "timed out" in str(e) or "failed:" in str(e):
-            raise
-        # Handle any other unexpected exceptions
-        raise Exception(f"Screenshot generation failed: {str(e)}")

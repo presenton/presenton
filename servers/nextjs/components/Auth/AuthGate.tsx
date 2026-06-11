@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { getApiUrl } from "@/utils/api";
+import { isAuthDisabled } from "@/utils/auth";
 import { formatFastApiDetail, UNAUTHORIZED_DETAIL } from "@/utils/authErrors";
 import { notify } from "@/components/ui/sonner";
 
@@ -29,6 +30,16 @@ export default function AuthGate() {
   const isSetupMode = useMemo(() => !status.configured, [status.configured]);
 
   useEffect(() => {
+    if (isAuthDisabled()) {
+      setStatus({
+        configured: true,
+        authenticated: true,
+        username: "electron",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     void refreshStatus();
   }, []);
 
@@ -43,7 +54,7 @@ export default function AuthGate() {
     }
 
     setIsRedirecting(true);
-    window.location.replace("/upload");
+    window.location.replace("/");
   }, [isLoading, isRedirecting, status.authenticated]);
 
   useEffect(() => {

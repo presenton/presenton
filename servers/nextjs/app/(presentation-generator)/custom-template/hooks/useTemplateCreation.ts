@@ -13,6 +13,7 @@ import {
 } from "../types";
 import { getApiUrl } from "@/utils/api";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
+import { compileCustomLayout } from "@/app/hooks/compileLayout";
 
 /** Must match `VISION_LAYOUT_ERROR_MARKER` in FastAPI `utils/template_vision_errors.py`. */
 const TEMPLATE_VISION_MODEL_MARKER = "TEMPLATE_VISION_MODEL_REQUIRED";
@@ -345,6 +346,12 @@ export const useTemplateCreation = () => {
                 layout_id: "",
                 layout_name: "",
             };
+
+            if (!compileCustomLayout(layoutResult.react_component)) {
+                throw new Error(
+                    `Generated layout for slide ${slideIndex + 1} contains invalid TSX`
+                );
+            }
 
             // Update slide with the react component
             setSlides(prev => {

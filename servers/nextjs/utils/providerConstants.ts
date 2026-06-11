@@ -28,6 +28,60 @@ export interface LLMProviderOption {
   getApiKeyUrl?: string;
 }
 
+export interface WebSearchProviderOption {
+  value: string;
+  label: string;
+  description: string;
+  apiKeyField?: string;
+  apiKeyLabel?: string;
+  urlField?: string;
+  urlLabel?: string;
+}
+
+export const WEB_SEARCH_PROVIDERS: Record<string, WebSearchProviderOption> = {
+  auto: {
+    value: "auto",
+    label: "Default (Model)",
+    description:
+      "Use model-native web grounding when available. Otherwise web search stays off until you choose an external provider.",
+  },
+  searxng: {
+    value: "searxng",
+    label: "SearXNG",
+    description: "Use a self-hosted SearXNG instance.",
+    urlField: "SEARXNG_BASE_URL",
+    urlLabel: "SearXNG base URL",
+  },
+  tavily: {
+    value: "tavily",
+    label: "Tavily",
+    description: "Search API optimized for AI applications.",
+    apiKeyField: "TAVILY_API_KEY",
+    apiKeyLabel: "Tavily API key",
+  },
+  exa: {
+    value: "exa",
+    label: "Exa",
+    description: "AI-native web search with extracted result highlights.",
+    apiKeyField: "EXA_API_KEY",
+    apiKeyLabel: "Exa API key",
+  },
+  // brave: {
+  //   value: "brave",
+  //   label: "Brave",
+  //   description: "Brave Search API for web search results.",
+  //   apiKeyField: "BRAVE_SEARCH_API_KEY",
+  //   apiKeyLabel: "Brave Search API key",
+  // },
+  // serper: {
+  //   value: "serper",
+  //   label: "Serper",
+  //   description: "Google search results via Serper.",
+  //   apiKeyField: "SERPER_API_KEY",
+  //   apiKeyLabel: "Serper API key",
+  // },
+};
+
 export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
   pexels: {
     value: "pexels",

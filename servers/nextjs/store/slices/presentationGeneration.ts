@@ -117,8 +117,17 @@ const presentationGenerationSlice = createSlice({
       }
     },
     deletePresentationSlide: (state, action: PayloadAction<number>) => {
-      if (state.presentationData) {
-        state.presentationData.slides.splice(action.payload, 1);
+      if (state.presentationData?.slides) {
+        const slides = state.presentationData.slides;
+        if (
+          slides.length <= 1 ||
+          action.payload < 0 ||
+          action.payload >= slides.length
+        ) {
+          return;
+        }
+
+        slides.splice(action.payload, 1);
         state.presentationData.slides = state.presentationData.slides.map(
           (slide: any, idx: number) => ({
             ...slide,

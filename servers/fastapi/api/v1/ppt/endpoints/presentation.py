@@ -79,6 +79,7 @@ from utils.simple_auth import (
     create_session_token,
     get_session_token_from_request,
 )
+from utils.web_search import get_selected_web_search_provider, get_web_search_route
 from models.presentation_layout import PresentationLayoutModel
 import uuid
 
@@ -283,6 +284,21 @@ async def create_presentation(
 
     sql_session.add(presentation)
     await sql_session.commit()
+
+    search_route, actual_search_provider = get_web_search_route()
+    logger.info(
+        "Created presentation: id=%s web_search_enabled=%s selected_web_search_provider=%s "
+        "web_search_route=%s actual_web_search_provider=%s",
+        presentation_id,
+        web_search,
+        get_selected_web_search_provider().value,
+        search_route,
+        (
+            actual_search_provider.value
+            if actual_search_provider
+            else ("model-native" if search_route == "native" else "none")
+        ),
+    )
 
     return presentation
 

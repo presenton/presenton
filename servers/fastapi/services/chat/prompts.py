@@ -62,6 +62,7 @@ def build_system_prompt(
         "- If generateImage or generateAssets URLs look like static placeholders (/static/…) or the user has no image provider configured, "
         "say the slide will show a placeholder until stock or generative image settings are enabled—do not imply a real photo was fetched.\n"
         "- If a tool fails, report it briefly and choose the best next step.\n"
+        "- Use webSearch for current or external facts when it is available, and cite returned URLs.\n"
         "\n"
         "Turn completion (avoid stopping mid-job)\n"
         "- Do not end your turn with only a plan (“I will…”, “shortly…”, “next I’ll…”). If the user asked for edits across multiple slides, "

@@ -52,23 +52,59 @@ const RESERVED_FOR_LUCIDE = new Set([
     "Text",
 ]);
 
-let lucideBindingLinesCache: string | null = null;
+function isLucideComponent(value: unknown): boolean {
+    return typeof value === "function" || (typeof value === "object" && value !== null);
+}
 
-function getLucideBindingLines(): string {
-    if (lucideBindingLinesCache !== null) {
-        return lucideBindingLinesCache;
+function getLucideBindingLines(layoutCode: string): string {
+    const requestedBindings = new Map<string, string>();
+    const declaredComponents = new Set<string>();
+    const bindings: string[] = [];
+
+    for (const match of layoutCode.matchAll(
+        /\b(?:const|let|var|function|class)\s+([A-Z][A-Za-z0-9_$]*)\b/g
+    )) {
+        declaredComponents.add(match[1]);
     }
-    const lines: string[] = [];
-    for (const name of Object.keys(LucideReact)) {
-        if (!/^[A-Z]/.test(name)) continue;
-        if (RESERVED_FOR_LUCIDE.has(name)) continue;
-        const v = (LucideReact as Record<string, unknown>)[name];
-        if (typeof v !== "function") continue;
-        if (name === "Icon" || name === "LucideIcon") continue;
-        lines.push(`const ${name} = _Lucide[${JSON.stringify(name)}];`);
+
+    const importPattern = /import\s+\{([\s\S]*?)\}\s+from\s+['"]lucide-react['"];?/g;
+
+    for (const match of layoutCode.matchAll(importPattern)) {
+        const specifiers = match[1].split(",");
+        for (const specifier of specifiers) {
+            const [importedName, localName = importedName] = specifier
+                .trim()
+                .split(/\s+as\s+/);
+
+            if (!importedName || !/^[A-Z][A-Za-z0-9_$]*$/.test(localName)) continue;
+            requestedBindings.set(localName, importedName);
+        }
     }
-    lucideBindingLinesCache = lines.join("\n");
-    return lucideBindingLinesCache;
+
+    // Generated layouts sometimes omit Lucide imports entirely. Any undefined
+    // capitalized JSX component gets a Lucide component or a visible placeholder.
+    for (const match of layoutCode.matchAll(/<\s*([A-Z][A-Za-z0-9_$]*)(?![A-Za-z0-9_$.])/g)) {
+        const componentName = match[1];
+        if (!requestedBindings.has(componentName)) {
+            requestedBindings.set(componentName, componentName);
+        }
+    }
+
+    for (const [localName, importedName] of requestedBindings) {
+        if (RESERVED_FOR_LUCIDE.has(localName)) continue;
+        if (localName === "Icon" || localName === "LucideIcon") continue;
+        if (declaredComponents.has(localName)) continue;
+
+        const resolvedName = isLucideComponent(
+            (LucideReact as Record<string, unknown>)[importedName]
+        )
+            ? importedName
+            : "CircleHelp";
+
+        bindings.push(`const ${localName} = _Lucide[${JSON.stringify(resolvedName)}];`);
+    }
+
+    return bindings.join("\n");
 }
 
 export interface CompiledLayout {
@@ -160,7 +196,7 @@ export function compileCustomLayout(layoutCode: string): CompiledLayout | null {
         }).code;
 
         // Create a factory function that executes the compiled code
-        const lucideBindings = getLucideBindingLines();
+        const lucideBindings = getLucideBindingLines(normalizedLayoutCode);
 
         const factory = new Function(
             "React",
@@ -247,7 +283,5 @@ export function compileCustomLayout(layoutCode: string): CompiledLayout | null {
         return null;
     }
 }
-
-
 
 

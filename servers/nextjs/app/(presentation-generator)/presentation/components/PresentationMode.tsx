@@ -22,7 +22,7 @@ interface PresentationModeProps {
   currentSlide: number;
   theme?: Theme | null;
   isFullscreen: boolean;
-  onFullscreenToggle: () => void;
+  onFullscreenToggle: (target?: Element | null) => void;
   onExit: () => void;
   onSlideChange: (slideNumber: number) => void;
 }
@@ -151,7 +151,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         case "f":
         case "F":
           if (!event.ctrlKey && !event.metaKey && !event.altKey) {
-            onFullscreenToggle();
+            onFullscreenToggle(rootRef.current);
           }
           break;
         case "n":
@@ -192,7 +192,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
       ref={rootRef}
       role="application"
       aria-label="Presentation"
-      className="fixed inset-0 z-[100] flex flex-col outline-none select-none"
+      className="fixed inset-0 z-[100] flex h-[100dvh] w-[100dvw] flex-col overflow-hidden outline-none select-none"
       style={{ backgroundColor: "var(--page-background-color, #c8c7c9)" }}
       tabIndex={0}
       onMouseMove={handlePointerActivity}
@@ -215,7 +215,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
             title="Fullscreen (F)"
             onClick={(e) => {
               e.stopPropagation();
-              onFullscreenToggle();
+              onFullscreenToggle(rootRef.current);
             }}
             className="h-9 w-9 text-gray-800 hover:bg-gray-100"
           >
@@ -239,11 +239,11 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
 
       {/* Slide stage — large viewport; SlideScale uses width+height so slides scale up */}
       <div
-        className={`flex min-h-0 flex-1 items-stretch justify-stretch ${isFullscreen ? "px-2 pb-9 pt-12 sm:px-3" : "px-3 pb-24 pt-14 sm:px-4 md:pb-28 md:pt-16"
+        className={`flex min-h-0 flex-1 items-stretch justify-stretch ${isFullscreen ? "p-0" : "px-3 pb-24 pt-14 sm:px-4 md:pb-28 md:pt-16"
           }`}
       >
         <div
-          className={`min-h-0 w-full flex-1 overflow-hidden rounded-sm `}
+          className={`min-h-0 w-full flex-1 overflow-hidden ${isFullscreen ? "rounded-none" : "rounded-sm"}`}
         >
           {activeSlide ? (
             <SlideScale

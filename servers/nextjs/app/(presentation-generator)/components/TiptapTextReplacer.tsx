@@ -189,6 +189,10 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
         "SELECT",
         "OPTION",
         "OPTGROUP", // Select dropdown elements
+        "PRE",
+        "CODE",
+        "KBD",
+        "SAMP", // Preformatted/code elements
         "SCRIPT",
         "STYLE",
         "NOSCRIPT", // Script/style elements
@@ -211,6 +215,9 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
         "flowchart",
         "mermaid",
         "diagram",
+        "prism-code-block",
+        "token",
+        "language-",
       ];
 
       // Check if current element or any parent is in ignored list
@@ -218,6 +225,14 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
       while (currentElement) {
         // Check element type
         if (ignoredElementTypes.includes(currentElement.tagName)) {
+          return true;
+        }
+
+        if (
+          currentElement.matches(
+            "pre, code, kbd, samp, [data-code-block], .prism-code-block"
+          )
+        ) {
           return true;
         }
 

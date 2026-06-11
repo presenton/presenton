@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { isAuthDisabled } from "@/utils/auth";
 
 type AuthStatus = {
   configured: boolean;
@@ -7,11 +8,6 @@ type AuthStatus = {
   username: string | null;
   available: boolean;
 };
-
-function isAuthDisabled(): boolean {
-  const raw = process.env.DISABLE_AUTH?.trim().toLowerCase();
-  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
-}
 
 /**
  * Resolves the FastAPI base used from Next server components (same as start.js).

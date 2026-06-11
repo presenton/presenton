@@ -157,7 +157,7 @@ const dynamicSlideLayout: React.FC<SlideLayoutProps> = ({ data: slideData }) => 
                 </div>
                 <div className="flex-1 min-w-0">
                   <div
-                    className="text-[18px] leading-tight font-semibold  truncate"
+                    className="text-[18px] leading-tight font-semibold  "
                     style={{ color: "var(--background-text, #111827)" }}
                   >
                     {item.title}

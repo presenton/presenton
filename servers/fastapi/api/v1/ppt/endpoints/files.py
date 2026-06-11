@@ -38,7 +38,10 @@ async def upload_files(files: Optional[List[UploadFile]]):
 
 
 @FILES_ROUTER.post("/decompose", response_model=List[DecomposedFileInfo])
-async def decompose_files(file_paths: Annotated[List[str], Body(embed=True)]):
+async def decompose_files(
+    file_paths: Annotated[List[str], Body(embed=True)],
+    language: Annotated[Optional[str], Body()] = None,
+):
     temp_dir = TEMP_FILE_SERVICE.create_temp_dir(str(uuid.uuid4()))
 
     txt_files = []
@@ -49,7 +52,7 @@ async def decompose_files(file_paths: Annotated[List[str], Body(embed=True)]):
         else:
             other_files.append(file_path)
 
-    documents_loader = DocumentsLoader(file_paths=other_files)
+    documents_loader = DocumentsLoader(file_paths=other_files, presentation_language=language)
     await documents_loader.load_documents(temp_dir)
     parsed_documents = documents_loader.documents
 

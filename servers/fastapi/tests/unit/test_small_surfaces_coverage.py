@@ -412,11 +412,21 @@ def test_export_includes_optional_fastapi_param():
             },
             clear=False,
         ), patch.object(EXPORT_TASK_SERVICE, "export_from_url", mock_pdf):
-            await export_presentation(dummy, title="safe", export_as="pdf")
+            await export_presentation(
+                dummy,
+                title="safe",
+                export_as="pdf",
+                cookie_header="presenton_session=abc; theme=dark",
+            )
 
         pdf_call = mock_pdf.await_args.kwargs
         assert "pdf-maker" in pdf_call["url"]
+        assert (
+            "#exportCookie=presenton_session%3Dabc%3B+theme%3Ddark"
+            in pdf_call["url"]
+        )
         assert pdf_call["fastapi_url"] == "https://fast.example"
+        assert pdf_call["cookie_header"] == "presenton_session=abc; theme=dark"
 
         mock_pptx = AsyncMock(return_value=fake_result)
         with patch.dict(
@@ -424,6 +434,7 @@ def test_export_includes_optional_fastapi_param():
         ), patch.object(EXPORT_TASK_SERVICE, "export_from_url", mock_pptx):
             await export_presentation(dummy, title="two", export_as="pptx")
         pptx_call = mock_pptx.await_args.kwargs
+        assert "#" not in pptx_call["url"]
         assert pptx_call["fastapi_url"] is None
 
     asyncio.run(runner())
@@ -491,6 +502,8 @@ def test_presentation_layout_model_surface():
         ],
     )
     assert "From schema" in layout.to_string()
+    with_schema = layout.to_string(with_schema=True)
+    assert '"title": "From schema"' in with_schema
     assert layout.to_presentation_structure().slides == [0]
     assert layout.get_slide_layout_index("sid") == 0
     with pytest.raises(HTTPException):

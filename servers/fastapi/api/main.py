@@ -18,7 +18,11 @@ from utils.get_env import (
     get_sentry_send_default_pii_env,
     get_sentry_traces_sample_rate_env,
 )
+from utils.mime_types import init_sandbox_safe_mimetypes
 from utils.path_helpers import get_resource_path
+
+
+init_sandbox_safe_mimetypes()
 
 
 def _maybe_init_sentry() -> None:

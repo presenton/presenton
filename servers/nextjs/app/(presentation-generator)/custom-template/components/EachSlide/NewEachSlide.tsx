@@ -23,6 +23,7 @@ import Timer from "../Timer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import ToolTip from "@/components/ToolTip";
+import SlideErrorBoundary from "@/app/(presentation-generator)/components/SlideErrorBoundary";
 // import { CodeEditor } from "./CodeEditor";
 // import SlideSelectionEditor from "./SlideSelectionEditor";
 import SchemaElementHighlighter from "../SchemaElementHighlighter";
@@ -424,53 +425,57 @@ const EachSlide: React.FC<EachSlideProps> = ({
 
       {/* Slide Content */}
       <div className="p-4">
-        {/* Selection Edit Mode Banner */}
-        {isSelectionEditMode && slide.processed && !slide.processing && (
-          <div className="mb-4 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
-                <MousePointer2 className="w-3.5 h-3.5 text-white" />
+        <SlideErrorBoundary
+          label={`Slide ${index + 1}`}
+          resetKey={`${slide.processing}:${slide.processed}:${slide.react}`}
+        >
+          {/* Selection Edit Mode Banner */}
+          {isSelectionEditMode && slide.processed && !slide.processing && (
+            <div className="mb-4 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
+                  <MousePointer2 className="w-3.5 h-3.5 text-white" />
+                </div>
+                <span className="text-sm font-medium text-indigo-700">
+                  Selection Edit Mode — Click on any element to edit with AI
+                </span>
               </div>
-              <span className="text-sm font-medium text-indigo-700">
-                Selection Edit Mode — Click on any element to edit with AI
-              </span>
+              <button
+                onClick={() => setIsSelectionEditMode(false)}
+                className="h-8 px-3 text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 rounded-md transition-colors"
+              >
+                Exit
+              </button>
             </div>
-            <button
-              onClick={() => setIsSelectionEditMode(false)}
-              className="h-8 px-3 text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 rounded-md transition-colors"
-            >
-              Exit
-            </button>
-          </div>
-        )}
-        <div className="relative">
-          <SlideContentDisplay
-            slide={slide}
-            compiledLayout={compiledLayout}
-            previewData={previewData}
-            retrySlide={handleRetrySlide}
-            onClearPreview={handleClearPreview}
-            slideDisplayRef={slideDisplayRef}
-          />
-          {/* Schema-Element Highlighting Overlay - active when schema editor is open */}
-          {isSchemaEditorOpen && slide.processed && !slide.processing && (
-            <SchemaElementHighlighter
-              containerRef={slideDisplayRef}
-              sampleData={sampleData}
-              isActive={isSchemaEditorOpen}
-            />
           )}
-          {/* Selection Editor Overlay */}
-          {/* {isSelectionEditMode && slide.processed && !slide.processing && (
-            <SlideSelectionEditor
-              containerRef={slideDisplayRef}
+          <div className="relative">
+            <SlideContentDisplay
               slide={slide}
-              onSlideUpdate={handleSelectionUpdate}
+              compiledLayout={compiledLayout}
+              previewData={previewData}
+              retrySlide={handleRetrySlide}
+              onClearPreview={handleClearPreview}
+              slideDisplayRef={slideDisplayRef}
             />
-          )} */}
-        </div>
+            {/* Schema-Element Highlighting Overlay - active when schema editor is open */}
+            {isSchemaEditorOpen && slide.processed && !slide.processing && (
+              <SchemaElementHighlighter
+                containerRef={slideDisplayRef}
+                sampleData={sampleData}
+                isActive={isSchemaEditorOpen}
+              />
+            )}
+            {/* Selection Editor Overlay */}
+            {/* {isSelectionEditMode && slide.processed && !slide.processing && (
+              <SlideSelectionEditor
+                containerRef={slideDisplayRef}
+                slide={slide}
+                onSlideUpdate={handleSelectionUpdate}
+              />
+            )} */}
+          </div>
+        </SlideErrorBoundary>
       </div>
-
 
       {/* Status Indicator */}
       {hasError && (
