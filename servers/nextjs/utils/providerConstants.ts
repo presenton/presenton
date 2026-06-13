@@ -275,6 +275,14 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     description: "Ollama's primary text generation model",
     icon: "/providers/ollama.svg",
   },
+  rodiumai: {
+    value: "rodiumai",
+    label: "RodiumAi",
+    description: "Pay-as-you-go AI gateway for Africa (OpenAI-compatible)",
+    url: "https://api.rodiumai.io/v1",
+    icon: "/providers/rodiumai.svg",
+    getApiKeyUrl: "https://rodiumai.io/dashboard/api-keys",
+  },
   custom: {
     value: "custom",
     label: "Custom",

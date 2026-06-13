@@ -16,4 +16,5 @@ class LLMProvider(Enum):
     LITELLM = "litellm"
     LMSTUDIO = "lmstudio"
     CUSTOM = "custom"
+    RODIUMAI = "rodiumai"
     CODEX = "codex"

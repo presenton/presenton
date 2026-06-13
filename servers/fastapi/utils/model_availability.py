@@ -1,5 +1,5 @@
 from constants.supported_ollama_models import SUPPORTED_OLLAMA_MODELS
-from constants.llm import OPENAI_URL
+from constants.llm import OPENAI_URL, RODIUMAI_URL
 from enums.image_provider import ImageProvider
 from enums.llm_provider import LLMProvider
 from utils.available_models import (
@@ -33,6 +33,9 @@ from utils.get_env import (
     get_openai_api_key_env,
     get_openai_model_env,
     get_openrouter_api_key_env,
+    get_rodiumai_api_key_env,
+    get_rodiumai_base_url_env,
+    get_rodiumai_model_env,
     get_together_api_key_env,
     get_together_base_url_env,
     get_together_model_env,
@@ -175,6 +178,24 @@ async def check_llm_and_image_provider_api_or_model_availability():
         elif get_llm_provider() == LLMProvider.OPENROUTER:
             if not get_openrouter_api_key_env():
                 raise Exception("OPENROUTER_API_KEY must be provided")
+
+        elif get_llm_provider() == LLMProvider.RODIUMAI:
+            rodiumai_api_key = (get_rodiumai_api_key_env() or "").strip()
+            rodiumai_model = (get_rodiumai_model_env() or "").strip()
+            if not rodiumai_api_key:
+                raise Exception("RODIUMAI_API_KEY must be provided")
+            if not rodiumai_model:
+                raise Exception("RODIUMAI_MODEL must be provided")
+            rodiumai_base_url = normalize_openai_compatible_base_url(
+                (get_rodiumai_base_url_env() or RODIUMAI_URL).strip()
+            )
+            available_models = await list_available_openai_compatible_models(
+                rodiumai_base_url, rodiumai_api_key
+            )
+            print("-" * 50)
+            print("Available models: ", available_models)
+            if rodiumai_model not in available_models:
+                raise Exception(f"Model {rodiumai_model} is not available")
 
         elif get_llm_provider() == LLMProvider.FIREWORKS:
             fireworks_api_key = (get_fireworks_api_key_env() or "").strip()

@@ -61,6 +61,8 @@ def _provider_label(provider: LLMProvider) -> str:
         return "Cerebras"
     if provider == LLMProvider.CUSTOM:
         return "Custom"
+    if provider == LLMProvider.RODIUMAI:
+        return "RodiumAi"
     if provider == LLMProvider.LITELLM:
         return "LiteLLM"
     if provider == LLMProvider.LMSTUDIO:

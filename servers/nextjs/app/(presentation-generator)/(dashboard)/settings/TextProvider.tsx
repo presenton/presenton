@@ -63,6 +63,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "BEDROCK_MODEL";
       case "openrouter":
         return "OPENROUTER_MODEL";
+      case "rodiumai":
+        return "RODIUMAI_MODEL";
       case "fireworks":
         return "FIREWORKS_MODEL";
       case "together":
@@ -100,6 +102,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "BEDROCK_API_KEY";
       case "openrouter":
         return "OPENROUTER_API_KEY";
+      case "rodiumai":
+        return "RODIUMAI_API_KEY";
       case "fireworks":
         return "FIREWORKS_API_KEY";
       case "together":
@@ -146,6 +150,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       ? "Bedrock API Key (optional)"
       : selectedProvider === "openrouter"
       ? "OpenRouter API Key"
+      : selectedProvider === "rodiumai"
+      ? "RodiumAi API Key"
       : selectedProvider === "fireworks"
       ? "Fireworks API Key"
       : selectedProvider === "together"
@@ -199,6 +205,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         ? "BEDROCK_API_KEY"
         : llm === "openrouter"
         ? "OPENROUTER_API_KEY"
+        : llm === "rodiumai"
+        ? "RODIUMAI_API_KEY"
         : llm === "fireworks"
         ? "FIREWORKS_API_KEY"
         : llm === "together"
@@ -225,6 +233,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
     if (selectedProvider === "google" && !currentApiKey) return;
     if (selectedProvider === "anthropic" && !currentApiKey) return;
     if (selectedProvider === "openrouter" && !currentApiKey) return;
+    if (selectedProvider === "rodiumai" && !currentApiKey) return;
     if (selectedProvider === "fireworks" && !currentApiKey) return;
     if (selectedProvider === "together" && !currentApiKey) return;
     if (selectedProvider === "cerebras" && !currentApiKey) return;
@@ -354,6 +363,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
               ? "claude-sonnet-4-20250514"
               : selectedProvider === "openrouter"
               ? "openai/gpt-4o"
+              : selectedProvider === "rodiumai"
+              ? "openai/gpt-4o-mini"
               : selectedProvider === "fireworks"
               ? "accounts/fireworks/models/llama-v3p1-8b-instruct"
               : selectedProvider === "together"
@@ -756,6 +767,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                       (selectedProvider === "google" && !currentApiKey) ||
                       (selectedProvider === "anthropic" && !currentApiKey) ||
                       (selectedProvider === "openrouter" && !currentApiKey) ||
+                      (selectedProvider === "rodiumai" && !currentApiKey) ||
                       (selectedProvider === "fireworks" && !currentApiKey) ||
                       (selectedProvider === "together" && !currentApiKey) ||
                       (selectedProvider === "cerebras" && !currentApiKey) ||

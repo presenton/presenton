@@ -308,6 +308,8 @@ const SettingsPage = () => {
             ? llmConfig.BEDROCK_MODEL
             : textProviderKey === "openrouter"
               ? llmConfig.OPENROUTER_MODEL
+              : textProviderKey === "rodiumai"
+                ? llmConfig.RODIUMAI_MODEL
               : textProviderKey === "fireworks"
                 ? llmConfig.FIREWORKS_MODEL
                 : textProviderKey === "together"
@@ -353,6 +355,7 @@ const SettingsPage = () => {
       (llmConfig.LLM === "azure" && !llmConfig.AZURE_OPENAI_MODEL) ||
       (llmConfig.LLM === "bedrock" && !llmConfig.BEDROCK_MODEL) ||
       (llmConfig.LLM === "openrouter" && !llmConfig.OPENROUTER_MODEL) ||
+      (llmConfig.LLM === "rodiumai" && !llmConfig.RODIUMAI_MODEL) ||
       (llmConfig.LLM === "fireworks" && !llmConfig.FIREWORKS_MODEL) ||
       (llmConfig.LLM === "together" && !llmConfig.TOGETHER_MODEL) ||
       (llmConfig.LLM === "cerebras" && !llmConfig.CEREBRAS_MODEL) ||

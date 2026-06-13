@@ -1,4 +1,5 @@
 OPENAI_URL = "https://api.openai.com/v1"
+RODIUMAI_URL = "https://api.rodiumai.io/v1"
 
 # Default models
 DEFAULT_OPENAI_MODEL = "gpt-4.1"
@@ -14,3 +15,4 @@ DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
 DEFAULT_LITELLM_MODEL = "gpt-4.1"
 DEFAULT_LMSTUDIO_MODEL = "openai/gpt-oss-20b"
 DEFAULT_CODEX_MODEL = "gpt-5.2"
+DEFAULT_RODIUMAI_MODEL = "openai/gpt-4o-mini"

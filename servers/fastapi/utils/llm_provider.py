@@ -14,6 +14,7 @@ from constants.llm import (
     DEFAULT_LMSTUDIO_MODEL,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_RODIUMAI_MODEL,
     DEFAULT_TOGETHER_MODEL,
     DEFAULT_VERTEX_MODEL,
 )
@@ -36,6 +37,7 @@ from utils.get_env import (
     get_openai_model_env,
     get_cerebras_model_env,
     get_openrouter_model_env,
+    get_rodiumai_model_env,
     get_together_model_env,
     get_vertex_model_env,
 )
@@ -51,7 +53,7 @@ def get_llm_provider():
                 "Invalid LLM provider. Please select one of: "
                 "openai, google, vertex, azure, bedrock, openrouter, "
                 "fireworks, together, cerebras, anthropic, litellm, "
-                "lmstudio, ollama, custom, codex"
+                "lmstudio, ollama, custom, rodiumai, codex"
             ),
         )
 
@@ -96,6 +98,10 @@ def is_openrouter_selected():
     return get_llm_provider() == LLMProvider.OPENROUTER
 
 
+def is_rodiumai_selected():
+    return get_llm_provider() == LLMProvider.RODIUMAI
+
+
 def is_fireworks_selected():
     return get_llm_provider() == LLMProvider.FIREWORKS
 
@@ -134,6 +140,8 @@ def get_model():
         return get_bedrock_model_env() or DEFAULT_BEDROCK_MODEL
     elif selected_llm == LLMProvider.OPENROUTER:
         return get_openrouter_model_env() or DEFAULT_OPENROUTER_MODEL
+    elif selected_llm == LLMProvider.RODIUMAI:
+        return get_rodiumai_model_env() or DEFAULT_RODIUMAI_MODEL
     elif selected_llm == LLMProvider.FIREWORKS:
         return get_fireworks_model_env() or DEFAULT_FIREWORKS_MODEL
     elif selected_llm == LLMProvider.TOGETHER:
@@ -159,7 +167,7 @@ def get_model():
                 "Invalid LLM provider. Please select one of: "
                 "openai, google, vertex, azure, bedrock, openrouter, "
                 "fireworks, together, cerebras, anthropic, litellm, "
-                "lmstudio, ollama, custom, codex"
+                "lmstudio, ollama, custom, rodiumai, codex"
             ),
         )
 
