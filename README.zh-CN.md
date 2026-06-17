@@ -20,9 +20,11 @@
   <strong>简体中文</strong>
 </p>
 
-# 开源 AI 演示文稿生成器与 API（Gamma、Beautiful AI、Decktopus 的开源替代方案）
+# 开源 AI 演示文稿生成器与 API（Gamma、Canva、Beautiful AI、Decktopus、Presentations AI 的开源替代方案）
 
+了解 Presenton 能做什么：从 AI 驱动的演示文稿生成，到编辑、导出，以及灵活的模型服务商。
 
+[▶ 观看 Presenton 实际演示](https://github.com/user-attachments/assets/93e541dc-8487-4dcf-a9a0-95ad5ca94453)
 
 ### ✨ 为什么选择 Presenton
 
@@ -51,6 +53,10 @@ Presenton 有什么不一样？
 
 <p align="center">
   <img src="./readme_assets/images/features.png" alt="Presenton Features" />
+</p>
+
+<p align="center">
+  <img src="./readme_assets/images/chatgpt-2-1.png" alt="用你现有的 ChatGPT 订阅创建精美演示文稿 —— 安全私密、即时可用、无需 API Key" />
 </p>
 
 #
@@ -232,7 +238,7 @@ Presenton 让你完整掌控自己的 AI 演示文稿工作流：自由选择模
 #### LLM 与 API Key
 
 - **CAN_CHANGE_KEYS**=[true/false]：设为 **false** 后可隐藏 API Key 并禁止修改。
-- **LLM**=[openai/google/vertex/azure/anthropic/lmstudio/ollama/custom/codex]：选择文本 **LLM**。
+- **LLM**=[openai/google/vertex/azure/bedrock/anthropic/lmstudio/ollama/custom/codex]：选择文本 **LLM**。
 - **OPENAI_API_KEY**：当 **LLM** 为 **openai** 时必填。
 - **OPENAI_MODEL**：当 **LLM** 为 **openai** 时必填（默认：`gpt-4.1`）。
 - **GOOGLE_API_KEY**：当 **LLM** 为 **google** 时必填。
@@ -247,9 +253,9 @@ Presenton 让你完整掌控自己的 AI 演示文稿工作流：自由选择模
 - **AZURE_OPENAI_ENDPOINT** / **AZURE_OPENAI_BASE_URL**：当 **LLM** 为 **azure** 时至少需要填一个。
 - **AZURE_OPENAI_DEPLOYMENT**：**LLM** 为 **azure** 时的可选 deployment 覆盖。
 - **BEDROCK_REGION**：**LLM** 为 **bedrock** 时可选（默认：`us-east-1`）。
-- **BEDROCK_MODEL**：当 **LLM** 为 **bedrock** 时必填（示例：`us.anthropic.claude-3-5-haiku-20241022-v1:0`）。
-- **BEDROCK_API_KEY**：**LLM** 为 **bedrock** 时可选（API Key 鉴权模式）。
-- **BEDROCK_AWS_ACCESS_KEY_ID** / **BEDROCK_AWS_SECRET_ACCESS_KEY**：**LLM** 为 **bedrock** 时可选（AWS Key 鉴权模式；在未设置 `BEDROCK_API_KEY` 时一起使用）。
+- **BEDROCK_MODEL**：当 **LLM** 为 **bedrock** 时必填。可以使用标准模型 ID（示例：`us.anthropic.claude-3-5-haiku-20241022-v1:0`），也可以为较新的模型使用完整的**推理配置文件 ARN**（inference profile ARN，例如 Claude Sonnet 4.6）。该值会作为 `modelId` 透传给 Bedrock Converse。参见 **[Amazon Bedrock 指南](docs/amazon-bedrock.md)**。
+- **BEDROCK_API_KEY**：**LLM** 为 **bedrock** 时可选（API Key 鉴权；AWS Key 的替代方案）。
+- **BEDROCK_AWS_ACCESS_KEY_ID** / **BEDROCK_AWS_SECRET_ACCESS_KEY**：当 **LLM** 为 **bedrock** 且未设置 `BEDROCK_API_KEY` 时，两者需一起填写。
 - **BEDROCK_AWS_SESSION_TOKEN**：**LLM** 为 **bedrock** 时的可选 session token。
 - **BEDROCK_PROFILE_NAME**：**LLM** 为 **bedrock** 时的可选 AWS profile 名称。
 - **FIREWORKS_API_KEY**：当 **LLM** 为 **fireworks** 时必填。
@@ -268,7 +274,14 @@ Presenton 让你完整掌控自己的 AI 演示文稿工作流：自由选择模
 - **LMSTUDIO_API_KEY**：**LLM** 为 **lmstudio** 时可选的 API Key。
 - **LMSTUDIO_MODEL**：当 **LLM** 为 **lmstudio** 时必填（示例：`openai/gpt-oss-20b`）。
 - **DISABLE_THINKING**=[true/false]：设为 **true** 可关闭自定义 LLM 的"thinking"过程。
-- **WEB_GROUNDING**=[true/false]：设为 **true** 可为 OpenAI、Google、Anthropic 模型启用联网搜索。
+- **WEB_GROUNDING**=[true/false]：设为 **true** 可默认启用联网搜索。
+- **WEB_SEARCH_PROVIDER**=[auto/native/searxng/tavily/exa]：选择联网搜索方式。`auto` 会对 OpenAI、Google、Anthropic 使用原生搜索，其他情况下除非你选择外部服务商，否则不启用联网搜索。
+<!-- Brave and Serper search providers are hidden until they are tested. -->
+<!-- - **WEB_SEARCH_PROVIDER** also supports `brave` and `serper`. -->
+- **WEB_SEARCH_MAX_RESULTS**：加入模型上下文的外部搜索结果最大条数（默认 `5`，最多 `10`）。
+- **SEARXNG_BASE_URL**：自托管 SearXNG 实例的 base URL。
+- **TAVILY_API_KEY**、**EXA_API_KEY**：可选的托管搜索 API 的凭证。
+<!-- - **BRAVE_SEARCH_API_KEY**, **SERPER_API_KEY**: Credentials for hidden, untested hosted search APIs. -->
 - **EXTENDED_REASONING**=[true/false]：在所配置的模型支持的情况下启用扩展推理。
 
 #### Ollama
@@ -388,8 +401,11 @@ docker stop presenton && docker rm presenton && docker run -it --name presenton 
 - 使用 Azure OpenAI
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="azure" -e AZURE_OPENAI_API_KEY="******" -e AZURE_OPENAI_MODEL="gpt-4.1" -e AZURE_OPENAI_API_VERSION="2024-10-21" -e AZURE_OPENAI_ENDPOINT="https://YOUR-RESOURCE.openai.azure.com" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
-- 使用 Amazon Bedrock（AWS Key）
+- 使用 Amazon Bedrock（按需模型 ID）—— 关于推理配置文件、IAM 与故障排查，请参见 **[docs/amazon-bedrock.md](docs/amazon-bedrock.md)**。
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="bedrock" -e BEDROCK_REGION="us-east-1" -e BEDROCK_AWS_ACCESS_KEY_ID="******" -e BEDROCK_AWS_SECRET_ACCESS_KEY="******" -e BEDROCK_MODEL="us.anthropic.claude-3-5-haiku-20241022-v1:0" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
+
+- 使用 Amazon Bedrock（推理配置文件 ARN，例如 Claude Sonnet 4.6）
+    <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="bedrock" -e BEDROCK_REGION="us-east-1" -e BEDROCK_AWS_ACCESS_KEY_ID="******" -e BEDROCK_AWS_SECRET_ACCESS_KEY="******" -e BEDROCK_MODEL="arn:aws:bedrock:us-east-1:YOUR_ACCOUNT_ID:inference-profile/us.anthropic.claude-sonnet-4-6" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
 - 使用 Fireworks
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="fireworks" -e FIREWORKS_API_KEY="******" -e FIREWORKS_MODEL="accounts/fireworks/models/llama-v3p1-8b-instruct" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
@@ -595,12 +611,17 @@ docker stop presenton && docker rm presenton && docker run -it --name presenton 
 
 <ul>
   <li>
-    <a href="https://docs.presenton.ai/using-presenton-api">
+    <a href="https://docs.presenton.ai/v3/get-started/quickstart">
+      部署 Presenton
+    </a>
+  </li>
+  <li>
+    <a href="https://docs.presenton.ai/v3/get-started/api-introduction">
       完整 API 文档
     </a>
   </li>
   <li>
-    <a href="https://docs.presenton.ai/tutorial/generate-presentation-over-api">
+    <a href="https://docs.presenton.ai/v3/guide/using-presenton-api">
       5 分钟通过 API 生成演示文稿
     </a>
   </li>

@@ -9,6 +9,7 @@ import CodexConfig from "./CodexConfig";
 import {
   updateLLMConfig,
   changeProvider as changeProviderUtil,
+  getDefaultOllamaUrl,
 } from "@/utils/providerUtils";
 import { LLMConfig } from "@/types/llm_config";
 import ImageSelectionConfig from "./ImageSelectionConfig";
@@ -172,16 +173,6 @@ export default function LLMProviderSelection({
   };
 
   useEffect(() => {
-    if (!llmConfig.USE_CUSTOM_URL) {
-      setLlmConfig({ ...llmConfig, OLLAMA_URL: "http://localhost:11434" });
-    } else {
-      if (!llmConfig.OLLAMA_URL) {
-        setLlmConfig({ ...llmConfig, OLLAMA_URL: "http://localhost:11434" });
-      }
-    }
-  }, [llmConfig.USE_CUSTOM_URL]);
-
-  useEffect(() => {
     setLlmConfig((prevConfig) => {
       const updates: Partial<LLMConfig> = {};
 
@@ -196,7 +187,7 @@ export default function LLMProviderSelection({
       }
 
       if (!prevConfig.OLLAMA_URL) {
-        updates.OLLAMA_URL = "http://localhost:11434";
+        updates.OLLAMA_URL = getDefaultOllamaUrl();
       }
 
       if (Object.keys(updates).length === 0) {
@@ -299,7 +290,6 @@ export default function LLMProviderSelection({
             <OllamaConfig
               ollamaModel={llmConfig.OLLAMA_MODEL || ""}
               ollamaUrl={llmConfig.OLLAMA_URL || ""}
-              useCustomUrl={llmConfig.USE_CUSTOM_URL || false}
               onInputChange={input_field_changed}
             />
           </TabsContent>

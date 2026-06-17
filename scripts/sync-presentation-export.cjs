@@ -1,6 +1,6 @@
 /**
  * Download presenton-export release (Linux x64) into repo-root `presentation-export/`.
- * Same release host as Electron (`electron/sync_export_runtime.js`); Docker uses this at build time.
+ * Same release host as Electron (`electron/scripts/sync-export-runtime.cjs`); Docker uses this at build time.
  *
  * Version resolution (first match):
  *   1. EXPORT_RUNTIME_VERSION env

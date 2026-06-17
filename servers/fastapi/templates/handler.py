@@ -163,14 +163,50 @@ def _strip_code_fences(value: str) -> str:
     )
 
 
-def _normalize_layout_code_for_create(code: str) -> str:
-    normalized = _strip_code_fences(code)
-    normalized = (
-        normalized.replace("image_url", "__image_url__")
-        .replace("icon_url", "__icon_url__")
-        .replace("image_prompt", "__image_prompt__")
-        .replace("icon_query", "__icon_query__")
+_ASSET_FIELD_REPLACEMENTS = {
+    "image_url": "__image_url__",
+    "icon_url": "__icon_url__",
+    "image_prompt": "__image_prompt__",
+    "icon_query": "__icon_query__",
+}
+
+_ASSET_FIELD_DEFAULTS = {
+    "__image_url__": "/static/images/replaceable_template_image.png",
+    "__icon_url__": "/static/icons/placeholder.svg",
+    "__image_prompt__": "replaceable image",
+    "__icon_query__": "placeholder icon",
+}
+
+
+def _normalize_asset_fields(code: str) -> str:
+    normalized = code
+    for field_name, normalized_name in _ASSET_FIELD_REPLACEMENTS.items():
+        normalized = re.sub(
+            rf"(?<!_)\b{re.escape(field_name)}\b(?!_)",
+            normalized_name,
+            normalized,
+        )
+
+    # Models occasionally emit a bare object shorthand without a comma/value:
+    #   icon: {
+    #     __icon_url__
+    #     __icon_query__: "play"
+    #   }
+    # These asset fields are not in scope as variables, so make them valid defaults.
+    def replace_bare_asset_field(match: re.Match[str]) -> str:
+        indentation, field_name = match.groups()
+        default_value = _ASSET_FIELD_DEFAULTS[field_name]
+        return f'{indentation}{field_name}: "{default_value}",'
+
+    return re.sub(
+        r"(?m)^(\s*)(__(?:image_url|icon_url|image_prompt|icon_query)__)\s*,?\s*$",
+        replace_bare_asset_field,
+        normalized,
     )
+
+
+def _normalize_layout_code_for_create(code: str) -> str:
+    normalized = _normalize_asset_fields(_strip_code_fences(code))
 
     first_import_match = re.search(r"(?m)^\s*import\b", normalized)
     if first_import_match:
@@ -515,7 +551,9 @@ async def edit_slide_layout(
         system_prompt=SLIDE_LAYOUT_EDIT_SYSTEM_PROMPT,
         user_text=user_text,
     )
-    return EditSlideLayoutResponse(react_component=_strip_code_fences(react_component))
+    return EditSlideLayoutResponse(
+        react_component=_normalize_asset_fields(_strip_code_fences(react_component))
+    )
 
 
 async def edit_slide_layout_section(
@@ -531,7 +569,7 @@ async def edit_slide_layout_section(
         user_text=user_text,
     )
     return EditSlideLayoutSectionResponse(
-        react_component=_strip_code_fences(react_component)
+        react_component=_normalize_asset_fields(_strip_code_fences(react_component))
     )
 
 

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { buildBuiltinTemplateLayoutPayload } from "@/lib/server-template-layouts";
+import {
+  buildBuiltinTemplateLayoutPayload,
+  buildCustomTemplateLayoutPayloadFromApi,
+} from "@/lib/server-template-layouts";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +24,17 @@ export async function GET(request: Request) {
   }
 
   try {
+    if (group.startsWith("custom-")) {
+      const customPayload = await buildCustomTemplateLayoutPayloadFromApi(group);
+      if (!customPayload) {
+        return NextResponse.json(
+          { error: `Unknown template group: ${group}` },
+          { status: 404 },
+        );
+      }
+      return NextResponse.json(customPayload);
+    }
+
     const payload = await buildBuiltinTemplateLayoutPayload(group);
     if (!payload) {
       return NextResponse.json(

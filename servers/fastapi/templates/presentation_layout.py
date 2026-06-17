@@ -1,3 +1,4 @@
+import json
 from typing import List, Optional
 
 from fastapi import HTTPException
@@ -42,10 +43,17 @@ class PresentationLayoutModel(BaseModel):
             slides=[index for index in range(len(self.slides))]
         )
 
-    def to_string(self) -> str:
+    def to_string(self, with_schema: bool = False) -> str:
         message = "## Presentation Layout\n\n"
         for index, slide in enumerate(self.slides):
             message += f"### Slide Layout: {index}\n"
             message += f"- Name: {slide.name or slide.json_schema.get('title')}\n"
-            message += f"- Description: {slide.description}\n\n"
+            message += f"- Description: {slide.description}\n"
+            if with_schema:
+                try:
+                    schema_text = json.dumps(slide.json_schema, ensure_ascii=False)
+                except (TypeError, ValueError):
+                    schema_text = str(slide.json_schema)
+                message += f"- Schema: {schema_text}\n"
+            message += "\n"
         return message

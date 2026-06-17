@@ -99,13 +99,13 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                             }}
                         >
                             <div className="flex flex-col items-center justify-center py-4 px-2 min-h-[64px]">
-                                <span className="text-[17.8px]  tracking-[-0.1px] line-clamp-1"
+                                <span className="text-[17.8px]  tracking-[-0.1px] "
 
                                     style={{ color: 'var(--primary-text,#000000)' }}
                                 >
                                     {member?.name}
                                 </span>
-                                <span className="text-[14.2px]  tracking-[-0.1px] line-clamp-1"
+                                <span className="text-[14.2px]  tracking-[-0.1px] "
 
                                     style={{ color: 'var(--primary-text,#55626E)' }}
                                 >
@@ -122,7 +122,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                             </div>
 
                             <div className="flex-grow flex items-center justify-center text-center p-3">
-                                <span className="text-[16px]  leading-[1.2] line-clamp-2"
+                                <span className="text-[16px]  leading-[1.2] "
 
                                     style={{ color: 'var(--primary-text,#000000)' }}
                                 >

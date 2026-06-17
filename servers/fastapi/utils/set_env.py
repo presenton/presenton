@@ -229,6 +229,33 @@ def set_web_grounding_env(value):
     os.environ["WEB_GROUNDING"] = value
 
 
+def set_web_search_provider_env(value):
+    os.environ["WEB_SEARCH_PROVIDER"] = value
+
+
+def set_web_search_max_results_env(value):
+    os.environ["WEB_SEARCH_MAX_RESULTS"] = value
+
+
+def set_searxng_base_url_env(value):
+    os.environ["SEARXNG_BASE_URL"] = value
+
+
+def set_tavily_api_key_env(value):
+    os.environ["TAVILY_API_KEY"] = value
+
+
+def set_exa_api_key_env(value):
+    os.environ["EXA_API_KEY"] = value
+
+
+def set_brave_search_api_key_env(value):
+    os.environ["BRAVE_SEARCH_API_KEY"] = value
+
+
+def set_serper_api_key_env(value):
+    os.environ["SERPER_API_KEY"] = value
+
 def set_comfyui_url_env(value):
     os.environ["COMFYUI_URL"] = value
 

@@ -1,9 +1,9 @@
 import { RootState } from '@/store/store';
-import { IMAGE_PROVIDERS, LLM_PROVIDERS } from '@/utils/providerConstants';
+import { IMAGE_PROVIDERS, LLM_PROVIDERS, WEB_SEARCH_PROVIDERS } from '@/utils/providerConstants';
 import React from 'react'
 import { useSelector } from 'react-redux';
 
-const CurrentConfig = () => {
+const CurrentConfig = ({ webSearchEnabled }: { webSearchEnabled: boolean }) => {
     const userConfigState = useSelector((state: RootState) => state.userConfig);
     const llmConfig = userConfigState.llm_config;
     const textProviderKey = llmConfig.LLM || "openai";
@@ -50,9 +50,14 @@ const CurrentConfig = () => {
         : llmConfig.IMAGE_PROVIDER
             ? IMAGE_PROVIDERS[llmConfig.IMAGE_PROVIDER]?.label || llmConfig.IMAGE_PROVIDER
             : "No image provider";
+    const webSearchProviderKey = (llmConfig.WEB_SEARCH_PROVIDER || "auto").toLowerCase();
+    const webSearchProvider =
+        WEB_SEARCH_PROVIDERS[webSearchProviderKey]?.label || webSearchProviderKey;
+    const webSearchSummary = `Web: ${webSearchProvider} (${webSearchEnabled ? "On" : "Off"})`;
+
     return (
         <p className="text-[10px] px-2.5 py-0.5 rounded-[50px] text-[#7A5AF8] border border-[#EDEEEF]  font-medium ">
-            {textSummary} · {imageSummary}
+            {textSummary} · {imageSummary} · {webSearchSummary}
         </p>
 
     )

@@ -16,6 +16,7 @@ from constants.llm import (
     DEFAULT_OPENROUTER_MODEL,
     DEFAULT_TOGETHER_MODEL,
     DEFAULT_VERTEX_MODEL,
+    SUPPORTED_CODEX_MODELS,
 )
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
@@ -151,7 +152,8 @@ def get_model():
     elif selected_llm == LLMProvider.LMSTUDIO:
         return get_lmstudio_model_env() or DEFAULT_LMSTUDIO_MODEL
     elif selected_llm == LLMProvider.CODEX:
-        return get_codex_model_env() or DEFAULT_CODEX_MODEL
+        codex_model = get_codex_model_env()
+        return codex_model if codex_model in SUPPORTED_CODEX_MODELS else DEFAULT_CODEX_MODEL
     else:
         raise HTTPException(
             status_code=500,

@@ -23,6 +23,14 @@ import { cn } from "@/lib/utils";
 import { notify } from "@/components/ui/sonner";
 import { getApiUrl } from "@/utils/api";
 import { Button } from "@/components/ui/button";
+import {
+    CODEX_MODELS,
+    DEFAULT_CODEX_MODEL,
+    isSupportedCodexModel,
+} from "@/utils/codexModels";
+import { useRouter } from "next/navigation";
+import { syncStoreAfterCodexSignOut } from "@/utils/storeHelpers";
+import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 interface CodexConfigProps {
     codexModel: string;
@@ -40,22 +48,6 @@ interface StatusResponse {
     detail?: string;
 }
 
-interface CodexModel {
-    id: string;
-    name: string;
-}
-
-const CHATGPT_MODELS: CodexModel[] = [
-    { id: "gpt-5.4", name: "GPT-5.4" },
-    { id: "gpt-5.2-codex", name: "GPT-5.2-Codex" },
-    { id: "gpt-5.1-codex-max", name: "GPT-5.1-Codex-Max" },
-    { id: "gpt-5.4-mini", name: "GPT-5.4-Mini" },
-    { id: "gpt-5.3-codex", name: "GPT-5.3-Codex" },
-    { id: "gpt-5.2", name: "GPT-5.2" },
-];
-
-const DEFAULT_CODEX_MODEL = "gpt-5.2";
-
 export default function CodexConfig({
     codexModel,
     onInputChange,
@@ -72,6 +64,7 @@ export default function CodexConfig({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [openModelSelect, setOpenModelSelect] = useState(false);
     const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const router = useRouter();
 
     const stopPolling = () => {
         if (pollIntervalRef.current) {
@@ -84,6 +77,12 @@ export default function CodexConfig({
         checkCurrentAuthStatus();
         return () => stopPolling();
     }, []);
+
+    useEffect(() => {
+        if (codexModel && !isSupportedCodexModel(codexModel)) {
+            onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
+        }
+    }, [codexModel, onInputChange]);
 
     const applyProfile = (data: Partial<StatusResponse>) => {
         setAccountId(data.account_id ?? null);
@@ -141,7 +140,7 @@ export default function CodexConfig({
                         setAuthStatus("authenticated");
                         applyProfile(pollData);
                         setSessionId(null);
-                        if (!codexModel) {
+                        if (!isSupportedCodexModel(codexModel)) {
                             onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
                         }
                         notify.success(
@@ -190,7 +189,7 @@ export default function CodexConfig({
             applyProfile(data);
             setSessionId(null);
             setManualCode("");
-            if (!codexModel) {
+            if (!isSupportedCodexModel(codexModel)) {
                 onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
             }
             notify.success(
@@ -218,10 +217,20 @@ export default function CodexConfig({
         setIsLoggingOut(true);
         try {
             await fetch(getApiUrl("/api/v1/ppt/codex/auth/logout"), { method: "POST" });
+            trackEvent(MixpanelEvent.Codex_Signed_Out);
             setAuthStatus("unauthenticated");
             applyProfile({});
             onInputChange("codex", "LLM");
             onInputChange('', "codex_model");
+            onInputChange("", "CODEX_ACCESS_TOKEN");
+            onInputChange("", "CODEX_REFRESH_TOKEN");
+            onInputChange("", "CODEX_TOKEN_EXPIRES");
+            onInputChange("", "CODEX_ACCOUNT_ID");
+            onInputChange("", "CODEX_USERNAME");
+            onInputChange("", "CODEX_EMAIL");
+            onInputChange(false, "CODEX_IS_PRO");
+            syncStoreAfterCodexSignOut();
+            router.replace("/settings");
             notify.success(
                 "Signed out",
                 "You have been disconnected from ChatGPT."
@@ -377,7 +386,7 @@ export default function CodexConfig({
                             >
                                 <span className="text-sm text-gray-900">
                                     {codexModel
-                                        ? (CHATGPT_MODELS.find((m) => m.id === codexModel)?.name ?? codexModel)
+                                        ? (CODEX_MODELS.find((m) => m.id === codexModel)?.name ?? codexModel)
                                         : "Select a model"}
                                 </span>
                                 <ChevronUp className="w-4 h-4 text-gray-400" />
@@ -393,11 +402,15 @@ export default function CodexConfig({
                                 <CommandList>
                                     <CommandEmpty>No model found.</CommandEmpty>
                                     <CommandGroup>
-                                        {CHATGPT_MODELS.map((model) => (
+                                        {CODEX_MODELS.map((model) => (
                                             <CommandItem
                                                 key={model.id}
                                                 value={model.id}
                                                 onSelect={(value) => {
+                                                    trackEvent(MixpanelEvent.Settings_Model_Selected, {
+                                                        provider: "codex",
+                                                        model: value,
+                                                    });
                                                     onInputChange(value, "codex_model");
                                                     setOpenModelSelect(false);
                                                 }}

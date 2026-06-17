@@ -44,7 +44,7 @@ class ChatTools:
         }
 
     def get_tool_definitions(self) -> list[Tool]:
-        return [
+        tools = [
             Tool(
                 name="getPresentationOutline",
                 description=(
@@ -154,6 +154,7 @@ class ChatTools:
                 strict=True,
             ),
         ]
+        return tools
 
     async def execute_tool_call(self, tool_call: AssistantToolCall) -> dict[str, Any]:
         handler = self._tool_handlers.get(tool_call.name)

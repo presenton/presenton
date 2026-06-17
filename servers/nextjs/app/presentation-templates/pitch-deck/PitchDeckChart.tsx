@@ -39,16 +39,16 @@ type Props = {
 };
 
 const DEFAULT_CHART_COLORS = [
-  "#8B5CF6",
-  "#06B6D4",
-  "#10B981",
-  "#F59E0B",
-  "#EF4444",
-  "#EC4899",
-  "#3B82F6",
-  "#84CC16",
-  "#F97316",
-  "#6366F1",
+  "#dddac7",
+  "#b8b4a3",
+  "#a2a091",
+  "#8d8a7d",
+  "#cbc7b2",
+  "#747168",
+  "#e8e5d3",
+  "#9a9789",
+  "#c5c1ae",
+  "#66645d",
 ];
 const AXIS = "var(--background-text,#d8d4bf)";
 const GRID = "var(--background-text,#585a61)";
@@ -76,7 +76,7 @@ const DEFAULT_CHART_PAYLOAD: PitchChartPayload = {
     { label: "Sun", value: 130 },
   ],
   pieData: [
-    { label: "Category A", value: 55, color: "#d8d4bf" },
+    { label: "Category A", value: 55, color: "#dddac7" },
     { label: "Category B", value: 25, color: "#b8b4a3" },
     { label: "Category C", value: 20, color: "#a2a091" },
   ],

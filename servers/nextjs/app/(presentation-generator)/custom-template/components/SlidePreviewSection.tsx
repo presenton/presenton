@@ -18,6 +18,7 @@ export const SlidePreviewSection: React.FC<SlidePreviewSectionProps> = ({
     isLoading,
 }) => {
     const slideCount = previewData.slide_image_urls?.length || 0;
+    const fontCount = Object.keys(previewData.fonts || {}).length;
 
     return (
         <div className="my-8 max-w-[1440px] mx-auto">
@@ -33,7 +34,10 @@ export const SlidePreviewSection: React.FC<SlidePreviewSectionProps> = ({
                             <div>
                                 <h2 className="text-xl font-semibold text-[#111827]">Slide Preview</h2>
                                 <p className="text-sm text-[#6B7280] mt-0.5">
-                                    {slideCount} slide{slideCount !== 1 ? 's' : ''} ready for template generation
+                                    {slideCount} slide{slideCount !== 1 ? 's' : ''} ready
+                                    {fontCount > 0 && (
+                                        <> · {fontCount} font{fontCount !== 1 ? 's' : ''} applied</>
+                                    )}
                                 </p>
                             </div>
                         </div>
@@ -42,16 +46,18 @@ export const SlidePreviewSection: React.FC<SlidePreviewSectionProps> = ({
                 </div>
 
 
-                <div className="grid grid-cols-1  gap-4 py-4 max-h-[900px] overflow-y-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-6 max-h-[900px] overflow-y-auto">
                     {previewData.slide_image_urls?.map((url, index) => (
                         <div
                             key={index}
-                            className="group relative aspect-video w-full max-w-[1280px] mx-auto rounded-xl overflow-hidden "
+                            className="group relative w-full rounded-xl overflow-hidden border border-[#E5E7EB] bg-white shadow-sm"
                         >
                             <img
                                 src={resolveBackendAssetUrl(url)}
                                 alt={`Slide ${index + 1}`}
-                                className="w-full h-full object-cover"
+                                className="block h-auto w-full"
+                                loading="lazy"
+                                draggable={false}
                             />
                             {/* Slide number badge */}
                             <div className="absolute top-2 left-2 px-2.5 py-1 bg-black/70 backdrop-blur-sm rounded-lg text-xs font-semibold text-white shadow-lg">

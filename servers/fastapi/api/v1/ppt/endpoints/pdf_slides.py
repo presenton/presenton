@@ -35,7 +35,7 @@ async def process_pdf_slides(
 
     This endpoint:
     1. Validates the uploaded PDF file
-    2. Uses ImageMagick to convert PDF pages to PNG images
+    2. Uses the Python PDF renderer to convert PDF pages to PNG images
     3. Returns screenshot URLs for each slide/page
 
     Note: Font installation is not needed since PDFs already have fonts embedded.
@@ -67,7 +67,7 @@ async def process_pdf_slides(
                 pdf_content = await pdf_file.read()
                 f.write(pdf_content)
 
-            # Generate screenshots from PDF using ImageMagick
+            # Generate screenshots from PDF using the Python PDF renderer.
             screenshot_paths = await DocumentsLoader.get_page_images_from_pdf_async(
                 pdf_path, temp_dir
             )

@@ -14,16 +14,22 @@ const STREAM_RETRY_DELAY_MS = 1_000;
 export const useOutlineStreaming = (presentationId: string | null) => {
   const dispatch = useDispatch();
   const { outlines } = useSelector((state: RootState) => state.presentationGeneration);
-  const [isStreaming, setIsStreaming] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(outlines.length === 0);
+  const [isLoading, setIsLoading] = useState(outlines.length === 0);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number | null>(null);
   const [highestActiveIndex, setHighestActiveIndex] = useState<number>(-1);
+  const [statusMessage, setStatusMessage] = useState("Preparing your presentation outline");
+  const outlinesRef = useRef(outlines);
   const prevSlidesRef = useRef<{ content: string }[]>([]);
   const activeIndexRef = useRef<number>(-1);
   const highestIndexRef = useRef<number>(-1);
 
   useEffect(() => {
-    if (!presentationId || outlines.length > 0) return;
+    outlinesRef.current = outlines;
+  }, [outlines]);
+
+  useEffect(() => {
+    if (!presentationId || outlinesRef.current.length > 0) return;
 
     let eventSource: EventSource | null = null;
     let accumulatedChunks = "";
@@ -50,6 +56,7 @@ export const useOutlineStreaming = (presentationId: string | null) => {
       setIsLoading(false);
       setActiveSlideIndex(null);
       setHighestActiveIndex(-1);
+      setStatusMessage("Preparing your presentation outline");
       activeIndexRef.current = -1;
       highestIndexRef.current = -1;
     };
@@ -100,6 +107,12 @@ export const useOutlineStreaming = (presentationId: string | null) => {
         }
 
         switch (data.type) {
+          case "status":
+            if (data.status) {
+              setStatusMessage(data.status);
+            }
+            break;
+
           case "chunk":
             accumulatedChunks += data.chunk;
             try {
@@ -137,7 +150,7 @@ export const useOutlineStreaming = (presentationId: string | null) => {
                 dispatch(setOutlines(nextSlides));
                 setIsLoading(false);
               }
-            } catch (error) {
+            } catch {
               // JSON isn't complete yet, continue accumulating
             }
             break;
@@ -151,6 +164,7 @@ export const useOutlineStreaming = (presentationId: string | null) => {
               setIsLoading(false);
               setActiveSlideIndex(null);
               setHighestActiveIndex(-1);
+              setStatusMessage("Outline ready");
               prevSlidesRef.current = outlinesData;
               activeIndexRef.current = -1;
               highestIndexRef.current = -1;
@@ -158,7 +172,7 @@ export const useOutlineStreaming = (presentationId: string | null) => {
               closeEventSource();
               clearRetryTimer();
               retryCount = 0;
-            } catch (error) {
+            } catch {
               if (!scheduleRetry("failed to parse complete payload")) {
                 resetStreamingState();
                 notify.error("Parse failed", "Failed to parse presentation data.");
@@ -213,5 +227,11 @@ export const useOutlineStreaming = (presentationId: string | null) => {
     };
   }, [presentationId, dispatch]);
 
-  return { isStreaming, isLoading, activeSlideIndex, highestActiveIndex };
-}; 
+  return {
+    isStreaming,
+    isLoading,
+    activeSlideIndex,
+    highestActiveIndex,
+    statusMessage,
+  };
+};

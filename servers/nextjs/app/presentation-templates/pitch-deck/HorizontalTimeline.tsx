@@ -118,7 +118,7 @@ const getTimelineCenters = (count: number) => {
 const getTimelineStyle = (count: number) => {
   if (count <= 3) {
     return {
-      badgeSize: 88,
+      badgeSize: 84,
       labelTop: 268,
       titleTop: 423,
       contentWidth: 260,
@@ -159,28 +159,22 @@ function TimelineIconBadge({
   size: number;
 }) {
   return (
-    <span
-      className="inline-flex items-center justify-center rounded-full"
+    <div
+      className="inline-flex items-center justify-center rounded-full "
       style={{
         width: size,
         height: size,
         backgroundColor: "var(--primary-color,#dddac7)",
       }}
     >
-      {/* <img
-        src={icon.__icon_url__}
-        alt={icon.__icon_query__}
-        className="object-contain"
-        style={{ width: size * 0.42, height: size * 0.42 }}
-      /> */}
       <RemoteSvgIcon
         url={icon.__icon_url__}
-        className={`w-[${size}px] h-[${size}px]`}
+        className={`w-[${size - 10}px] h-[${size - 10}px] `}
         strokeColor={"currentColor"}
         color="var(--primary-text,#27292d)"
         title={icon.__icon_query__}
       />
-    </span>
+    </div>
   );
 }
 

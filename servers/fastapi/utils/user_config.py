@@ -60,6 +60,13 @@ from utils.get_env import (
     get_pixabay_api_key_env,
     get_extended_reasoning_env,
     get_web_grounding_env,
+    get_web_search_provider_env,
+    get_web_search_max_results_env,
+    get_searxng_base_url_env,
+    get_tavily_api_key_env,
+    get_exa_api_key_env,
+    get_brave_search_api_key_env,
+    get_serper_api_key_env,
     get_codex_access_token_env,
     get_codex_refresh_token_env,
     get_codex_token_expires_env,
@@ -136,6 +143,13 @@ from utils.set_env import (
     set_image_provider_env,
     set_pixabay_api_key_env,
     set_web_grounding_env,
+    set_web_search_provider_env,
+    set_web_search_max_results_env,
+    set_searxng_base_url_env,
+    set_tavily_api_key_env,
+    set_exa_api_key_env,
+    set_brave_search_api_key_env,
+    set_serper_api_key_env,
     set_codex_access_token_env,
     set_codex_refresh_token_env,
     set_codex_token_expires_env,
@@ -253,6 +267,16 @@ def get_user_config():
             if existing_config.WEB_GROUNDING is not None
             else (parse_bool_or_none(get_web_grounding_env()) or False)
         ),
+        WEB_SEARCH_PROVIDER=existing_config.WEB_SEARCH_PROVIDER
+        or get_web_search_provider_env(),
+        WEB_SEARCH_MAX_RESULTS=existing_config.WEB_SEARCH_MAX_RESULTS
+        or get_web_search_max_results_env(),
+        SEARXNG_BASE_URL=existing_config.SEARXNG_BASE_URL or get_searxng_base_url_env(),
+        TAVILY_API_KEY=existing_config.TAVILY_API_KEY or get_tavily_api_key_env(),
+        EXA_API_KEY=existing_config.EXA_API_KEY or get_exa_api_key_env(),
+        BRAVE_SEARCH_API_KEY=existing_config.BRAVE_SEARCH_API_KEY
+        or get_brave_search_api_key_env(),
+        SERPER_API_KEY=existing_config.SERPER_API_KEY or get_serper_api_key_env(),
         CODEX_MODEL=existing_config.CODEX_MODEL or get_codex_model_env(),
         CODEX_ACCESS_TOKEN=existing_config.CODEX_ACCESS_TOKEN or get_codex_access_token_env(),
         CODEX_REFRESH_TOKEN=existing_config.CODEX_REFRESH_TOKEN or get_codex_refresh_token_env(),
@@ -396,6 +420,20 @@ def update_env_with_user_config():
         set_extended_reasoning_env(str(user_config.EXTENDED_REASONING))
     if user_config.WEB_GROUNDING is not None:
         set_web_grounding_env(str(user_config.WEB_GROUNDING))
+    if user_config.WEB_SEARCH_PROVIDER:
+        set_web_search_provider_env(user_config.WEB_SEARCH_PROVIDER)
+    if user_config.WEB_SEARCH_MAX_RESULTS:
+        set_web_search_max_results_env(user_config.WEB_SEARCH_MAX_RESULTS)
+    if user_config.SEARXNG_BASE_URL:
+        set_searxng_base_url_env(user_config.SEARXNG_BASE_URL)
+    if user_config.TAVILY_API_KEY:
+        set_tavily_api_key_env(user_config.TAVILY_API_KEY)
+    if user_config.EXA_API_KEY:
+        set_exa_api_key_env(user_config.EXA_API_KEY)
+    if user_config.BRAVE_SEARCH_API_KEY:
+        set_brave_search_api_key_env(user_config.BRAVE_SEARCH_API_KEY)
+    if user_config.SERPER_API_KEY:
+        set_serper_api_key_env(user_config.SERPER_API_KEY)
     if user_config.CODEX_MODEL:
         set_codex_model_env(user_config.CODEX_MODEL)
     if user_config.CODEX_ACCESS_TOKEN:

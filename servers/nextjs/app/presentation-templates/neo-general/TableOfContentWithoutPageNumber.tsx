@@ -112,7 +112,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<DataProps> }> = ({ data }) =>
                                         {item?.number}
                                     </span>
                                 </div>
-                                <span className="text-[20.6px] font-normal truncate"
+                                <span className="text-[20.6px] font-normal "
 
                                     style={{
                                         color: 'var(--background-text,#18181B)'
@@ -143,7 +143,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<DataProps> }> = ({ data }) =>
                                         {item?.number}
                                     </span>
                                 </div>
-                                <span className="text-[20.6px] font-normal truncate"
+                                <span className="text-[20.6px] font-normal "
 
                                     style={{
                                         color: 'var(--background-text,#18181B)'

@@ -30,6 +30,7 @@ from models.presentation_with_slides import (
 )
 from models.sql.template import TemplateModel
 from services.documents_loader import DocumentsLoader
+from services.temp_file_service import TEMP_FILE_SERVICE
 from services.webhook_service import WebhookService
 from services.image_generation_service import ImageGenerationService
 from services.mem0_presentation_memory_service import (
@@ -79,6 +80,7 @@ from utils.simple_auth import (
     create_session_token,
     get_session_token_from_request,
 )
+from utils.web_search import get_selected_web_search_provider, get_web_search_route
 from models.presentation_layout import PresentationLayoutModel
 import uuid
 
@@ -260,10 +262,15 @@ async def create_presentation(
         raise HTTPException(
             status_code=400,
             detail="Number of slides cannot be less than 3 if table of contents is included",
-        )
+    )
 
     presentation_id = uuid.uuid4()
     language_to_store = (language or "").strip()
+    validated_file_paths = (
+        TEMP_FILE_SERVICE.resolve_existing_temp_paths(file_paths)
+        if file_paths
+        else None
+    )
     # DB schema stores an int; 0 is used as internal marker for auto slide count.
     n_slides_to_store = n_slides if n_slides is not None else 0
 
@@ -272,7 +279,7 @@ async def create_presentation(
         content=content,
         n_slides=n_slides_to_store,
         language=language_to_store,
-        file_paths=file_paths,
+        file_paths=validated_file_paths,
         tone=tone.value,
         verbosity=verbosity.value,
         instructions=instructions,
@@ -283,6 +290,21 @@ async def create_presentation(
 
     sql_session.add(presentation)
     await sql_session.commit()
+
+    search_route, actual_search_provider = get_web_search_route()
+    logger.info(
+        "Created presentation: id=%s web_search_enabled=%s selected_web_search_provider=%s "
+        "web_search_route=%s actual_web_search_provider=%s",
+        presentation_id,
+        web_search,
+        get_selected_web_search_provider().value,
+        search_route,
+        (
+            actual_search_provider.value
+            if actual_search_provider
+            else ("model-native" if search_route == "native" else "none")
+        ),
+    )
 
     return presentation
 
@@ -391,10 +413,13 @@ async def stream_presentation(
 
         async_assets_generation_tasks: List[asyncio.Task] = []
         asset_events: asyncio.Queue = asyncio.Queue()
+        asset_warnings_by_slide: dict[int, list[dict]] = {}
 
         async def notify_slide_assets_ready(slide_index: int, asset_task: asyncio.Task):
-            await asset_task
-            await asset_events.put(slide_index)
+            try:
+                await asset_task
+            finally:
+                await asset_events.put(slide_index)
 
         slides: List[SlideModel] = []
         yield SSEResponse(
@@ -433,6 +458,7 @@ async def stream_presentation(
             process_slide_add_placeholder_assets(slide)
 
             # This will mutate slide - start task immediately so it runs in parallel with next slide LLM generation
+            asset_warnings_by_slide[i] = []
             asset_task = asyncio.create_task(
                 process_slide_and_fetch_assets(
                     image_generation_service,
@@ -443,6 +469,8 @@ async def stream_presentation(
                         else None
                     ),
                     icon_weight=icon_weight,
+                    allow_image_fallback=True,
+                    image_warnings=asset_warnings_by_slide[i],
                 )
             )
             async_assets_generation_tasks.append(asset_task)
@@ -466,6 +494,7 @@ async def stream_presentation(
                             "type": "slide_assets",
                             "slide_index": done_idx,
                             "slide": slides[done_idx].model_dump(mode="json"),
+                            "warnings": asset_warnings_by_slide.get(done_idx, []),
                         }
                     ),
                 ).to_string()
@@ -485,6 +514,7 @@ async def stream_presentation(
                         "type": "slide_assets",
                         "slide_index": done_idx,
                         "slide": slides[done_idx].model_dump(mode="json"),
+                        "warnings": asset_warnings_by_slide.get(done_idx, []),
                     }
                 ),
             ).to_string()

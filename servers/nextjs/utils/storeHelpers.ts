@@ -1,6 +1,17 @@
 import { setLLMConfig } from "@/store/slices/userConfig";
 import { store } from "@/store/store";
 import { LLMConfig } from "@/types/llm_config";
+import { isSupportedCodexModel } from "@/utils/codexModels";
+
+const DEFAULT_OLLAMA_URL_ELECTRON = "http://localhost:11434";
+const DEFAULT_OLLAMA_URL_DOCKER = "http://host.docker.internal:11434";
+
+function getDefaultOllamaUrl(): string {
+  if (typeof window !== "undefined" && window.electron) {
+    return DEFAULT_OLLAMA_URL_ELECTRON;
+  }
+  return DEFAULT_OLLAMA_URL_DOCKER;
+}
 
 function isProvided(value: unknown): boolean {
   return value !== "" && value !== null && value !== undefined;
@@ -31,39 +42,24 @@ export const normalizeLLMConfig = (llmConfig: LLMConfig): LLMConfig => {
     normalizedConfig.LLM = "openai";
   }
 
+  if (
+    normalizedConfig.LLM === "ollama" &&
+    !isProvided(normalizedConfig.OLLAMA_URL)
+  ) {
+    normalizedConfig.OLLAMA_URL = getDefaultOllamaUrl();
+  }
+
   const parsedDisableImageGeneration = parseOptionalBool(
     (normalizedConfig as Record<string, unknown>).DISABLE_IMAGE_GENERATION
   );
   if (parsedDisableImageGeneration !== undefined) {
     normalizedConfig.DISABLE_IMAGE_GENERATION = parsedDisableImageGeneration;
   }
-
-  if (normalizedConfig.DISABLE_IMAGE_GENERATION || normalizedConfig.IMAGE_PROVIDER) {
-    return normalizedConfig;
-  }
-
-  if (
-    normalizedConfig.OPENAI_COMPAT_IMAGE_BASE_URL &&
-    normalizedConfig.OPENAI_COMPAT_IMAGE_API_KEY &&
-    normalizedConfig.OPENAI_COMPAT_IMAGE_MODEL
-  ) {
-    normalizedConfig.IMAGE_PROVIDER = "openai_compatible";
-  } else if (normalizedConfig.OPEN_WEBUI_IMAGE_URL) {
-    normalizedConfig.IMAGE_PROVIDER = "open_webui";
-  } else if (normalizedConfig.COMFYUI_URL) {
-    normalizedConfig.IMAGE_PROVIDER = "comfyui";
-  } else if (normalizedConfig.PEXELS_API_KEY) {
-    normalizedConfig.IMAGE_PROVIDER = "pexels";
-  } else if (normalizedConfig.PIXABAY_API_KEY) {
-    normalizedConfig.IMAGE_PROVIDER = "pixabay";
-  } else if (normalizedConfig.LLM === "openai" && normalizedConfig.OPENAI_API_KEY) {
-    normalizedConfig.IMAGE_PROVIDER = "gpt-image-1.5";
-    normalizedConfig.GPT_IMAGE_1_5_QUALITY =
-      normalizedConfig.GPT_IMAGE_1_5_QUALITY || "medium";
-  } else if (normalizedConfig.LLM === "google" && normalizedConfig.GOOGLE_API_KEY) {
-    normalizedConfig.IMAGE_PROVIDER = "gemini_flash";
-  } else {
-    normalizedConfig.DISABLE_IMAGE_GENERATION = true;
+  const parsedWebGrounding = parseOptionalBool(
+    (normalizedConfig as Record<string, unknown>).WEB_GROUNDING
+  );
+  if (parsedWebGrounding !== undefined) {
+    normalizedConfig.WEB_GROUNDING = parsedWebGrounding;
   }
 
   return normalizedConfig;
@@ -204,6 +200,9 @@ export const getLLMConfigValidationError = (
     if (!isProvided(llmConfig.CODEX_MODEL)) {
       return "Select a Codex model.";
     }
+    if (!isSupportedCodexModel(llmConfig.CODEX_MODEL)) {
+      return "Select a supported Codex model.";
+    }
   } else {
     return "Unsupported or unknown text provider.";
   }
@@ -264,6 +263,38 @@ export const getLLMConfigValidationError = (
     }
   }
 
+  if (llmConfig.WEB_GROUNDING) {
+    if (!isProvided(llmConfig.WEB_SEARCH_PROVIDER)) {
+      return "Select a web search provider, or turn off web search.";
+    }
+    switch (llmConfig.WEB_SEARCH_PROVIDER) {
+      case "searxng":
+        if (!isProvided(llmConfig.SEARXNG_BASE_URL)) {
+          return "SearXNG base URL is required.";
+        }
+        break;
+      case "tavily":
+        if (!isProvided(llmConfig.TAVILY_API_KEY)) {
+          return "Tavily API key is required.";
+        }
+        break;
+      case "exa":
+        if (!isProvided(llmConfig.EXA_API_KEY)) {
+          return "Exa API key is required.";
+        }
+        break;
+      case "brave":
+        if (!isProvided(llmConfig.BRAVE_SEARCH_API_KEY)) {
+          return "Brave Search API key is required.";
+        }
+        break;
+      case "auto":
+        break;
+      default:
+        return "Select a valid web search provider.";
+    }
+  }
+
   return null;
 };
 
@@ -299,6 +330,13 @@ export function syncStoreAfterCodexSignOut(): void {
       ...prev,
       LLM: "codex",
       CODEX_MODEL: "",
+      CODEX_ACCESS_TOKEN: "",
+      CODEX_REFRESH_TOKEN: "",
+      CODEX_TOKEN_EXPIRES: "",
+      CODEX_ACCOUNT_ID: "",
+      CODEX_USERNAME: "",
+      CODEX_EMAIL: "",
+      CODEX_IS_PRO: false,
     })
   );
 }

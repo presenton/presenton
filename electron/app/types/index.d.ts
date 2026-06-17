@@ -37,6 +37,13 @@ interface FastApiEnv {
   TOOL_CALLS?: string,
   DISABLE_THINKING?: string,
   WEB_GROUNDING?: string,
+  WEB_SEARCH_PROVIDER?: string,
+  WEB_SEARCH_MAX_RESULTS?: string,
+  SEARXNG_BASE_URL?: string,
+  TAVILY_API_KEY?: string,
+  EXA_API_KEY?: string,
+  BRAVE_SEARCH_API_KEY?: string,
+  SERPER_API_KEY?: string,
   DATABASE_URL?: string,
   DISABLE_ANONYMOUS_TRACKING?: string,
   COMFYUI_URL?: string,
@@ -50,10 +57,16 @@ interface FastApiEnv {
   USER_CONFIG_PATH?: string,
   MIGRATE_DATABASE_ON_STARTUP?: string,
   DISABLE_AUTH?: string,
-  /** Absolute path to the resolved LibreOffice executable discovered at startup. */
-  SOFFICE_PATH?: string,
-  /** Absolute path to the ImageMagick binary resolved at startup by imagemagick-check.ts. */
+  /** Absolute path to the bundled/resolved ImageMagick magick executable. */
   IMAGEMAGICK_BINARY?: string,
+  /** ImageMagick runtime root used by the bundled portable build. */
+  MAGICK_HOME?: string,
+  /** ImageMagick configuration directory used by the bundled portable build. */
+  MAGICK_CONFIGURE_PATH?: string,
+  /** POSIX-style path key used on macOS/Linux child processes. */
+  PATH?: string,
+  /** Windows path key, preserved to avoid duplicate PATH/Path env entries. */
+  Path?: string,
   /** Absolute path to the bundled LiteParse runner script. */
   LITEPARSE_RUNNER_PATH?: string,
   /** Binary path used by LiteParseService to execute liteparse_runner.mjs. */
@@ -64,6 +77,12 @@ interface FastApiEnv {
   EXPORT_PACKAGE_ROOT?: string,
   /** Directory used by FastAPI export task runtime resolution. */
   EXPORT_RUNTIME_DIR?: string,
+  /** Absolute path to the Chromium executable used by the export runtime. */
+  PUPPETEER_EXECUTABLE_PATH?: string,
+  /** Writable Puppeteer browser cache directory. */
+  PUPPETEER_CACHE_DIR?: string,
+  /** Writable Puppeteer temporary directory. */
+  PUPPETEER_TMP_DIR?: string,
   /** Absolute path to bundled PyInstaller converter binary for export runtime. */
   BUILT_PYTHON_MODULE_PATH?: string,
 }
@@ -121,6 +140,13 @@ interface UserConfig {
   TOOL_CALLS?: string,
   DISABLE_THINKING?: string,
   WEB_GROUNDING?: string,
+  WEB_SEARCH_PROVIDER?: string,
+  WEB_SEARCH_MAX_RESULTS?: string,
+  SEARXNG_BASE_URL?: string,
+  TAVILY_API_KEY?: string,
+  EXA_API_KEY?: string,
+  BRAVE_SEARCH_API_KEY?: string,
+  SERPER_API_KEY?: string,
   DATABASE_URL?: string,
   DISABLE_ANONYMOUS_TRACKING?: string,
   COMFYUI_URL?: string,

@@ -44,6 +44,14 @@ class PresentationExportTaskResult(BaseModel):
     path: str
 
 
+class HtmlToImageTaskResult(BaseModel):
+    path: str
+
+
+class HtmlToImagesTaskResult(BaseModel):
+    paths: list[str]
+
+
 class ExtractSchemaSlide(BaseModel):
     id: str
     name: str | None = None
@@ -155,6 +163,18 @@ class ExportTaskService:
         os.makedirs(temp_directory, exist_ok=True)
         env["TEMP_DIRECTORY"] = temp_directory
 
+        puppeteer_temp_directory = (
+            env.get("PUPPETEER_TMP_DIR") or os.path.join(temp_directory, "puppeteer")
+        )
+        os.makedirs(puppeteer_temp_directory, exist_ok=True)
+        env["PUPPETEER_TMP_DIR"] = puppeteer_temp_directory
+
+        puppeteer_cache_directory = env.get("PUPPETEER_CACHE_DIR") or os.path.join(
+            temp_directory, "puppeteer-cache"
+        )
+        os.makedirs(puppeteer_cache_directory, exist_ok=True)
+        env["PUPPETEER_CACHE_DIR"] = puppeteer_cache_directory
+
         fastapi_base = (os.getenv("NEXT_PUBLIC_FAST_API") or "").strip()
         if not fastapi_base:
             raise HTTPException(
@@ -180,11 +200,12 @@ class ExportTaskService:
 
     @staticmethod
     def _resolve_output_path(response_data: dict) -> str:
-        path_value = response_data.get("path")
-        if isinstance(path_value, str):
-            resolved = resolve_app_path_to_filesystem(path_value) or path_value
-            if os.path.isfile(resolved):
-                return resolved
+        for path_key in ("path", "file_path"):
+            path_value = response_data.get(path_key)
+            if isinstance(path_value, str):
+                resolved = resolve_app_path_to_filesystem(path_value) or path_value
+                if os.path.isfile(resolved):
+                    return resolved
 
         url_value = response_data.get("url")
         if isinstance(url_value, str):
@@ -253,6 +274,7 @@ class ExportTaskService:
                     status_code=500,
                     detail=(
                         "Export task failed. "
+                        f"returncode={result['returncode']} "
                         f"stderr={_snippet(result['stderr'])} stdout={_snippet(result['stdout'])}"
                     ),
                 )
@@ -352,9 +374,10 @@ class ExportTaskService:
         fastapi_url: str | None = None,
         cookie_header: str | None = None,
     ) -> PresentationExportTaskResult:
+        log_url = url.split("#", 1)[0] if "#" in url else url
         LOGGER.info(
             "[export_runtime] export_from_url url=%s format=%s cookie_header=%s",
-            url,
+            log_url,
             export_as,
             "set" if cookie_header else "empty",
         )
@@ -403,6 +426,87 @@ class ExportTaskService:
                 status_code=500,
                 detail="PPTX-to-HTML export produced invalid JSON output",
             ) from exc
+
+    async def render_html_to_image(
+        self,
+        html: str,
+        width: int,
+        height: int,
+    ) -> HtmlToImageTaskResult:
+        if width <= 0 or height <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="HTML-to-image dimensions must be positive",
+            )
+
+        response_data = await self._run_task(
+            {
+                "type": "html-to-image",
+                "html": html,
+                "width": width,
+                "height": height,
+            },
+            "HTML-to-image export task did not produce a response file",
+        )
+
+        output_path = self._resolve_output_path(response_data)
+        self._ensure_output_readable(output_path)
+
+        return HtmlToImageTaskResult(path=output_path)
+
+    async def render_htmls_to_images(
+        self,
+        htmls: list[str],
+        width: int,
+        height: int,
+    ) -> HtmlToImagesTaskResult:
+        if not htmls:
+            raise HTTPException(
+                status_code=400,
+                detail="At least one HTML document is required",
+            )
+        if width <= 0 or height <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="HTML-to-image dimensions must be positive",
+            )
+
+        try:
+            response_data = await self._run_task(
+                {
+                    "type": "html-to-images",
+                    "htmls": htmls,
+                    "width": width,
+                    "height": height,
+                },
+                "HTML-to-images export task did not produce a response file",
+            )
+        except HTTPException as exc:
+            if "Invalid task type" not in str(exc.detail):
+                raise
+            LOGGER.warning(
+                "[export_runtime] html-to-images is unavailable; "
+                "falling back to one task per HTML document"
+            )
+            results = [
+                await self.render_html_to_image(html, width, height) for html in htmls
+            ]
+            return HtmlToImagesTaskResult(paths=[result.path for result in results])
+
+        raw_paths = response_data.get("file_paths")
+        if not isinstance(raw_paths, list) or len(raw_paths) != len(htmls):
+            raise HTTPException(
+                status_code=500,
+                detail="HTML-to-images export task produced invalid output",
+            )
+
+        output_paths = [
+            self._resolve_output_path({"file_path": raw_path}) for raw_path in raw_paths
+        ]
+        for output_path in output_paths:
+            self._ensure_output_readable(output_path)
+
+        return HtmlToImagesTaskResult(paths=output_paths)
 
     async def extract_schema(self, url: str) -> ExtractSchemaDocument:
         LOGGER.info(

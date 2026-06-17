@@ -22,6 +22,9 @@ import { notify } from "@/components/ui/sonner";
 import CodexConfig from "./SettingCodex";
 import VertexAzureManualFields from "@/components/VertexAzureManualFields";
 import BedrockManualFields from "@/components/BedrockManualFields";
+import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
+import { getDefaultOllamaUrl } from "@/utils/providerUtils";
+import OllamaConfig from "@/components/OllamaConfig";
 
 interface OpenAIConfigProps {
   onInputChange: (value: string | boolean, field: string) => void;
@@ -32,6 +35,7 @@ interface ModelOption {
   value: string;
   label: string;
   size?: string;
+  tested?: boolean;
 }
 
 const MANUAL_MODEL_PROVIDERS = new Set(["vertex", "azure", "bedrock"]);
@@ -133,7 +137,6 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
   const currentFireworksUrl = (llmConfig.FIREWORKS_BASE_URL || "").trim();
   const currentTogetherUrl = (llmConfig.TOGETHER_BASE_URL || "").trim();
   const currentOllamaUrl = llmConfig.OLLAMA_URL || "";
-  const useCustomOllamaUrl = !!llmConfig.USE_CUSTOM_URL;
   const modelLabel = selectedProviderMeta?.label || selectedProvider;
   const providerApiKeyLabel =
     selectedProvider === "custom"
@@ -164,6 +167,10 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       return;
     }
 
+    if (selectedProvider === "ollama") {
+      return;
+    }
+
     setAvailableModels([]);
     setModelsChecked(false);
     if (currentModelField) {
@@ -178,14 +185,10 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
     currentFireworksUrl,
     currentTogetherUrl,
     currentModelField,
+    onInputChange,
   ]);
 
   const onApiKeyChange = (llm: keyof typeof LLM_PROVIDERS, value: string) => {
-    if (llm === "ollama") {
-      onInputChange(value, "OLLAMA_URL");
-      return;
-    }
-
     const keyField =
       llm === "openai"
         ? "OPENAI_API_KEY"
@@ -260,10 +263,6 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
             }),
           }
         );
-      } else if (selectedProvider === "ollama") {
-        response = await fetch(
-          getApiUrl("/api/v1/ppt/ollama/models/supported")
-        );
       } else {
         const openAiCompatibleUrl =
           selectedProvider === "custom"
@@ -294,39 +293,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
 
       if (response.ok) {
         const data = await response.json();
-        const normalizedModels: ModelOption[] =
-          selectedProvider === "ollama"
-            ? Array.isArray(data)
-              ? data
-                  .map((model) => {
-                    if (typeof model === "string") {
-                      return {
-                        value: model,
-                        label: model,
-                      };
-                    }
-
-                    if (model && typeof model === "object") {
-                      const typedModel = model as {
-                        value?: string;
-                        label?: string;
-                        size?: string;
-                      };
-                      return {
-                        value: typedModel.value || typedModel.label || "",
-                        label: typedModel.label || typedModel.value || "",
-                        size: typedModel.size,
-                      };
-                    }
-
-                    return {
-                      value: "",
-                      label: "",
-                    };
-                  })
-                  .filter((model: ModelOption) => Boolean(model.value))
-              : []
-            : Array.isArray(data)
+        const normalizedModels: ModelOption[] = Array.isArray(data)
             ? data
                 .filter((model): model is string => typeof model === "string")
                 .map((model) => ({
@@ -383,21 +350,20 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
     } catch (error) {
       console.error("Error fetching models:", error);
       notify.error(
-        "Could not load models",
-        "Something went wrong while contacting the provider. Check your network and try again."
+        selectedProvider === "ollama" ? "Could not connect to Ollama" : "Could not load models",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while contacting the provider. Check your network and try again."
       );
       setAvailableModels([]);
       setModelsChecked(true);
+      if (selectedProvider === "ollama" && currentModelField) {
+        onInputChange("", currentModelField);
+      }
     } finally {
       setModelsLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (selectedProvider === "ollama" && !modelsChecked && !modelsLoading) {
-      fetchAvailableModels();
-    }
-  }, [selectedProvider, modelsChecked, modelsLoading]);
 
   return (
     <div className="space-y-6 bg-[#F9F8F8] p-7 rounded-[12px] ">
@@ -498,6 +464,16 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                                 key={index}
                                 value={provider.value}
                                 onSelect={(value) => {
+                                  trackEvent(MixpanelEvent.Settings_Provider_Selected, {
+                                    section: "text_provider",
+                                    provider: value,
+                                  });
+                                  if (
+                                    value === "ollama" &&
+                                    !(currentOllamaUrl || "").trim()
+                                  ) {
+                                    onInputChange(getDefaultOllamaUrl(), "OLLAMA_URL");
+                                  }
                                   onInputChange(value, "LLM");
                                   setOpenProviderSelect(false);
                                 }}
@@ -541,55 +517,22 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
             >
               <div className="flex flex-col justify-start w-full ">
                 {selectedProvider === "ollama" ? (
-                  <>
-                    {!useCustomOllamaUrl ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onInputChange(true, "USE_CUSTOM_URL");
-                          if (!currentOllamaUrl) {
-                            onInputChange(
-                              "http://localhost:11434",
-                              "OLLAMA_URL"
-                            );
-                          }
-                        }}
-                        className="mt-8 py-2.5 bg-[#EDEEEF] px-3.5 w-fit rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border border-[#EDEEEF] hover:bg-[#E8F0FF]/90 focus:ring-2 focus:ring-blue-500/20"
-                      >
-                        Use Ollama URL
-                      </button>
-                    ) : (
-                      <>
-                        <label className="block text-sm font-medium capitalize text-gray-700 mb-2">
-                          Ollama URL
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={currentOllamaUrl}
-                            onChange={(e) =>
-                              onApiKeyChange(selectedProvider, e.target.value)
-                            }
-                            className="w-full px-2 py-3 outline-none border  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                            placeholder="http://localhost:11434"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onInputChange(false, "USE_CUSTOM_URL");
-                            onInputChange(
-                              "http://localhost:11434",
-                              "OLLAMA_URL"
-                            );
-                          }}
-                          className="mt-2 text-xs font-medium text-[#4B5563] underline underline-offset-2"
-                        >
-                          Use default Ollama URL
-                        </button>
-                      </>
-                    )}
-                  </>
+                  <div className="w-full">
+                    <OllamaConfig
+                      ollamaModel={llmConfig.OLLAMA_MODEL || ""}
+                      ollamaUrl={currentOllamaUrl}
+                      onInputChange={(value, field) => {
+                        if (typeof value !== "string") return;
+                        const normalizedField =
+                          field === "ollama_url"
+                            ? "OLLAMA_URL"
+                            : field === "ollama_model"
+                              ? "OLLAMA_MODEL"
+                              : field;
+                        onInputChange(value, normalizedField);
+                      }}
+                    />
+                  </div>
                 ) : selectedProvider === "codex" ? (
                   <div className="w-full mt-0 rounded-[12px]  ">
                     <CodexConfig
@@ -744,10 +687,10 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                 )}
               </div>
               {!isManualModelProvider &&
-                selectedProvider !== "ollama" &&
                 selectedProvider !== "codex" &&
+                selectedProvider !== "ollama" &&
                 (!modelsChecked ||
-                  (modelsChecked && availableModels.length === 0)) && (
+                  availableModels.length === 0) && (
                   <button
                     onClick={fetchAvailableModels}
                     disabled={
@@ -783,13 +726,14 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
           {/* Model Selection - only show if models are available */}
           {!isManualModelProvider &&
           selectedProvider !== "codex" &&
+          selectedProvider !== "ollama" &&
           modelsChecked &&
           availableModels.length > 0 ? (
             <div className="w-[262px]">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   {selectedProvider === "ollama"
-                    ? "Choose a supported model"
+                    ? "Choose an Ollama model"
                     : `Select ${modelLabel} Model`}
                 </label>
                 <div className="w-full">
@@ -840,6 +784,10 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                                 value={model.value}
                                 onSelect={() => {
                                   if (currentModelField) {
+                                    trackEvent(MixpanelEvent.Settings_Model_Selected, {
+                                      provider: selectedProvider,
+                                      model: model.value,
+                                    });
                                     onInputChange(
                                       model.value,
                                       currentModelField
@@ -868,6 +816,31 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                                           {model.size}
                                         </span>
                                       ) : null}
+                                      {selectedProvider === "ollama" ? (
+                                        <span
+                                          title={
+                                            model.tested === false
+                                              ? "Experimental"
+                                              : "Recommended"
+                                          }
+                                          aria-label={
+                                            model.tested === false
+                                              ? "Experimental"
+                                              : "Recommended"
+                                          }
+                                          className={cn(
+                                            "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                                            model.tested === false
+                                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                                              : "border-green-200 bg-green-50 text-green-700"
+                                          )}
+                                        >
+                                          <Check
+                                            className="h-3 w-3"
+                                            aria-hidden="true"
+                                          />
+                                        </span>
+                                      ) : null}
                                     </div>
                                   </div>
                                 </div>
@@ -885,7 +858,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         </div>
       </div>
       {/* Show message if no models found */}
-      {modelsChecked && availableModels.length === 0 && (
+      {selectedProvider !== "ollama" && modelsChecked && availableModels.length === 0 && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
             No models found. Please make sure your provider credentials are

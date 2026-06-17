@@ -10,7 +10,7 @@
  */
 
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { clearOutlines, setPresentationId } from "@/store/slices/presentationGeneration";
@@ -35,7 +35,8 @@ const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 const FILE_TYPE_WORD = new Set([".doc", ".docx", ".docm", ".odt", ".rtf"]);
 const FILE_TYPE_PRESENTATION = new Set([".ppt", ".pptx", ".pptm", ".odp"]);
 const FILE_TYPE_SPREADSHEET = new Set([".xls", ".xlsx", ".xlsm", ".ods", ".csv", ".tsv"]);
-const FILE_TYPE_IMAGE = new Set([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", ".svg"]);
+const FILE_TYPE_IMAGE = new Set([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"]);
+const FILE_MIME_IMAGE = new Set(["image/jpeg", "image/png", "image/gif", "image/bmp", "image/tiff", "image/webp"]);
 const FILE_TYPE_PDF = new Set([".pdf"]);
 const FILE_TYPE_TEXT = new Set([".txt"]);
 
@@ -59,7 +60,7 @@ const getFileCategory = (file: File): string => {
   if (FILE_TYPE_WORD.has(extension)) return "word";
   if (FILE_TYPE_PRESENTATION.has(extension)) return "presentation";
   if (FILE_TYPE_SPREADSHEET.has(extension)) return "spreadsheet";
-  if (FILE_TYPE_IMAGE.has(extension) || (file.type || "").startsWith("image/")) return "image";
+  if (FILE_TYPE_IMAGE.has(extension) || FILE_MIME_IMAGE.has((file.type || "").toLowerCase())) return "image";
   if (FILE_TYPE_PDF.has(extension) || file.type === "application/pdf") return "pdf";
   if (FILE_TYPE_TEXT.has(extension) || file.type === "text/plain") return "text";
   return "other";
@@ -128,6 +129,15 @@ const UploadPage = () => {
     includeTitleSlide: false,
     webSearch: false,
   });
+
+  useEffect(() => {
+    if (llmConfig?.WEB_GROUNDING !== undefined) {
+      setConfig((current) => ({
+        ...current,
+        webSearch: !!llmConfig.WEB_GROUNDING,
+      }));
+    }
+  }, [llmConfig?.WEB_GROUNDING]);
 
   const [loadingState, setLoadingState] = useState<LoadingState>({
     isLoading: false,
@@ -380,7 +390,7 @@ const UploadPage = () => {
       />
       <div className="rounded-2xl " >
         <div className="flex flex-col gap-4 md:items-center md:flex-row justify-between px-4 ">
-          <CurrentConfig />
+          <CurrentConfig webSearchEnabled={config.webSearch} />
           <ConfigurationSelects
             config={config}
             onConfigChange={handleConfigChange}

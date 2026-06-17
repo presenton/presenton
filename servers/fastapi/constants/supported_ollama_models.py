@@ -1,7 +1,8 @@
 from models.ollama_model_metadata import OllamaModelMetadata
+from models.ollama_model_status import OllamaModelStatus
 
 
-SUPPORTED_OLLAMA_MODELS = {
+SUPPORTED_LLAMA_MODELS = {
     "llama3:8b": OllamaModelMetadata(
         label="Llama 3:8b",
         value="llama3:8b",
@@ -300,8 +301,8 @@ SUPPORTED_QWEN35_MODELS = {
     )
 }
 
-SUPPORTED_OLLAMA_MODELS = {
-    **SUPPORTED_OLLAMA_MODELS,
+TESTED_OLLAMA_MODELS = {
+    **SUPPORTED_LLAMA_MODELS,
     **SUPPORTED_GEMMA_MODELS,
     **SUPPORTED_DEEPSEEK_MODELS,
     **SUPPORTED_QWEN_MODELS,
@@ -309,3 +310,45 @@ SUPPORTED_OLLAMA_MODELS = {
     **SUPPORTED_GEMMA4_MODELS,
     **SUPPORTED_QWEN35_MODELS,
 }
+
+SUPPORTED_OLLAMA_MODELS = TESTED_OLLAMA_MODELS
+
+
+def format_ollama_model_size(size_bytes: int | None) -> str:
+    if size_bytes is None:
+        return "Unknown size"
+
+    units = ("B", "KB", "MB", "GB", "TB")
+    size = float(size_bytes)
+    unit_index = 0
+    while size >= 1024 and unit_index < len(units) - 1:
+        size /= 1024
+        unit_index += 1
+
+    if unit_index == 0:
+        return f"{int(size)}{units[unit_index]}"
+
+    return f"{size:.1f}{units[unit_index]}"
+
+
+def get_supported_ollama_models(
+    pulled_models: list[OllamaModelStatus] | None = None,
+) -> list[OllamaModelMetadata]:
+    models = list(TESTED_OLLAMA_MODELS.values())
+    seen_model_values = set(TESTED_OLLAMA_MODELS)
+
+    for pulled_model in pulled_models or []:
+        if not pulled_model.name or pulled_model.name in seen_model_values:
+            continue
+
+        models.append(
+            OllamaModelMetadata(
+                label=pulled_model.name,
+                value=pulled_model.name,
+                size=format_ollama_model_size(pulled_model.size),
+                tested=False,
+            )
+        )
+        seen_model_values.add(pulled_model.name)
+
+    return models

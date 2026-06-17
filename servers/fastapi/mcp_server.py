@@ -7,8 +7,19 @@ import httpx
 from fastmcp import FastMCP
 import json
 
+from utils.simple_auth import get_internal_auth_headers
+
 with open("openai_spec.json", "r") as f:
     openapi_spec = json.load(f)
+
+
+async def attach_internal_auth_header(request: httpx.Request) -> None:
+    if "authorization" in request.headers:
+        return
+
+    auth_header = get_internal_auth_headers().get("Authorization")
+    if auth_header:
+        request.headers["Authorization"] = auth_header
 
 
 async def main():
@@ -31,7 +42,11 @@ async def main():
         print(f"DEBUG: Parsed args - port={args.port}")
 
         # Create an HTTP client that the MCP server will use to call the API
-        api_client = httpx.AsyncClient(base_url="http://127.0.0.1:8000", timeout=60.0)
+        api_client = httpx.AsyncClient(
+            base_url="http://127.0.0.1:8000",
+            timeout=60.0,
+            event_hooks={"request": [attach_internal_auth_header]},
+        )
 
         # Build MCP server from OpenAPI
         print("DEBUG: Creating FastMCP server from OpenAPI spec...")

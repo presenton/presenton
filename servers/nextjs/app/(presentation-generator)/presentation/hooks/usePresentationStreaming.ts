@@ -128,6 +128,7 @@ export const usePresentationStreaming = (
     let retryCount = 0;
     let isClosed = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const shownAssetWarnings = new Set<string>();
 
     const closeEventSource = () => {
       if (eventSource) {
@@ -242,6 +243,23 @@ export const usePresentationStreaming = (
                   slide: normalizeBackendAssetUrls(data.slide),
                 })
               );
+            }
+            if (Array.isArray(data.warnings)) {
+              for (const warning of data.warnings) {
+                const detail =
+                  warning &&
+                  typeof warning === "object" &&
+                  typeof warning.detail === "string"
+                    ? warning.detail
+                    : null;
+                if (!detail || shownAssetWarnings.has(detail)) {
+                  continue;
+                }
+                shownAssetWarnings.add(detail);
+                notify.warning("Some images could not be generated", detail, {
+                  duration: 12_000,
+                });
+              }
             }
             break;
           }

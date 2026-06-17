@@ -23,6 +23,7 @@ interface OutlineContentProps {
     isStreaming: boolean;
     activeSlideIndex: number | null;
     highestActiveIndex: number;
+    statusMessage: string;
     onDragEnd: (event: any) => void;
     onAddSlide: () => void;
 }
@@ -33,6 +34,7 @@ const OutlineContent: React.FC<OutlineContentProps> = ({
     isStreaming,
     activeSlideIndex,
     highestActiveIndex,
+    statusMessage,
     onDragEnd,
     onAddSlide
 }) => {
@@ -42,19 +44,18 @@ const OutlineContent: React.FC<OutlineContentProps> = ({
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
-
     return (
         <div className="space-y-6 font-syne ">
-            {isLoading && (!outlines || outlines.length === 0) && (
+            {isStreaming && (
                 <div className="flex items-center justify-center">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 text-blue-600 px-2 py-0.5 text-xs">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Thinking
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
+                        <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+                        <span className="truncate">{statusMessage}</span>
                     </span>
                 </div>
             )}
 
-            {isLoading && (
+            {isLoading && (!outlines || outlines.length === 0) && (
                 <div className="space-y-4 bg-white">
                     {[...Array(6)].map((_, index) => (
                         <div key={index} className="animate-pulse">

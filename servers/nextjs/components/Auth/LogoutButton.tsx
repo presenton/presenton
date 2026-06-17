@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
 import { getApiUrl } from "@/utils/api";
@@ -17,7 +16,6 @@ export default function LogoutButton({
   className = "",
   iconOnly = false,
 }: LogoutButtonProps) {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogout = async () => {
@@ -34,8 +32,7 @@ export default function LogoutButton({
     } catch {
       // Always route back to auth gate even if backend logout fails.
     } finally {
-      router.push("/");
-      router.refresh();
+      window.location.replace("/");
       setIsSubmitting(false);
     }
   };

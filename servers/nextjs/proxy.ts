@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthDisabled } from "@/utils/auth";
 
 /**
  * API-only: session required for all /api/* except auth, telemetry, and
@@ -24,11 +25,6 @@ type AuthStatus = {
   configured: boolean;
   authenticated: boolean;
 };
-
-function isAuthDisabled(): boolean {
-  const raw = process.env.DISABLE_AUTH?.trim().toLowerCase();
-  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
-}
 
 const SESSION_COOKIE_NAME = "presenton_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -61,6 +57,7 @@ function isApiAuthExempt(pathname: string): boolean {
     pathname === "/api/telemetry-status" ||
     /** FastAPI `get_layout_by_name` fallback (no browser cookie in Docker). */
     pathname === "/api/template" ||
+    pathname === "/api/template/custom" ||
     pathname.startsWith("/api/export-presentation-data/")
   );
 }

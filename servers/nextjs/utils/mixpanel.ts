@@ -15,8 +15,25 @@ export enum MixpanelEvent {
   Onboarding_Providers_Models_Selected = 'Onboarding Providers Models Selected',
   Onboarding_Configuration_Saved = 'Onboarding Configuration Saved',
   Onboarding_Completed = 'Onboarding Completed',
+  Onboarding_Step_Viewed = 'Onboarding Step Viewed',
+  Onboarding_Step_Continued = 'Onboarding Step Continued',
+  Onboarding_Back_Clicked = 'Onboarding Back Clicked',
+  Onboarding_Validation_Failed = 'Onboarding Validation Failed',
+  Onboarding_Mode_Selected = 'Onboarding Mode Selected',
+  Onboarding_Text_Provider_Tab_Selected = 'Onboarding Text Provider Tab Selected',
+  Onboarding_Text_Provider_Selected = 'Onboarding Text Provider Selected',
+  Onboarding_Text_Model_Selected = 'Onboarding Text Model Selected',
+  Onboarding_Image_Generation_Toggled = 'Onboarding Image Generation Toggled',
+  Onboarding_Image_Provider_Selected = 'Onboarding Image Provider Selected',
+  Onboarding_Image_Quality_Selected = 'Onboarding Image Quality Selected',
+  Onboarding_Web_Search_Toggled = 'Onboarding Web Search Toggled',
+  Onboarding_Web_Search_Provider_Selected = 'Onboarding Web Search Provider Selected',
 
   Codex_SignIn_API_Call = 'Codex Sign In API Call',
+  Codex_SignIn_Completed = 'Codex Sign In Completed',
+  Codex_SignIn_Failed = 'Codex Sign In Failed',
+  Codex_SignIn_Cancelled = 'Codex Sign In Cancelled',
+  Codex_Signed_Out = 'Codex Signed Out',
 
   Upload_Configuration_Invalid = 'Upload Configuration Invalid',
   Upload_Generation_Started = 'Upload Generation Started',
@@ -71,6 +88,10 @@ export enum MixpanelEvent {
   Settings_SaveConfiguration_API_Call = 'Settings Save Configuration API Call',
   Settings_CheckOllamaModelPulled_API_Call = 'Settings Check Ollama Model Pulled API Call',
   Settings_DownloadOllamaModel_API_Call = 'Settings Download Ollama Model API Call',
+  Settings_Section_Entered = 'Settings Section Entered',
+  Settings_Tab_Switched = 'Settings Tab Switched',
+  Settings_Provider_Selected = 'Settings Provider Selected',
+  Settings_Model_Selected = 'Settings Model Selected',
   PresentationPage_Refresh_Page_Button_Clicked = 'Presentation Page Refresh Page Button Clicked',
   PresentationMode_Fullscreen_Toggle_Clicked = 'Presentation Mode Fullscreen Toggle Clicked',
   PresentationMode_Exit_Clicked = 'Presentation Mode Exit Clicked',
@@ -164,14 +185,19 @@ export function initMixpanel(): void {
   void ensureTelemetryStatus().then((enabled) => {
     if (!enabled) return;
     if (window.__mixpanel_initialized) return;
-    mixpanel.init(MIXPANEL_TOKEN as string, { track_pageview: false, api_host: 'https://api-eu.mixpanel.com', });
-    const appVersion = window.env?.APP_VERSION;
-    if (appVersion) {
-      mixpanel.register({ app_version: appVersion });
-    }
-    mixpanel.identify(mixpanel.get_distinct_id());
-    window.__mixpanel_initialized = true;
+    initializeMixpanelNow();
   });
+}
+
+function initializeMixpanelNow(): void {
+  if (window.__mixpanel_initialized) return;
+  mixpanel.init(MIXPANEL_TOKEN as string, { track_pageview: false, api_host: 'https://api-eu.mixpanel.com', });
+  const appVersion = window.env?.APP_VERSION;
+  if (appVersion) {
+    mixpanel.register({ app_version: appVersion });
+  }
+  mixpanel.identify(mixpanel.get_distinct_id());
+  window.__mixpanel_initialized = true;
 }
 
 export function track(eventName: string, props?: Record<string, unknown>): void {
@@ -180,7 +206,11 @@ export function track(eventName: string, props?: Record<string, unknown>): void 
     return;
   }
   if (!window.__mixpanel_initialized) {
-    initMixpanel();
+    void ensureTelemetryStatus().then((enabled) => {
+      if (!enabled) return;
+      initializeMixpanelNow();
+      mixpanel.track(eventName, props);
+    });
     return;
   }
   mixpanel.track(eventName, props);

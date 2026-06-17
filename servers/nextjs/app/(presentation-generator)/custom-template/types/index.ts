@@ -20,6 +20,10 @@ export interface UploadedFont {
 export interface FontItem {
   name: string;
   url: string | null;
+  original_name?: string | null;
+  family_name?: string | null;
+  variant?: string | null;
+  variants?: string[] | null;
 }
 
 export interface FontData {

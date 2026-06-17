@@ -25,10 +25,6 @@ import { FileUploadSection } from "./components/FileUploadSection";
 import { useFontLoader } from "../hooks/useFontLoad";
 import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/components/Header";
 
-
-
-
-
 const CustomTemplatePage = () => {
     const router = useRouter();
 
@@ -71,7 +67,6 @@ const CustomTemplatePage = () => {
             document.head.appendChild(script);
         }
     }, []);
-
 
     /**
      * Step 1: Check fonts in uploaded PPTX
@@ -185,25 +180,26 @@ const CustomTemplatePage = () => {
 
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="relative min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
 
-            <Header />
-            <TemplateStudioHeader />
-            {showFileUpload ? (
-                <div className="pb-24">
-                    <FileUploadSection
-                        selectedFile={selectedFile}
-                        handleFileSelect={handleFileSelect}
-                        removeFile={removeFile}
-                        CheckFonts={handleCheckFonts}
-                        isProcessingPptx={state.isLoading}
-                        slides={[]}
-                        completedSlides={0}
-                    />
+            <div>
+                <Header />
+                <TemplateStudioHeader />
+                {showFileUpload ? (
+                    <div className="pb-24">
+                        <FileUploadSection
+                            selectedFile={selectedFile}
+                            handleFileSelect={handleFileSelect}
+                            removeFile={removeFile}
+                            CheckFonts={handleCheckFonts}
+                            isProcessingPptx={state.isLoading}
+                            slides={[]}
+                            completedSlides={0}
+                        />
 
-                </div>
-            ) : (
-                <div className="mx-auto min-h-[600px] px-6 pb-24">
+                    </div>
+                ) : (
+                    <div className="mx-auto min-h-[600px] px-6 pb-24">
 
                     <TemplateCreationProgress
                         currentStep={state.step}
@@ -266,9 +262,9 @@ const CustomTemplatePage = () => {
                         isSaving={isSavingLayout}
                         template_info_id={state.templateId || ''}
                     />
-                </div>
-            )}
-
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

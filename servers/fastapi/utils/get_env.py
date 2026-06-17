@@ -266,6 +266,34 @@ def get_web_grounding_env():
     return os.getenv("WEB_GROUNDING")
 
 
+def get_web_search_provider_env():
+    return os.getenv("WEB_SEARCH_PROVIDER")
+
+
+def get_web_search_max_results_env():
+    return os.getenv("WEB_SEARCH_MAX_RESULTS")
+
+
+def get_searxng_base_url_env():
+    return os.getenv("SEARXNG_BASE_URL")
+
+
+def get_tavily_api_key_env():
+    return os.getenv("TAVILY_API_KEY")
+
+
+def get_exa_api_key_env():
+    return os.getenv("EXA_API_KEY")
+
+
+def get_brave_search_api_key_env():
+    return os.getenv("BRAVE_SEARCH_API_KEY")
+
+
+def get_serper_api_key_env():
+    return os.getenv("SERPER_API_KEY")
+
+
 def get_comfyui_url_env():
     return os.getenv("COMFYUI_URL")
 

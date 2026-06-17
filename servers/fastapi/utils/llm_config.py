@@ -123,7 +123,7 @@ def _get_codex_access_token() -> str:
     return access_token
 
 
-def get_llm_config() -> ClientConfig:
+def get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
     llm_provider = get_llm_provider()
 
     match llm_provider:
@@ -133,7 +133,11 @@ def get_llm_config() -> ClientConfig:
                 raise HTTPException(status_code=400, detail="OpenAI API Key is not set")
             return OpenAIClientConfig(
                 api_key=api_key,
-                api_type=OpenAIApiType.COMPLETIONS,
+                api_type=(
+                    OpenAIApiType.RESPONSES
+                    if use_openai_responses_api
+                    else OpenAIApiType.COMPLETIONS
+                ),
             )
         case LLMProvider.GOOGLE:
             api_key = get_google_api_key_env()

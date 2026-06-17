@@ -5,6 +5,7 @@ import React from "react";
 interface SlideErrorBoundaryProps {
   children: React.ReactNode;
   label?: string;
+  resetKey?: unknown;
 }
 
 interface SlideErrorBoundaryState {
@@ -30,8 +31,16 @@ export class SlideErrorBoundary extends React.Component<
 
   componentDidCatch(error: unknown) {
     // Optionally log to an error reporting service
-    // eslint-disable-next-line no-console
     console.error("Slide render error:", error);
+  }
+
+  componentDidUpdate(prevProps: SlideErrorBoundaryProps) {
+    if (
+      this.state.hasError &&
+      !Object.is(prevProps.resetKey, this.props.resetKey)
+    ) {
+      this.setState({ hasError: false, errorMessage: "" });
+    }
   }
 
   render() {
@@ -52,5 +61,3 @@ export class SlideErrorBoundary extends React.Component<
 }
 
 export default SlideErrorBoundary;
-
-

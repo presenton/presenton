@@ -1,4 +1,3 @@
-from constants.supported_ollama_models import SUPPORTED_OLLAMA_MODELS
 from constants.llm import OPENAI_URL
 from enums.image_provider import ImageProvider
 from enums.llm_provider import LLMProvider
@@ -54,15 +53,56 @@ from utils.llm_provider import (
     is_custom_llm_selected,
     is_ollama_selected,
 )
-from utils.ollama import pull_ollama_model
+from utils.ollama import list_available_ollama_models
 from utils.image_provider import (
     get_selected_image_provider,
     is_image_generation_disabled,
 )
 
 
+def _check_image_provider_configuration() -> None:
+    selected_image_provider = get_selected_image_provider()
+    if not selected_image_provider:
+        raise Exception("IMAGE_PROVIDER must be provided")
+
+    if selected_image_provider == ImageProvider.PEXELS:
+        pexels_api_key = get_pexels_api_key_env()
+        if not pexels_api_key:
+            raise Exception("PEXELS_API_KEY must be provided")
+
+    elif selected_image_provider == ImageProvider.PIXABAY:
+        pixabay_api_key = get_pixabay_api_key_env()
+        if not pixabay_api_key:
+            raise Exception("PIXABAY_API_KEY must be provided")
+
+    elif (
+        selected_image_provider == ImageProvider.GEMINI_FLASH
+        or selected_image_provider == ImageProvider.NANOBANANA_PRO
+    ):
+        google_api_key = get_google_api_key_env()
+        if not google_api_key:
+            raise Exception("GOOGLE_API_KEY must be provided")
+
+    elif (
+        selected_image_provider == ImageProvider.DALLE3
+        or selected_image_provider == ImageProvider.GPT_IMAGE_1_5
+    ):
+        openai_api_key = get_openai_api_key_env()
+        if not openai_api_key:
+            raise Exception("OPENAI_API_KEY must be provided")
+
+    elif selected_image_provider == ImageProvider.COMFYUI:
+        comfyui_url = get_comfyui_url_env()
+        if not comfyui_url:
+            raise Exception("COMFYUI_URL must be provided")
+        workflow_json = get_comfyui_workflow_env()
+        if not workflow_json:
+            raise Exception("COMFYUI_WORKFLOW must be provided")
+
+
 async def check_llm_and_image_provider_api_or_model_availability():
     can_change_keys = get_can_change_keys_env() != "false"
+    skip_image_validation = is_image_generation_disabled()
     if not can_change_keys:
         if get_llm_provider() == LLMProvider.OPENAI:
             openai_api_key = get_openai_api_key_env()
@@ -215,15 +255,12 @@ async def check_llm_and_image_provider_api_or_model_availability():
             if not ollama_model:
                 raise Exception("OLLAMA_MODEL must be provided")
 
-            if ollama_model not in SUPPORTED_OLLAMA_MODELS:
-                raise Exception(f"Model {ollama_model} is not supported")
-
-            print("-" * 50)
-            print("Pulling model: ", ollama_model)
-            async for event in pull_ollama_model(ollama_model):
-                print(event)
-            print("Pulled model: ", ollama_model)
-            print("-" * 50)
+            available_models = await list_available_ollama_models()
+            if ollama_model not in {model.name for model in available_models}:
+                raise Exception(
+                    f"Model {ollama_model} is not available in Ollama. "
+                    "Pull it in Ollama, then check models in Presenton."
+                )
 
         elif is_custom_llm_selected():
             custom_model = get_custom_model_env()
@@ -240,45 +277,5 @@ async def check_llm_and_image_provider_api_or_model_availability():
             if custom_model not in available_models:
                 raise Exception(f"Model {custom_model} is not available")
 
-        # Skip image provider and API key checks if image generation is disabled
-        if is_image_generation_disabled():
-            return
-
-        # Check for Image Provider and API keys
-        selected_image_provider = get_selected_image_provider()
-        if not selected_image_provider:
-            raise Exception("IMAGE_PROVIDER must be provided")
-
-        if selected_image_provider == ImageProvider.PEXELS:
-            pexels_api_key = get_pexels_api_key_env()
-            if not pexels_api_key:
-                raise Exception("PEXELS_API_KEY must be provided")
-
-        elif selected_image_provider == ImageProvider.PIXABAY:
-            pixabay_api_key = get_pixabay_api_key_env()
-            if not pixabay_api_key:
-                raise Exception("PIXABAY_API_KEY must be provided")
-
-        elif (
-            selected_image_provider == ImageProvider.GEMINI_FLASH
-            or selected_image_provider == ImageProvider.NANOBANANA_PRO
-        ):
-            google_api_key = get_google_api_key_env()
-            if not google_api_key:
-                raise Exception("GOOGLE_API_KEY must be provided")
-
-        elif (
-            selected_image_provider == ImageProvider.DALLE3
-            or selected_image_provider == ImageProvider.GPT_IMAGE_1_5
-        ):
-            openai_api_key = get_openai_api_key_env()
-            if not openai_api_key:
-                raise Exception("OPENAI_API_KEY must be provided")
-
-        elif selected_image_provider == ImageProvider.COMFYUI:
-            comfyui_url = get_comfyui_url_env()
-            if not comfyui_url:
-                raise Exception("COMFYUI_URL must be provided")
-            workflow_json = get_comfyui_workflow_env()
-            if not workflow_json:
-                raise Exception("COMFYUI_WORKFLOW must be provided")
+        if not skip_image_validation:
+            _check_image_provider_configuration()

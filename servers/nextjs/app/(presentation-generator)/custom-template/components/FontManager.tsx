@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { FontManagerProps, FontItem } from "../types";
 
+const fontUploadKey = (font: FontItem) => font.name;
+
 const FontManager: React.FC<FontManagerProps> = ({
   fontsData,
   uploadedFonts,
@@ -24,8 +26,15 @@ const FontManager: React.FC<FontManagerProps> = ({
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   // Get fonts that still need to be uploaded (unavailable fonts not yet uploaded)
+  const isFontUploaded = (font: FontItem) =>
+    uploadedFonts.some(
+      (uploaded) =>
+        uploaded.fontName === font.name ||
+        (font.original_name && uploaded.fontName === font.original_name)
+    );
+
   const fontsNeedingUpload = fontsData.unavailable_fonts.filter(
-    (font) => !uploadedFonts.some((uploaded) => uploaded.fontName === font.name)
+    (font) => !isFontUploaded(font)
   );
 
   const allFontsUploaded = fontsNeedingUpload.length === 0;
@@ -119,26 +128,32 @@ const FontManager: React.FC<FontManagerProps> = ({
                         <span className="text-sm font-semibold text-[#111827] block">
                           {font.name}
                         </span>
-                        <span className="text-xs text-[#6B7280]">
-                          .ttf, .otf, .woff, .woff2
+                        {font.family_name && font.family_name !== font.name && (
+                          <span className="text-xs text-[#6B7280] block">
+                            Family: {font.family_name}
+                            {font.variant ? ` · ${font.variant.replace(/_/g, " ")}` : ""}
+                          </span>
+                        )}
+                        <span className="text-xs text-[#9CA3AF]">
+                          Upload must match this name exactly (.ttf, .otf, .woff, .woff2, .eot)
                         </span>
                       </div>
                     </div>
                     <div>
                       <input
                         ref={(el) => {
-                          fileInputRefs.current[font.name] = el;
+                          fileInputRefs.current[fontUploadKey(font)] = el;
                         }}
                         type="file"
                         accept=".ttf,.otf,.woff,.woff2,.eot"
-                        onChange={(e) => handleFileInputChange(font.name, e)}
+                        onChange={(e) => handleFileInputChange(fontUploadKey(font), e)}
                         className="hidden"
                         id={`font-upload-${index}`}
                       />
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => fileInputRefs.current[font.name]?.click()}
+                        onClick={() => fileInputRefs.current[fontUploadKey(font)]?.click()}
                         className="rounded-full px-4 h-9 text-sm font-medium transition-all text-[#D97706] border-[#D97706] hover:bg-[#FFFBEB] hover:border-[#D97706]"
                       >
                         <Upload className="w-4 h-4 mr-1" />

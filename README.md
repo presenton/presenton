@@ -20,9 +20,11 @@
   <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
-# Open-Source AI Presentation Generator and API (Gamma, Beautiful AI, Decktopus Alternative)
+# Open-Source AI Presentation Generator and API (Gamma, Canva, Beautiful AI, Decktopus, Presentations AI Alternative)
 
+Discover what Presenton can do from AI-powered presentation generation to editing, exporting, and flexible model providers.
 
+[▶ Watch Presenton in Action](https://github.com/user-attachments/assets/93e541dc-8487-4dcf-a9a0-95ad5ca94453)
 
 ### ✨ Why Presenton
 
@@ -51,6 +53,10 @@ What makes Presenton different?
 
 <p align="center">
   <img src="./readme_assets/images/features.png" alt="Presenton Features" />
+</p>
+
+<p align="center">
+  <img src="./readme_assets/images/chatgpt-2-1.png" alt="Create stunning presentations with your existing ChatGPT subscription — secure and private, instant access, no API keys" />
 </p>
 
 #
@@ -233,7 +239,7 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 #### LLM and API keys
 
 - **CAN_CHANGE_KEYS**=[true/false]: Set to **false** if you want to keep API keys hidden and make them unmodifiable.
-- **LLM**=[openai/google/vertex/azure/anthropic/lmstudio/ollama/custom/codex]: Select the text **LLM**.
+- **LLM**=[openai/google/vertex/azure/bedrock/anthropic/lmstudio/ollama/custom/codex]: Select the text **LLM**.
 - **OPENAI_API_KEY**: Required if **LLM** is **openai**.
 - **OPENAI_MODEL**: Required if **LLM** is **openai** (default: `gpt-4.1`).
 - **GOOGLE_API_KEY**: Required if **LLM** is **google**.
@@ -248,9 +254,9 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **AZURE_OPENAI_ENDPOINT** / **AZURE_OPENAI_BASE_URL**: At least one is required if **LLM** is **azure**.
 - **AZURE_OPENAI_DEPLOYMENT**: Optional deployment override for **LLM** is **azure**.
 - **BEDROCK_REGION**: Optional if **LLM** is **bedrock** (default: `us-east-1`).
-- **BEDROCK_MODEL**: Required if **LLM** is **bedrock** (example: `us.anthropic.claude-3-5-haiku-20241022-v1:0`).
-- **BEDROCK_API_KEY**: Optional if **LLM** is **bedrock** (API key auth mode).
-- **BEDROCK_AWS_ACCESS_KEY_ID** / **BEDROCK_AWS_SECRET_ACCESS_KEY**: Optional if **LLM** is **bedrock** (AWS key auth mode; use together when `BEDROCK_API_KEY` is not set).
+- **BEDROCK_MODEL**: Required if **LLM** is **bedrock**. Use a standard model ID (example: `us.anthropic.claude-3-5-haiku-20241022-v1:0`) or a full **inference profile ARN** for newer models (example: Claude Sonnet 4.6). Passed through to Bedrock Converse as `modelId`. See **[Amazon Bedrock guide](docs/amazon-bedrock.md)**.
+- **BEDROCK_API_KEY**: Optional if **LLM** is **bedrock** (API key auth; alternative to AWS keys).
+- **BEDROCK_AWS_ACCESS_KEY_ID** / **BEDROCK_AWS_SECRET_ACCESS_KEY**: Required together if **LLM** is **bedrock** and `BEDROCK_API_KEY` is not set.
 - **BEDROCK_AWS_SESSION_TOKEN**: Optional session token for **LLM** is **bedrock**.
 - **BEDROCK_PROFILE_NAME**: Optional AWS profile name for **LLM** is **bedrock**.
 - **FIREWORKS_API_KEY**: Required if **LLM** is **fireworks**.
@@ -269,7 +275,14 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **LMSTUDIO_API_KEY**: Optional API key if **LLM** is **lmstudio**.
 - **LMSTUDIO_MODEL**: Required if **LLM** is **lmstudio** (example: `openai/gpt-oss-20b`).
 - **DISABLE_THINKING**=[true/false]: If **true**, disables “thinking” on the custom LLM.
-- **WEB_GROUNDING**=[true/false]: If **true**, enables web search for OpenAI, Google, and Anthropic models.
+- **WEB_GROUNDING**=[true/false]: If **true**, enables web search by default.
+- **WEB_SEARCH_PROVIDER**=[auto/native/searxng/tavily/exa]: Selects the web search mode. `auto` uses native search for OpenAI, Google, and Anthropic, and otherwise leaves web search off unless you choose an external provider.
+<!-- Brave and Serper search providers are hidden until they are tested. -->
+<!-- - **WEB_SEARCH_PROVIDER** also supports `brave` and `serper`. -->
+- **WEB_SEARCH_MAX_RESULTS**: Maximum external search results to add to model context (default `5`, maximum `10`).
+- **SEARXNG_BASE_URL**: Base URL for a self-hosted SearXNG instance.
+- **TAVILY_API_KEY**, **EXA_API_KEY**: Credentials for optional hosted search APIs.
+<!-- - **BRAVE_SEARCH_API_KEY**, **SERPER_API_KEY**: Credentials for hidden, untested hosted search APIs. -->
 - **EXTENDED_REASONING**=[true/false]: Enables extended reasoning where supported by the configured stack.
 
 #### Ollama
@@ -389,8 +402,11 @@ Same variables as compose; use `-e` instead of `.env` when running `docker run` 
 - Using Azure OpenAI
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="azure" -e AZURE_OPENAI_API_KEY="******" -e AZURE_OPENAI_MODEL="gpt-4.1" -e AZURE_OPENAI_API_VERSION="2024-10-21" -e AZURE_OPENAI_ENDPOINT="https://YOUR-RESOURCE.openai.azure.com" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
-- Using Amazon Bedrock (AWS keys)
+- Using Amazon Bedrock (on-demand model ID) — see **[docs/amazon-bedrock.md](docs/amazon-bedrock.md)** for inference profiles, IAM, and troubleshooting.
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="bedrock" -e BEDROCK_REGION="us-east-1" -e BEDROCK_AWS_ACCESS_KEY_ID="******" -e BEDROCK_AWS_SECRET_ACCESS_KEY="******" -e BEDROCK_MODEL="us.anthropic.claude-3-5-haiku-20241022-v1:0" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
+
+- Using Amazon Bedrock (inference profile ARN, e.g. Claude Sonnet 4.6)
+    <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="bedrock" -e BEDROCK_REGION="us-east-1" -e BEDROCK_AWS_ACCESS_KEY_ID="******" -e BEDROCK_AWS_SECRET_ACCESS_KEY="******" -e BEDROCK_MODEL="arn:aws:bedrock:us-east-1:YOUR_ACCOUNT_ID:inference-profile/us.anthropic.claude-sonnet-4-6" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
 - Using Fireworks
     <pre><code class="language-bash">docker run -it --name presenton -p 5000:80 -e LLM="fireworks" -e FIREWORKS_API_KEY="******" -e FIREWORKS_MODEL="accounts/fireworks/models/llama-v3p1-8b-instruct" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
@@ -596,12 +612,17 @@ Prepend your server’s root URL to <code>path</code> and
 
 <ul>
   <li>
-    <a href="https://docs.presenton.ai/using-presenton-api">
+    <a href="https://docs.presenton.ai/v3/get-started/quickstart">
+      Deploy Presenton
+    </a>
+  </li>
+  <li>
+    <a href="https://docs.presenton.ai/v3/get-started/api-introduction">
       Full API Documentation
     </a>
   </li>
   <li>
-    <a href="https://docs.presenton.ai/tutorial/generate-presentation-over-api">
+    <a href="https://docs.presenton.ai/v3/guide/using-presenton-api">
       Generate Presentations via API in 5 Minutes
     </a>
   </li>

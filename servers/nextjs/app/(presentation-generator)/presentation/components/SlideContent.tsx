@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Loader2, PlusIcon, Trash2, Pencil, Trash } from "lucide-react";
+import {
+  Loader2,
+  PlusIcon,
+  Trash2,
+  Pencil,
+  Trash,
+  Sparkles,
+} from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -35,7 +42,6 @@ const SlideContent = ({
   index,
   presentationId,
   isChatEditing = false,
-  isChatTargeted = false,
 }: SlideContentProps) => {
   const dispatch = useDispatch();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -53,7 +59,10 @@ const SlideContent = ({
 
   const handleSubmit = async () => {
     if (!editPrompt.trim()) {
-      notify.warning("Prompt required", "Please enter a prompt before submitting.");
+      notify.warning(
+        "Prompt required",
+        "Please enter a prompt before submitting."
+      );
       return;
     }
     setIsUpdating(true);
@@ -76,7 +85,10 @@ const SlideContent = ({
           prompt_word_count: editPrompt.trim().split(/\s+/).filter(Boolean)
             .length,
         });
-        notify.success("Slide updated", "Your changes were applied to this slide.");
+        notify.success(
+          "Slide updated",
+          "Your changes were applied to this slide."
+        );
         setEditPrompt("");
       } else {
         notify.error(
@@ -86,7 +98,10 @@ const SlideContent = ({
       }
     } catch (error: any) {
       console.error("Error in slide editing:", error);
-      notify.error("Slide edit failed", error.message || "Something went wrong while editing the slide.");
+      notify.error(
+        "Slide edit failed",
+        error.message || "Something went wrong while editing the slide."
+      );
     } finally {
       setIsUpdating(false);
     }
@@ -94,6 +109,14 @@ const SlideContent = ({
 
   const onDeleteSlide = async () => {
     try {
+      if ((presentationData?.slides?.length ?? 0) <= 1) {
+        notify.warning(
+          "Cannot delete slide",
+          "A presentation must contain at least one slide."
+        );
+        return;
+      }
+
       trackEvent(MixpanelEvent.Presentation_Slide_Deleted, {
         pathname,
         presentation_id: presentationId,
@@ -111,7 +134,10 @@ const SlideContent = ({
       dispatch(deletePresentationSlide(slide.index));
     } catch (error: any) {
       console.error("Error deleting slide:", error);
-      notify.error("Could not delete slide", error.message || "Something went wrong while deleting the slide.");
+      notify.error(
+        "Could not delete slide",
+        error.message || "Something went wrong while deleting the slide."
+      );
     }
   };
   useEffect(() => {
@@ -143,20 +169,25 @@ const SlideContent = ({
           className={` w-full  group font-syne  `}
         >
           {/* <V1ContentRender slide={slide} isEditMode={true} theme={null} /> */}
-          <div
-            className={
-              isChatEditing
-                ? "chat-slide-glow relative rounded-[12px]"
-                : isChatTargeted
-                ? "chat-slide-target relative rounded-[12px]"
-                : "relative"
-            }
-          >
-            <SlideScale
-              slide={slide}
-              theme={presentationData?.theme || null}
-              showEditScan={isChatEditing}
-            />
+          {isChatEditing && (
+            <div
+              className="pointer-events-none absolute bottom-24 left-1/2 z-30 -translate-x-1/2 overflow-hidden rounded-[50px]  p-[1.5px] font-syne"
+              aria-live="polite"
+            >
+              <span className="relative z-20 flex items-center overflow-hidden rounded-[50px] bg-white px-3 py-2 text-sm font-medium text-[#666666]">
+                <span
+                  aria-hidden="true"
+                  className="generating-slides-background absolute"
+                />
+                <span className="relative z-10 flex items-center  gap-2">
+                  <Sparkles className="h-4 w-4 text-[#9034EA]" />
+                  Updating slides...
+                </span>
+              </span>
+            </div>
+          )}
+          <div className="relative">
+            <SlideScale slide={slide} theme={presentationData?.theme || null} />
           </div>
           {!showNewSlideSelection && (
             <div className="group-hover:opacity-100 hidden md:block opacity-0 transition-opacity my-4 duration-300">

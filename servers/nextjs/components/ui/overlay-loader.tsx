@@ -107,7 +107,7 @@ export const OverlayLoader = ({
               width="1810.32"
               height="1235.29"
               filterUnits="userSpaceOnUse"
-              color-interpolation-filters="sRGB"
+              colorInterpolationFilters="sRGB"
             >
               <feFlood floodOpacity="0" result="BackgroundImageFix" />
               <feColorMatrix

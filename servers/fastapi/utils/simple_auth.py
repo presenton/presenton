@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import Request
 from starlette.responses import Response
 
-from utils.get_env import get_user_config_path_env
+from utils.get_env import get_user_config_path_env, is_disable_auth_enabled
 from utils.user_config_store import read_user_config_file, update_user_config_file
 
 SESSION_COOKIE_NAME = "presenton_session"
@@ -301,6 +301,18 @@ def get_auth_status(session_token: Optional[str] = None) -> dict:
         "authenticated": bool(username),
         "username": username,
     }
+
+
+def get_internal_auth_headers() -> dict[str, str]:
+    """Return auth headers for trusted same-host service-to-service API calls."""
+    if is_disable_auth_enabled():
+        return {}
+
+    username = get_configured_auth_username()
+    if not username:
+        return {}
+
+    return {"Authorization": f"Bearer {create_session_token(username)}"}
 
 
 def _is_secure_request(request: Request) -> bool:

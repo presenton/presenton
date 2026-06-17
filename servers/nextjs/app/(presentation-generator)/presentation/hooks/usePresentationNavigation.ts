@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export const usePresentationNavigation = (
@@ -27,17 +27,37 @@ export const usePresentationNavigation = (
     }
   }, [setSelectedSlide]);
 
-  const toggleFullscreen = useCallback(() => {
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+    };
+  }, [setIsFullscreen]);
+
+  const toggleFullscreen = useCallback((target?: Element | null) => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
+      const fullscreenTarget =
+        target ?? document.getElementById("presentation-mode-wrapper") ?? document.documentElement;
+      fullscreenTarget
+        .requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => setIsFullscreen(false));
     } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+      document
+        .exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch(() => setIsFullscreen(Boolean(document.fullscreenElement)));
     }
   }, [setIsFullscreen]);
 
   const handlePresentExit = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined);
+    }
     setIsFullscreen(false);
     router.push(`/presentation?id=${presentationId}`);
   }, [router, presentationId, setIsFullscreen]);
@@ -61,4 +81,4 @@ export const usePresentationNavigation = (
     handlePresentExit,
     handleSlideChange,
   };
-}; 
+};
