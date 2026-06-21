@@ -15,10 +15,37 @@ from llmai.shared import (
 )
 
 from utils.llm_config import get_extra_body
-from utils.schema_utils import get_schema_validation_errors
+from utils.llm_provider import is_custom_llm_selected, is_litellm_selected
+from utils.schema_utils import (
+    get_schema_validation_errors,
+    strip_array_size_constraints,
+)
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _sanitize_response_format(response_format: ResponseFormat) -> ResponseFormat:
+    """Strip array size constraints from the schema for OpenAI-compatible gateways.
+
+    LiteLLM/custom gateways may route to Bedrock, which rejects ``minItems``/
+    ``maxItems`` other than 0 or 1. This sanitizes only the schema sent to the
+    provider; the schema used for local response validation is left untouched.
+    """
+    if not (is_litellm_selected() or is_custom_llm_selected()):
+        return response_format
+
+    json_schema = getattr(response_format, "json_schema", None)
+    if not isinstance(json_schema, dict):
+        return response_format
+
+    sanitized = strip_array_size_constraints(json_schema)
+    if sanitized == json_schema:
+        return response_format
+
+    if hasattr(response_format, "model_copy"):
+        return response_format.model_copy(update={"json_schema": sanitized})
+    return response_format
 
 
 def get_generate_kwargs(
@@ -39,7 +66,7 @@ def get_generate_kwargs(
     if tools:
         kwargs["tools"] = tools
     if response_format is not None:
-        kwargs["response_format"] = response_format
+        kwargs["response_format"] = _sanitize_response_format(response_format)
 
     extra_body = get_extra_body(uses_tool_choice=bool(tools or response_format))
     if extra_body:

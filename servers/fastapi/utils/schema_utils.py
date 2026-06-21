@@ -262,6 +262,29 @@ def ensure_array_schemas_have_items(schema: dict) -> dict[str, Any]:
     return _ensure(result)
 
 
+def strip_array_size_constraints(schema: dict) -> dict[str, Any]:
+    """Recursively remove ``minItems``/``maxItems`` from a JSON schema (deep copy).
+
+    Some structured-output backends reject array size constraints. Notably,
+    Bedrock (reached via LiteLLM / OpenAI-compatible gateways) only allows
+    ``minItems`` of 0 or 1, so a schema like ``minItems: 6`` (our exact-slide-count
+    constraint) is rejected outright. The item count is still steered by the prompt.
+    """
+
+    def _strip(node: Any) -> Any:
+        if isinstance(node, dict):
+            node.pop("minItems", None)
+            node.pop("maxItems", None)
+            for value in node.values():
+                _strip(value)
+        elif isinstance(node, list):
+            for item in node:
+                _strip(item)
+        return node
+
+    return _strip(deepcopy(schema))
+
+
 def prepare_schema_for_validation(
     schema: dict,
     strict: bool = False,
