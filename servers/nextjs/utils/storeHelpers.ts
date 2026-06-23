@@ -140,6 +140,13 @@ export const getLLMConfigValidationError = (
     if (!isProvided(llmConfig.CEREBRAS_MODEL)) {
       return "Select or enter a Cerebras model id.";
     }
+  } else if (llm === "atlascloud") {
+    if (!isProvided(llmConfig.ATLASCLOUD_API_KEY)) {
+      return "Atlas Cloud API key is required.";
+    }
+    if (!isProvided(llmConfig.ATLASCLOUD_MODEL)) {
+      return "Select or enter an Atlas Cloud model id.";
+    }
   } else if (llm === "fireworks") {
     if (!isProvided(llmConfig.FIREWORKS_API_KEY)) {
       return "Fireworks API key is required.";

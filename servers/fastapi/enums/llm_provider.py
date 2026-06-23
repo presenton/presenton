@@ -16,5 +16,6 @@ class LLMProvider(Enum):
     ANTHROPIC = "anthropic"
     LITELLM = "litellm"
     LMSTUDIO = "lmstudio"
+    ATLASCLOUD = "atlascloud"
     CUSTOM = "custom"
     CODEX = "codex"

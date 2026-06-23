@@ -58,6 +58,11 @@ export interface LLMConfig {
   CEREBRAS_MODEL?: string;
   CEREBRAS_BASE_URL?: string;
 
+  // Atlas Cloud
+  ATLASCLOUD_API_KEY?: string;
+  ATLASCLOUD_MODEL?: string;
+  ATLASCLOUD_BASE_URL?: string;
+
   // LiteLLM
   LITELLM_BASE_URL?: string;
   LITELLM_API_KEY?: string;

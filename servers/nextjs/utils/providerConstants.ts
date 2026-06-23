@@ -246,6 +246,14 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     icon: "/providers/openai.png",
     getApiKeyUrl: "https://inference-docs.cerebras.ai",
   },
+  atlascloud: {
+    value: "atlascloud",
+    label: "Atlas Cloud",
+    description: "Atlas Cloud via OpenAI-compatible API (DeepSeek, Qwen, GLM, Kimi, MiniMax, etc.)",
+    url: "https://api.atlascloud.ai/v1",
+    icon: "/providers/custom.svg",
+    getApiKeyUrl: "https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=presenton",
+  },
   litellm: {
     value: "litellm",
     label: "LiteLLM",

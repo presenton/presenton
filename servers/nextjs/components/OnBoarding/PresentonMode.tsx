@@ -127,6 +127,8 @@ const PresentonMode = ({
                 return 'TOGETHER_MODEL';
             case 'cerebras':
                 return 'CEREBRAS_MODEL';
+            case 'atlascloud':
+                return 'ATLASCLOUD_MODEL';
             case 'anthropic':
                 return 'ANTHROPIC_MODEL';
             case 'ollama':
@@ -163,6 +165,8 @@ const PresentonMode = ({
                 return 'TOGETHER_API_KEY';
             case 'cerebras':
                 return 'CEREBRAS_API_KEY';
+            case 'atlascloud':
+                return 'ATLASCLOUD_API_KEY';
             case 'anthropic':
                 return 'ANTHROPIC_API_KEY';
             case 'custom':

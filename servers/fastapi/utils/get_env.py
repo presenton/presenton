@@ -219,6 +219,18 @@ def get_cerebras_base_url_env():
     return os.getenv("CEREBRAS_BASE_URL")
 
 
+def get_atlascloud_api_key_env():
+    return os.getenv("ATLASCLOUD_API_KEY")
+
+
+def get_atlascloud_model_env():
+    return os.getenv("ATLASCLOUD_MODEL")
+
+
+def get_atlascloud_base_url_env():
+    return os.getenv("ATLASCLOUD_BASE_URL")
+
+
 def get_litellm_base_url_env():
     return os.getenv("LITELLM_BASE_URL")
 
