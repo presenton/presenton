@@ -1,4 +1,4 @@
-from constants.llm import OPENAI_URL
+from constants.llm import ATLASCLOUD_URL, OPENAI_URL
 from enums.image_provider import ImageProvider
 from enums.llm_provider import LLMProvider
 from utils.available_models import (
@@ -19,6 +19,9 @@ from utils.get_env import (
     get_bedrock_aws_secret_access_key_env,
     get_bedrock_model_env,
     get_can_change_keys_env,
+    get_atlascloud_api_key_env,
+    get_atlascloud_base_url_env,
+    get_atlascloud_model_env,
     get_cerebras_api_key_env,
     get_fireworks_api_key_env,
     get_fireworks_base_url_env,
@@ -256,6 +259,24 @@ async def check_llm_and_image_provider_api_or_model_availability():
             print("Available models: ", available_models)
             if lmstudio_model not in available_models:
                 raise Exception(f"Model {lmstudio_model} is not available")
+
+        elif get_llm_provider() == LLMProvider.ATLASCLOUD:
+            atlascloud_api_key = (get_atlascloud_api_key_env() or "").strip()
+            atlascloud_model = (get_atlascloud_model_env() or "").strip()
+            if not atlascloud_api_key:
+                raise Exception("ATLASCLOUD_API_KEY must be provided")
+            if not atlascloud_model:
+                raise Exception("ATLASCLOUD_MODEL must be provided")
+            atlascloud_base_url = normalize_openai_compatible_base_url(
+                (get_atlascloud_base_url_env() or "").strip() or ATLASCLOUD_URL
+            )
+            available_models = await list_available_openai_compatible_models(
+                atlascloud_base_url, atlascloud_api_key
+            )
+            print("-" * 50)
+            print("Available models: ", available_models)
+            if atlascloud_model not in available_models:
+                raise Exception(f"Model {atlascloud_model} is not available")
 
         elif get_llm_provider() == LLMProvider.ANTHROPIC:
             anthropic_api_key = get_anthropic_api_key_env()

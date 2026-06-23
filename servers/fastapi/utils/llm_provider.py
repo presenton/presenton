@@ -4,6 +4,7 @@ from openai import OpenAI
 
 from constants.llm import (
     DEFAULT_ANTHROPIC_MODEL,
+    DEFAULT_ATLASCLOUD_MODEL,
     DEFAULT_AZURE_MODEL,
     DEFAULT_BEDROCK_MODEL,
     DEFAULT_CEREBRAS_MODEL,
@@ -21,6 +22,7 @@ from constants.llm import (
 )
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
+    get_atlascloud_model_env,
     get_azure_openai_deployment_env,
     get_azure_openai_model_env,
     get_anthropic_model_env,
@@ -54,7 +56,7 @@ def get_llm_provider():
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
                 "fireworks, together, cerebras, anthropic, litellm, "
-                "lmstudio, ollama, custom, codex"
+                "lmstudio, atlascloud, ollama, custom, codex"
             ),
         )
 
@@ -123,6 +125,10 @@ def is_lmstudio_selected():
     return get_llm_provider() == LLMProvider.LMSTUDIO
 
 
+def is_atlascloud_selected():
+    return get_llm_provider() == LLMProvider.ATLASCLOUD
+
+
 def get_model():
     selected_llm = get_llm_provider()
     if selected_llm == LLMProvider.OPENAI:
@@ -159,6 +165,8 @@ def get_model():
         return get_litellm_model_env() or DEFAULT_LITELLM_MODEL
     elif selected_llm == LLMProvider.LMSTUDIO:
         return get_lmstudio_model_env() or DEFAULT_LMSTUDIO_MODEL
+    elif selected_llm == LLMProvider.ATLASCLOUD:
+        return get_atlascloud_model_env() or DEFAULT_ATLASCLOUD_MODEL
     elif selected_llm == LLMProvider.CODEX:
         codex_model = get_codex_model_env()
         return codex_model if codex_model in SUPPORTED_CODEX_MODELS else DEFAULT_CODEX_MODEL
@@ -169,7 +177,7 @@ def get_model():
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
                 "fireworks, together, cerebras, anthropic, litellm, "
-                "lmstudio, ollama, custom, codex"
+                "lmstudio, atlascloud, ollama, custom, codex"
             ),
         )
 

@@ -89,6 +89,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "TOGETHER_MODEL";
       case "cerebras":
         return "CEREBRAS_MODEL";
+      case "atlascloud":
+        return "ATLASCLOUD_MODEL";
       case "litellm":
         return "LITELLM_MODEL";
       case "lmstudio":
@@ -128,6 +130,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "TOGETHER_API_KEY";
       case "cerebras":
         return "CEREBRAS_API_KEY";
+      case "atlascloud":
+        return "ATLASCLOUD_API_KEY";
       case "litellm":
         return "LITELLM_API_KEY";
       case "lmstudio":
@@ -176,6 +180,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       ? "Together API Key"
       : selectedProvider === "cerebras"
       ? "Cerebras API Key"
+      : selectedProvider === "atlascloud"
+      ? "Atlas Cloud API Key"
       : selectedProvider === "litellm"
       ? "LiteLLM API key (optional)"
       : selectedProvider === "lmstudio"
@@ -236,6 +242,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         ? "TOGETHER_API_KEY"
         : llm === "cerebras"
         ? "CEREBRAS_API_KEY"
+        : llm === "atlascloud"
+        ? "ATLASCLOUD_API_KEY"
         : llm === "litellm"
         ? "LITELLM_API_KEY"
         : llm === "lmstudio"
@@ -260,6 +268,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
     if (selectedProvider === "fireworks" && !currentApiKey) return;
     if (selectedProvider === "together" && !currentApiKey) return;
     if (selectedProvider === "cerebras" && !currentApiKey) return;
+    if (selectedProvider === "atlascloud" && !currentApiKey) return;
     if (selectedProvider === "custom" && !currentCustomUrl) return;
     if (selectedProvider === "litellm" && !currentLitellmUrl) return;
 
@@ -360,6 +369,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
               ? "openai/gpt-oss-20b"
               : selectedProvider === "cerebras"
               ? "llama-3.3-70b"
+              : selectedProvider === "atlascloud"
+              ? "deepseek-ai/deepseek-v4-pro"
               : selectedProvider === "litellm"
               ? "gpt-4.1"
               : selectedProvider === "lmstudio"

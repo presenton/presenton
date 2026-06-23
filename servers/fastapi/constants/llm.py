@@ -1,4 +1,5 @@
 OPENAI_URL = "https://api.openai.com/v1"
+ATLASCLOUD_URL = "https://api.atlascloud.ai/v1"
 
 # Default models
 DEFAULT_OPENAI_MODEL = "gpt-4.1"
@@ -11,6 +12,7 @@ DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o"
 DEFAULT_FIREWORKS_MODEL = "accounts/fireworks/models/llama-v3p1-8b-instruct"
 DEFAULT_TOGETHER_MODEL = "openai/gpt-oss-20b"
 DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
+DEFAULT_ATLASCLOUD_MODEL = "deepseek-ai/deepseek-v4-pro"
 DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
 DEFAULT_LITELLM_MODEL = "gpt-4.1"
 DEFAULT_LMSTUDIO_MODEL = "openai/gpt-oss-20b"

@@ -23,8 +23,11 @@ from llmai.shared import (
     VertexAIClientConfig,
 )
 
+from constants.llm import ATLASCLOUD_URL
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
+    get_atlascloud_api_key_env,
+    get_atlascloud_base_url_env,
     get_azure_openai_api_key_env,
     get_azure_openai_api_version_env,
     get_azure_openai_base_url_env,
@@ -329,6 +332,20 @@ def get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
             if lk:
                 kwargs["api_key"] = lk
             return LMStudioClientConfig(**kwargs)
+        case LLMProvider.ATLASCLOUD:
+            api_key = (get_atlascloud_api_key_env() or "").strip()
+            if not api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Atlas Cloud API Key is not set",
+                )
+            base_url = normalize_openai_compatible_base_url(
+                (get_atlascloud_base_url_env() or "").strip() or ATLASCLOUD_URL
+            )
+            return OpenAIClientConfig(
+                base_url=base_url,
+                api_key=api_key,
+            )
         case LLMProvider.OLLAMA:
             return OpenAIClientConfig(
                 base_url=(get_ollama_url_env() or "http://localhost:11434") + "/v1",
@@ -356,7 +373,7 @@ def get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 detail=(
                     "LLM Provider must be either openai, deepseek, google, vertex, azure, "
                     "bedrock, openrouter, fireworks, together, cerebras, "
-                    "anthropic, litellm, lmstudio, ollama, custom, or codex"
+                    "anthropic, litellm, lmstudio, atlascloud, ollama, custom, or codex"
                 ),
             )
 
