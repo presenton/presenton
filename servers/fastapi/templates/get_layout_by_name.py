@@ -131,7 +131,10 @@ async def get_layout_by_name(layout_name: str) -> PresentationLayoutModel:
         return await load_custom_presentation_layout(layout_name)
 
     query = urlencode({"group": layout_name})
-    url = f"http://localhost/schema?{query}"
+    next_public_url = (
+        os.getenv("NEXT_PUBLIC_URL") or "http://127.0.0.1"
+    ).rstrip("/")
+    url = f"{next_public_url}/schema?{query}"
 
     LOGGER.info(
         "[template_layout] resolving template=%r primary_schema_url=%s",

@@ -91,7 +91,7 @@ const HeadlineDescriptionWithImageLayout = ({ data }: { data: Partial<z.infer<ty
                             <img
                                 src={data.image?.__image_url__}
                                 alt={data.image?.__image_prompt__}
-                                className="w-full h-full object-contain bg-white"
+                                className="w-full h-full object-cover"
                                 style={{ objectPosition: '52.54% 44.07%' }}
                             />
                         </div>

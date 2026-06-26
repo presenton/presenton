@@ -152,7 +152,7 @@ const ImagesWithDescriptionSlideLayout: React.FC<ImagesWithDescriptionSlideLayou
                     <img
                       src={member.image.__image_url__}
                       alt={member.image.__image_prompt__ || member.name}
-                      className="w-full h-full object-contain bg-white"
+                      className="w-full h-full object-cover"
                     />
                   )}
                 </div>

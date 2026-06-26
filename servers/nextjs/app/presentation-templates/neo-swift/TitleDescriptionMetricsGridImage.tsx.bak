@@ -142,7 +142,7 @@ const dynamicSlideLayout = ({ data }: { data: Partial<z.infer<typeof Schema>> })
                         <img
                             src={mainImage?.__image_url__}
                             alt={mainImage?.__image_prompt__}
-                            className="w-full h-full object-contain bg-white"
+                            className="w-full h-full object-cover"
                         />
                     </div>
                 </div>

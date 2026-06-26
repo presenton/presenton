@@ -65,7 +65,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                             <img
                                 src={image.__image_url__}
                                 alt={image.__image_prompt__ || 'Executive Summary Image'}
-                                className="w-full h-full object-contain bg-white rounded-xl"
+                                className="w-full h-full object-cover rounded-xl"
                             />
                         )}
                     </div>

@@ -162,13 +162,13 @@ const ImageListWithDescriptionSlideLayout: React.FC<ImageListWithDescriptionSlid
                       <p className={`text-sm leading-relaxed`}>{prod.description}</p>
                     </div>
                     <div className="rounded-b-md overflow-hidden" style={{ height: `${IMAGE_SECTION_HEIGHT + 28}px` }}>
-                      <img src={prod.image.__image_url__} alt={prod.image.__image_prompt__ || prod.title} className="w-full h-full object-contain bg-white" />
+                      <img src={prod.image.__image_url__} alt={prod.image.__image_prompt__ || prod.title} className="w-full h-full object-cover" />
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="rounded-t-md overflow-hidden" style={{ height: `${IMAGE_SECTION_HEIGHT + 28}px` }}>
-                      <img src={prod.image.__image_url__} alt={prod.image.__image_prompt__ || prod.title} className="w-full h-full object-contain bg-white" />
+                      <img src={prod.image.__image_url__} alt={prod.image.__image_prompt__ || prod.title} className="w-full h-full object-cover" />
                     </div>
                     <div
                       className={`p-5 flex flex-col justify-center text-center rounded-b-md`}

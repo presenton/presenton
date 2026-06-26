@@ -14,14 +14,21 @@ const nextConfig = {
     : {}),
 
   // Rewrites for development - proxy font requests to FastAPI backend
-  async rewrites() {
-    return [
-      {
-        source: '/app_data/fonts/:path*',
-        destination: 'http://localhost:5000/app_data/fonts/:path*',
-      },
-    ];
-  },
+async rewrites() {
+  const backend =
+    process.env.FAST_API_INTERNAL_URL || "http://127.0.0.1:8000";
+
+  return [
+    {
+      source: "/api/:path*",
+      destination: `${backend}/api/:path*`,
+    },
+    {
+      source: "/app_data/:path*",
+      destination: `${backend}/app_data/:path*`,
+    },
+  ];
+},
 
   images: {
     remotePatterns: [

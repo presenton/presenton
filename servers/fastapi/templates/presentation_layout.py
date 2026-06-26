@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field, model_validator
 
 from models.presentation_structure_model import PresentationStructureModel
 from utils.icon_weights import DEFAULT_ICON_WEIGHT, extract_icon_weight_from_settings
-
+import json
+from typing import List, Optional
 
 class SlideLayoutModel(BaseModel):
     id: str
@@ -42,10 +43,18 @@ class PresentationLayoutModel(BaseModel):
             slides=[index for index in range(len(self.slides))]
         )
 
-    def to_string(self) -> str:
+    def to_string(self, with_schema: bool = False) -> str:
         message = "## Presentation Layout\n\n"
         for index, slide in enumerate(self.slides):
             message += f"### Slide Layout: {index}\n"
-            message += f"- Name: {slide.name or slide.json_schema.get('title')}\n"
-            message += f"- Description: {slide.description}\n\n"
+            message += (
+                f"- Name: {slide.name or slide.json_schema.get('title')}\n"
+            )
+            message += f"- Description: {slide.description}\n"
+            if with_schema:
+                message += (
+                    "- Content schema: "
+                    f"{json.dumps(slide.json_schema, ensure_ascii=False)}\n"
+                )
+            message += "\n"
         return message

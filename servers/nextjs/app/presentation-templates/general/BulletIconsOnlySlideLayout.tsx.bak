@@ -4,25 +4,25 @@ import { ImageSchema, IconSchema } from '../defaultSchemes';
 import { RemoteSvgIcon } from '@/app/hooks/useRemoteSvgIcon';
 
 export const layoutId = 'bullet-icons-only-slide'
-export const layoutName = 'Icon Bullet Grid With Image'
-export const layoutDescription = 'A layout featuring a large left-aligned title with a 2-4 icon bullet point grid, each with circular icon badge, title, and optional subtitle. A rounded supporting image sits on the right.'
+export const layoutName = 'Bullet Icons Only'
+export const layoutDescription = 'A slide layout with title, grid of bullet points (title and description) with icons, and a supporting image.'
 
 const bulletIconsOnlySlideSchema = z.object({
     title: z.string().min(3).max(40).default('Solutions').meta({
-        description: "Heading text of the slide",
+        description: "Main title of the slide",
     }),
     image: ImageSchema.default({
         __image_url__: 'https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
         __image_prompt__: 'Business professionals collaborating and discussing solutions'
     }).meta({
-        description: "URL of the supporting image",
+        description: "Supporting image for the slide",
     }),
     bulletPoints: z.array(z.object({
         title: z.string().min(2).max(80).meta({
-            description: "Title text for the bullet point",
+            description: "Bullet point title",
         }),
         subtitle: z.string().min(5).max(150).optional().meta({
-            description: "Subtitle text for the bullet point",
+            description: "Optional short subtitle or brief explanation",
         }),
         icon: IconSchema,
     })).min(2).max(3).default([
@@ -59,7 +59,7 @@ const bulletIconsOnlySlideSchema = z.object({
             }
         }
     ]).meta({
-        description: "List of icon bullet points",
+        description: "List of bullet points with icons and optional subtitles",
     })
 })
 
@@ -101,16 +101,13 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                     background: "var(--background-color,#ffffff)"
                 }}
             >
-
                 {((slideData as any)?.__companyName__ || (slideData as any)?._logo_url__) && (
-                    <div className="absolute top-0 left-0 right-0 px-8  pt-4">
+                    <div className="absolute top-0 left-0 right-0 px-8 sm:px-12 lg:px-20 pt-4">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1">
-                                {(slideData as any)?._logo_url__ && <img src={(slideData as any)?._logo_url__} alt="logo" className="w-[60px] object-contain" />}
-                                <span
-                                    style={{ backgroundColor: 'var(--stroke, #F0F0F0)' }}
-                                    className=' w-[2px] h-4'></span>
-                                {(slideData as any)?.__companyName__ && <span className="text-sm  font-semibold" style={{ color: 'var(--background-text, #111827)' }}>
+
+                                {(slideData as any)?._logo_url__ && <img src={(slideData as any)?._logo_url__} alt="logo" className="w-6 h-6" />}
+                                {(slideData as any)?.__companyName__ && <span className="text-sm sm:text-base font-semibold" style={{ color: 'var(--background-text, #111827)' }}>
                                     {(slideData as any)?.__companyName__ || 'Company Name'}
                                 </span>}
                             </div>
@@ -120,14 +117,14 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                 {/* Decorative Wave Patterns */}
                 <div className="absolute top-0 left-0 w-32 h-full opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 100 400" fill="none">
-                        <path d="M0 100C25 150 50 50 75 100C87.5 125 100 100 100 100V0H0V100Z" fill="#8b5cf6" opacity="0.4" />
-                        <path d="M0 200C37.5 250 62.5 150 100 200V150C75 175 50 150 25 175L0 200Z" fill="#8b5cf6" opacity="0.3" />
+                        <path d="M0 100C25 150 50 50 75 100C87.5 125 100 100 100 100V0H0V100Z" fill="var(--primary-color, #9333ea)" opacity="0.4" />
+                        <path d="M0 200C37.5 250 62.5 150 100 200V150C75 175 50 150 25 175L0 200Z" fill="var(--primary-color, #9333ea)" opacity="0.3" />
                     </svg>
                 </div>
 
                 <div className="absolute bottom-0 left-0 w-48 h-32 opacity-10 overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 200 100" fill="none">
-                        <path d="M0 50C50 25 100 75 150 50C175 37.5 200 50 200 50V100H0V50Z" fill="#8b5cf6" opacity="0.2" />
+                        <path d="M0 50C50 25 100 75 150 50C175 37.5 200 50 200 50V100H0V50Z" fill="var(--primary-color, #9333ea)" opacity="0.2" />
                     </svg>
                 </div>
 
@@ -136,7 +133,7 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                     {/* Left Section - Title and Bullet Points */}
                     <div className="flex-1 flex flex-col pr-8">
                         {/* Title */}
-                        <h1 style={{ color: "var(--background-text,#111827)" }} className="text-[42.7px] font-bold text-gray-900 mb-8">
+                        <h1 style={{ color: "var(--background-text, #111827)" }} className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-8">
                             {slideData?.title || 'Solutions'}
                         </h1>
 
@@ -153,18 +150,18 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                                             url={bullet.icon.__icon_url__}
                                             strokeColor={"currentColor"}
                                             className="w-6 h-6"
-                                            color="var(--primary-text,#ffffff)"
+                                            color="var(--primary-text, #ffffff)"
                                             title={bullet.icon.__icon_query__}
                                         />
                                     </div>
 
                                     {/* Content */}
                                     <div className="flex-1">
-                                        <h3 style={{ color: "var(--background-text,#111827)" }} className="text-lg sm:text-xl font-semibold text-gray-900 mb-1">
+                                        <h3 style={{ color: "var(--background-text, #111827)" }} className="text-lg sm:text-xl font-semibold text-gray-900 mb-1">
                                             {bullet.title}
                                         </h3>
                                         {bullet.subtitle && (
-                                            <p style={{ color: "var(--background-text,#4b5563)" }} className="text-sm text-gray-700 leading-relaxed">
+                                            <p style={{ color: "var(--background-text, #4b5563)" }} className="text-sm text-gray-700 leading-relaxed">
                                                 {bullet.subtitle}
                                             </p>
                                         )}
@@ -199,7 +196,7 @@ const BulletIconsOnlySlideLayout: React.FC<BulletIconsOnlySlideLayoutProps> = ({
                             <img
                                 src={slideData?.image?.__image_url__ || ''}
                                 alt={slideData?.image?.__image_prompt__ || slideData?.title || ''}
-                                className="w-full h-full object-contain bg-white"
+                                className="w-full h-full object-cover"
                             />
                         </div>
                     </div>
