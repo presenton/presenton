@@ -2,7 +2,6 @@ import asyncio
 import os
 from pathlib import Path
 import re
-import shutil
 import tempfile
 import urllib
 import zipfile
@@ -33,16 +32,6 @@ _SFNT_FORMATS = {
     "wOFF": "WOFF",
     "wOF2": "WOFF2",
 }
-
-
-def _create_temp_fontconfig_file(temp_dir: str) -> str:
-    fd, fonts_conf_path = tempfile.mkstemp(
-        prefix="fonts_custom_",
-        suffix=".conf",
-        dir=temp_dir,
-    )
-    os.close(fd)
-    return fonts_conf_path
 
 
 class FontDetail(BaseModel):
@@ -296,7 +285,7 @@ async def get_google_font_file_urls(family_name: str, api_key: str) -> List[str]
                 for _variant, url in files.items():
                     if not url:
                         continue
-                    # Prefer TTF/OTF for LibreOffice; upgrade to https
+                    # Prefer directly loadable TTF/OTF files; upgrade to https.
                     fixed_url = url.replace("http://", "https://")
                     lower = fixed_url.lower()
                     if lower.endswith(".ttf") or lower.endswith(".otf"):
@@ -1193,49 +1182,6 @@ def replace_fonts_in_pptx(
 
     # Save the modified presentation
     prs.save(output_path)
-
-
-async def install_fonts_for_libreoffice(font_paths: List[str], temp_dir: str) -> str:
-    """
-    Install fonts for LibreOffice by copying them to a temporary directory
-    and creating a fontconfig configuration.
-
-    Args:
-        font_paths: List of paths to font files
-        temp_dir: Temporary directory to store fonts
-
-    Returns:
-        Path to fontconfig configuration file
-    """
-    # Create fonts directory in temp_dir
-    fonts_dir = os.path.join(temp_dir, "custom_fonts")
-    await asyncio.to_thread(os.makedirs, fonts_dir, exist_ok=True)
-
-    # Copy fonts to the directory
-    for font_path in font_paths:
-        font_filename = os.path.basename(font_path)
-        dest_path = os.path.join(fonts_dir, font_filename)
-        await asyncio.to_thread(shutil.copy, font_path, dest_path)
-
-    # Create fontconfig file
-    fonts_conf_path = await asyncio.to_thread(_create_temp_fontconfig_file, temp_dir)
-
-    def _write_fonts_conf() -> None:
-        Path(fonts_conf_path).write_text(
-            f"""<?xml version='1.0'?>
-<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
-<fontconfig>
-  <include>/etc/fonts/fonts.conf</include>
-  <dir>{fonts_dir}</dir>
-  <cachedir>{temp_dir}/fontconfig-cache</cachedir>
-</fontconfig>
-""",
-            encoding="utf-8",
-        )
-
-    await asyncio.to_thread(_write_fonts_conf)
-
-    return fonts_conf_path
 
 
 def extract_font_from_eot(eot_path: Path) -> bytes:

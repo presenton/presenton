@@ -538,7 +538,7 @@ const TitleDescriptionMultiChartGridWithMetricsLayout: React.FC<MultiChartGridSl
                             >
                                 <div className="px-4 pt-3 pb-1">
                                     <h3
-                                        className="text-sm font-semibold truncate"
+                                        className="text-sm font-semibold "
                                         style={{ color: 'var(--background-text,#374151)' }}
                                     >
                                         {chart.title}

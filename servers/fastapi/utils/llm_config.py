@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import HTTPException
 from llmai import (
     BedrockClientConfig,
+    DeepSeekClientConfig,
     FireworksClientConfig,
     LMStudioClientConfig,
     TogetherAIClientConfig,
@@ -44,6 +45,8 @@ from utils.get_env import (
     get_codex_token_expires_env,
     get_custom_llm_api_key_env,
     get_custom_llm_url_env,
+    get_deepseek_api_key_env,
+    get_deepseek_base_url_env,
     get_disable_thinking_env,
     get_fireworks_api_key_env,
     get_fireworks_base_url_env,
@@ -123,7 +126,7 @@ def _get_codex_access_token() -> str:
     return access_token
 
 
-def get_llm_config() -> ClientConfig:
+def get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
     llm_provider = get_llm_provider()
 
     match llm_provider:
@@ -133,7 +136,20 @@ def get_llm_config() -> ClientConfig:
                 raise HTTPException(status_code=400, detail="OpenAI API Key is not set")
             return OpenAIClientConfig(
                 api_key=api_key,
-                api_type=OpenAIApiType.COMPLETIONS,
+                api_type=(
+                    OpenAIApiType.RESPONSES
+                    if use_openai_responses_api
+                    else OpenAIApiType.COMPLETIONS
+                ),
+            )
+        case LLMProvider.DEEPSEEK:
+            api_key = get_deepseek_api_key_env()
+            if not api_key:
+                raise HTTPException(status_code=400, detail="DeepSeek API Key is not set")
+            base_url = get_deepseek_base_url_env()
+            return DeepSeekClientConfig(
+                api_key=api_key,
+                base_url=base_url or None,
             )
         case LLMProvider.GOOGLE:
             api_key = get_google_api_key_env()
@@ -338,14 +354,19 @@ def get_llm_config() -> ClientConfig:
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "LLM Provider must be either openai, google, vertex, azure, "
+                    "LLM Provider must be either openai, deepseek, google, vertex, azure, "
                     "bedrock, openrouter, fireworks, together, cerebras, "
                     "anthropic, litellm, lmstudio, ollama, custom, or codex"
                 ),
             )
 
 
-def get_extra_body() -> Optional[dict]:
-    if get_llm_provider() == LLMProvider.CUSTOM and disable_thinking():
+def get_extra_body(*, uses_tool_choice: bool = False) -> Optional[dict]:
+    llm_provider = get_llm_provider()
+    if llm_provider == LLMProvider.DEEPSEEK and (
+        disable_thinking() or uses_tool_choice
+    ):
+        return {"thinking": {"type": "disabled"}}
+    if llm_provider == LLMProvider.CUSTOM and disable_thinking():
         return {"enable_thinking": False}
     return None

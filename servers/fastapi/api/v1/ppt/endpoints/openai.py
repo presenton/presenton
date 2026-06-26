@@ -1,7 +1,10 @@
 from typing import Annotated, List
 from fastapi import APIRouter, Body, HTTPException
 
-from utils.available_models import list_available_openai_compatible_models
+from utils.available_models import (
+    ModelAvailabilityError,
+    list_available_openai_compatible_models,
+)
 
 OPENAI_ROUTER = APIRouter(prefix="/openai", tags=["OpenAI"])
 
@@ -13,5 +16,7 @@ async def get_available_models(
 ):
     try:
         return await list_available_openai_compatible_models(url, api_key)
+    except ModelAvailabilityError as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

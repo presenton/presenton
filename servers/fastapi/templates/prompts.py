@@ -127,6 +127,7 @@ Provide reusable TSX code which can be used as template to generate new slides w
 - There must be only one 'export' statement in the whole TSX code.
 
 # Output Code Rules:
+- Every object field must use `key: value` syntax and include a trailing comma. Never use object shorthand such as `{ icon_url }`.
 - Code should be in following order:
   - Zod Schema (Schema)
   - Layout ID, Name and Description (layoutId, layoutName, layoutDescription)

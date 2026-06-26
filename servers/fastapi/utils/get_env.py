@@ -46,6 +46,11 @@ def is_disable_auth_enabled():
     return _is_truthy(get_disable_auth_env())
 
 
+def is_presenton_electron_desktop():
+    """True when running inside the Presenton Electron desktop app."""
+    return _is_truthy(os.getenv("PRESENTON_ELECTRON"))
+
+
 def get_llm_provider_env():
     return os.getenv("LLM")
 
@@ -64,6 +69,18 @@ def get_ollama_url_env():
 
 def get_custom_llm_url_env():
     return os.getenv("CUSTOM_LLM_URL")
+
+
+def get_deepseek_base_url_env():
+    return os.getenv("DEEPSEEK_BASE_URL")
+
+
+def get_deepseek_api_key_env():
+    return os.getenv("DEEPSEEK_API_KEY")
+
+
+def get_deepseek_model_env():
+    return os.getenv("DEEPSEEK_MODEL")
 
 
 def get_openai_api_key_env():
@@ -264,6 +281,34 @@ def get_extended_reasoning_env():
 
 def get_web_grounding_env():
     return os.getenv("WEB_GROUNDING")
+
+
+def get_web_search_provider_env():
+    return os.getenv("WEB_SEARCH_PROVIDER")
+
+
+def get_web_search_max_results_env():
+    return os.getenv("WEB_SEARCH_MAX_RESULTS")
+
+
+def get_searxng_base_url_env():
+    return os.getenv("SEARXNG_BASE_URL")
+
+
+def get_tavily_api_key_env():
+    return os.getenv("TAVILY_API_KEY")
+
+
+def get_exa_api_key_env():
+    return os.getenv("EXA_API_KEY")
+
+
+def get_brave_search_api_key_env():
+    return os.getenv("BRAVE_SEARCH_API_KEY")
+
+
+def get_serper_api_key_env():
+    return os.getenv("SERPER_API_KEY")
 
 
 def get_comfyui_url_env():

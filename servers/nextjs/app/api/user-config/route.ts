@@ -30,6 +30,20 @@ function getUserConfigPath() {
   return process.env.USER_CONFIG_PATH;
 }
 
+async function readConfigBody(request: Request): Promise<Record<string, unknown>> {
+  const rawBody = await request.text();
+  if (!rawBody.trim()) {
+    throw new Error("EMPTY_BODY");
+  }
+
+  const parsed = JSON.parse(rawBody) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("INVALID_BODY");
+  }
+
+  return parsed as Record<string, unknown>;
+}
+
 export async function GET() {
   if (!canChangeKeys) {
     return NextResponse.json({
@@ -74,7 +88,7 @@ export async function POST(request: Request) {
 
   try {
     const userConfig = stripAuthFieldsFromIncoming(
-      (await request.json()) as Record<string, unknown>
+      await readConfigBody(request)
     ) as LLMConfig;
     const definedIncomingEntries = Object.entries(userConfig).filter(
       ([, value]) => value !== undefined
@@ -117,7 +131,17 @@ export async function POST(request: Request) {
     return NextResponse.json(
       stripAuthFields(mergedConfig as Record<string, unknown>)
     );
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof SyntaxError ||
+      (error instanceof Error &&
+        (error.message === "EMPTY_BODY" || error.message === "INVALID_BODY"))
+    ) {
+      return NextResponse.json(
+        { error: "Invalid user config JSON body", status: 400 },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: "Unable to save user config", status: 500 },
       { status: 500 }

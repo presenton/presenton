@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { getApiUrl } from "@/utils/api";
+import { getApiErrorMessage, getApiUrl } from "@/utils/api";
 import { notify } from "@/components/ui/sonner";
 
 export interface OpenAICompatibleImageFieldsProps {
@@ -86,12 +86,16 @@ export default function OpenAICompatibleImageFields({
         setModels(Array.isArray(data) ? data : []);
         setModelsChecked(true);
       } else {
+        const message = await getApiErrorMessage(
+          response,
+          "The server could not list models. Check your API key or endpoint and try again."
+        );
         console.error("Failed to fetch models");
         setModels([]);
         setModelsChecked(true);
         notify.error(
           "Could not load models",
-          "The server could not list models. Check your API key or endpoint and try again."
+          message
         );
       }
     } catch (error) {

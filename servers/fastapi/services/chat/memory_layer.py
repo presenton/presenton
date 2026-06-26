@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from models.image_prompt import ImagePrompt
+from models.presentation_outline_model import PresentationOutlineModel, SlideOutlineModel
 from models.sql.image_asset import ImageAsset
 from models.sql.key_value import KeyValueSqlModel
 from models.sql.presentation import PresentationModel
@@ -24,6 +25,7 @@ from utils.asset_directory_utils import (
     normalize_slide_asset_url,
 )
 from utils.icon_weights import DEFAULT_ICON_WEIGHT
+from utils.outline_utils import get_presentation_title_from_presentation_outline
 from utils.process_slides import (
     process_old_and_new_slides_and_fetch_assets,
     process_slide_and_fetch_assets,
@@ -389,6 +391,160 @@ class PresentationChatMemoryLayer:
         if include_full_content:
             response["content"] = slide.content
         return response
+
+    async def get_outline_draft(self) -> dict[str, Any]:
+        presentation = await self._sql_session.get(PresentationModel, self._presentation_id)
+        if not presentation:
+            return {
+                "found": False,
+                "message": "Presentation not found.",
+                "slide_count": 0,
+                "slides": [],
+            }
+
+        slides = self._normalize_outline_slides(presentation.outlines)
+        if not slides:
+            return {
+                "found": False,
+                "message": "No outline draft is available yet.",
+                "slide_count": 0,
+                "slides": [],
+            }
+
+        return {
+            "found": True,
+            "message": "Outline draft fetched successfully.",
+            "slide_count": len(slides),
+            "slides": [
+                {
+                    "index": index,
+                    "slide_number": index + 1,
+                    "title": self._extract_outline_title(slide["content"]),
+                    "content": slide["content"],
+                }
+                for index, slide in enumerate(slides)
+            ],
+        }
+
+    async def add_outline(
+        self,
+        *,
+        content: str,
+        index: int | None = None,
+    ) -> dict[str, Any]:
+        presentation = await self._sql_session.get(PresentationModel, self._presentation_id)
+        if not presentation:
+            return {
+                "saved": False,
+                "message": "Presentation not found.",
+            }
+
+        slides = self._normalize_outline_slides(presentation.outlines)
+        insert_index = len(slides) if index is None else min(max(0, index), len(slides))
+        slides.insert(insert_index, {"content": content.strip()})
+        await self._save_outline_slides(presentation, slides)
+
+        return {
+            "saved": True,
+            "action": "created",
+            "message": f"Outline slide added at index {insert_index}.",
+            "index": insert_index,
+            "slide_count": len(slides),
+        }
+
+    async def update_outline(self, *, index: int, content: str) -> dict[str, Any]:
+        presentation = await self._sql_session.get(PresentationModel, self._presentation_id)
+        if not presentation:
+            return {
+                "saved": False,
+                "message": "Presentation not found.",
+            }
+
+        slides = self._normalize_outline_slides(presentation.outlines)
+        target_index = max(0, index)
+        if target_index >= len(slides):
+            return {
+                "saved": False,
+                "message": f"No outline slide found at index {target_index}.",
+                "index": target_index,
+                "slide_count": len(slides),
+            }
+
+        slides[target_index] = {"content": content.strip()}
+        await self._save_outline_slides(presentation, slides)
+
+        return {
+            "saved": True,
+            "action": "updated",
+            "message": f"Outline slide at index {target_index} was updated.",
+            "index": target_index,
+            "slide_count": len(slides),
+        }
+
+    async def delete_outline(self, *, index: int) -> dict[str, Any]:
+        presentation = await self._sql_session.get(PresentationModel, self._presentation_id)
+        if not presentation:
+            return {
+                "deleted": False,
+                "message": "Presentation not found.",
+            }
+
+        slides = self._normalize_outline_slides(presentation.outlines)
+        target_index = max(0, index)
+        if target_index >= len(slides):
+            return {
+                "deleted": False,
+                "message": f"No outline slide found at index {target_index}.",
+                "index": target_index,
+                "slide_count": len(slides),
+            }
+
+        slides.pop(target_index)
+        await self._save_outline_slides(presentation, slides)
+
+        return {
+            "deleted": True,
+            "action": "deleted",
+            "message": f"Outline slide at index {target_index} was deleted.",
+            "index": target_index,
+            "slide_count": len(slides),
+        }
+
+    async def move_outline(self, *, from_index: int, to_index: int) -> dict[str, Any]:
+        presentation = await self._sql_session.get(PresentationModel, self._presentation_id)
+        if not presentation:
+            return {
+                "saved": False,
+                "message": "Presentation not found.",
+            }
+
+        slides = self._normalize_outline_slides(presentation.outlines)
+        source_index = max(0, from_index)
+        if source_index >= len(slides):
+            return {
+                "saved": False,
+                "message": f"No outline slide found at index {source_index}.",
+                "from_index": source_index,
+                "slide_count": len(slides),
+            }
+
+        destination_index = min(max(0, to_index), len(slides) - 1)
+        [slide] = slides[source_index : source_index + 1]
+        del slides[source_index]
+        slides.insert(destination_index, slide)
+        await self._save_outline_slides(presentation, slides)
+
+        return {
+            "saved": True,
+            "action": "moved",
+            "message": (
+                f"Outline slide moved from index {source_index} "
+                f"to index {destination_index}."
+            ),
+            "from_index": source_index,
+            "to_index": destination_index,
+            "slide_count": len(slides),
+        }
 
     async def get_available_layouts(self) -> list[dict[str, Any]]:
         presentation = await self._sql_session.get(PresentationModel, self._presentation_id)
@@ -896,6 +1052,71 @@ class PresentationChatMemoryLayer:
             if name:
                 return name
         return fallback
+
+    @staticmethod
+    def _normalize_outline_slides(outlines: Any) -> list[dict[str, str]]:
+        if not isinstance(outlines, dict):
+            return []
+
+        raw_slides = outlines.get("slides")
+        if not isinstance(raw_slides, list):
+            return []
+
+        slides: list[dict[str, str]] = []
+        for raw_slide in raw_slides:
+            raw_content: Any
+            if isinstance(raw_slide, dict):
+                raw_content = raw_slide.get("content", "")
+            else:
+                raw_content = raw_slide
+
+            if isinstance(raw_content, str):
+                content = raw_content
+            elif raw_content is None:
+                content = ""
+            else:
+                try:
+                    content = json.dumps(raw_content, ensure_ascii=False)
+                except Exception:
+                    content = str(raw_content)
+
+            slides.append({"content": content})
+
+        return slides
+
+    async def _save_outline_slides(
+        self,
+        presentation: PresentationModel,
+        slides: list[dict[str, str]],
+    ) -> None:
+        outline_model = PresentationOutlineModel(
+            slides=[SlideOutlineModel(content=slide["content"]) for slide in slides]
+        )
+        presentation.outlines = outline_model.model_dump(mode="json")
+        presentation.n_slides = len(outline_model.slides)
+        presentation.title = get_presentation_title_from_presentation_outline(
+            outline_model
+        )
+
+        self._sql_session.add(presentation)
+        await self._sql_session.commit()
+
+        await MEM0_PRESENTATION_MEMORY_SERVICE.store_generated_outlines(
+            presentation.id,
+            presentation.outlines,
+        )
+
+    @staticmethod
+    def _extract_outline_title(markdown_content: str) -> str:
+        for line in markdown_content.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            heading_match = re.match(r"^#{1,6}\s*(.+?)\s*$", stripped)
+            if heading_match:
+                return heading_match.group(1).strip()
+            return stripped[:120]
+        return "Untitled outline"
 
     @staticmethod
     def _serialize_slide(slide: SlideModel) -> str:

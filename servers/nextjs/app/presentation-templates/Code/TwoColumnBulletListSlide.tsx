@@ -6,11 +6,11 @@ export const slideLayoutDescription =
   "A two-column numbered string list with items.";
 
 export const Schema = z.object({
-  title: z.string().min(6).max(30).default("Usecase").meta({
+  title: z.string().min(6).max(25).default("Usecase").meta({
     description: "Slide title shown above the numbered list.",
   }),
   items: z
-    .array(z.string().min(1).max(200))
+    .array(z.string().min(1).max(100))
     .min(1)
     .max(8)
     .default([
@@ -31,10 +31,12 @@ export const Schema = z.object({
 export type SchemaType = z.infer<typeof Schema>;
 
 const CodeSlide07UseCaseList = ({ data }: { data: Partial<SchemaType> }) => {
-
   return (
     <>
-      <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap" rel="stylesheet" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap"
+        rel="stylesheet"
+      />
       <div
         className="relative h-[720px] w-[1280px] overflow-hidden p-[53px]"
         style={{
@@ -42,9 +44,12 @@ const CodeSlide07UseCaseList = ({ data }: { data: Partial<SchemaType> }) => {
           fontFamily: "var(--body-font-family,Nunito Sans)",
         }}
       >
-
-
-        <h2 className="text-[64px] font-medium" style={{ color: "var(--background-text,#f2f4ff)" }}>{data.title}</h2>
+        <h2
+          className="text-[64px] font-medium"
+          style={{ color: "var(--background-text,#f2f4ff)" }}
+        >
+          {data.title}
+        </h2>
 
         <div className="mt-[53px] grid flex-1 grid-cols-2 gap-[21px]">
           {data?.items?.map((item, index) => (
@@ -67,7 +72,12 @@ const CodeSlide07UseCaseList = ({ data }: { data: Partial<SchemaType> }) => {
               >
                 {index + 1}
               </span>
-              <p className="text-[18px]" style={{ color: "var(--background-text,#d5dcff)" }}>{item}</p>
+              <p
+                className="text-[18px]"
+                style={{ color: "var(--background-text,#d5dcff)" }}
+              >
+                {item}
+              </p>
             </div>
           ))}
         </div>

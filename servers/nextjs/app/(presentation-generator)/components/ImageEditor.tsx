@@ -287,7 +287,9 @@ const ImageEditor = ({
       setPreviewImages(resolveEditorImageSource(response));
     } catch (err: any) {
       console.error("Error in image generation", err);
-      setError(err.message || "Failed to generate image. Please try again.");
+      const message = err.message || "Failed to generate image. Please try again.";
+      setError(message);
+      notify.error("Image generation failed", message);
     } finally {
       setIsGenerating(false);
     }

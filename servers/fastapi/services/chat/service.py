@@ -24,7 +24,7 @@ from services.chat.conversation_store import ChatConversationStore
 from services.chat.presentation_context_store import PresentationContextStore
 from services.chat.prompts import build_system_prompt
 from services.chat.llm_tools import build_chat_llm_tools
-from services.chat.tools import ChatTools
+from services.chat.tools import ChatToolMode, ChatTools
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_config import get_llm_config
 from utils.llm_provider import get_model
@@ -55,6 +55,7 @@ class PresentationChatService:
         sql_session: AsyncSession,
         presentation_id: uuid.UUID,
         conversation_id: uuid.UUID | None,
+        chat_mode: ChatToolMode = "presentation",
     ):
         self._sql_session = sql_session
         self._presentation_id = presentation_id
@@ -62,7 +63,7 @@ class PresentationChatService:
 
         self._conversation_store = ChatConversationStore(sql_session)
         self._memory = PresentationContextStore(sql_session, presentation_id)
-        self._tools = ChatTools(self._memory)
+        self._tools = ChatTools(self._memory, mode=chat_mode)
 
     async def generate_reply(self, user_message: str) -> ChatTurnResult:
         conversation_id, messages = await self._prepare_turn_context(user_message)
@@ -511,6 +512,11 @@ class PresentationChatService:
     def _tool_start_message(tool_name: str) -> str:
         labels = {
             "getPresentationOutline": "Reading the presentation outline",
+            "getOutlineDraft": "Reading the outline draft",
+            "addOutline": "Adding an outline slide",
+            "updateOutline": "Updating the outline slide",
+            "deleteOutline": "Deleting the outline slide",
+            "moveOutline": "Reordering outline slides",
             "searchSlides": "Searching relevant slides",
             "getSlideAtIndex": "Opening the requested slide",
             "getPresentationThemeCatalog": "Checking available themes",

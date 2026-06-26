@@ -73,7 +73,7 @@ export const ChartPayloadSchema = z.object({
     
     .max(3)
     .default([
-      { label: "Category A", value: 55, color: "#d8d4bf" },
+      { label: "Category A", value: 55, color: "#dddac7" },
       { label: "Category B", value: 25, color: "#b8b4a3" },
       { label: "Category C", value: 20, color: "#a2a091" },
     ])

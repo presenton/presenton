@@ -4,16 +4,16 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { cn } from '@/lib/utils'
 import { LLMConfig } from '@/types/llm_config'
 import OpenAICompatibleImageFields from '@/components/OpenAICompatibleImageFields'
 import { DALLE_3_QUALITY_OPTIONS, GPT_IMAGE_1_5_QUALITY_OPTIONS, IMAGE_PROVIDERS } from '@/utils/providerConstants'
 import { Check, ChevronUp, Eye, EyeOff } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
+import { MixpanelEvent, trackEvent } from '@/utils/mixpanel'
 
 const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setLlmConfig: (config: any) => void }) => {
-    const [openImageProviderSelect, setOpenImageProviderSelect] = useState(false);
     const [showApiKey, setShowApiKey] = useState(false);
+    const [openImageProviderSelect, setOpenImageProviderSelect] = useState(false);
     const [openaiCompatListMeta, setOpenaiCompatListMeta] = useState<{
         modelsChecked: boolean
         modelCount: number
@@ -26,6 +26,11 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
     }, [llmConfig.IMAGE_PROVIDER])
     const isImageGenerationDisabled = llmConfig.DISABLE_IMAGE_GENERATION ?? false;
     const handleChangeImageGenerationDisabled = (value: boolean) => {
+        trackEvent(MixpanelEvent.Settings_Provider_Selected, {
+            section: "image_provider",
+            enabled: !value,
+            provider: value ? "disabled" : llmConfig.IMAGE_PROVIDER || "",
+        });
         setLlmConfig((prev: any) => ({
             ...prev,
             DISABLE_IMAGE_GENERATION: value
@@ -36,9 +41,6 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
             ...prev,
             [field]: value
         }));
-        if (field === 'IMAGE_PROVIDER') {
-            setOpenImageProviderSelect(false);
-        }
     }
 
     const getFieldValue = (field?: string) => {
@@ -161,13 +163,12 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                                         variant="outline"
                                                         role="combobox"
                                                         aria-expanded={openImageProviderSelect}
-                                                        className="w-[205px] h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
+                                                        className="w-[222px] h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
                                                     >
                                                         <div className="flex gap-3 items-center">
                                                             <span className="text-sm font-medium text-gray-900">
                                                                 {llmConfig.IMAGE_PROVIDER
-                                                                    ? IMAGE_PROVIDERS[llmConfig.IMAGE_PROVIDER]
-                                                                        ?.label || llmConfig.IMAGE_PROVIDER
+                                                                    ? IMAGE_PROVIDERS[llmConfig.IMAGE_PROVIDER]?.label || llmConfig.IMAGE_PROVIDER
                                                                     : "Select image provider"}
                                                             </span>
                                                         </div>
@@ -184,39 +185,36 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                                         <CommandList>
                                                             <CommandEmpty>No provider found.</CommandEmpty>
                                                             <CommandGroup>
-                                                                {Object.values(IMAGE_PROVIDERS).map(
-                                                                    (provider, index) => (
-                                                                        <CommandItem
-                                                                            key={index}
-                                                                            value={provider.value}
-                                                                            onSelect={(value) => {
-                                                                                input_field_changed(value, "IMAGE_PROVIDER");
-                                                                                setOpenImageProviderSelect(false);
-                                                                            }}
-                                                                        >
-                                                                            <Check
-                                                                                className={cn(
-                                                                                    "mr-2 h-4 w-4",
-                                                                                    llmConfig.IMAGE_PROVIDER === provider.value
-                                                                                        ? "opacity-100"
-                                                                                        : "opacity-0"
-                                                                                )}
-                                                                            />
-                                                                            <div className="flex gap-3 items-center">
-                                                                                <div className="flex flex-col space-y-1 flex-1">
-                                                                                    <div className="flex items-center justify-between gap-2">
-                                                                                        <span className="text-sm font-medium text-gray-900 capitalize">
-                                                                                            {provider.label}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                    <span className="text-xs text-gray-600 leading-relaxed">
-                                                                                        {provider.description}
+                                                                {Object.values(IMAGE_PROVIDERS).map((provider) => (
+                                                                    <CommandItem
+                                                                        key={provider.value}
+                                                                        value={provider.value}
+                                                                        onSelect={(value) => {
+                                                                            trackEvent(MixpanelEvent.Settings_Provider_Selected, {
+                                                                                section: "image_provider",
+                                                                                provider: value,
+                                                                            });
+                                                                            input_field_changed(value, "IMAGE_PROVIDER");
+                                                                            setOpenImageProviderSelect(false);
+                                                                        }}
+                                                                    >
+                                                                        <Check
+                                                                            className={llmConfig.IMAGE_PROVIDER === provider.value ? "mr-2 h-4 w-4 opacity-100" : "mr-2 h-4 w-4 opacity-0"}
+                                                                        />
+                                                                        <div className="flex gap-3 items-center">
+                                                                            <div className="flex flex-col space-y-1 flex-1">
+                                                                                <div className="flex items-center justify-between gap-2">
+                                                                                    <span className="text-sm font-medium text-gray-900 capitalize">
+                                                                                        {provider.label}
                                                                                     </span>
                                                                                 </div>
+                                                                                <span className="text-xs text-gray-600 leading-relaxed">
+                                                                                    {provider.description}
+                                                                                </span>
                                                                             </div>
-                                                                        </CommandItem>
-                                                                    )
-                                                                )}
+                                                                        </div>
+                                                                    </CommandItem>
+                                                                ))}
                                                             </CommandGroup>
                                                         </CommandList>
                                                     </Command>

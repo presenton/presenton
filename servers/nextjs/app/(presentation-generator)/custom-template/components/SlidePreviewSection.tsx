@@ -50,12 +50,14 @@ export const SlidePreviewSection: React.FC<SlidePreviewSectionProps> = ({
                     {previewData.slide_image_urls?.map((url, index) => (
                         <div
                             key={index}
-                            className="group relative aspect-video w-full rounded-xl overflow-hidden border border-[#E5E7EB] bg-[#F9FAFB] shadow-sm"
+                            className="group relative w-full rounded-xl overflow-hidden border border-[#E5E7EB] bg-white shadow-sm"
                         >
                             <img
                                 src={resolveBackendAssetUrl(url)}
                                 alt={`Slide ${index + 1}`}
-                                className="w-full h-full object-contain"
+                                className="block h-auto w-full"
+                                loading="lazy"
+                                draggable={false}
                             />
                             {/* Slide number badge */}
                             <div className="absolute top-2 left-2 px-2.5 py-1 bg-black/70 backdrop-blur-sm rounded-lg text-xs font-semibold text-white shadow-lg">

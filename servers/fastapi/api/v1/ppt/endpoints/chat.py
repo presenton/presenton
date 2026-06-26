@@ -26,6 +26,12 @@ from services.database import get_async_session
 CHAT_ROUTER = APIRouter(prefix="/chat", tags=["Chat"])
 
 
+def _resolve_chat_mode(message: str) -> str:
+    if "UI context: the user is editing the outline draft" in message:
+        return "outline"
+    return "presentation"
+
+
 @CHAT_ROUTER.get("/conversations", response_model=list[ChatConversationListItem])
 async def list_chat_conversations(
     presentation_id: uuid.UUID = Query(..., description="Presentation id"),
@@ -80,6 +86,7 @@ async def chat_message(
         sql_session=sql_session,
         presentation_id=payload.presentation_id,
         conversation_id=payload.conversation_id,
+        chat_mode=_resolve_chat_mode(payload.message),
     )
     result = await service.generate_reply(payload.message)
     return ChatMessageResponse(
@@ -98,6 +105,7 @@ async def chat_message_stream(
         sql_session=sql_session,
         presentation_id=payload.presentation_id,
         conversation_id=payload.conversation_id,
+        chat_mode=_resolve_chat_mode(payload.message),
     )
 
     async def inner():

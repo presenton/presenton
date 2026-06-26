@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, Mock, patch
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from api.v1.ppt.endpoints.images import IMAGES_ROUTER
@@ -81,4 +81,26 @@ def test_generate_image_returns_placeholder_without_db_write(fake_async_session)
 
     assert response.status_code == 200
     assert response.json() == "/static/images/placeholder.jpg"
+    assert fake_async_session.added == []
+
+
+def test_generate_image_returns_provider_error_status(fake_async_session):
+    client = _build_client(fake_async_session)
+
+    with patch(
+        "api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"
+    ), patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls:
+        service = Mock()
+        service.generate_image = AsyncMock(
+            side_effect=HTTPException(
+                status_code=429,
+                detail="OpenAI image generation failed because API quota is unavailable.",
+            )
+        )
+        mock_service_cls.return_value = service
+
+        response = client.get("/images/generate?prompt=business-dashboard")
+
+    assert response.status_code == 429
+    assert "API quota is unavailable" in response.json()["detail"]
     assert fake_async_session.added == []

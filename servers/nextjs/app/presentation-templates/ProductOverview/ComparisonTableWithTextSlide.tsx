@@ -53,12 +53,13 @@ const DEFAULT_ROWS: z.infer<typeof GeneralRowSchema>[] = [
 ];
 
 export const Schema = z.object({
-  title: z.string().max(14).default("Comparison Chart").meta({
+  title: z.string().min(6).max(42).default("Comparison Table").meta({
     description: "Main heading shown above the table.",
   }),
   subtitle: z
     .string()
-    .max(80)
+    .min(20)
+    .max(120)
     .default(
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt."
     )
@@ -66,8 +67,10 @@ export const Schema = z.object({
       description: "Short subtitle shown under the main heading.",
     }),
   columns: z
-    .array(z.string().max(20))
-    .min(1)
+    .array(z.string().min(2).max(20).meta({
+      description: "Column heading shown across the comparison table.",
+    }))
+    .min(2)
     .max(8)
     .default(DEFAULT_COLUMNS)
     .meta({
@@ -90,7 +93,20 @@ export type SchemaType = z.infer<typeof Schema>;
 
 const ComparisonTableWithTextSlide = ({ data }: { data: Partial<SchemaType> }) => {
   const { title, subtitle, columns, highlightedHeaderIndex, rows } = data;
-  const safeColumns = columns && columns.length > 0 ? columns : DEFAULT_COLUMNS;
+  const safeTitle = title || "Comparison Table";
+  const titleFontSize =
+    safeTitle.length > 34 ? 58 : safeTitle.length > 26 ? 64 : 72;
+  const safeSubtitle =
+    subtitle ||
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt.";
+  const incomingColumns = columns?.filter(Boolean).slice(0, 8) || [];
+  const safeColumns =
+    incomingColumns.length >= 2 ? incomingColumns : DEFAULT_COLUMNS;
+  const compact = safeColumns.length > 5 || (rows?.length || DEFAULT_ROWS.length) > 4;
+  const headerFontSize = compact ? 13 : 17;
+  const cellFontSize = compact ? 13 : 16;
+  const cellPadding = compact ? "12px 14px" : "20px 24px";
+  const rowHeight = compact ? 56 : 76;
   const resolvedHighlightedHeaderIndex =
     highlightedHeaderIndex &&
       highlightedHeaderIndex >= 1 &&
@@ -122,24 +138,33 @@ const ComparisonTableWithTextSlide = ({ data }: { data: Partial<SchemaType> }) =
           fontFamily: "var(--body-font-family,'Bricolage Grotesque')",
         }}
       >
-        <div className="px-[44px] pt-[50px]">
+        <div className="px-[56px] pt-[46px]">
           <h2
-            className="text-[80px] font-semibold leading-[1.02] tracking-[-0.03em] text-[#0a443b]"
-            style={{ color: "var(--primary-color,#0a443b)" }}
+            className="max-w-[1130px] break-words font-semibold leading-[1.02] text-[#0a443b]"
+            style={{
+              color: "var(--primary-color,#0a443b)",
+              fontSize: `${titleFontSize}px`,
+              letterSpacing: 0,
+            }}
           >
-            {title}
+            {safeTitle}
           </h2>
           <p
-            className="mt-[22px] max-w-[700px] text-[24px] leading-[1.22] text-[#2d5d56]"
-            style={{ color: "var(--background-text,#2d5d56)" }}
+            className="mt-[14px] max-w-[830px] overflow-hidden text-[22px] leading-[1.26] text-[#2d5d56]"
+            style={{
+              color: "var(--background-text,#2d5d56)",
+            }}
           >
-            {subtitle}
+            {safeSubtitle}
           </p>
         </div>
 
         <div
-          className="mx-[44px] mt-[30px] overflow-hidden border"
-          style={{ borderColor: "var(--stroke,#bcc3c3)" }}
+          className="mx-[56px] mt-[28px] overflow-hidden rounded-[20px] border"
+          style={{
+            backgroundColor: "var(--card-color,#ffffff)",
+            borderColor: "var(--stroke,#bcc3c3)",
+          }}
         >
           <table
             className="w-full table-fixed border-collapse"
@@ -152,7 +177,7 @@ const ComparisonTableWithTextSlide = ({ data }: { data: Partial<SchemaType> }) =
                   return (
                     <th
                       key={`${column}-${index}`}
-                      className=" border-r p-[33px]  text-left text-[20px] font-semibold uppercase tracking-[0.16em] last:border-r-0"
+                      className="border-r text-left font-semibold uppercase last:border-r-0"
                       style={{
                         borderColor: "var(--stroke,#bcc3c3)",
                         backgroundColor: isHighlighted
@@ -161,6 +186,11 @@ const ComparisonTableWithTextSlide = ({ data }: { data: Partial<SchemaType> }) =
                         color: isHighlighted
                           ? "var(--primary-text,#eef2f0)"
                           : "var(--primary-color,#123f38)",
+                        fontSize: `${headerFontSize}px`,
+                        height: `${rowHeight}px`,
+                        letterSpacing: compact ? "0.08em" : "0.1em",
+                        overflowWrap: "anywhere",
+                        padding: cellPadding,
                       }}
                     >
                       {column}
@@ -177,11 +207,15 @@ const ComparisonTableWithTextSlide = ({ data }: { data: Partial<SchemaType> }) =
                     {cells?.map((cell, cellIndex) => (
                       <td
                         key={`cell-${rowIndex}-${cellIndex}`}
-                        className=" border-r border-t bg-white p-[33px] text-left text-[18px] leading-[1.2] last:border-r-0"
+                        className="border-r border-t bg-white text-left leading-[1.18] last:border-r-0"
                         style={{
                           borderColor: "var(--stroke,#bcc3c3)",
                           backgroundColor: "var(--card-color,#ffffff)",
                           color: "var(--primary-color,#123f38)",
+                          fontSize: `${cellFontSize}px`,
+                          height: `${rowHeight}px`,
+                          overflowWrap: "anywhere",
+                          padding: cellPadding,
                         }}
                       >
                         {cell}

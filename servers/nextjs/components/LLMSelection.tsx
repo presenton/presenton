@@ -77,8 +77,6 @@ export default function LLMProviderSelection({
 
     const needsApiKey = needsProviderApiKey || needsImageProviderApiKey;
 
-    const needsOllamaUrl = llmConfig.LLM === "ollama" && !llmConfig.OLLAMA_URL;
-
     const needsComfyUIConfig =
       !llmConfig.DISABLE_IMAGE_GENERATION &&
       llmConfig.IMAGE_PROVIDER === "comfyui" &&
@@ -101,7 +99,6 @@ export default function LLMProviderSelection({
       isDisabled:
         needsModelSelection ||
         needsApiKey ||
-        needsOllamaUrl ||
         needsComfyUIConfig ||
         needsOpenWebUIImageUrl ||
         needsOpenAICompatImageConfig,
@@ -109,15 +106,13 @@ export default function LLMProviderSelection({
         ? "Please Select a Model"
         : needsApiKey
           ? "Please Enter API Key"
-          : needsOllamaUrl
-            ? "Please Enter Ollama URL"
-            : needsComfyUIConfig
-              ? "Please Configure ComfyUI"
-              : needsOpenWebUIImageUrl
-                ? "Please Enter Open WebUI URL"
-                : needsOpenAICompatImageConfig
-                  ? "Please Configure Custom Image API"
-                  : "Save Configuration",
+          : needsComfyUIConfig
+            ? "Please Configure ComfyUI"
+            : needsOpenWebUIImageUrl
+              ? "Please Enter Open WebUI URL"
+              : needsOpenAICompatImageConfig
+                ? "Please Configure Custom Image API"
+                : "Save Configuration",
       showProgress: false,
     });
   }, [llmConfig]);
@@ -172,16 +167,6 @@ export default function LLMProviderSelection({
   };
 
   useEffect(() => {
-    if (!llmConfig.USE_CUSTOM_URL) {
-      setLlmConfig({ ...llmConfig, OLLAMA_URL: "http://localhost:11434" });
-    } else {
-      if (!llmConfig.OLLAMA_URL) {
-        setLlmConfig({ ...llmConfig, OLLAMA_URL: "http://localhost:11434" });
-      }
-    }
-  }, [llmConfig.USE_CUSTOM_URL]);
-
-  useEffect(() => {
     setLlmConfig((prevConfig) => {
       const updates: Partial<LLMConfig> = {};
 
@@ -193,10 +178,6 @@ export default function LLMProviderSelection({
         } else {
           updates.IMAGE_PROVIDER = "pexels";
         }
-      }
-
-      if (!prevConfig.OLLAMA_URL) {
-        updates.OLLAMA_URL = "http://localhost:11434";
       }
 
       if (Object.keys(updates).length === 0) {
@@ -299,7 +280,6 @@ export default function LLMProviderSelection({
             <OllamaConfig
               ollamaModel={llmConfig.OLLAMA_MODEL || ""}
               ollamaUrl={llmConfig.OLLAMA_URL || ""}
-              useCustomUrl={llmConfig.USE_CUSTOM_URL || false}
               onInputChange={input_field_changed}
             />
           </TabsContent>

@@ -8,22 +8,46 @@ import { getApiUrl } from "@/utils/api";
 
 const MAX_STREAM_RETRIES = 3;
 const STREAM_RETRY_DELAY_MS = 1_000;
+const DEFAULT_STATUS_MESSAGE = "Preparing your presentation outline";
 
-
-
-export const useOutlineStreaming = (presentationId: string | null) => {
+export const useOutlineStreaming = (
+  presentationId: string | null,
+  enabled = true
+) => {
   const dispatch = useDispatch();
-  const { outlines } = useSelector((state: RootState) => state.presentationGeneration);
-  const [isStreaming, setIsStreaming] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  const { outlines } = useSelector(
+    (state: RootState) => state.presentationGeneration
+  );
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number | null>(null);
   const [highestActiveIndex, setHighestActiveIndex] = useState<number>(-1);
+  const [statusMessage, setStatusMessage] = useState(DEFAULT_STATUS_MESSAGE);
+  const outlinesRef = useRef<{ content: string }[]>(outlines);
   const prevSlidesRef = useRef<{ content: string }[]>([]);
   const activeIndexRef = useRef<number>(-1);
   const highestIndexRef = useRef<number>(-1);
 
   useEffect(() => {
-    if (!presentationId || outlines.length > 0) return;
+    outlinesRef.current = outlines;
+  }, [outlines]);
+
+  useEffect(() => {
+    const resetStreamingState = (message = DEFAULT_STATUS_MESSAGE) => {
+      setIsStreaming(false);
+      setIsLoading(false);
+      setActiveSlideIndex(null);
+      setHighestActiveIndex(-1);
+      setStatusMessage(message);
+      prevSlidesRef.current = [];
+      activeIndexRef.current = -1;
+      highestIndexRef.current = -1;
+    };
+
+    if (!enabled || !presentationId || outlinesRef.current.length > 0) {
+      resetStreamingState();
+      return;
+    }
 
     let eventSource: EventSource | null = null;
     let accumulatedChunks = "";
@@ -45,15 +69,6 @@ export const useOutlineStreaming = (presentationId: string | null) => {
       }
     };
 
-    const resetStreamingState = () => {
-      setIsStreaming(false);
-      setIsLoading(false);
-      setActiveSlideIndex(null);
-      setHighestActiveIndex(-1);
-      activeIndexRef.current = -1;
-      highestIndexRef.current = -1;
-    };
-
     const scheduleRetry = (reason: string): boolean => {
       if (retryCount >= MAX_STREAM_RETRIES || isClosed) {
         return false;
@@ -71,6 +86,7 @@ export const useOutlineStreaming = (presentationId: string | null) => {
       prevSlidesRef.current = [];
       activeIndexRef.current = -1;
       highestIndexRef.current = -1;
+      setStatusMessage("Reconnecting to outline stream");
 
       retryTimer = setTimeout(() => {
         if (!isClosed) {
@@ -94,12 +110,21 @@ export const useOutlineStreaming = (presentationId: string | null) => {
         } catch {
           if (!scheduleRetry("invalid SSE payload")) {
             resetStreamingState();
-            notify.error("Stream parse failed", "Failed to parse outline stream response.");
+            notify.error(
+              "Stream parse failed",
+              "Failed to parse outline stream response."
+            );
           }
           return;
         }
 
         switch (data.type) {
+          case "status":
+            if (data.status) {
+              setStatusMessage(data.status);
+            }
+            break;
+
           case "chunk":
             accumulatedChunks += data.chunk;
             try {
@@ -107,7 +132,8 @@ export const useOutlineStreaming = (presentationId: string | null) => {
               const partialData = JSON.parse(repairedJson);
 
               if (partialData.slides) {
-                const nextSlides: { content: string }[] = partialData.slides || [];
+                const nextSlides: { content: string }[] =
+                  partialData.slides || [];
                 try {
                   const prev = prevSlidesRef.current || [];
                   let changedIndex: number | null = null;
@@ -137,8 +163,8 @@ export const useOutlineStreaming = (presentationId: string | null) => {
                 dispatch(setOutlines(nextSlides));
                 setIsLoading(false);
               }
-            } catch (error) {
-              // JSON isn't complete yet, continue accumulating
+            } catch {
+              // JSON is not complete yet, so keep accumulating chunks.
             }
             break;
 
@@ -151,6 +177,7 @@ export const useOutlineStreaming = (presentationId: string | null) => {
               setIsLoading(false);
               setActiveSlideIndex(null);
               setHighestActiveIndex(-1);
+              setStatusMessage("Outline ready");
               prevSlidesRef.current = outlinesData;
               activeIndexRef.current = -1;
               highestIndexRef.current = -1;
@@ -158,7 +185,7 @@ export const useOutlineStreaming = (presentationId: string | null) => {
               closeEventSource();
               clearRetryTimer();
               retryCount = 0;
-            } catch (error) {
+            } catch {
               if (!scheduleRetry("failed to parse complete payload")) {
                 resetStreamingState();
                 notify.error("Parse failed", "Failed to parse presentation data.");
@@ -168,17 +195,13 @@ export const useOutlineStreaming = (presentationId: string | null) => {
             break;
 
           case "closing":
-            setIsStreaming(false);
-            setIsLoading(false);
-            setActiveSlideIndex(null);
-            setHighestActiveIndex(-1);
-            activeIndexRef.current = -1;
-            highestIndexRef.current = -1;
+            resetStreamingState("Outline ready");
             isClosed = true;
             closeEventSource();
             clearRetryTimer();
             retryCount = 0;
             break;
+
           case "error":
             if (!scheduleRetry(data.detail || "server returned stream error")) {
               resetStreamingState();
@@ -197,11 +220,15 @@ export const useOutlineStreaming = (presentationId: string | null) => {
         if (!scheduleRetry("connection lost")) {
           resetStreamingState();
           closeEventSource();
-          notify.error("Connection failed", "Failed to connect to the server. Please try again.");
+          notify.error(
+            "Connection failed",
+            "Failed to connect to the server. Please try again."
+          );
         }
       };
     };
 
+    setStatusMessage(DEFAULT_STATUS_MESSAGE);
     setIsStreaming(true);
     setIsLoading(true);
     openStream();
@@ -211,7 +238,13 @@ export const useOutlineStreaming = (presentationId: string | null) => {
       closeEventSource();
       clearRetryTimer();
     };
-  }, [presentationId, dispatch]);
+  }, [presentationId, dispatch, enabled]);
 
-  return { isStreaming, isLoading, activeSlideIndex, highestActiveIndex };
-}; 
+  return {
+    isStreaming,
+    isLoading,
+    activeSlideIndex,
+    highestActiveIndex,
+    statusMessage,
+  };
+};

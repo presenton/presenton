@@ -13,7 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/ui/sonner";
-import { getApiUrl } from "@/utils/api";
+import { getApiErrorMessage, getApiUrl } from "@/utils/api";
 import { Switch } from "./ui/switch";
 
 interface CustomConfigProps {
@@ -75,10 +75,14 @@ export default function CustomConfig({
         setCustomModels(data);
         setCustomModelsChecked(true);
       } else {
+        const message = await getApiErrorMessage(
+          response,
+          "The server could not list models. Check your API key or endpoint and try again."
+        );
         console.error('Failed to fetch custom models');
         setCustomModels([]);
         setCustomModelsChecked(true);
-        notify.error("Could not load models", "The server could not list models. Check your API key or endpoint and try again.");
+        notify.error("Could not load models", message);
       }
     } catch (error) {
       console.error('Error fetching custom models:', error);

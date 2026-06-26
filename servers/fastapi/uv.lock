@@ -1242,7 +1242,7 @@ wheels = [
 
 [[package]]
 name = "llmai"
-version = "0.2.5"
+version = "0.2.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anthropic" },
@@ -1250,9 +1250,9 @@ dependencies = [
     { name = "google-genai" },
     { name = "openai" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9b/ad/a7e4b65d5660d906b9298ca06f0c618b06bacbdd89ada68b65ffb33740cd/llmai-0.2.5.tar.gz", hash = "sha256:f24d4e9b6f02d0a92aa45cd715d870c648b1eaac1cfe9648e947b98bf7ffea9b", size = 54919, upload-time = "2026-05-19T02:17:01.346Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/1a/b44dbbdc2c731e4486e75d952cc274eef70f9ab964380104f3d00293e2bf/llmai-0.2.7.tar.gz", hash = "sha256:9c80db5c65a7403d04c925f7607369b7dc2928158c3410ec69338080389892dd", size = 55140, upload-time = "2026-06-16T11:37:03.005Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/51/81/789e04023b7d0dcfa43cc110fc33f1a09b565fa21187482c3004a47bf0aa/llmai-0.2.5-py3-none-any.whl", hash = "sha256:625032cde871f5f3518c57d8083137a6455a12c4f1ad3aaa0e5e5d9b46ff51ec", size = 71063, upload-time = "2026-05-19T02:16:59.972Z" },
+    { url = "https://files.pythonhosted.org/packages/db/10/dae97df45fd114f72bc42e2c78a6813fc306b8e008c2110da7c009bbf887/llmai-0.2.7-py3-none-any.whl", hash = "sha256:beddfd1d3d0397573d907559598691c2eca4343413075e431872cdd9f7c71ba4", size = 71191, upload-time = "2026-06-16T11:37:01.705Z" },
 ]
 
 [[package]]
@@ -1737,6 +1737,7 @@ dependencies = [
     { name = "openai" },
     { name = "pathvalidate" },
     { name = "pdfplumber" },
+    { name = "pillow" },
     { name = "psycopg", extra = ["binary"] },
     { name = "python-pptx" },
     { name = "sqlmodel" },
@@ -1763,12 +1764,13 @@ requires-dist = [
     { name = "google-genai", specifier = ">=1.28.0" },
     { name = "greenlet", specifier = ">=3.0.3" },
     { name = "jsonschema", specifier = ">=4.26.0" },
-    { name = "llmai", specifier = "==0.2.5" },
+    { name = "llmai", specifier = "==0.2.7" },
     { name = "mem0ai", extras = ["nlp"], specifier = ">=0.1.115" },
     { name = "nltk", specifier = ">=3.9.1" },
     { name = "openai", specifier = ">=1.98.0" },
     { name = "pathvalidate", specifier = ">=3.3.1" },
     { name = "pdfplumber", specifier = ">=0.11.7" },
+    { name = "pillow", specifier = ">=12.2.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },
     { name = "python-pptx", specifier = ">=1.0.2" },
     { name = "sqlmodel", specifier = ">=0.0.24" },

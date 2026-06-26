@@ -1,5 +1,5 @@
 {
-  "description": "Product pitch layouts for cover, narrative, comparisons, KPIs, pricing, and team slides",
+  "description": "Product overview layouts using covers, text sections, comparison tables, card grids, timelines, metrics, pricing, team, and closing structures",
   "ordered": false,
   "default": false,
   "icon_weight": "regular"

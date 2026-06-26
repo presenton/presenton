@@ -21,6 +21,11 @@ from services.document_conversion_service import (
     DocumentConversionService,
 )
 from services.liteparse_service import LiteParseError, LiteParseService
+from services.office_document_service import (
+    OfficeDocumentError,
+    extract_office_document_text,
+)
+from services.temp_file_service import TEMP_FILE_SERVICE
 from utils.ocr_language import presentation_language_to_ocr_code
 
 # Optional fallback converter (primarily useful on Windows)
@@ -163,7 +168,7 @@ class DocumentsLoader:
         file_paths: List[str],
         presentation_language: Optional[str] = None,
     ):
-        self._file_paths = file_paths
+        self._file_paths = TEMP_FILE_SERVICE.resolve_existing_temp_paths(file_paths)
         self._ocr_language = presentation_language_to_ocr_code(presentation_language)
         self.liteparse_service = LiteParseService(
             timeout_seconds=self.DECOMPOSE_TIMEOUT_SECONDS
@@ -221,7 +226,6 @@ class DocumentsLoader:
                 document = await asyncio.to_thread(
                     self.load_office_document,
                     file_path,
-                    temp_dir,
                 )
             elif extension in IMAGE_EXTENSIONS:
                 document = await asyncio.to_thread(
@@ -250,7 +254,9 @@ class DocumentsLoader:
         document: str = ""
 
         if load_text:
-            document = await asyncio.to_thread(self._parse_with_liteparse, file_path)
+            is_scanned = await asyncio.to_thread(self._is_scanned_pdf, file_path)
+            dpi = 300 if is_scanned else None
+            document = await asyncio.to_thread(self._parse_with_liteparse, file_path, dpi)
 
         if load_images:
             if temp_dir is None:
@@ -262,26 +268,29 @@ class DocumentsLoader:
 
         return document, image_paths
 
+    @staticmethod
+    def _is_scanned_pdf(file_path: str, sample_pages: int = 5, threshold: int = 50) -> bool:
+        """Check if a PDF is scanned (image-only) by sampling pages for text content."""
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                total_chars = 0
+                for i, page in enumerate(pdf.pages[:sample_pages]):
+                    text = page.extract_text() or ""
+                    total_chars += len(text.strip())
+                return total_chars < threshold
+        except Exception:
+            return False
+
     async def load_text(self, file_path: str) -> str:
         with open(file_path, "r", encoding="utf-8") as file:
             return await asyncio.to_thread(file.read)
 
-    def load_office_document(self, file_path: str, temp_dir: Optional[str] = None) -> str:
-        if temp_dir:
-            converted_path = self.document_conversion_service.convert_office_to_pdf(
-                file_path,
-                temp_dir,
-                timeout_seconds=self.DECOMPOSE_TIMEOUT_SECONDS,
-            )
-            return self._parse_with_liteparse(converted_path)
-
-        with tempfile.TemporaryDirectory(prefix="office-convert-") as conversion_dir:
-            converted_path = self.document_conversion_service.convert_office_to_pdf(
-                file_path,
-                conversion_dir,
-                timeout_seconds=self.DECOMPOSE_TIMEOUT_SECONDS,
-            )
-            return self._parse_with_liteparse(converted_path)
+    @staticmethod
+    def load_office_document(file_path: str) -> str:
+        try:
+            return extract_office_document_text(file_path)
+        except OfficeDocumentError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     def load_image(self, file_path: str, temp_dir: Optional[str] = None) -> str:
         if temp_dir:
@@ -290,7 +299,7 @@ class DocumentsLoader:
                 temp_dir,
                 timeout_seconds=self.DECOMPOSE_TIMEOUT_SECONDS,
             )
-            return self._parse_with_liteparse(converted_path)
+            return self._parse_with_liteparse(converted_path, dpi=300)
 
         with tempfile.TemporaryDirectory(prefix="image-convert-") as conversion_dir:
             converted_path = self.document_conversion_service.convert_image_to_png(
@@ -298,17 +307,18 @@ class DocumentsLoader:
                 conversion_dir,
                 timeout_seconds=self.DECOMPOSE_TIMEOUT_SECONDS,
             )
-            return self._parse_with_liteparse(converted_path)
+            return self._parse_with_liteparse(converted_path, dpi=300)
 
-    def _parse_with_liteparse(self, file_path: str) -> str:
+    def _parse_with_liteparse(self, file_path: str, dpi: int = None) -> str:
         try:
             LOGGER.info("[DocumentsLoader] LiteParse start file=%s", file_path)
             return self.liteparse_service.parse_to_markdown(
                 file_path,
                 ocr_enabled=True,
                 ocr_language=self._ocr_language,
+                dpi=dpi,
             )
-        except (LiteParseError, DocumentConversionError) as exc:
+        except (LiteParseError, DocumentConversionError, OfficeDocumentError) as exc:
             LOGGER.warning(
                 "[DocumentsLoader] Primary parse failed file=%s error=%s",
                 file_path,

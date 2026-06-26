@@ -5,6 +5,7 @@ import { ProcessedSlide } from "../types";
 import { getHeader } from "@/app/(presentation-generator)/services/api/header";
 import { getApiUrl } from "@/utils/api";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
+import { validateLayoutCodeForClient } from "../utils/layoutCodeValidation";
 
 
 export const useLayoutSaving = (
@@ -48,13 +49,19 @@ export const useLayoutSaving = (
         processed_slides: slides.filter((slide) => slide.processed).length,
       });
 
-
-
-      const reactComponents = slides.map((slide) => ({
-        layout_id: `${slide.slide_number}`,
-        layout_name: `Slide${slide.slide_number}`,
-        layout_code: slide.react,
-      }));
+      const reactComponents = await Promise.all(
+        slides.map(async (slide) => {
+          if (!slide.react) {
+            throw new Error(`Slide ${slide.slide_number} does not have layout code`);
+          }
+          const validatedLayout = await validateLayoutCodeForClient(slide.react);
+          return {
+            layout_id: validatedLayout.layoutId || `${slide.slide_number}`,
+            layout_name: validatedLayout.layoutName || `Slide${slide.slide_number}`,
+            layout_code: validatedLayout.layout_code,
+          };
+        })
+      );
 
 
       // Save the layout components to the app_data/layouts folder

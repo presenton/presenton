@@ -17,7 +17,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
-import { setPresentationId } from "@/store/slices/presentationGeneration";
+import { clearOutlines, setPresentationId } from "@/store/slices/presentationGeneration";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
 import { RootState } from "@/store/store";
@@ -165,6 +165,7 @@ const DocumentsPreviewPage: React.FC = () => {
         }
       );
 
+      dispatch(clearOutlines());
       dispatch(setPresentationId(createResponse.id));
       trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
       router.replace("/outline");

@@ -10,23 +10,23 @@ import {
   ensureDirectoriesExist,
   fastapiDir,
   getAppDataDir,
+  getCacheDir,
   getTempDir,
   getUserConfigPath,
   initializeAppPaths,
   isDev,
   localhost,
   nextjsDir,
+  resourceBaseDir,
 } from "./utils/constants";
 import { setupIpcHandlers } from "./ipc";
-import { ipcMain } from "electron";
 import { stopActiveExportProcesses } from "./ipc/export_handlers";
-import { setupLibreOfficeInstallHandlers, stopActiveLibreOfficeInstallProcesses } from "./ipc/libreoffice_install_handlers";
-import { setupSetupInstallHandlers, stopActiveSetupInstallProcesses } from "./ipc/setup_install_handlers";
-import { checkDependenciesBeforeWindow } from "./utils/setup-dependencies";
-import { getSofficePath, isLibreOfficeInstalled } from "./utils/libreoffice-check";
 import { getLiteParseRunnerPath } from "./utils/liteparse-check";
-import { getImageMagickBinaryPath, isImageMagickInstalled } from "./utils/imagemagick-check";
-import { isExportChromiumAvailable } from "./utils/export-chromium";
+import {
+  buildPathWithImageMagick,
+  resolveImageMagickRuntime,
+  type ImageMagickRuntime,
+} from "./utils/imagemagick-runtime";
 import { startUpdateChecker, stopUpdateChecker } from "./utils/update-checker";
 import {
   addMainBreadcrumb,
@@ -46,8 +46,15 @@ import {
   prepareChromiumCacheRecovery,
   type ChromiumCacheRecoveryStatus,
 } from "./utils/chromium-cache-recovery";
+import { resolveLaunchableExportChromiumPath } from "./utils/export-chromium";
 
 installSafeConsole();
+
+// Local and ad-hoc signed macOS builds otherwise prompt for Keychain access when
+// Chromium initializes encrypted session storage.
+if (process.platform === "darwin") {
+  app.commandLine.appendSwitch("use-mock-keychain");
+}
 
 // Linux Chromium requires chrome-sandbox to be root-owned mode 4755; unpacked
 // dist/linux-unpacked builds usually lack that. Disable sandbox only when invalid.
@@ -77,11 +84,6 @@ type ManagedServerProcess = Awaited<ReturnType<typeof startFastApiServer>>;
 var fastApiServer: ManagedServerProcess | undefined;
 var nextjsServer: ManagedServerProcess | undefined;
 let isStopping = false;
-const startupStatus: Record<string, string> = {
-  libreoffice: "checking",
-  imagemagick: "checking",
-  chromium: "checking",
-};
 
 function getLiveMainWindow(): BrowserWindow | undefined {
   if (!win || win.isDestroyed()) {
@@ -142,6 +144,11 @@ function resolveExportConverterPath(appRoot: string): string | undefined {
   return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
+function isDisableAuthEnabledValue(value?: string): boolean {
+  const raw = value?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
 function resolveElectronDisableAuth(): string {
   const raw = (
     process.env.ELECTRON_DISABLE_AUTH ?? process.env.DISABLE_AUTH
@@ -152,10 +159,27 @@ function resolveElectronDisableAuth(): string {
   if (["0", "false", "no", "off"].includes(raw)) {
     return "false";
   }
-  if (["1", "true", "yes", "on"].includes(raw)) {
+  if (isDisableAuthEnabledValue(raw)) {
     return "true";
   }
   return "true";
+}
+
+function buildImageMagickEnv(runtime: ImageMagickRuntime | null): Partial<FastApiEnv> {
+  if (!runtime) {
+    return {};
+  }
+
+  const pathKey = process.platform === "win32" && process.env.Path !== undefined
+    ? "Path"
+    : "PATH";
+
+  return {
+    IMAGEMAGICK_BINARY: runtime.binaryPath,
+    MAGICK_HOME: runtime.homeDir,
+    MAGICK_CONFIGURE_PATH: runtime.homeDir,
+    [pathKey]: buildPathWithImageMagick(runtime),
+  };
 }
 
 app.commandLine.appendSwitch('gtk-version', '3');
@@ -176,9 +200,6 @@ const chromiumCacheRecovery = prepareChromiumCacheRecovery(
 );
 safeLog("[Presenton] Electron paths initialized:", electronAppPaths);
 
-// Allow renderer to query initial startup status as soon as it loads.
-ipcMain.handle("startup:get-status", () => startupStatus);
-
 initMainSentry();
 updateSentryRuntimeContext(chromiumCacheRecovery);
 
@@ -197,7 +218,7 @@ const createWindow = () => {
     height: 720,
     show: false, // Reveal once the launch screen has painted to avoid a blank flash.
     backgroundColor: "#f3f5ff",
-    icon: path.join(baseDir, "resources/ui/assets/images/presenton_short_filled.png"),
+    icon: path.join(resourceBaseDir, "resources/ui/assets/images/presenton_short_filled.png"),
     webPreferences: {
         webSecurity: false,
         // Ensure a known preload path and explicit isolation settings so
@@ -293,9 +314,32 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
     const tempDir = getTempDir();
     const userConfigPath = getUserConfigPath();
     const disableAuthForElectron = resolveElectronDisableAuth();
-    const sofficePath = getSofficePath();
-    const exportPackageRoot = path.join(baseDir, "resources", "export");
-    const exportConverterPath = resolveExportConverterPath(baseDir);
+    const imageMagickRuntime = resolveImageMagickRuntime();
+    const exportPackageRoot = path.join(resourceBaseDir, "resources", "export");
+    const exportConverterPath = resolveExportConverterPath(resourceBaseDir);
+    const exportChromiumPath = await resolveLaunchableExportChromiumPath();
+    const puppeteerCacheDir = path.join(getCacheDir(), "puppeteer");
+    const puppeteerTempDir = path.join(tempDir, "puppeteer");
+    await Promise.all([
+      fs.promises.mkdir(puppeteerCacheDir, { recursive: true }),
+      fs.promises.mkdir(puppeteerTempDir, { recursive: true }),
+    ]);
+    if (exportChromiumPath) {
+      safeLog("[Presenton] Export Chromium runtime resolved:", exportChromiumPath);
+    } else {
+      safeWarn(
+        "[Presenton] Export Chromium runtime was not found; Template Studio slide previews will fail until Chromium is installed."
+      );
+    }
+    if (imageMagickRuntime) {
+      safeLog("[Presenton] ImageMagick runtime resolved:", {
+        source: imageMagickRuntime.source,
+        binaryPath: imageMagickRuntime.binaryPath,
+        homeDir: imageMagickRuntime.homeDir,
+      });
+    } else {
+      safeWarn("[Presenton] ImageMagick runtime was not found; LiteParse image conversion will fail until it is bundled or installed.");
+    }
     const fastApi = await startFastApiServer(
       fastapiDir,
       fastApiPort,
@@ -305,6 +349,9 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         LLM: process.env.LLM,
         OPENAI_API_KEY: process.env.OPENAI_API_KEY,
         OPENAI_MODEL: process.env.OPENAI_MODEL,
+        DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+        DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL,
+        DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL,
         GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
         GOOGLE_MODEL: process.env.GOOGLE_MODEL,
         ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
@@ -338,6 +385,13 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         TOOL_CALLS: process.env.TOOL_CALLS,
         DISABLE_THINKING: process.env.DISABLE_THINKING,
         WEB_GROUNDING: process.env.WEB_GROUNDING,
+        WEB_SEARCH_PROVIDER: process.env.WEB_SEARCH_PROVIDER,
+        WEB_SEARCH_MAX_RESULTS: process.env.WEB_SEARCH_MAX_RESULTS,
+        SEARXNG_BASE_URL: process.env.SEARXNG_BASE_URL,
+        TAVILY_API_KEY: process.env.TAVILY_API_KEY,
+        EXA_API_KEY: process.env.EXA_API_KEY,
+        BRAVE_SEARCH_API_KEY: process.env.BRAVE_SEARCH_API_KEY,
+        SERPER_API_KEY: process.env.SERPER_API_KEY,
         DATABASE_URL: process.env.DATABASE_URL,
         DISABLE_ANONYMOUS_TRACKING: process.env.DISABLE_ANONYMOUS_TRACKING,
         COMFYUI_URL: process.env.COMFYUI_URL,
@@ -349,12 +403,8 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         USER_CONFIG_PATH: userConfigPath,
         MIGRATE_DATABASE_ON_STARTUP: "True",
         DISABLE_AUTH: disableAuthForElectron,
-        // Resolved by libreoffice-check.ts at startup when available; lets
-        // Python invoke the exact binary path instead of relying on PATH.
-        ...(sofficePath && {
-          SOFFICE_PATH: sofficePath,
-        }),
-        IMAGEMAGICK_BINARY: getImageMagickBinaryPath(),
+        PRESENTON_ELECTRON: "true",
+        ...buildImageMagickEnv(imageMagickRuntime),
         LITEPARSE_RUNNER_PATH: getLiteParseRunnerPath(),
         // Use Electron's embedded runtime for LiteParse so parsing does not
         // depend on a system-wide Node installation.
@@ -362,6 +412,11 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         ELECTRON_RUN_AS_NODE: "1",
         EXPORT_PACKAGE_ROOT: exportPackageRoot,
         EXPORT_RUNTIME_DIR: exportPackageRoot,
+        PUPPETEER_CACHE_DIR: puppeteerCacheDir,
+        PUPPETEER_TMP_DIR: puppeteerTempDir,
+        ...(exportChromiumPath && {
+          PUPPETEER_EXECUTABLE_PATH: exportChromiumPath,
+        }),
         ...(exportConverterPath && {
           BUILT_PYTHON_MODULE_PATH: exportConverterPath,
         }),
@@ -383,7 +438,7 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         APP_DATA_DIRECTORY: appDataDir,
         DISABLE_AUTH: disableAuthForElectron,
         EXPORT_PACKAGE_ROOT: exportPackageRoot,
-        PRESENTON_APP_ROOT: baseDir,
+        PRESENTON_APP_ROOT: resourceBaseDir,
         ...(exportConverterPath && {
           BUILT_PYTHON_MODULE_PATH: exportConverterPath,
         }),
@@ -420,8 +475,6 @@ async function forceQuitApp(exitCode = 0) {
   stopUpdateChecker();
   try {
     await stopActiveExportProcesses();
-    await stopActiveSetupInstallProcesses();
-    await stopActiveLibreOfficeInstallProcesses();
     await stopServers();
   } finally {
     app.exit(exitCode);
@@ -430,6 +483,11 @@ async function forceQuitApp(exitCode = 0) {
 
 if (gotSingleInstanceLock) {
 app.whenReady().then(async () => {
+  const disableAuthForElectron = resolveElectronDisableAuth();
+  process.env.DISABLE_AUTH = disableAuthForElectron;
+  process.env.ELECTRON_DISABLE_AUTH = disableAuthForElectron;
+  process.env.PRESENTON_ELECTRON = "true";
+
   // Ensure all required directories exist before starting
   ensureDirectoriesExist();
 
@@ -439,16 +497,12 @@ app.whenReady().then(async () => {
   );
   updateSentryRuntimeContext(chromiumCacheRecovery);
 
-  // Register install handlers early so the unified setup window can use them
-  setupLibreOfficeInstallHandlers();
-  setupSetupInstallHandlers();
-
-  // Create main window before setup so that when user skips, the main window stays open
+  // Create main window and show the launch page while local servers boot.
   createWindow();
   const initialWindow = getLiveMainWindow();
   if (initialWindow && !initialWindow.webContents.isDestroyed()) {
     void initialWindow
-      .loadFile(path.join(baseDir, "resources/ui/homepage/index.html"))
+      .loadFile(path.join(resourceBaseDir, "resources/ui/homepage/index.html"))
       .catch((error) => {
         if (!initialWindow.isDestroyed()) {
           safeWarn("[Presenton] Failed to load startup page", error);
@@ -456,47 +510,10 @@ app.whenReady().then(async () => {
       });
   }
 
-  // Single installer: checks LibreOffice, ImageMagick, and export Chromium; if any are
-  // missing, shows one window that installs them one after another.
-  const setupCompleted = await checkDependenciesBeforeWindow();
-  if (!setupCompleted) {
-    // Block app usage when required setup is not completed.
-    getLiveMainWindow()?.destroy();
-    app.quit();
-    return;
-  }
-
-  // Update startup status after setup (user may have installed one or both)
-  const [loResult, imageMagickOk] = await Promise.all([
-    isLibreOfficeInstalled(),
-    Promise.resolve(isImageMagickInstalled()),
-  ]);
-  startupStatus.libreoffice = loResult.installed ? "installed" : "missing";
-  startupStatus.imagemagick = imageMagickOk ? "installed" : "missing";
-  startupStatus.chromium = isExportChromiumAvailable() ? "installed" : "missing";
-
   // Ensure the launch screen stays visible and focused during the server boot.
   const launchWindow = getLiveMainWindow();
   launchWindow?.show();
   launchWindow?.focus();
-
-  const sendStartupStatus = (name: string, status: string) => {
-    startupStatus[name] = status;
-    const mainWindow = getLiveMainWindow();
-    if (!mainWindow || mainWindow.webContents.isDestroyed()) {
-      return;
-    }
-    mainWindow.webContents.send("startup:status", { name, status });
-  };
-
-  const statusWindow = getLiveMainWindow();
-  if (statusWindow && !statusWindow.webContents.isDestroyed()) {
-    statusWindow.webContents.once("did-finish-load", () => {
-      sendStartupStatus("libreoffice", startupStatus.libreoffice);
-      sendStartupStatus("imagemagick", startupStatus.imagemagick);
-      sendStartupStatus("chromium", startupStatus.chromium);
-    });
-  }
 
   try {
     setUserConfig({
@@ -504,6 +521,9 @@ app.whenReady().then(async () => {
       LLM: process.env.LLM,
       OPENAI_API_KEY: process.env.OPENAI_API_KEY,
       OPENAI_MODEL: process.env.OPENAI_MODEL,
+      DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+      DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL,
+      DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL,
       GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
       GOOGLE_MODEL: process.env.GOOGLE_MODEL,
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
@@ -537,6 +557,13 @@ app.whenReady().then(async () => {
       TOOL_CALLS: process.env.TOOL_CALLS,
       DISABLE_THINKING: process.env.DISABLE_THINKING,
       WEB_GROUNDING: process.env.WEB_GROUNDING,
+      WEB_SEARCH_PROVIDER: process.env.WEB_SEARCH_PROVIDER,
+      WEB_SEARCH_MAX_RESULTS: process.env.WEB_SEARCH_MAX_RESULTS,
+      SEARXNG_BASE_URL: process.env.SEARXNG_BASE_URL,
+      TAVILY_API_KEY: process.env.TAVILY_API_KEY,
+      EXA_API_KEY: process.env.EXA_API_KEY,
+      BRAVE_SEARCH_API_KEY: process.env.BRAVE_SEARCH_API_KEY,
+      SERPER_API_KEY: process.env.SERPER_API_KEY,
       DATABASE_URL: process.env.DATABASE_URL,
       DISABLE_ANONYMOUS_TRACKING: process.env.DISABLE_ANONYMOUS_TRACKING,
       COMFYUI_URL: process.env.COMFYUI_URL,
@@ -565,7 +592,10 @@ app.whenReady().then(async () => {
   }
 
   try {
-    await mainWindow.loadURL(`${localhost}:${nextjsPort}`);
+    const appPath = isDisableAuthEnabledValue(process.env.DISABLE_AUTH)
+      ? "/upload"
+      : "";
+    await mainWindow.loadURL(`${localhost}:${nextjsPort}${appPath}`);
   } catch (error) {
     if (mainWindow.isDestroyed()) {
       return;

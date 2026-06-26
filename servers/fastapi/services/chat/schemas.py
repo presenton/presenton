@@ -29,6 +29,41 @@ class NoArgsInput(StrictSchemaModel):
     pass
 
 
+class AddOutlineInput(OpenAIStrictSchemaModel):
+    content: str = Field(
+        ...,
+        min_length=1,
+        max_length=20000,
+        description="Markdown content for the new outline slide.",
+    )
+    index: int | None = Field(
+        ...,
+        ge=0,
+        le=1000,
+        description="Zero-based insert index. Use null to append to the end.",
+    )
+
+
+class UpdateOutlineInput(StrictSchemaModel):
+    index: int = Field(ge=0, le=1000)
+    content: str = Field(
+        min_length=1,
+        max_length=20000,
+        description="Replacement markdown content for this outline slide.",
+    )
+
+
+class DeleteOutlineInput(StrictSchemaModel):
+    index: int = Field(ge=0, le=1000)
+
+
+class MoveOutlineInput(StrictSchemaModel):
+    from_index: int = Field(alias="fromIndex", ge=0, le=1000)
+    to_index: int = Field(alias="toIndex", ge=0, le=1000)
+
+    model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
+
+
 class GetSlideAtIndexInput(StrictSchemaModel):
     index: int = Field(ge=0, le=1000)
     include_full_content: bool = Field(alias="includeFullContent")

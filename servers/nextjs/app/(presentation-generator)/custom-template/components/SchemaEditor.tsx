@@ -21,7 +21,7 @@ interface SchemaEditorProps {
     slide: ProcessedSlide;
     compiledLayout: CompiledLayout | null;
     isOpen: boolean;
-    onSave: (updatedReact: string) => void;
+    onSave: (updatedReact: string) => void | Promise<void>;
     onCancel: () => void;
     onFillContent?: (content: Record<string, any>) => void;
 }
@@ -1175,4 +1175,3 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({
         </div>
     );
 };
-

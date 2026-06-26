@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/ui/sonner";
 import { Switch } from "./ui/switch";
-import { getApiUrl } from "@/utils/api";
+import { getApiErrorMessage, getApiUrl } from "@/utils/api";
 
 interface AnthropicConfigProps {
   anthropicApiKey: string;
@@ -70,7 +70,12 @@ export default function AnthropicConfig({
         setModelsChecked(true);
         onInputChange("claude-sonnet-4-20250514", "anthropic_model");
       } else {
+        const message = await getApiErrorMessage(
+          response,
+          "The server could not list models. Check your API key or endpoint and try again."
+        );
         console.error('Failed to fetch models');
+        notify.error("Could not load models", message);
         setAvailableModels([]);
         setModelsChecked(true);
       }

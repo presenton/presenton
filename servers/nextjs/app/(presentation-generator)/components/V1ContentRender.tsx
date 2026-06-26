@@ -18,14 +18,22 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
     const dispatch = useDispatch();
     const containerRef = useRef<HTMLDivElement | null>(null);
 
+    const safeSlide = slide ?? {};
+    const slideLayout = typeof safeSlide.layout === "string" ? safeSlide.layout : "";
+    const slideLayoutGroup =
+        typeof safeSlide.layout_group === "string" ? safeSlide.layout_group : "";
+    const slideContent =
+        safeSlide.content && typeof safeSlide.content === "object"
+            ? safeSlide.content
+            : {};
 
-    const customTemplateId = slide.layout_group.startsWith("custom-") ? slide.layout_group.split("custom-")[1] : slide.layout_group;
-    const isCustomTemplate = uuidValidate(customTemplateId) || slide.layout_group.startsWith("custom-");
+    const customTemplateId = slideLayoutGroup.startsWith("custom-") ? slideLayoutGroup.split("custom-")[1] : slideLayoutGroup;
+    const isCustomTemplate = uuidValidate(customTemplateId) || slideLayoutGroup.startsWith("custom-");
 
     // Always call the hook (React hooks rule), but with empty id when not a custom template
     const { template: customTemplate, loading: customLoading } = useCustomTemplateDetails({
         id: isCustomTemplate ? customTemplateId : "",
-        name: isCustomTemplate ? slide.layout_group : "",
+        name: isCustomTemplate ? slideLayoutGroup : "",
         description: ""
     });
 
@@ -34,7 +42,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
     const Layout = useMemo(() => {
         if (isCustomTemplate) {
             if (customTemplate) {
-                const layoutId = slide.layout.startsWith("custom-") ? slide.layout.split(":")[1] : slide.layout;
+                const layoutId = slideLayout.startsWith("custom-") ? slideLayout.split(":")[1] : slideLayout;
 
 
                 const compiledLayout = customTemplate.layouts.find(
@@ -46,10 +54,10 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
             }
             return null;
         } else {
-            const template = getLayoutByLayoutId(slide.layout, slide.layout_group);
+            const template = getLayoutByLayoutId(slideLayout, slideLayoutGroup);
             return template?.component ?? null;
         }
-    }, [isCustomTemplate, customTemplate, slide.layout]);
+    }, [isCustomTemplate, customTemplate, slideLayout, slideLayoutGroup]);
 
     // Show loading state for custom templates
     if (isCustomTemplate && customLoading) {
@@ -62,7 +70,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
 
 
     if (!Layout) {
-        if (Object.keys(slide.content).length === 0) {
+        if (Object.keys(slideContent).length === 0) {
             return (
                 <div className="flex flex-col items-center cursor-pointer justify-center aspect-video h-full bg-gray-100 rounded-lg">
                     <p className="text-gray-600 text-center text-base">Blank Slide</p>
@@ -73,8 +81,8 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
         return (
             <div className="flex flex-col items-center justify-center aspect-video h-full bg-gray-100 rounded-lg">
                 <p className="text-gray-600 text-center text-base">
-                    Layout &quot;{slide.layout}&quot; not found in &quot;
-                    {slide.layout_group}&quot; Template
+                    Layout &quot;{slideLayout || "unknown"}&quot; not found in &quot;
+                    {slideLayoutGroup || "unknown"}&quot; Template
                 </p>
             </div>
         );
@@ -83,18 +91,18 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
 
     if (isEditMode) {
         return (
-            <SlideErrorBoundary label={`Slide ${slide.index + 1}`}>
+            <SlideErrorBoundary label={`Slide ${(safeSlide.index ?? 0) + 1}`}>
                 <div ref={containerRef} className={` `}>
 
                     <EditableLayoutWrapper
-                        slideIndex={slide.index}
-                        slideData={slide.content}
-                        properties={slide.properties}
+                        slideIndex={safeSlide.index ?? 0}
+                        slideData={slideContent}
+                        properties={safeSlide.properties}
                     >
                         <TiptapTextReplacer
-                            key={slide.id}
-                            slideData={slide.content}
-                            slideIndex={slide.index}
+                            key={safeSlide.id ?? safeSlide.index ?? "slide"}
+                            slideData={slideContent}
+                            slideIndex={safeSlide.index ?? 0}
                             onContentChange={(
                                 content: string,
                                 dataPath: string,
@@ -112,7 +120,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
                             }}
                         >
                             <LayoutComp data={{
-                                ...slide.content,
+                                ...slideContent,
                                 _logo_url__: theme ? theme.logo_url : null,
                                 __companyName__: (theme && theme.company_name) ? theme.company_name : null,
                             }} />
@@ -127,16 +135,16 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
         );
     }
     return (
-        <SlideErrorBoundary label={`Slide ${slide.index + 1}`}>
+        <SlideErrorBoundary label={`Slide ${(safeSlide.index ?? 0) + 1}`}>
             <div ref={containerRef}>
                 <TiptapTextReplacer
-                    key={slide.id}
-                    slideData={slide.content}
-                    slideIndex={slide.index}
+                    key={safeSlide.id ?? safeSlide.index ?? "slide"}
+                    slideData={slideContent}
+                    slideIndex={safeSlide.index ?? 0}
                     readOnly
                 >
                     <LayoutComp data={{
-                        ...slide.content,
+                        ...slideContent,
                         _logo_url__: theme ? theme.logo_url : null,
                         __companyName__: (theme && theme.company_name) ? theme.company_name : null,
                     }} />
@@ -145,4 +153,3 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
         </SlideErrorBoundary>
     );
 };
-

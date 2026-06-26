@@ -12,7 +12,7 @@
         "operationId": "generate_presentation",
         "requestBody": {
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Body_generate_presentation_api_api_v1_ppt_presentation_generate_post"
               }
@@ -44,19 +44,45 @@
         }
       }
     },
-    "/api/v1/ppt/template-management/summary": {
+    "/api/v1/ppt/template/all": {
       "get": {
-        "tags": ["template-management"],
-        "summary": "Get all presentations with layout counts",
-        "description": "Returns a list of extra custom templates available for presenation creation.",
+        "tags": ["Template"],
+        "summary": "Get all templates",
+        "description": "Returns built-in and custom templates for presentation creation.",
         "operationId": "templates_list",
+        "parameters": [
+          {
+            "name": "include_defaults",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Include Defaults"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Presentations summary retrieved successfully",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetPresentationSummaryResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateDetail"
+                  },
+                  "title": "Response Get All Templates Api V1 Ppt Template All Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -186,81 +212,31 @@
         "required": ["loc", "msg", "type"],
         "title": "ValidationError"
       },
-      "GetPresentationSummaryResponse": {
+      "TemplateDetail": {
         "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
+          "id": {
+            "type": "string",
+            "title": "Id"
           },
-          "presentations": {
-            "items": {
-              "$ref": "#/components/schemas/PresentationSummary"
-            },
-            "type": "array",
-            "title": "Presentations"
-          },
-          "total_presentations": {
-            "type": "integer",
-            "title": "Total Presentations"
+          "name": {
+            "type": "string",
+            "title": "Name"
           },
           "total_layouts": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Total Layouts"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Message"
           }
         },
         "type": "object",
-        "required": ["success", "presentations", "total_presentations", "total_layouts"],
-        "title": "GetPresentationSummaryResponse"
-      },
-      "PresentationSummary": {
-        "properties": {
-          "presentation_id": {
-            "type": "string",
-            "title": "Presentation Id"
-          },
-          "layout_count": {
-            "type": "integer",
-            "title": "Layout Count"
-          },
-          "last_updated_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Updated At"
-          },
-          "template": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Template"
-          }
-        },
-        "type": "object",
-        "required": ["presentation_id", "layout_count"],
-        "title": "PresentationSummary"
+        "required": ["id", "name"],
+        "title": "TemplateDetail"
       },
       "ErrorResponse": {
         "properties": {

@@ -18,9 +18,9 @@ const TEXT_TYPES = ['.txt']
 const WORD_TYPES = ['.doc', '.docx', '.docm', '.odt', '.rtf']
 const POWERPOINT_TYPES = ['.ppt', '.pptx', '.pptm', '.odp']
 const SPREADSHEET_TYPES = ['.xls', '.xlsx', '.xlsm', '.ods', '.csv', '.tsv']
-const IMAGE_TYPES = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.svg']
+const IMAGE_TYPES = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp']
 
-const ALLOWED_MIME_PREFIXES: string[] = ['image/']
+const ALLOWED_MIME_PREFIXES: string[] = []
 const ALLOWED_MIME_TYPES = [
     'application/pdf',
     'text/plain',
@@ -48,7 +48,6 @@ const ALLOWED_MIME_TYPES = [
     'image/bmp',
     'image/tiff',
     'image/webp',
-    'image/svg+xml',
 ]
 const ALLOWED_EXTENSIONS = [
     ...PDF_TYPES,

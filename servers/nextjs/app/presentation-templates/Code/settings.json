@@ -1,5 +1,5 @@
 {
-  "description": "Developer-focused layouts for roadmaps, APIs, code explanations, and technical metrics",
+  "description": "Developer-focused layouts for code blocks, diffs, terminal commands, file trees, APIs, and technical metrics",
   "ordered": false,
   "default": false,
   "icon_weight": "regular"

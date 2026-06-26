@@ -11,6 +11,24 @@ function isValidFormat(value: unknown): value is BundledPresentationExportFormat
   return value === "pdf" || value === "pptx";
 }
 
+async function readExportRequestBody(req: NextRequest): Promise<{
+  format?: unknown;
+  id?: unknown;
+  title?: unknown;
+}> {
+  const rawBody = await req.text();
+  if (!rawBody.trim()) {
+    throw new Error("EMPTY_BODY");
+  }
+
+  const parsed = JSON.parse(rawBody) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("INVALID_BODY");
+  }
+
+  return parsed as { format?: unknown; id?: unknown; title?: unknown };
+}
+
 function buildExportDownloadUrl(outPath: string): string {
   const appDataDirectory = process.env.APP_DATA_DIRECTORY?.trim();
   if (!appDataDirectory) {
@@ -31,10 +49,27 @@ function buildExportDownloadUrl(outPath: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const { format, id, title } = await req.json();
+  let body: Awaited<ReturnType<typeof readExportRequestBody>>;
+  try {
+    body = await readExportRequestBody(req);
+  } catch (error) {
+    if (
+      error instanceof SyntaxError ||
+      (error instanceof Error &&
+        (error.message === "EMPTY_BODY" || error.message === "INVALID_BODY"))
+    ) {
+      return NextResponse.json(
+        { error: "Invalid export request JSON body" },
+        { status: 400 }
+      );
+    }
+    throw error;
+  }
+
+  const { format, id, title } = body;
   const cookieHeader = req.headers.get("cookie") ?? "";
 
-  if (!id) {
+  if (typeof id !== "string" || !id.trim()) {
     return NextResponse.json(
       { error: "Missing Presentation ID" },
       { status: 400 }
@@ -57,8 +92,8 @@ export async function POST(req: NextRequest) {
 
     const { path: outPath } = await runBundledPresentationExport({
       format,
-      presentationId: id,
-      title,
+      presentationId: id.trim(),
+      title: typeof title === "string" ? title : undefined,
       cookieHeader,
     });
 

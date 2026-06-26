@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
 import { createHash } from "crypto";
-import { baseDir, getCacheDir } from "./constants";
+import { baseDir, getCacheDir, resourceBaseDir } from "./constants";
 import { safeLog } from "./safe-console";
 
-const CACHE_LAYOUT_VERSION = "1";
+const CACHE_LAYOUT_VERSION = "2";
 
 type ExportSpawnTarget = {
   scriptPath: string;
@@ -80,6 +80,24 @@ function resolvePackageSourceDir(sourceModulesRoot: string, packageName: string)
 
 function resolvePackageDestDir(destModulesRoot: string, packageName: string): string {
   return resolvePackageSourceDir(destModulesRoot, packageName);
+}
+
+function assertSourcePackagesAvailable(sourceModulesRoot: string): void {
+  const missingPackages = sharpPackagesForPlatform().filter((packageName) => {
+    const sourceDir = resolvePackageSourceDir(sourceModulesRoot, packageName);
+    return !fs.existsSync(path.join(sourceDir, "package.json"));
+  });
+
+  if (missingPackages.length > 0) {
+    throw new Error(
+      [
+        "Export dependencies are missing from the unpacked app bundle.",
+        `Missing: ${missingPackages.join(", ")}`,
+        `Expected under: ${sourceModulesRoot}`,
+        "Rebuild the APPX after unpacking sharp dependencies from app.asar.",
+      ].join(" ")
+    );
+  }
 }
 
 async function fileFingerprint(filePath: string): Promise<string> {
@@ -215,7 +233,8 @@ export async function resolveExportSpawnTarget(
   const exportRuntimeVersion = getExportRuntimeVersion();
   const cacheRoot = getMsixExportCacheRoot(exportRuntimeVersion);
   const cachedScriptPath = path.join(cacheRoot, "index.js");
-  const sourceModulesRoot = path.join(baseDir, "node_modules");
+  const sourceModulesRoot = path.join(resourceBaseDir, "node_modules");
+  assertSourcePackagesAvailable(sourceModulesRoot);
 
   const expectedFingerprint = await buildSourceFingerprint(packagedExportRoot, sourceModulesRoot);
   const cachedFingerprint = await readCacheFingerprint(cacheRoot);

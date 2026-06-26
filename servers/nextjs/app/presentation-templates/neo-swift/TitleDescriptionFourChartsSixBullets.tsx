@@ -498,7 +498,7 @@ const dynamicSlideLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = 
                                     style={{ borderColor: 'var(--stroke,#E5E7EB)', backgroundColor: 'var(--card-color,#FFFFFF)' }}
                                 >
                                     <div className="px-4 pt-3 pb-1">
-                                        <h3 className="text-sm font-semibold truncate" style={{ color: 'var(--background-text,#374151)' }}>{chart.title}</h3>
+                                        <h3 className="text-sm font-semibold " style={{ color: 'var(--background-text,#374151)' }}>{chart.title}</h3>
                                     </div>
                                     <div className="flex-1 min-h-0 overflow-hidden px-2 pb-2">
                                         <MiniChartRenderer chart={chart} showLegend={showLegend && chartCount <= 4} showGrid={showGrid} chartKey={`four-bullets-${index}`} />

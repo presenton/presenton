@@ -83,6 +83,12 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
+
+    - name: Check layout code
+      run: npm run check:layout-code
+
+    - name: Test layout validator
+      run: npm run test:layout-code
     
     - name: Build application
       env:
@@ -100,4 +106,3 @@ jobs:
         else
           echo "No Cypress tests found, skipping component tests"
         fi
-

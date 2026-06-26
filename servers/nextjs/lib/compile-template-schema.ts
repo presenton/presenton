@@ -40,7 +40,7 @@ const DANGEROUS_MEMBER_NAMES = new Set([
 
 function normalizeHardcodedBackendUrlsInCode(layoutCode: string): string {
   return layoutCode.replace(
-    /https?:\/\/(?:127\.0\.0\.1|localhost|0\.0\.0\.0):(?:8000|5000)(?=\/(?:app_data|static)\/)/g,
+    /https?:\/\/(?:127\.0\.0\.1|localhost|0\.0\.0\.0):(?:8000|5000|5001)(?=\/(?:app_data|static)\/)/g,
     ""
   );
 }

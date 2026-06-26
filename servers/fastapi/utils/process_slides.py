@@ -11,6 +11,7 @@ from utils.asset_directory_utils import (
 )
 from utils.dict_utils import get_dict_at_path, get_dict_paths_with_key, set_dict_at_path
 from utils.icon_weights import DEFAULT_ICON_WEIGHT, normalize_icon_weight
+from utils.image_generation_error import image_generation_warning
 
 
 async def process_slide_and_fetch_assets(
@@ -18,6 +19,8 @@ async def process_slide_and_fetch_assets(
     slide: SlideModel,
     outline_image_urls: Optional[List[str]] = None,
     icon_weight: str = DEFAULT_ICON_WEIGHT,
+    allow_image_fallback: bool = False,
+    image_warnings: Optional[List[dict]] = None,
 ) -> List[ImageAsset]:
 
     async_tasks = []
@@ -60,12 +63,26 @@ async def process_slide_and_fetch_assets(
         )
         async_task_meta.append(("icon", icon_path))
 
-    results = await asyncio.gather(*async_tasks) if async_tasks else []
+    results = (
+        await asyncio.gather(*async_tasks, return_exceptions=allow_image_fallback)
+        if async_tasks
+        else []
+    )
 
     return_assets = []
     for (task_type, asset_path), result in zip(async_task_meta, results):
         if task_type == "image":
             image_dict = get_dict_at_path(slide.content, asset_path)
+            if isinstance(result, BaseException):
+                if not allow_image_fallback:
+                    raise result
+                image_dict["__image_url__"] = normalize_slide_asset_url(
+                    "/static/images/placeholder.jpg"
+                )
+                if image_warnings is not None and isinstance(result, Exception):
+                    image_warnings.append(image_generation_warning(result))
+                set_dict_at_path(slide.content, asset_path, image_dict)
+                continue
             if isinstance(result, ImageAsset):
                 return_assets.append(result)
                 image_dict["__image_url__"] = filesystem_image_path_to_app_data_url(
@@ -76,6 +93,8 @@ async def process_slide_and_fetch_assets(
             set_dict_at_path(slide.content, asset_path, image_dict)
             continue
 
+        if isinstance(result, BaseException):
+            raise result
         icon_dict = get_dict_at_path(slide.content, asset_path)
         # ICON_FINDER_SERVICE.search_icons returns a list of URLs
         if isinstance(result, list) and result:

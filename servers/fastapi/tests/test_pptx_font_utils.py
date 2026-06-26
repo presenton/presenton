@@ -1,6 +1,7 @@
 import asyncio
 import os
 import zipfile
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,10 +17,19 @@ class DummyLogger:
         return None
 
 
+_SIZE_UNSET = object()
+
+
 class DummyUploadFile:
-    def __init__(self, filename: str, content: bytes = b"font") -> None:
+    def __init__(
+        self,
+        filename: str,
+        content: bytes = b"font",
+        size: int | None | object = _SIZE_UNSET,
+    ) -> None:
         self.filename = filename
         self._content = content
+        self.size = len(content) if size is _SIZE_UNSET else size
 
     async def read(self) -> bytes:
         return self._content
@@ -27,6 +37,10 @@ class DummyUploadFile:
 
 async def _run_sync_in_test(func, *args, **kwargs):
     return func(*args, **kwargs)
+
+
+def _fake_corrupted_pptx_bytes() -> bytes:
+    return b"this is not a valid powerpoint zip package"
 
 
 def test_build_google_fonts_stylesheet_url_includes_regular_and_bold_weights():
@@ -38,6 +52,62 @@ def test_build_google_fonts_stylesheet_url_includes_regular_and_bold_weights():
 
 def test_normalize_font_family_name_strips_localized_bold_token():
     assert pptx_font_utils.normalize_font_family_name("Arial Gras") == "Arial"
+
+
+def test_check_fonts_in_pptx_rejects_100mb_file_from_upload_size():
+    upload = DummyUploadFile(
+        "deck.pptx",
+        content=b"",
+        size=fonts_and_slides_preview.MAX_FONT_CHECK_UPLOAD_SIZE_BYTES,
+    )
+
+    with pytest.raises(fonts_and_slides_preview.HTTPException) as exc_info:
+        asyncio.run(fonts_and_slides_preview.check_fonts_in_pptx_handler(upload))
+
+    assert exc_info.value.status_code == 413
+    assert exc_info.value.detail == "File size must be less than 100MB."
+
+
+def test_check_fonts_in_pptx_rejects_oversize_after_read_when_size_missing(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        fonts_and_slides_preview, "MAX_FONT_CHECK_UPLOAD_SIZE_BYTES", 4
+    )
+    upload = DummyUploadFile("deck.pptx", content=b"abcd", size=None)
+
+    with pytest.raises(fonts_and_slides_preview.HTTPException) as exc_info:
+        asyncio.run(fonts_and_slides_preview.check_fonts_in_pptx_handler(upload))
+
+    assert exc_info.value.status_code == 413
+    assert exc_info.value.detail == "File size must be less than 100MB."
+
+
+def test_check_fonts_in_pptx_rejects_corrupted_pptx():
+    upload = DummyUploadFile("corrupted.pptx", content=_fake_corrupted_pptx_bytes())
+
+    with pytest.raises(fonts_and_slides_preview.HTTPException) as exc_info:
+        asyncio.run(fonts_and_slides_preview.check_fonts_in_pptx_handler(upload))
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == fonts_and_slides_preview.INVALID_PPTX_UPLOAD_ERROR
+
+
+def test_upload_fonts_and_preview_rejects_corrupted_pptx():
+    upload = DummyUploadFile("corrupted.pptx", content=_fake_corrupted_pptx_bytes())
+
+    with pytest.raises(fonts_and_slides_preview.HTTPException) as exc_info:
+        asyncio.run(
+            fonts_and_slides_preview.upload_fonts_and_preview_handler(
+                pptx_file=upload,
+                font_files=[],
+                original_font_names=[],
+                get_slide_images=True,
+            )
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == fonts_and_slides_preview.INVALID_PPTX_UPLOAD_ERROR
 
 
 def test_build_google_fonts_stylesheet_url_sorts_and_deduplicates_weights():
@@ -193,6 +263,296 @@ def test_font_info_entries_preserve_original_variant_name():
     assert entries[0].family_name == "Arial"
     assert entries[0].variant == "bold"
     assert entries[0].variants == ["bold"]
+
+
+def test_preview_dimensions_preserve_converter_aspect_ratio():
+    assert fonts_and_slides_preview._preview_dimensions_from_document(
+        1280.0, 960.0
+    ) == (1280, 960)
+    assert fonts_and_slides_preview._preview_dimensions_from_document(0, 0) == (
+        1280,
+        720,
+    )
+
+
+def test_build_slide_preview_html_adds_fixed_viewport_css(monkeypatch):
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "absolute_fastapi_asset_url",
+        lambda path: f"http://backend.test{path}",
+    )
+
+    html = fonts_and_slides_preview._build_slide_preview_html(
+        '<div class="slide-content">Slide</div>',
+        '@font-face { font-family: "Khand"; src: url("file:///font.ttf"); }',
+        font_links='<link href="https://fonts.googleapis.com/css2?family=Khand:wght@400;700&amp;display=swap" rel="stylesheet">',
+        width=1024,
+        height=768,
+    )
+
+    assert '<base href="http://backend.test/" />' in html
+    assert '<script src="https://cdn.tailwindcss.com"></script>' in html
+    assert "width: 1024px;" in html
+    assert "height: 768px;" in html
+    assert ".slide-content" in html
+    assert "position: relative;" in html
+    assert "fonts.googleapis.com/css2?family=Khand" in html
+    assert 'font-family: "Khand"' in html
+    assert '<div class="slide-content">Slide</div>' in html
+
+
+def test_font_stylesheet_links_for_slide_html_extracts_tailwind_font_classes():
+    links = fonts_and_slides_preview._font_stylesheet_links_for_slide_html(
+        "<span class=\"font-['Poppins']\"></span>"
+        "<span class=\"font-['DM_Sans']\"></span>"
+    )
+
+    assert "family=Poppins:wght@400;700" in links
+    assert "family=DM+Sans:wght@400;700" in links
+    assert links.count('rel="stylesheet"') == 2
+
+
+def test_font_stylesheet_links_skip_embedded_and_uploaded_fonts():
+    links = fonts_and_slides_preview._font_stylesheet_links_for_slide_html(
+        "<span class=\"font-['Poppins']\"></span>"
+        "<span class=\"font-['Snell_Roundhand']\"></span>"
+        "<span class=\"font-['DM_Sans']\"></span>",
+        "@font-face { font-family: 'Poppins'; src: url(data:font/ttf;base64,AA); }"
+        '@font-face { font-family: "Snell Roundhand"; src: url(data:font/ttf;base64,AA); }',
+    )
+
+    assert "family=Poppins" not in links
+    assert "family=Snell+Roundhand" not in links
+    assert "family=DM+Sans:wght@400;700" in links
+    assert links.count('rel="stylesheet"') == 1
+
+
+def test_font_face_css_for_local_fonts_includes_family_and_full_names(
+    monkeypatch,
+    tmp_path,
+):
+    font_path = tmp_path / "Khand-Bold.ttf"
+    font_path.write_bytes(b"font")
+
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "get_font_details",
+        lambda path: pptx_font_utils.FontDetail(
+            file=path,
+            size_bytes=123,
+            family_name="Khand",
+            full_name="Khand Bold",
+            subfamily_name="Bold",
+            weight_class=700,
+        ),
+    )
+
+    css = fonts_and_slides_preview._font_face_css_for_local_fonts([str(font_path)])
+
+    assert 'font-family: "Khand";' in css
+    assert 'font-family: "Khand Bold";' in css
+    assert f'url("{font_path.resolve().as_uri()}")' in css
+    assert "font-weight: 700;" in css
+    assert "font-style: normal;" in css
+
+
+def test_localize_preview_asset_urls_rewrites_app_data_http_urls(monkeypatch, tmp_path):
+    image_path = tmp_path / "asset.png"
+    image_path.write_bytes(b"png")
+
+    def fake_resolve(path_or_url):
+        assert path_or_url == "/app_data/pptx-to-html/session/images/asset.png"
+        return str(image_path)
+
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "resolve_app_path_to_filesystem",
+        fake_resolve,
+    )
+
+    html = (
+        '<img src="http://127.0.0.1:5001/app_data/pptx-to-html/session/images/asset.png">'
+        "<div style=\"background-image: url('/app_data/pptx-to-html/session/images/asset.png')\"></div>"
+    )
+
+    localized = fonts_and_slides_preview._localize_preview_asset_urls(html)
+
+    assert localized.count("data:image/png;base64,cG5n") == 2
+    assert "http://127.0.0.1:5001/app_data" not in localized
+    assert "url('data:image/png;base64,cG5n')" in localized
+
+
+def test_localize_preview_asset_urls_leaves_external_urls(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "resolve_app_path_to_filesystem",
+        lambda path_or_url: calls.append(path_or_url) or None,
+    )
+
+    html = '<img src="https://example.com/image.png">'
+
+    assert fonts_and_slides_preview._localize_preview_asset_urls(html) == html
+    assert calls == []
+
+
+@pytest.mark.anyio
+async def test_create_slide_previews_from_html_uses_converter_dimensions_and_fonts(
+    monkeypatch,
+    tmp_path,
+):
+    font_path = tmp_path / "Khand-Bold.ttf"
+    font_path.write_bytes(b"font")
+    rendered_path = tmp_path / "slide.png"
+    rendered_path.write_bytes(b"png")
+    render_calls = []
+
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "get_font_details",
+        lambda path: pptx_font_utils.FontDetail(
+            file=path,
+            size_bytes=123,
+            family_name="Khand",
+            full_name="Khand Bold",
+            subfamily_name="Bold",
+            weight_class=700,
+        ),
+    )
+
+    class FakeExportTaskService:
+        async def convert_pptx_to_html(self, pptx_path, get_fonts=False):
+            assert pptx_path == "deck.pptx"
+            assert get_fonts is True
+            return SimpleNamespace(
+                slides=['<div class="slide-content">Slide</div>'],
+                font_css=".deck-font { color: black; }",
+                width=1024.0,
+                height=768.0,
+            )
+
+        async def render_htmls_to_images(self, htmls, width, height):
+            render_calls.append((htmls, width, height))
+            return SimpleNamespace(paths=[str(rendered_path)])
+
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "EXPORT_TASK_SERVICE",
+        FakeExportTaskService(),
+    )
+
+    result = await fonts_and_slides_preview.render_pptx_slides_to_images(
+        modified_pptx_path="deck.pptx",
+        font_paths_for_install=[str(font_path)],
+        max_slides=1,
+        logger=DummyLogger(),
+    )
+
+    assert result == [str(rendered_path)]
+    assert len(render_calls) == 1
+    htmls, width, height = render_calls[0]
+    assert width == 1024
+    assert height == 768
+    assert len(htmls) == 1
+    html = htmls[0]
+    assert ".deck-font { color: black; }" in html
+    assert 'font-family: "Khand Bold";' in html
+
+
+@pytest.mark.anyio
+async def test_create_slide_previews_from_html_batches_slides_in_one_task(
+    monkeypatch,
+    tmp_path,
+):
+    output_paths = [tmp_path / "slide-1.png", tmp_path / "slide-2.png"]
+    for output_path in output_paths:
+        output_path.write_bytes(b"png")
+    render_calls = []
+
+    class FakeExportTaskService:
+        async def convert_pptx_to_html(self, pptx_path, get_fonts=False):
+            return SimpleNamespace(
+                slides=[
+                    '<div class="slide-content">One</div>',
+                    '<div class="slide-content">Two</div>',
+                ],
+                font_css="",
+                width=320.0,
+                height=180.0,
+            )
+
+        async def render_htmls_to_images(self, htmls, width, height):
+            render_calls.append((htmls, width, height))
+            return SimpleNamespace(paths=[str(path) for path in output_paths])
+
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "EXPORT_TASK_SERVICE",
+        FakeExportTaskService(),
+    )
+
+    result = await fonts_and_slides_preview.render_pptx_slides_to_images(
+        modified_pptx_path="deck.pptx",
+        font_paths_for_install=[],
+        max_slides=None,
+        logger=DummyLogger(),
+    )
+
+    assert len(render_calls) == 1
+    htmls, width, height = render_calls[0]
+    assert width == 320
+    assert height == 180
+    assert len(htmls) == 2
+    assert "One" in htmls[0]
+    assert "Two" in htmls[1]
+    assert result == [str(path) for path in output_paths]
+
+
+@pytest.mark.anyio
+async def test_create_slide_previews_uses_html_render_path(monkeypatch, tmp_path):
+    html_paths = [str(tmp_path / "slide1.png"), str(tmp_path / "slide2.png")]
+
+    async def fake_create_from_html(
+        modified_pptx_path,
+        font_paths_for_install,
+        max_slides,
+        logger,
+    ):
+        assert modified_pptx_path == "deck.pptx"
+        assert font_paths_for_install == ["font.ttf"]
+        assert max_slides == 2
+        return html_paths
+
+    async def fake_persist_files_to_session(pairs):
+        return [destination for destination, _source in pairs]
+
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "render_pptx_slides_to_images",
+        fake_create_from_html,
+    )
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "_persist_files_to_session",
+        fake_persist_files_to_session,
+    )
+
+    result = await fonts_and_slides_preview.create_slide_previews(
+        modified_pptx_path="deck.pptx",
+        temp_dir=str(tmp_path),
+        font_paths_for_install=["font.ttf"],
+        font_mapping={},
+        explicit_font_aliases=None,
+        protected_font_names=None,
+        max_slides=2,
+        logger=DummyLogger(),
+        session_dir=str(tmp_path / "session"),
+    )
+
+    assert result == [
+        str(tmp_path / "session" / "slide_1.png"),
+        str(tmp_path / "session" / "slide_2.png"),
+    ]
 
 
 def test_create_font_alias_config_protects_embedded_font_names(tmp_path):

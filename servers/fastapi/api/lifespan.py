@@ -6,10 +6,11 @@ from fastapi import FastAPI
 
 from migrations import migrate_database_on_startup
 from services.database import create_db_and_tables, dispose_engines
-from utils.get_env import get_app_data_directory_env
+from utils.get_env import get_app_data_directory_env, get_can_change_keys_env
 from utils.model_availability import (
     check_llm_and_image_provider_api_or_model_availability,
 )
+from utils.user_config import update_env_with_user_config
 from utils.simple_auth import (
     clear_stored_credentials,
     force_set_credentials,
@@ -94,6 +95,8 @@ async def app_lifespan(_: FastAPI):
     await migrate_database_on_startup()
     await create_db_and_tables()
     _bootstrap_auth_from_env()
+    if get_can_change_keys_env() != "false":
+        update_env_with_user_config()
     await check_llm_and_image_provider_api_or_model_availability()
     yield
     # Shutdown: release all database connections to prevent stale/leaked pools.

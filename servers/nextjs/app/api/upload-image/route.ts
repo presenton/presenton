@@ -2,12 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import { Readable } from "stream";
+import { pipeline } from "stream/promises";
+import type { ReadableStream as NodeReadableStream } from "stream/web";
 
-
-const userDataDir = process.env.APP_DATA_DIRECTORY!;
+const MAX_UPLOAD_IMAGE_BYTES = 20 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
+  let filePath: string | undefined;
+
   try {
+    const userDataDir = process.env.APP_DATA_DIRECTORY;
+    if (!userDataDir) {
+      return NextResponse.json(
+        { error: "User data directory not found" },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
@@ -18,15 +30,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    if (!userDataDir) {
+    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
       return NextResponse.json(
-        { error: "User data directory not found" },
-        { status: 500 }
+        { error: "Image file is too large" },
+        { status: 413 }
       );
     }
+
     // Create uploads directory if it doesn't exist
     const uploadsDir = path.join(userDataDir, "uploads");
     fs.mkdirSync(uploadsDir, { recursive: true });
@@ -34,10 +44,13 @@ export async function POST(request: NextRequest) {
 
     // Generate unique filename
     const filename = `${crypto.randomBytes(16).toString("hex")}.png`;
-    const filePath = path.join(uploadsDir, filename);
+    filePath = path.join(uploadsDir, filename);
 
     // Write file to disk
-    fs.writeFileSync(filePath, buffer);
+    await pipeline(
+      Readable.fromWeb(file.stream() as unknown as NodeReadableStream<Uint8Array>),
+      fs.createWriteStream(filePath)
+    );
 
     // Return the relative path that can be used in the frontend
     return NextResponse.json({
@@ -45,6 +58,13 @@ export async function POST(request: NextRequest) {
       filePath: `${uploadsDir}/${filename}`
     });
   } catch (error) {
+    if (filePath) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        // Best-effort cleanup for partial uploads.
+      }
+    }
     console.error("Error saving image:", error);
     return NextResponse.json(
       { error: "Failed to save image" },

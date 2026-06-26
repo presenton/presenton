@@ -1,11 +1,13 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "presenton-backend"
 version = "0.1.0"
 description = "Add your description here"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11,<3.12"
 dependencies = [
     "alembic>=1.14.0",
@@ -24,9 +26,10 @@ dependencies = [
     "openai>=1.98.0",
     "pathvalidate>=3.3.1",
     "pdfplumber>=0.11.7",
+    "pillow>=12.2.0",
     "psycopg[binary]>=3.2.0",
     "sqlmodel>=0.0.24",
-    "llmai==0.2.5",
+    "llmai==0.2.7",
     "jsonschema>=4.26.0",
     "python-pptx>=1.0.2",
     "fonttools>=4.55.0",

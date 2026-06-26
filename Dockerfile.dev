@@ -3,6 +3,8 @@ FROM python:3.11-slim-trixie
 
 WORKDIR /app
 
+ARG TARGETARCH
+
 # LiteParse (Node + @llamaindex/liteparse) for document extraction; OCR via Tesseract.
 ENV APP_DATA_DIRECTORY=/app_data \
     TEMP_DIRECTORY=/tmp/presenton \
@@ -12,7 +14,7 @@ ENV APP_DATA_DIRECTORY=/app_data \
     PATH="/root/.local/bin:${PATH}" \
     EXPORT_PACKAGE_ROOT=/app/presentation-export \
     EXPORT_RUNTIME_DIR=/app/presentation-export \
-    BUILT_PYTHON_MODULE_PATH=/app/presentation-export/py/convert-linux-x64 \
+    BUILT_PYTHON_MODULE_PATH=/app/presentation-export/py/convert-linux-current \
     PRESENTON_APP_ROOT=/app \
     HF_HOME=/root/.cache/huggingface \
     PRESENTON_FASTEMBED_ICON_CACHE_DIR=/root/.cache/presenton/fastembed-icons \
@@ -20,7 +22,7 @@ ENV APP_DATA_DIRECTORY=/app_data \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl unzip \
-      nginx libreoffice fontconfig imagemagick zstd chromium \
+      nginx fontconfig imagemagick zstd chromium \
       fonts-liberation xdg-utils \
       libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 \
       libcairo2 libcups2t64 libdbus-1-3 libdrm2 libexpat1 libgbm1 \
@@ -45,9 +47,21 @@ COPY electron/resources/document-extraction/liteparse_runner.mjs /app/document-e
 
 COPY scripts/sync-presentation-export.cjs /app/scripts/sync-presentation-export.cjs
 COPY scripts/presenton-terminal-banner.mjs /app/scripts/presenton-terminal-banner.mjs
+COPY scripts/user-config-env.mjs /app/scripts/user-config-env.mjs
 RUN rm -rf /app/presentation-export \
-    && node /app/scripts/sync-presentation-export.cjs --force \
-    && chmod +x /app/presentation-export/py/convert-linux-x64
+    && EXPORT_RUNTIME_ARCH="${TARGETARCH}" node /app/scripts/sync-presentation-export.cjs --force \
+    && find /app/presentation-export/py -maxdepth 1 -type f -name "convert-linux-*" -exec chmod +x {} \; \
+    && set -eux; \
+    if [ -z "${TARGETARCH:-}" ]; then TARGETARCH="$(dpkg --print-architecture)"; fi; \
+    case "$TARGETARCH" in \
+      amd64) export_arch="x64" ;; \
+      arm64) export_arch="arm64" ;; \
+      *) echo "Unsupported TARGETARCH: $TARGETARCH" && exit 1 ;; \
+    esac; \
+    test -f "/app/presentation-export/py/convert-linux-${export_arch}"; \
+    ln -sf "/app/presentation-export/py/convert-linux-${export_arch}" /app/presentation-export/py/convert-linux-current; \
+    chmod +x "/app/presentation-export/py/convert-linux-${export_arch}"; \
+    ls -lah /app/presentation-export/py
 
 # Bind mount `.:/app` hides any .venv under servers/fastapi at runtime — install deps into
 # system site-packages (same interpreter `start.js` uses as `python`).

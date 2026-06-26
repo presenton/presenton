@@ -1,0 +1,77 @@
+name: Docker Release
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-release-${{ github.event.release.tag_name || github.ref_name || github.run_id }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/presenton/presenton
+  MOVING_TAG: dev
+
+jobs:
+  build-and-push:
+    name: Build and push multi-architecture image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare Docker tags
+        id: docker-tags
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            IMAGE_TAG="${{ github.event.release.tag_name }}"
+          else
+            IMAGE_TAG="${MOVING_TAG}"
+          fi
+
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "EOF"
+            echo "verify_tag=${IMAGE_TAG}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Build and push multi-architecture image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.docker-tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image
+        env:
+          VERIFY_TAG: ${{ steps.docker-tags.outputs.verify_tag }}
+        run: |
+          docker buildx imagetools inspect "${IMAGE_NAME}:${VERIFY_TAG}" | tee image-inspect.txt
+          grep -q "linux/amd64" image-inspect.txt
+          grep -q "linux/arm64" image-inspect.txt

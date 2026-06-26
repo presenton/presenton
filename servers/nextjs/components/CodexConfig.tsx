@@ -10,10 +10,17 @@ import {
 import { notify } from "@/components/ui/sonner";
 import { getApiUrl } from "@/utils/api";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
+import { usePathname, useRouter } from "next/navigation";
+import { syncStoreAfterCodexSignOut } from "@/utils/storeHelpers";
+import {
+  DEFAULT_CODEX_MODEL,
+  isSupportedCodexModel,
+} from "@/utils/codexModels";
 
 interface CodexConfigProps {
   codexModel: string;
   onInputChange: (value: string | boolean, field: string) => void;
+  onAuthStatusChange?: (authenticated: boolean) => void;
 }
 
 type AuthStatus = "checking" | "unauthenticated" | "polling" | "authenticated";
@@ -27,25 +34,10 @@ interface StatusResponse {
   detail?: string;
 }
 
-interface CodexModel {
-  id: string;
-  name: string;
-}
-
-export const CHATGPT_MODELS: CodexModel[] = [
-  { id: "gpt-5.2", name: "GPT-5.2" },
-  { id: "gpt-5.3-codex", name: "GPT-5.3 Codex" },
-  { id: "gpt-5.3-codex-spark", name: "GPT-5.3 Codex Spark" },
-  { id: "gpt-5.4", name: "GPT-5.4" },
-  { id: "gpt-5.4-mini", name: "GPT-5.4 mini" },
-  { id: "gpt-5.5", name: "GPT-5.5" },
-];
-
-export const DEFAULT_CODEX_MODEL = "gpt-5.2";
-
 export default function CodexConfig({
   codexModel,
   onInputChange,
+  onAuthStatusChange,
 }: CodexConfigProps) {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [accountId, setAccountId] = useState<string | null>(null);
@@ -57,6 +49,8 @@ export default function CodexConfig({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pathname = usePathname();
+  const router = useRouter();
 
   const stopPolling = () => {
     if (pollIntervalRef.current) {
@@ -69,6 +63,16 @@ export default function CodexConfig({
     checkCurrentAuthStatus();
     return () => stopPolling();
   }, []);
+
+  useEffect(() => {
+    onAuthStatusChange?.(authStatus === "authenticated");
+  }, [authStatus, onAuthStatusChange]);
+
+  useEffect(() => {
+    if (codexModel && !isSupportedCodexModel(codexModel)) {
+      onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
+    }
+  }, [codexModel, onInputChange]);
 
   const applyProfile = (data: Partial<StatusResponse>) => {
     setAccountId(data.account_id ?? null);
@@ -87,7 +91,9 @@ export default function CodexConfig({
       const data: StatusResponse = await res.json();
       if (data.status === "authenticated") {
         onInputChange('codex', 'LLM');
-        onInputChange(DEFAULT_CODEX_MODEL, 'codex_model');
+        if (!isSupportedCodexModel(codexModel)) {
+          onInputChange(DEFAULT_CODEX_MODEL, 'codex_model');
+        }
         setAuthStatus("authenticated");
         applyProfile(data);
       } else {
@@ -126,11 +132,12 @@ export default function CodexConfig({
           const pollData: StatusResponse = await pollRes.json();
 
           if (pollData.status === "success") {
+            trackEvent(MixpanelEvent.Codex_SignIn_Completed, { method: "browser_poll" });
             stopPolling();
             setAuthStatus("authenticated");
             applyProfile(pollData);
             setSessionId(null);
-            if (!codexModel) {
+            if (!isSupportedCodexModel(codexModel)) {
               onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
             }
             notify.success(
@@ -138,6 +145,7 @@ export default function CodexConfig({
               "Your ChatGPT account is connected and ready to use."
             );
           } else if (pollData.status === "failed") {
+            trackEvent(MixpanelEvent.Codex_SignIn_Failed, { method: "browser_poll" });
             stopPolling();
             setAuthStatus("unauthenticated");
             applyProfile({});
@@ -151,6 +159,7 @@ export default function CodexConfig({
         }
       }, 2000);
     } catch (err) {
+      trackEvent(MixpanelEvent.Codex_SignIn_Failed, { method: "initiate" });
       notify.error(
         "Sign-in failed",
         "Could not start the sign-in flow. Please try again."
@@ -174,12 +183,13 @@ export default function CodexConfig({
         throw new Error(err.detail || "Exchange failed");
       }
       const data = await res.json();
+      trackEvent(MixpanelEvent.Codex_SignIn_Completed, { method: "manual_exchange" });
       stopPolling();
       setAuthStatus("authenticated");
       applyProfile(data);
       setSessionId(null);
       setManualCode("");
-      if (!codexModel) {
+      if (!isSupportedCodexModel(codexModel)) {
         onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
       }
       notify.success(
@@ -187,6 +197,7 @@ export default function CodexConfig({
         "Your ChatGPT account is connected and ready to use."
       );
     } catch (err: any) {
+      trackEvent(MixpanelEvent.Codex_SignIn_Failed, { method: "manual_exchange" });
       notify.error(
         "Sign-in failed",
         err.message || "The verification code could not be accepted. Please try again."
@@ -197,6 +208,7 @@ export default function CodexConfig({
   };
 
   const handleCancelPolling = () => {
+    trackEvent(MixpanelEvent.Codex_SignIn_Cancelled);
     stopPolling();
     setSessionId(null);
     setManualCode("");
@@ -207,12 +219,21 @@ export default function CodexConfig({
     setIsLoggingOut(true);
     try {
       await fetch(getApiUrl("/api/v1/ppt/codex/auth/logout"), { method: "POST" });
+      trackEvent(MixpanelEvent.Codex_Signed_Out);
       setAuthStatus("unauthenticated");
       setAccountId(null);
       setUsername(null);
       setEmail(null);
-      onInputChange("openai", "LLM");
       onInputChange("", "codex_model");
+      onInputChange("", "CODEX_ACCESS_TOKEN");
+      onInputChange("", "CODEX_REFRESH_TOKEN");
+      onInputChange("", "CODEX_TOKEN_EXPIRES");
+      onInputChange("", "CODEX_ACCOUNT_ID");
+      onInputChange("", "CODEX_USERNAME");
+      onInputChange("", "CODEX_EMAIL");
+      onInputChange(false, "CODEX_IS_PRO");
+      syncStoreAfterCodexSignOut();
+      router.replace(pathname.startsWith("/settings") ? "/settings" : "/");
       notify.success(
         "Signed out",
         "You have been disconnected from ChatGPT."

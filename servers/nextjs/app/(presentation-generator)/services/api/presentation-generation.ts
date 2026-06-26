@@ -169,6 +169,46 @@ export class PresentationGenerationApi {
       throw error;
     }
   }
+
+  static async getOutlines(presentationId: string): Promise<{ slides: { content: string }[] }> {
+    try {
+      const response = await fetch(
+        getApiUrl(`/api/v1/ppt/outlines/${presentationId}`),
+        {
+          method: "GET",
+          headers: getHeader(),
+          cache: "no-cache",
+        }
+      );
+
+      return await ApiResponseHandler.handleResponse(response, "Failed to fetch outlines");
+    } catch (error) {
+      console.error("error in outline fetch", error);
+      throw error;
+    }
+  }
+
+  static async updateOutlines(
+    presentationId: string,
+    outlines: { content: string }[]
+  ): Promise<{ slides: { content: string }[] }> {
+    try {
+      const response = await fetch(
+        getApiUrl(`/api/v1/ppt/outlines/${presentationId}`),
+        {
+          method: "PUT",
+          headers: getHeader(),
+          body: JSON.stringify({ slides: outlines }),
+          cache: "no-cache",
+        }
+      );
+
+      return await ApiResponseHandler.handleResponse(response, "Failed to update outlines");
+    } catch (error) {
+      console.error("error in outline update", error);
+      throw error;
+    }
+  }
   
   // IMAGE AND ICON SEARCH
   

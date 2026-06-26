@@ -89,6 +89,19 @@ describe('<UploadPage />', () => {
       cy.get('[data-testid="slides-select"]').should('contain', '12')
     })
 
+    it('should allow replacing a custom slide count with a preset', () => {
+      cy.get('[data-testid="slides-select"]').click({ force: true })
+      cy.get('input[placeholder="--"]').clear().type('50{enter}')
+      cy.get('[data-testid="slides-select"]').should('contain', '50')
+
+      cy.get('[data-testid="slides-select"]').click({ force: true })
+      cy.get('input[placeholder="--"]').focus().should('have.value', '50')
+      cy.get('[role="option"]').contains('12 slides').click()
+
+      cy.get('[data-testid="slides-select"]').should('contain', '12')
+      cy.get('[data-testid="slides-select"]').should('not.contain', '50')
+    })
+
     it('should allow selecting language', () => {
       // Force click to handle any overlay issues
       cy.get('[data-testid="language-select"]').click({ force: true })

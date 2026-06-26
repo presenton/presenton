@@ -81,9 +81,19 @@ export function OutlineItem({
     isDragging,
   } = useSortable({ id: sortableId, disabled: isStreaming });
 
+  const sortableTransform = transform
+    ? {
+        ...transform,
+        scaleX: isDragging ? 1.01 : transform.scaleX,
+        scaleY: isDragging ? 1.01 : transform.scaleY,
+      }
+    : null;
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Transform.toString(sortableTransform),
+    transition:
+      transition ||
+      "transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms ease, opacity 160ms ease",
+    zIndex: isDragging ? 30 : "auto",
   };
   const handleSlideDelete = () => {
     if (isStreaming) return;
@@ -171,17 +181,17 @@ export function OutlineItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`mb-4 bg-white rounded-[12px] group border p-10 relative font-syne  transition-all duration-500 hover:shadow-[0_10px_24px_0_rgba(15,23,42,0.12)] ${
+      className={`mb-4 bg-white rounded-[12px] group border p-10 relative font-syne transition-[box-shadow,border-color,opacity] duration-200 will-change-transform hover:shadow-[0_10px_24px_0_rgba(15,23,42,0.12)] ${
         isEditing
           ? "border-[#BDB4FE] shadow-[0_6.6px_13.2px_0_rgba(0,0,0,0.10)]"
           : "border-transparent shadow-sm"
-      } ${isDragging ? "opacity-50" : ""}`}
+      } ${isDragging ? "opacity-95 shadow-[0_18px_40px_rgba(15,23,42,0.18)]" : ""}`}
     >
       <div className="flex items-start gap-3 md:gap-4 rounded-[8px]">
         <div
           {...attributes}
           {...listeners}
-          className=" flex items-center justify-center relative cursor-grab"
+          className="flex touch-none select-none items-center justify-center relative cursor-grab active:cursor-grabbing"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

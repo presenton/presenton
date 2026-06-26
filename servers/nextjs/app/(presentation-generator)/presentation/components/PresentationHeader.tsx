@@ -492,7 +492,7 @@ const PresentationHeader = ({
             </div>
           )}
           {presentationData &&
-            presentationData.slides &&
+            presentationData.slides?.[0]?.layout &&
             !presentationData.slides[0].layout.includes("custom") && (
               <ThemeSelector
                 current_theme={presentationData?.theme || {}}

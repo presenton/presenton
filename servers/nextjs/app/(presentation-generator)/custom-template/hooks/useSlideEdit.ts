@@ -3,6 +3,7 @@ import { ProcessedSlide } from "../types";
 import { getHeader } from "@/app/(presentation-generator)/services/api/header";
 import { notify } from "@/components/ui/sonner";
 import { getApiUrl } from "@/utils/api";
+import { validateLayoutCodeForClient } from "../utils/layoutCodeValidation";
 
 export const useSlideEdit = (
   slide: ProcessedSlide,
@@ -39,12 +40,16 @@ export const useSlideEdit = (
       }
 
       const data = await response.json();
+      const validatedLayout = await validateLayoutCodeForClient(data.react_component);
       const updatedSlideData = {
         slide_number: slide.slide_number,
-        react: data.react_component,
+        react: validatedLayout.layout_code,
         processed: true,
         processing: false,
         error: undefined,
+        layout_id: validatedLayout.layoutId,
+        layout_name: validatedLayout.layoutName,
+        layout_description: validatedLayout.layoutDescription,
       };
 
 
@@ -93,4 +98,4 @@ export const useSlideEdit = (
     handleEditClick,
     handleCancelEdit,
   };
-}; 
+};

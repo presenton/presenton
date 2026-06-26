@@ -1,6 +1,6 @@
 /**
- * Download presenton-export release (Linux x64) into repo-root `presentation-export/`.
- * Same release host as Electron (`electron/sync_export_runtime.js`); Docker uses this at build time.
+ * Download presenton-export release into repo-root `presentation-export/`.
+ * Same release host as Electron (`electron/scripts/sync-export-runtime.cjs`); Docker uses this at build time.
  *
  * Version resolution (first match):
  *   1. EXPORT_RUNTIME_VERSION env
@@ -27,11 +27,29 @@ const packageJsonFile = path.join(repoRoot, "package.json");
 const cacheDir = path.join(repoRoot, ".cache", "presentation-export");
 const exportRepoBase =
   "https://github.com/presenton/presenton-export/releases/download";
-const linuxAssetName = "export-Linux-X64.zip";
 
 const cliArgs = new Set(process.argv.slice(2));
 const forceDownload = cliArgs.has("--force");
 const checkOnly = cliArgs.has("--check-only");
+
+function resolveLinuxAssetName() {
+  const arch = (
+    process.env.EXPORT_RUNTIME_ARCH ||
+    process.env.TARGETARCH ||
+    process.arch
+  ).toLowerCase();
+
+  if (arch === "amd64" || arch === "x64") {
+    return "export-Linux-X64.zip";
+  }
+  if (arch === "arm64" || arch === "aarch64") {
+    return "export-Linux-ARM64.zip";
+  }
+
+  throw new Error(`Unsupported Linux export arch: ${arch}`);
+}
+
+const linuxAssetName = resolveLinuxAssetName();
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -123,7 +141,27 @@ function chmodIfPossible(filePath) {
   }
 }
 
+function ensureCurrentConverterLink(converterPath) {
+  const currentPath = path.join(targetPyDir, "convert-linux-current");
+  fs.rmSync(currentPath, { force: true });
+
+  if (process.platform === "win32") {
+    fs.copyFileSync(converterPath, currentPath);
+    return currentPath;
+  }
+
+  fs.symlinkSync(path.basename(converterPath), currentPath);
+  return currentPath;
+}
+
 function getConverterCandidates(baseDir = targetPyDir) {
+  if (linuxAssetName === "export-Linux-ARM64.zip") {
+    return [
+      path.join(baseDir, "convert-linux-arm64"),
+      path.join(baseDir, "convert"),
+    ];
+  }
+
   return [
     path.join(baseDir, "convert-linux-x64"),
     path.join(baseDir, "convert-linux-amd64"),
@@ -206,7 +244,13 @@ function validateExistingRuntime() {
     };
   }
   chmodIfPossible(converterPath);
-  return { ok: true, entrypointPath: entrypoint.entrypointPath, converterPath };
+  const currentConverterPath = ensureCurrentConverterLink(converterPath);
+  return {
+    ok: true,
+    entrypointPath: entrypoint.entrypointPath,
+    converterPath,
+    currentConverterPath,
+  };
 }
 
 function downloadFile(url, outputPath, redirects = 5) {
@@ -303,6 +347,7 @@ async function main() {
     console.log("[presentation-export] OK");
     console.log(`  - ${existing.entrypointPath}`);
     console.log(`  - ${existing.converterPath}`);
+    console.log(`  - ${existing.currentConverterPath}`);
     return;
   }
 
@@ -310,6 +355,7 @@ async function main() {
     console.log("[presentation-export] Using existing runtime:");
     console.log(`  - ${existing.entrypointPath}`);
     console.log(`  - ${existing.converterPath}`);
+    console.log(`  - ${existing.currentConverterPath}`);
     return;
   }
 
@@ -324,6 +370,7 @@ async function main() {
   console.log(`  - url: ${downloadUrl}`);
   console.log(`  - ${installed.entrypointPath}`);
   console.log(`  - ${installed.converterPath}`);
+  console.log(`  - ${installed.currentConverterPath}`);
 }
 
 main().catch((err) => {

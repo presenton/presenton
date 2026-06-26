@@ -208,6 +208,10 @@ class TestImageGenerationOpenAICompatible:
                                 "test prompt", mock_images_directory
                             )
 
+                        call_kwargs = mock_session.get.call_args.kwargs
+                        assert call_kwargs["headers"] == {
+                            "Authorization": "Bearer sk-test-key"
+                        }
                         assert os.path.exists(image_path)
                         assert image_path.startswith(mock_images_directory)
 
@@ -264,4 +268,60 @@ class TestImageGenerationOpenAICompatible:
                         call_args = mock_session.get.call_args
                         called_url = call_args[0][0]
                         assert called_url == "https://api.example.com/images/result.png"
+                        assert call_args.kwargs["headers"] == {
+                            "Authorization": "Bearer sk-test-key"
+                        }
+                        assert os.path.exists(image_path)
+
+    @pytest.mark.anyio
+    async def test_generate_image_openai_compatible_cross_origin_url_skips_auth(
+        self, mock_images_directory
+    ):
+        """Cross-origin asset URLs should not receive the API bearer token."""
+        service = ImageGenerationService(mock_images_directory)
+
+        with patch(
+            "services.image_generation_service.get_openai_compat_image_base_url_env",
+            return_value="https://api.example.com/v1",
+        ):
+            with patch(
+                "services.image_generation_service.get_openai_compat_image_api_key_env",
+                return_value="sk-test-key",
+            ):
+                with patch(
+                    "services.image_generation_service.get_openai_compat_image_model_env",
+                    return_value="custom-model",
+                ):
+                    with patch(
+                        "services.image_generation_service.AsyncOpenAI"
+                    ) as MockClient:
+                        mock_client_instance = MockClient.return_value
+                        mock_data = Mock()
+                        mock_data.b64_json = None
+                        mock_data.url = "https://cdn.example.net/images/result.png"
+                        mock_response = Mock()
+                        mock_response.data = [mock_data]
+                        mock_client_instance.images.generate = AsyncMock(
+                            return_value=mock_response
+                        )
+
+                        fake_image_bytes = b"\x89PNG\r\n\x1a\n"
+                        mock_dl_resp = AsyncMock()
+                        mock_dl_resp.status = 200
+                        mock_dl_resp.read = AsyncMock(return_value=fake_image_bytes)
+                        mock_session = AsyncMock()
+                        mock_session.get = AsyncMock(return_value=mock_dl_resp)
+                        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+                        mock_session.__aexit__ = AsyncMock(return_value=False)
+
+                        with patch(
+                            "services.image_generation_service.aiohttp.ClientSession",
+                            return_value=mock_session,
+                        ):
+                            image_path = await service.generate_image_openai_compatible(
+                                "test prompt", mock_images_directory
+                            )
+
+                        call_kwargs = mock_session.get.call_args.kwargs
+                        assert call_kwargs["headers"] == {}
                         assert os.path.exists(image_path)

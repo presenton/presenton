@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ConfigurationInitializer } from "@/app/ConfigurationInitializer";
-import Home from "@/components/Home";
+import Image from "next/image";
 import { getApiUrl } from "@/utils/api";
+import { isAuthDisabled } from "@/utils/auth";
 import { formatFastApiDetail, UNAUTHORIZED_DETAIL } from "@/utils/authErrors";
 import { notify } from "@/components/ui/sonner";
 
@@ -22,6 +22,7 @@ const initialStatus: AuthStatus = {
 export default function AuthGate() {
   const [status, setStatus] = useState<AuthStatus>(initialStatus);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -29,8 +30,32 @@ export default function AuthGate() {
   const isSetupMode = useMemo(() => !status.configured, [status.configured]);
 
   useEffect(() => {
+    if (isAuthDisabled()) {
+      setStatus({
+        configured: true,
+        authenticated: true,
+        username: "electron",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     void refreshStatus();
   }, []);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      isLoading ||
+      !status.authenticated ||
+      isRedirecting
+    ) {
+      return;
+    }
+
+    setIsRedirecting(true);
+    window.location.replace("/");
+  }, [isLoading, isRedirecting, status.authenticated]);
 
   useEffect(() => {
     if (typeof window === "undefined" || isLoading) {
@@ -180,12 +205,19 @@ export default function AuthGate() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isRedirecting || status.authenticated) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white p-6">
         <div className="relative z-10 w-full max-w-md">
           <div className="rounded-2xl border border-[#EDEEEF] bg-white p-8 text-center shadow-xl">
-            <img src="/Logo.png" alt="Presenton" className="mx-auto mb-5 h-12 opacity-95" />
+            <Image
+              src="/Logo.png"
+              alt="Presenton"
+              width={160}
+              height={48}
+              className="mx-auto mb-5 h-12 w-auto opacity-95"
+              priority
+            />
             <div className="mx-auto mb-4 h-1 w-16 rounded-full bg-[#7C51F8]" />
             <h1 className="font-syne text-lg font-semibold text-black">Presenton</h1>
             <p className="mt-3 font-syne text-sm text-[#000000CC]">Preparing your workspace…</p>
@@ -206,21 +238,19 @@ export default function AuthGate() {
     );
   }
 
-  if (status.authenticated) {
-    return (
-      <ConfigurationInitializer>
-        <Home />
-      </ConfigurationInitializer>
-    );
-  }
-
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white p-6">
       <section className="relative z-10 w-full max-w-xl rounded-2xl border border-[#E1E1E5] bg-white p-7 shadow-xl sm:p-10">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[4px] bg-[#F4F3FF] p-3">
-              <img src="/logo-with-bg.png" alt="" className="h-10 w-10 object-contain" />
+              <Image
+                src="/logo-with-bg.png"
+                alt=""
+                width={40}
+                height={40}
+                className="h-10 w-10 object-contain"
+              />
             </div>
             <div>
               <p className="font-syne text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7A5AF8]">

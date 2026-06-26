@@ -1,0 +1,20 @@
+Replace this marker with the real MAS distribution provisioning profile.
+
+Required final file name:
+
+MacAppStore.provisionprofile
+
+Where it should live:
+
+electron/build/MacAppStore.provisionprofile
+
+How to create it:
+
+1. Go to Apple Developer > Certificates, Identifiers & Profiles > Profiles.
+2. Create a Mac App Store Connect distribution provisioning profile.
+3. Select the explicit App ID: com.presenton.presenton.
+4. Select the Apple Distribution certificate installed on the Mac.
+5. Download the profile.
+6. Rename or copy it to MacAppStore.provisionprofile in this folder.
+
+Do not commit the real .provisionprofile file. It is ignored by git.

@@ -55,8 +55,13 @@ function bundledConverterPath(exportRoot: string): string {
   if (fromEnv) {
     return fromEnv;
   }
-  if (process.platform === "linux" && process.arch === "x64") {
-    return path.join(exportRoot, "py", "convert-linux-x64");
+  if (process.platform === "linux") {
+    if (process.arch === "x64") {
+      return path.join(exportRoot, "py", "convert-linux-x64");
+    }
+    if (process.arch === "arm64") {
+      return path.join(exportRoot, "py", "convert-linux-arm64");
+    }
   }
   throw new Error(
     `No bundled export converter for ${process.platform}/${process.arch}. Set BUILT_PYTHON_MODULE_PATH.`

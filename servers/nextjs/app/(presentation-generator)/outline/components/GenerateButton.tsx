@@ -18,7 +18,10 @@ const GenerateButton: React.FC<GenerateButtonProps> = ({
   onSubmit,
 }) => {
   const isDisabled =
-    loadingState.isLoading || streamState.isLoading || streamState.isStreaming;
+    loadingState.isLoading ||
+    streamState.isLoading ||
+    streamState.isStreaming ||
+    !selectedTemplate;
 
   const getButtonText = () => {
     if (loadingState.isLoading) return loadingState.message;

@@ -1,3 +1,9 @@
+const presentonHttpHostPort =
+  process.env.PRESENTON_HTTP_HOST_PORT ||
+  process.env.PRESENTON_HOST_HTTP_PORT ||
+  process.env.PRESENTON_PUBLIC_PORT ||
+  "5001";
+
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
@@ -14,21 +20,14 @@ const nextConfig = {
     : {}),
 
   // Rewrites for development - proxy font requests to FastAPI backend
-async rewrites() {
-  const backend =
-    process.env.FAST_API_INTERNAL_URL || "http://127.0.0.1:8000";
-
-  return [
-    {
-      source: "/api/:path*",
-      destination: `${backend}/api/:path*`,
-    },
-    {
-      source: "/app_data/:path*",
-      destination: `${backend}/app_data/:path*`,
-    },
-  ];
-},
+  async rewrites() {
+    return [
+      {
+        source: '/app_data/fonts/:path*',
+        destination: `http://localhost:${presentonHttpHostPort}/app_data/fonts/:path*`,
+      },
+    ];
+  },
 
   images: {
     remotePatterns: [

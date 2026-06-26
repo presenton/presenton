@@ -72,16 +72,17 @@ function padVis(styled, width) {
  * @param {object} [opts]
  * @param {number} [opts.nextPort]
  * @param {number} [opts.fastapiPort]
- * @param {string} [opts.hostHttpPort] — host-published HTTP port (docker -p HOST:80). Default from env or "5000".
+ * @param {string} [opts.hostHttpPort] — host-published HTTP port (docker -p HOST:80). Default from env or "5001".
  */
 export function printPresentonStartupBanner(opts = {}) {
   const nextPort = opts.nextPort ?? 3000;
   const fastapiPort = opts.fastapiPort ?? 8000;
   const hostHttpPort =
     opts.hostHttpPort ??
+    process.env.PRESENTON_HTTP_HOST_PORT ??
     process.env.PRESENTON_HOST_HTTP_PORT ??
     process.env.PRESENTON_PUBLIC_PORT ??
-    "5000";
+    "5001";
 
   const nextUrl = `http://127.0.0.1:${nextPort}`;
   const apiUrl = `http://127.0.0.1:${fastapiPort}`;

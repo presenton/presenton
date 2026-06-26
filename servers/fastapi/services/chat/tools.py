@@ -1,35 +1,57 @@
 import json
 import logging
 import re
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal
 
 import dirtyjson  # type: ignore[import-untyped]
 from llmai.shared import AssistantToolCall, Tool  # type: ignore[import-not-found]
 
 from services.chat.schemas import (
+    AddOutlineInput,
     DeleteSlideInput,
+    DeleteOutlineInput,
     GenerateAssetsInput,
     GenerateIconInput,
     GenerateImageInput,
     GetContentSchemaFromLayoutIdInput,
     GetSlideAtIndexInput,
+    MoveOutlineInput,
     NoArgsInput,
     SaveSlideInput,
     SearchSlidesInput,
     SetPresentationThemeInput,
+    UpdateOutlineInput,
 )
 from services.chat.presentation_context_store import PresentationContextStore
 
 LOGGER = logging.getLogger(__name__)
 
 ToolHandler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+ChatToolMode = Literal["presentation", "outline"]
+OUTLINE_TOOL_NAMES = {
+    "getOutlineDraft",
+    "addOutline",
+    "updateOutline",
+    "deleteOutline",
+    "moveOutline",
+}
 
 
 class ChatTools:
-    def __init__(self, memory: PresentationContextStore):
+    def __init__(
+        self,
+        memory: PresentationContextStore,
+        mode: ChatToolMode = "presentation",
+    ):
         self._memory = memory
+        self._mode = mode
         self._tool_handlers: dict[str, ToolHandler] = {
             "getPresentationOutline": self._get_presentation_outline,
+            "getOutlineDraft": self._get_outline_draft,
+            "addOutline": self._add_outline,
+            "updateOutline": self._update_outline,
+            "deleteOutline": self._delete_outline,
+            "moveOutline": self._move_outline,
             "searchSlides": self._search_slides,
             "getSlideAtIndex": self._get_slide_at_index,
             "getPresentationThemeCatalog": self._get_presentation_theme_catalog,
@@ -44,7 +66,7 @@ class ChatTools:
         }
 
     def get_tool_definitions(self) -> list[Tool]:
-        return [
+        definitions = [
             Tool(
                 name="getPresentationOutline",
                 description=(
@@ -54,6 +76,52 @@ class ChatTools:
                     "Return compact sections (no full slide JSON). Use for flow, sections, or 'what slides exist'."
                 ),
                 schema=NoArgsInput,
+                strict=True,
+            ),
+            Tool(
+                name="getOutlineDraft",
+                description=(
+                    "Read the stored outline draft from presentation.outlines with full "
+                    "markdown content. Use on the outline page before layouts are selected "
+                    "or whenever the user asks to edit outlines rather than rendered slides."
+                ),
+                schema=NoArgsInput,
+                strict=True,
+            ),
+            Tool(
+                name="addOutline",
+                description=(
+                    "Insert a new markdown outline item into the outline draft. "
+                    "This edits presentation.outlines only and does not require a layout."
+                ),
+                schema=AddOutlineInput,
+                strict=True,
+            ),
+            Tool(
+                name="updateOutline",
+                description=(
+                    "Replace the markdown content of one outline item by zero-based index. "
+                    "This edits presentation.outlines only and does not require a layout."
+                ),
+                schema=UpdateOutlineInput,
+                strict=True,
+            ),
+            Tool(
+                name="deleteOutline",
+                description=(
+                    "Delete one outline item by zero-based index. This edits "
+                    "presentation.outlines only and does not require a layout."
+                ),
+                schema=DeleteOutlineInput,
+                strict=True,
+            ),
+            Tool(
+                name="moveOutline",
+                description=(
+                    "Move one outline item from fromIndex to toIndex. This reorders "
+                    "presentation.outlines only and does not require a layout."
+                ),
+                schema=MoveOutlineInput,
                 strict=True,
             ),
             Tool(
@@ -153,6 +221,18 @@ class ChatTools:
                 schema=SetPresentationThemeInput,
                 strict=True,
             ),
+        ]
+        if self._mode == "outline":
+            return [
+                tool
+                for tool in definitions
+                if tool.name in OUTLINE_TOOL_NAMES
+            ]
+
+        return [
+            tool
+            for tool in definitions
+            if tool.name not in OUTLINE_TOOL_NAMES
         ]
 
     async def execute_tool_call(self, tool_call: AssistantToolCall) -> dict[str, Any]:
@@ -273,6 +353,34 @@ class ChatTools:
             "found": True,
             "slide": slide,
         }
+
+    async def _get_outline_draft(self, _: dict[str, Any]) -> dict[str, Any]:
+        return await self._memory.get_outline_draft()
+
+    async def _add_outline(self, args: dict[str, Any]) -> dict[str, Any]:
+        payload = AddOutlineInput(**args)
+        return await self._memory.add_outline(
+            content=payload.content,
+            index=payload.index,
+        )
+
+    async def _update_outline(self, args: dict[str, Any]) -> dict[str, Any]:
+        payload = UpdateOutlineInput(**args)
+        return await self._memory.update_outline(
+            index=payload.index,
+            content=payload.content,
+        )
+
+    async def _delete_outline(self, args: dict[str, Any]) -> dict[str, Any]:
+        payload = DeleteOutlineInput(**args)
+        return await self._memory.delete_outline(index=payload.index)
+
+    async def _move_outline(self, args: dict[str, Any]) -> dict[str, Any]:
+        payload = MoveOutlineInput(**args)
+        return await self._memory.move_outline(
+            from_index=payload.from_index,
+            to_index=payload.to_index,
+        )
 
     async def _get_available_layouts(self, _: dict[str, Any]) -> dict[str, Any]:
         layouts = await self._memory.get_available_layouts()

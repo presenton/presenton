@@ -28,6 +28,66 @@ export interface LLMProviderOption {
   getApiKeyUrl?: string;
 }
 
+export interface WebSearchProviderOption {
+  value: string;
+  label: string;
+  description: string;
+  icon?: string;
+  apiKeyField?: string;
+  apiKeyLabel?: string;
+  urlField?: string;
+  urlLabel?: string;
+}
+
+export const WEB_SEARCH_PROVIDERS: Record<string, WebSearchProviderOption> = {
+  auto: {
+    value: "auto",
+    label: "Default (Model)",
+    description:
+      "Use model-native web grounding when available. Otherwise web search stays off until you choose an external provider.",
+    icon: "/providers/model-search.svg",
+  },
+  searxng: {
+    value: "searxng",
+    label: "SearXNG",
+    description: "Use a self-hosted SearXNG instance.",
+    icon: "/providers/searxng.svg",
+    urlField: "SEARXNG_BASE_URL",
+    urlLabel: "SearXNG base URL",
+  },
+  tavily: {
+    value: "tavily",
+    label: "Tavily",
+    description: "Search API optimized for AI applications.",
+    icon: "/providers/tavily.png",
+    apiKeyField: "TAVILY_API_KEY",
+    apiKeyLabel: "Tavily API key",
+  },
+  exa: {
+    value: "exa",
+    label: "Exa",
+    description: "AI-native web search with extracted result highlights.",
+    icon: "/providers/exa.png",
+    apiKeyField: "EXA_API_KEY",
+    apiKeyLabel: "Exa API key",
+  },
+  brave: {
+    value: "brave",
+    label: "Brave",
+    description: "Brave Search API for web search results.",
+    icon: "/providers/brave.svg",
+    apiKeyField: "BRAVE_SEARCH_API_KEY",
+    apiKeyLabel: "Brave Search API key",
+  },
+  // serper: {
+  //   value: "serper",
+  //   label: "Serper",
+  //   description: "Google search results via Serper.",
+  //   apiKeyField: "SERPER_API_KEY",
+  //   apiKeyLabel: "Serper API key",
+  // },
+};
+
 export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
   pexels: {
     value: "pexels",
@@ -102,7 +162,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     value: "open_webui",
     label: "Open WebUI",
     description: "Use your Open WebUI server for image generation",
-    icon: "/icons/open-webui.png",
+    icon: "/providers/open-webui.png",
     requiresApiKey: false,
     apiKeyField: "OPEN_WEBUI_IMAGE_URL",
     apiKeyFieldLabel: "Open WebUI URL",
@@ -133,6 +193,14 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     url: "https://api.openai.com/v1",
     icon: "/providers/openai.png",
     getApiKeyUrl: "https://www.google.com/search?q=how+to+get+openai+api+key&ie=UTF-8",
+  },
+  deepseek: {
+    value: "deepseek",
+    label: "DeepSeek",
+    description: "DeepSeek models via DeepSeek API",
+    url: "https://api.deepseek.com/v1",
+    icon: "/providers/openai.png",
+    getApiKeyUrl: "https://platform.deepseek.com/api_keys",
   },
   google: {
     value: "google",
@@ -205,7 +273,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     label: "LM Studio",
     description: "Local LM Studio OpenAI-compatible server",
     url: "http://localhost:1234/v1",
-    icon: "/providers/custom.svg",
+    icon: "/providers/lm-studio.svg",
   },
   anthropic: {
     value: "anthropic",

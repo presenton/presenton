@@ -3,7 +3,7 @@ import random
 import re
 import uuid
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Awaitable, Callable, List, Optional
 
 import aiohttp
 from fastapi import Body, Depends, File, Form, HTTPException, Path, Query, UploadFile
@@ -20,6 +20,12 @@ from services.database import async_session_maker, get_async_session
 from services.export_task_service import EXPORT_TASK_SERVICE
 from templates.example import build_template_example
 from templates.get_layout_by_name import get_layout_by_name
+from templates.layout_code_validation import (
+    LayoutCodeValidationError,
+    LayoutCodeValidationServiceError,
+    ValidatedLayoutCode,
+    validate_layout_code,
+)
 from templates.presentation_layout import PresentationLayoutModel
 from templates.preview import (
     FontsUploadAndSlidesPreviewResponse,
@@ -41,6 +47,9 @@ from utils.asset_directory_utils import (
     resolve_app_path_to_filesystem,
     resolve_image_path_to_filesystem,
 )
+
+
+LAYOUT_CODE_REPAIR_ATTEMPTS = 3
 
 
 class TemplateDetail(BaseModel):
@@ -163,14 +172,50 @@ def _strip_code_fences(value: str) -> str:
     )
 
 
-def _normalize_layout_code_for_create(code: str) -> str:
-    normalized = _strip_code_fences(code)
-    normalized = (
-        normalized.replace("image_url", "__image_url__")
-        .replace("icon_url", "__icon_url__")
-        .replace("image_prompt", "__image_prompt__")
-        .replace("icon_query", "__icon_query__")
+_ASSET_FIELD_REPLACEMENTS = {
+    "image_url": "__image_url__",
+    "icon_url": "__icon_url__",
+    "image_prompt": "__image_prompt__",
+    "icon_query": "__icon_query__",
+}
+
+_ASSET_FIELD_DEFAULTS = {
+    "__image_url__": "/static/images/replaceable_template_image.png",
+    "__icon_url__": "/static/icons/placeholder.svg",
+    "__image_prompt__": "replaceable image",
+    "__icon_query__": "placeholder icon",
+}
+
+
+def _normalize_asset_fields(code: str) -> str:
+    normalized = code
+    for field_name, normalized_name in _ASSET_FIELD_REPLACEMENTS.items():
+        normalized = re.sub(
+            rf"(?<!_)\b{re.escape(field_name)}\b(?!_)",
+            normalized_name,
+            normalized,
+        )
+
+    # Models occasionally emit a bare object shorthand without a comma/value:
+    #   icon: {
+    #     __icon_url__
+    #     __icon_query__: "play"
+    #   }
+    # These asset fields are not in scope as variables, so make them valid defaults.
+    def replace_bare_asset_field(match: re.Match[str]) -> str:
+        indentation, field_name = match.groups()
+        default_value = _ASSET_FIELD_DEFAULTS[field_name]
+        return f'{indentation}{field_name}: "{default_value}",'
+
+    return re.sub(
+        r"(?m)^(\s*)(__(?:image_url|icon_url|image_prompt|icon_query)__)\s*,?\s*$",
+        replace_bare_asset_field,
+        normalized,
     )
+
+
+def _normalize_layout_code_for_create(code: str) -> str:
+    normalized = _normalize_asset_fields(_strip_code_fences(code))
 
     first_import_match = re.search(r"(?m)^\s*import\b", normalized)
     if first_import_match:
@@ -221,6 +266,89 @@ def _update_layout_id_in_code(code: str) -> tuple[str, str]:
         count=1,
     )
     return new_code, new_id
+
+
+def _validation_error_message(exc: LayoutCodeValidationError) -> str:
+    location = ""
+    if exc.line is not None:
+        location = f" at {exc.line}:{exc.column or 1}"
+    return f"{exc.error}{location}"
+
+
+def _validation_repair_user_text(
+    *,
+    original_user_text: str,
+    invalid_code: str,
+    validation_error: LayoutCodeValidationError,
+) -> str:
+    return (
+        f"{original_user_text}\n\n"
+        "#VALIDATION ERROR\n"
+        "The TSX code you returned failed validation. Return a complete corrected "
+        "TSX layout code only, with no markdown fences and no explanation.\n"
+        f"Error: {_validation_error_message(validation_error)}\n\n"
+        "#INVALID TSX CODE RETURNED\n"
+        f"{invalid_code}"
+    )
+
+
+async def _validate_submitted_layout_code(code: str) -> ValidatedLayoutCode:
+    try:
+        return await validate_layout_code(code)
+    except LayoutCodeValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.to_detail()) from exc
+    except LayoutCodeValidationServiceError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Layout code validation service failed: {str(exc)}",
+        ) from exc
+
+
+async def _validate_provider_layout_code_or_retry(
+    *,
+    code: str,
+    retry_call: Callable[[str], Awaitable[str]],
+    original_user_text: str,
+    normalize_code: Callable[[str], str],
+) -> ValidatedLayoutCode:
+    normalized_code = normalize_code(code)
+    try:
+        return await validate_layout_code(normalized_code)
+    except LayoutCodeValidationError as validation_error:
+        invalid_code = normalized_code
+        last_error = validation_error
+
+        for _attempt in range(LAYOUT_CODE_REPAIR_ATTEMPTS):
+            repair_user_text = _validation_repair_user_text(
+                original_user_text=original_user_text,
+                invalid_code=invalid_code,
+                validation_error=last_error,
+            )
+            repaired_code = normalize_code(await retry_call(repair_user_text))
+            try:
+                return await validate_layout_code(repaired_code)
+            except LayoutCodeValidationError as retry_error:
+                invalid_code = repaired_code
+                last_error = retry_error
+            except LayoutCodeValidationServiceError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Layout code validation service failed: {str(exc)}",
+                ) from exc
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Template provider returned invalid layout code after "
+                f"{LAYOUT_CODE_REPAIR_ATTEMPTS} repair attempts: "
+                f"{_validation_error_message(last_error)}"
+            ),
+        ) from last_error
+    except LayoutCodeValidationServiceError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Layout code validation service failed: {str(exc)}",
+        ) from exc
 
 
 async def _download_image_bytes(image_url: str) -> bytes:
@@ -462,15 +590,23 @@ async def _create_slide_layout_impl(
         fonts_text = "#PROVIDED FONTS\n- " + "\n- ".join(font_names)
 
     user_text = f"{fonts_text}\n\n#SLIDE HTML REFERENCE\n{slide_html}"
-    react_component = await generate_slide_layout_code(
-        system_prompt=SLIDE_LAYOUT_CREATION_SYSTEM_PROMPT,
-        user_text=user_text,
-        image_bytes=image_bytes,
-        media_type=media_type,
-    )
-    normalized_react_component = _normalize_layout_code_for_create(react_component)
+    async def retry_generation(repair_user_text: str) -> str:
+        return await generate_slide_layout_code(
+            system_prompt=SLIDE_LAYOUT_CREATION_SYSTEM_PROMPT,
+            user_text=repair_user_text,
+            image_bytes=image_bytes,
+            media_type=media_type,
+        )
 
-    return CreateSlideLayoutResponse(react_component=normalized_react_component)
+    react_component = await retry_generation(user_text)
+    validated = await _validate_provider_layout_code_or_retry(
+        code=react_component,
+        retry_call=retry_generation,
+        original_user_text=user_text,
+        normalize_code=_normalize_layout_code_for_create,
+    )
+
+    return CreateSlideLayoutResponse(react_component=validated.layout_code)
 
 
 async def create_slide_layout(
@@ -511,11 +647,21 @@ async def edit_slide_layout(
     request: EditSlideLayoutRequest,
 ):
     user_text = f"#Prompt\n{request.prompt}\n\n#TSX code\n{request.react_component}"
-    react_component = await edit_slide_layout_code(
-        system_prompt=SLIDE_LAYOUT_EDIT_SYSTEM_PROMPT,
-        user_text=user_text,
+
+    async def retry_edit(repair_user_text: str) -> str:
+        return await edit_slide_layout_code(
+            system_prompt=SLIDE_LAYOUT_EDIT_SYSTEM_PROMPT,
+            user_text=repair_user_text,
+        )
+
+    react_component = await retry_edit(user_text)
+    validated = await _validate_provider_layout_code_or_retry(
+        code=react_component,
+        retry_call=retry_edit,
+        original_user_text=user_text,
+        normalize_code=lambda code: _normalize_asset_fields(_strip_code_fences(code)),
     )
-    return EditSlideLayoutResponse(react_component=_strip_code_fences(react_component))
+    return EditSlideLayoutResponse(react_component=validated.layout_code)
 
 
 async def edit_slide_layout_section(
@@ -526,13 +672,20 @@ async def edit_slide_layout_section(
         f"#Section to make changes around\n{request.section}\n\n"
         f"#TSX code\n{request.react_component}"
     )
-    react_component = await edit_slide_layout_code(
-        system_prompt=SLIDE_LAYOUT_EDIT_SECTION_SYSTEM_PROMPT,
-        user_text=user_text,
+    async def retry_edit(repair_user_text: str) -> str:
+        return await edit_slide_layout_code(
+            system_prompt=SLIDE_LAYOUT_EDIT_SECTION_SYSTEM_PROMPT,
+            user_text=repair_user_text,
+        )
+
+    react_component = await retry_edit(user_text)
+    validated = await _validate_provider_layout_code_or_retry(
+        code=react_component,
+        retry_call=retry_edit,
+        original_user_text=user_text,
+        normalize_code=lambda code: _normalize_asset_fields(_strip_code_fences(code)),
     )
-    return EditSlideLayoutSectionResponse(
-        react_component=_strip_code_fences(react_component)
-    )
+    return EditSlideLayoutSectionResponse(react_component=validated.layout_code)
 
 
 async def save_template(
@@ -546,6 +699,12 @@ async def save_template(
     if not template_info:
         raise HTTPException(status_code=400, detail="Template info not found")
 
+    validated_layouts: list[tuple[SaveTemplateLayoutData, ValidatedLayoutCode]] = []
+    for layout in request.layouts:
+        validated_layouts.append(
+            (layout, await _validate_submitted_layout_code(layout.layout_code))
+        )
+
     template = TemplateModel(
         id=uuid.uuid4(),
         name=request.name,
@@ -557,12 +716,12 @@ async def save_template(
         [
             PresentationLayoutCodeModel(
                 presentation=template.id,
-                layout_id=layout.layout_id,
-                layout_name=layout.layout_name,
-                layout_code=layout.layout_code,
+                layout_id=validated.layout_id or layout.layout_id,
+                layout_name=validated.layout_name or layout.layout_name,
+                layout_code=validated.layout_code,
                 fonts=template_info.fonts,
             )
-            for layout in request.layouts
+            for layout, validated in validated_layouts
         ]
     )
     await sql_session.commit()
@@ -647,6 +806,12 @@ async def update_template(
     if not template:
         raise HTTPException(status_code=400, detail="Template not found")
 
+    validated_layouts: list[tuple[SaveTemplateLayoutData, ValidatedLayoutCode]] = []
+    for layout in request.layouts:
+        validated_layouts.append(
+            (layout, await _validate_submitted_layout_code(layout.layout_code))
+        )
+
     existing_layout = await sql_session.scalar(
         select(PresentationLayoutCodeModel).where(
             PresentationLayoutCodeModel.presentation == request.id
@@ -663,12 +828,12 @@ async def update_template(
         [
             PresentationLayoutCodeModel(
                 presentation=template.id,
-                layout_id=layout.layout_id,
-                layout_name=layout.layout_name,
-                layout_code=layout.layout_code,
+                layout_id=validated.layout_id or layout.layout_id,
+                layout_name=validated.layout_name or layout.layout_name,
+                layout_code=validated.layout_code,
                 fonts=fonts,
             )
-            for layout in request.layouts
+            for layout, validated in validated_layouts
         ]
     )
     await sql_session.commit()
@@ -698,7 +863,10 @@ async def save_slide_layout(
     if not layout:
         raise HTTPException(status_code=400, detail="Layout not found")
 
-    layout.layout_code = request.layout_code
+    validated = await _validate_submitted_layout_code(request.layout_code)
+    layout.layout_code = validated.layout_code
+    layout.layout_id = validated.layout_id or layout.layout_id
+    layout.layout_name = validated.layout_name or layout.layout_name
     sql_session.add(layout)
     await sql_session.commit()
 

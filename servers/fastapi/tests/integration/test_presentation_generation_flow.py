@@ -165,6 +165,53 @@ def test_prepare_presentation_preserves_payload_icon_weight():
 
     assert response.layout["icon_weight"] == "thin"
     assert response.get_layout().icon_weight == "thin"
+    assert response.language == ""
+
+
+def test_prepare_presentation_clears_stale_language_for_reviewed_outlines():
+    presentation_id = uuid.uuid4()
+    presentation = PresentationModel(
+        id=presentation_id,
+        content="global warming deck",
+        n_slides=1,
+        language="Spanish (Español)",
+        tone="default",
+        verbosity="standard",
+        instructions=None,
+    )
+    session = FakeAsyncSession(get_results={presentation_id: presentation})
+    layout = PresentationLayoutModel(
+        name="swift",
+        ordered=False,
+        slides=[
+            SlideLayoutModel(
+                id="swift:feature",
+                name="Feature",
+                description="Feature slide",
+                json_schema={"title": "Feature"},
+            )
+        ],
+    )
+
+    with patch.object(
+        presentation_endpoint,
+        "generate_presentation_structure",
+        new=AsyncMock(return_value=PresentationStructureModel(slides=[0])),
+    ), patch.object(
+        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+        "store_generated_outlines",
+        new=AsyncMock(),
+    ):
+        response = _run(
+            presentation_endpoint.prepare_presentation(
+                presentation_id=presentation_id,
+                outlines=[SlideOutlineModel(content="## 全球变暖的原因")],
+                layout=layout,
+                sql_session=session,
+            )
+        )
+
+    assert response.language == ""
 
 
 def test_generate_presentation_sync_rejects_invalid_slide_count(fake_async_session):
@@ -179,6 +226,7 @@ def test_generate_presentation_sync_rejects_invalid_slide_count(fake_async_sessi
     with pytest.raises(HTTPException) as exc:
         _run(
             presentation_endpoint.generate_presentation_sync(
+                request_http=Mock(cookies={}),
                 request=request,
                 sql_session=fake_async_session,
             )

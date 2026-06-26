@@ -1,5 +1,5 @@
 {
-  "description": "Data and narrative report layouts for intros, analysis charts, dashboards, and closing slides",
+  "description": "Data and narrative report layouts for summaries, section indexes, methodology, findings, charts, risks, actions, appendix notes, and closing structures",
   "ordered": false,
   "default": false,
   "icon_weight": "regular"

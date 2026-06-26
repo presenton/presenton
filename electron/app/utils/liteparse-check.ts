@@ -1,6 +1,6 @@
 import path from "path";
-import { baseDir } from "./constants";
+import { resourceBaseDir } from "./constants";
 
 export function getLiteParseRunnerPath(): string {
-  return path.join(baseDir, "resources", "document-extraction", "liteparse_runner.mjs");
+  return path.join(resourceBaseDir, "resources", "document-extraction", "liteparse_runner.mjs");
 }

@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Send,
   Square,
+  UserRound,
 } from "lucide-react";
 import React, {
   FormEvent,
@@ -24,6 +25,9 @@ import { notify } from "@/components/ui/sonner";
 import MarkdownRenderer from "@/components/MarkDownRender";
 import { PresentationChatApi } from "../../services/api/chat";
 import type { ChatStreamTrace } from "../../services/api/chat";
+import { is } from "@babel/types";
+import ToolTip from "@/components/ToolTip";
+import { cn } from "@/lib/utils";
 
 const suggestions: { id: string; icon: ReactNode; suggestion: string }[] = [
   {
@@ -216,11 +220,14 @@ const suggestions: { id: string; icon: ReactNode; suggestion: string }[] = [
   },
 ];
 
-const quickPrompts = [
-  "Expand each section",
-  "Reorder for storytelling",
-  "Add missing sections",
-  "Convert to pitch flow",
+const outlineQuickPrompts = [
+  "Expand outline",
+  "Shorten outline",
+  "Reorder sections",
+  "Merge similar slides",
+  "Split large sections",
+  "Improve conclusion",
+  "Improve introduction",
 ];
 
 type ChatMessage = {
@@ -233,7 +240,9 @@ type ChatMessage = {
 
 type ChatProps = {
   presentationId: string;
+  variant?: "presentation" | "outline";
   currentSlide?: number;
+  onBeforeSend?: () => Promise<void> | void;
   onPresentationChanged?: () => Promise<void> | void;
   onChatMutationStateChange?: (isMutating: boolean) => void;
   onAgentSlideFocus?: (focus: {
@@ -276,6 +285,11 @@ const AssistantMarker = () => (
 
 const TOOL_LABELS: Record<string, string> = {
   getPresentationOutline: "Outline reader",
+  getOutlineDraft: "Outline draft reader",
+  addOutline: "Outline adder",
+  updateOutline: "Outline editor",
+  deleteOutline: "Outline remover",
+  moveOutline: "Outline reorderer",
   searchSlides: "Slide search",
   getSlideAtIndex: "Slide reader",
   getPresentationThemeCatalog: "Theme catalog",
@@ -287,7 +301,15 @@ const TOOL_LABELS: Record<string, string> = {
   setPresentationTheme: "Theme applier",
 };
 
-const MUTATING_TOOLS = new Set(["saveSlide", "deleteSlide", "setPresentationTheme"]);
+const MUTATING_TOOLS = new Set([
+  "addOutline",
+  "updateOutline",
+  "deleteOutline",
+  "moveOutline",
+  "saveSlide",
+  "deleteSlide",
+  "setPresentationTheme",
+]);
 // Only focus slides when the agent is actively mutating them.
 // Read/open traces (e.g. getSlideAtIndex) can happen ahead of edits and feel jumpy.
 const SLIDE_FOCUS_TOOLS = new Set(["saveSlide", "deleteSlide"]);
@@ -313,6 +335,21 @@ const humanizeTraceMessage = (message: string, tool?: string) => {
   }
   if (lower === "reading the presentation outline") {
     return "Reading the presentation outline.";
+  }
+  if (lower === "reading the outline draft") {
+    return "Reading the outline draft.";
+  }
+  if (lower === "adding an outline slide") {
+    return "Adding an outline slide.";
+  }
+  if (lower === "updating the outline slide") {
+    return "Updating the outline slide.";
+  }
+  if (lower === "deleting the outline slide") {
+    return "Deleting the outline slide.";
+  }
+  if (lower === "reordering outline slides") {
+    return "Reordering outline slides.";
   }
   if (lower === "searching relevant slides") {
     return "Searching slides for relevant content.";
@@ -491,7 +528,9 @@ const readTraceSlideIndex = (trace: ChatStreamTrace) => {
 
 const Chat = ({
   presentationId,
+  variant = "presentation",
   currentSlide,
+  onBeforeSend,
   onPresentationChanged,
   onChatMutationStateChange,
   onAgentSlideFocus,
@@ -641,7 +680,10 @@ const Chat = ({
     []
   );
 
-  const updateMutationToolActivity = (tool: string | undefined, isActive: boolean) => {
+  const updateMutationToolActivity = (
+    tool: string | undefined,
+    isActive: boolean
+  ) => {
     if (!tool || !MUTATING_TOOLS.has(tool)) {
       return;
     }
@@ -709,7 +751,9 @@ const Chat = ({
         return;
       }
 
-      const traceSignature = `${trace.round ?? "?"}:${trace.tool}:${trace.status}:${targetSlideIndex}`;
+      const traceSignature = `${trace.round ?? "?"}:${trace.tool}:${
+        trace.status
+      }:${targetSlideIndex}`;
       if (lastFollowedTraceRef.current === traceSignature) {
         return;
       }
@@ -739,16 +783,27 @@ const Chat = ({
   );
 
   const buildBackendMessage = (message: string) => {
-    if (typeof currentSlide !== "number") {
+    const contextLines: string[] = [];
+
+    if (variant === "outline") {
+      contextLines.push(
+        "UI context: the user is editing the outline draft before template/layout selection. Use outline draft tools for outline add/edit/delete/reorder requests; do not use layout or finished-slide tools for outline-only edits."
+      );
+    }
+
+    if (typeof currentSlide === "number") {
+      contextLines.push(
+        `UI context: the currently selected slide is slide ${
+          currentSlide + 1
+        } (zero-based index ${currentSlide}).`
+      );
+    }
+
+    if (contextLines.length === 0) {
       return message;
     }
 
-    return [
-      `UI context: the currently selected slide is slide ${
-        currentSlide + 1
-      } (zero-based index ${currentSlide}).`,
-      `User message: ${message}`,
-    ].join("\n");
+    return [...contextLines, `User message: ${message}`].join("\n");
   };
 
   const resetChat = () => {
@@ -779,8 +834,11 @@ const Chat = ({
     try {
       await onPresentationChanged();
     } catch (error) {
-      console.error("Failed to refresh presentation after tool mutation:", error);
-      notify.error("Refresh failed", "Slides were saved, but refresh failed.");
+      console.error(
+        "Failed to refresh presentation after tool mutation:",
+        error
+      );
+      notify.error("Refresh failed", "Changes were saved, but refresh failed.");
     } finally {
       refreshInFlightRef.current = false;
       if (refreshQueuedRef.current) {
@@ -791,12 +849,9 @@ const Chat = ({
   }, [onPresentationChanged]);
 
   const refreshPresentationIfNeeded = async (toolCalls: string[]) => {
-    const hasSlideMutation =
-      toolCalls.includes("saveSlide") ||
-      toolCalls.includes("deleteSlide") ||
-      toolCalls.includes("setPresentationTheme");
+    const hasMutation = toolCalls.some((tool) => MUTATING_TOOLS.has(tool));
     if (
-      !hasSlideMutation ||
+      !hasMutation ||
       !onPresentationChanged ||
       didIncrementalRefreshRef.current
     ) {
@@ -807,7 +862,7 @@ const Chat = ({
       await onPresentationChanged();
     } catch (error) {
       console.error("Failed to refresh presentation after chat update:", error);
-      notify.error("Refresh failed", "Chat completed, but slide refresh failed.");
+      notify.error("Refresh failed", "Chat completed, but refresh failed.");
     }
   };
 
@@ -905,7 +960,10 @@ const Chat = ({
     }
 
     if (!presentationId) {
-      notify.error("Presentation not ready", "The presentation is not ready yet.");
+      notify.error(
+        "Presentation not ready",
+        "The presentation is not ready yet."
+      );
       return;
     }
 
@@ -942,6 +1000,7 @@ const Chat = ({
     abortControllerRef.current = streamAbortController;
 
     try {
+      await onBeforeSend?.();
       const response = await PresentationChatApi.streamMessage(
         {
           presentation_id: presentationId,
@@ -1102,8 +1161,10 @@ const Chat = ({
     inputRef.current?.focus();
   };
 
+  const isOutlineVariant = variant === "outline";
+
   return (
-    <div className="flex h-full w-full flex-col bg-white">
+    <div className={cn("flex h-full w-full flex-col bg-white", "")}>
       <div className="flex items-center justify-between px-4 pt-8">
         <div className="flex items-center gap-2">
           <h4 className="flex items-center gap-2 text-sm font-semibold text-[#101828]">
@@ -1133,19 +1194,21 @@ const Chat = ({
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={resetChat}
-          disabled={isSending || isHistoryLoading}
-          className="rounded-full p-1 text-[#8C8C8C] transition-colors hover:bg-[#F7F7F7] hover:text-[#191919] disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label="Reset chat"
-          title="Reset chat"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
+        {!isOutlineVariant && (
+          <button
+            type="button"
+            onClick={resetChat}
+            disabled={isSending || isHistoryLoading}
+            className="rounded-full p-1 text-[#8C8C8C] transition-colors hover:bg-[#F7F7F7] hover:text-[#191919] disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Reset chat"
+            title="Reset chat"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-9 hide-scrollbar">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-9 [scrollbar-color:#C7CBD6_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#C7CBD6] [&::-webkit-scrollbar-track]:bg-transparent">
         {isHistoryLoading && messages.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-sm text-[#99A1AF]">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1153,46 +1216,48 @@ const Chat = ({
           </div>
         ) : messages.length === 0 ? (
           <>
-            <div>
-              <h4 className="mb-2 text-[10px] font-normal leading-[15px] tracking-[0.367px] text-[#99A1AF]">
-                SUGGESTIONS
-              </h4>
-              <div className="flex flex-col gap-1.5">
-                {suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion.id}
-                    type="button"
-                    onClick={() => applyPrompt(suggestion.suggestion)}
-                    className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-[#F4F4F4] px-3 py-2 text-left transition-colors hover:bg-[#FAFAFA]"
-                  >
-                    {suggestion.icon}
-                    <span className="text-xs font-normal leading-[15px] tracking-[0.367px] text-[#364153]">
-                      {suggestion.suggestion}
-                    </span>
-                  </button>
-                ))}
+            {isOutlineVariant ? (
+              <div>
+                <h4 className="mb-2 text-[10px] font-normal leading-[15px] tracking-[0.367px] text-[#99A1AF]">
+                  QUICK PROMPTS
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {outlineQuickPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => applyPrompt(prompt)}
+                      className="cursor-pointer rounded-[10px] border border-[#F4F4F4] px-2.5 py-1 text-left transition-colors hover:bg-[#FAFAFA]"
+                    >
+                      <span className="text-[11px] font-normal leading-[15px] tracking-[0.367px] text-[#364153]">
+                        {prompt}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-
-            {/* <div className="mt-10">
-              <h4 className="mb-2 text-[10px] font-normal leading-[15px] tracking-[0.367px] text-[#99A1AF]">
-                QUICK PROMPTS
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {quickPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => applyPrompt(prompt)}
-                    className="cursor-pointer rounded-[10px] border border-[#F4F4F4] px-2.5 py-1 transition-colors hover:bg-[#FAFAFA]"
-                  >
-                    <span className="text-xs font-normal leading-[15px] tracking-[0.367px] text-[#364153]">
-                      {prompt}
-                    </span>
-                  </button>
-                ))}
+            ) : (
+              <div>
+                <h4 className="mb-2 text-[10px] font-normal leading-[15px] tracking-[0.367px] text-[#99A1AF]">
+                  SUGGESTIONS
+                </h4>
+                <div className="flex flex-col gap-1.5">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.id}
+                      type="button"
+                      onClick={() => applyPrompt(suggestion.suggestion)}
+                      className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-[#F4F4F4] px-3 py-2 text-left transition-colors hover:bg-[#FAFAFA]"
+                    >
+                      {suggestion.icon}
+                      <span className="text-xs font-normal leading-[15px] tracking-[0.367px] text-[#364153]">
+                        {suggestion.suggestion}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div> */}
+            )}
           </>
         ) : (
           <div className="flex flex-col gap-9">
@@ -1207,8 +1272,8 @@ const Chat = ({
                       {stripBackendContextFromUserMessage(message.content)}
                     </p>
                   </div>
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FF8617] text-sm font-semibold text-white">
-                    U
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FF8617] text-white">
+                    <UserRound className="h-4 w-4" aria-hidden="true" />
                   </div>
                 </div>
               ) : (
@@ -1313,41 +1378,111 @@ const Chat = ({
           disabled={isSending || isHistoryLoading}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Improve your slides..."
+          placeholder={
+            isOutlineVariant
+              ? "Regenerate this outline"
+              : "Improve your slides..."
+          }
           aria-invalid={Boolean(errorMessage)}
         />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 border border-[#EDEEEF] bg-white px-3 py-1 rounded-[64px]">
             <button
               type="button"
               disabled
-              className="inline-flex h-[28px] items-center rounded-[64px] border border-[#EDEEEF] bg-white px-3 py-1 opacity-50"
+              className="inline-flex h-[28px] items-center rounded-[64px] disabled:opacity-50"
               aria-label="Attach files"
               title="Attachments are not supported yet"
             >
               <Plus className="h-3 w-3 text-black" />
             </button>
-            <button
-              type="button"
-              onClick={() => setIsFollowAgentEnabled((previous) => !previous)}
-              disabled={isHistoryLoading || isSending}
-              className={`inline-flex h-[28px] items-center gap-1 rounded-[64px] border px-2.5 text-[11px] font-medium transition-colors ${
+            <svg
+              className="mx-[8px]"
+              xmlns="http://www.w3.org/2000/svg"
+              width="2"
+              height="17"
+              viewBox="0 0 2 17"
+              fill="none"
+            >
+              <path d="M1 0V16.5" stroke="#EDECEC" strokeWidth="2" />
+            </svg>
+            <ToolTip
+              content={
                 isFollowAgentEnabled
-                  ? "border-[#D9D6FE] bg-[#F4F3FF] text-[#5A3ECC]"
-                  : "border-[#E5E7EB] bg-white text-[#667085]"
-              } disabled:cursor-not-allowed disabled:opacity-50`}
-              aria-label={
-                isFollowAgentEnabled ? "Disable follow AI mode" : "Enable follow AI mode"
-              }
-              title={
-                isFollowAgentEnabled
-                  ? "Follow AI is on: auto-jump to active slide"
-                  : "Follow AI is off"
+                  ? "Disable follow AI mode"
+                  : "Enable follow AI mode"
               }
             >
-              <LocateFixed className="h-3 w-3" />
-              <span>{isFollowAgentEnabled ? "Following" : "Follow AI"}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsFollowAgentEnabled((previous) => !previous)}
+                disabled={isHistoryLoading || isSending}
+                className={`inline-flex h-[28px] items-center gap-1 rounded-[64px]  text-[11px] font-medium transition-colors  disabled:cursor-not-allowed disabled:opacity-50`}
+                aria-label={
+                  isFollowAgentEnabled
+                    ? "Disable follow AI mode"
+                    : "Enable follow AI mode"
+                }
+                title={
+                  isFollowAgentEnabled
+                    ? "Follow AI is on: auto-jump to active slide"
+                    : "Follow AI is off"
+                }
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 11 11"
+                  fill="none"
+                >
+                  <g clipPath="url(#clip0_6216_326)">
+                    <path
+                      d="M5.50008 10.0837C8.03139 10.0837 10.0834 8.03163 10.0834 5.50033C10.0834 2.96902 8.03139 0.916992 5.50008 0.916992C2.96878 0.916992 0.916748 2.96902 0.916748 5.50033C0.916748 8.03163 2.96878 10.0837 5.50008 10.0837Z"
+                      stroke={isFollowAgentEnabled ? "#7A5AF8" : "#000000"}
+                      strokeWidth="0.938667"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10.0833 5.5H8.25"
+                      stroke={isFollowAgentEnabled ? "#7A5AF8" : "#000000"}
+                      strokeWidth="0.938667"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M2.75008 5.5H0.916748"
+                      stroke={isFollowAgentEnabled ? "#7A5AF8" : "#000000"}
+                      strokeWidth="0.938667"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M5.5 2.75033V0.916992"
+                      stroke={isFollowAgentEnabled ? "#7A5AF8" : "#000000"}
+                      strokeWidth="0.938667"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M5.5 10.0833V8.25"
+                      stroke={isFollowAgentEnabled ? "#7A5AF8" : "#000000"}
+                      strokeWidth="0.938667"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </g>
+                  <defs>
+                    <clipPath id="clip0_6216_326">
+                      <rect width="11" height="11" fill="white" />
+                    </clipPath>
+                  </defs>
+                </svg>
+
+                {/* <span>{isFollowAgentEnabled ? "Following" : "Follow AI"}</span> */}
+              </button>
+            </ToolTip>
           </div>
           <div className="ml-auto flex items-center gap-2">
             {isSending ? (
@@ -1357,7 +1492,10 @@ const Chat = ({
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-[34px] border border-[#E4E7EC] bg-white px-3 py-2 text-sm font-medium text-[#344054] transition-colors hover:bg-[#F9FAFB]"
                 aria-label="Stop chat response"
               >
-                <Loader2 className="h-3 w-3 animate-spin text-[#667085]" aria-hidden="true" />
+                <Loader2
+                  className="h-3 w-3 animate-spin text-[#667085]"
+                  aria-hidden="true"
+                />
                 <Square className="h-3 w-3 fill-current" aria-hidden="true" />
                 Stop
               </button>

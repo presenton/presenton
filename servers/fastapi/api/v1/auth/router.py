@@ -88,7 +88,13 @@ async def login(body: AuthCredentialsRequest, request: Request):
     username = body.username.strip()
     token = create_session_token(username)
     response = JSONResponse(
-        {"configured": True, "authenticated": True, "username": username}
+        {
+            "configured": True,
+            "authenticated": True,
+            "username": username,
+            "access_token": token,
+            "token_type": "bearer",
+        }
     )
     set_session_cookie(response, token, request)
     return response
