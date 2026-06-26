@@ -14,6 +14,15 @@ export type CompiledTemplateSchema = {
   schemaJSON: unknown;
 };
 
+type LayoutIntelligence = {
+  avoidFor: string[];
+  bestFor: string[];
+  cropRisk: "low" | "medium" | "high";
+  imageFieldNames: string[];
+  imageSlotSummary: string;
+  mediaBehavior: string[];
+};
+
 type ExtractedDeclaration = {
   init: t.Expression;
   initSource: string;
@@ -136,6 +145,20 @@ function readStringDeclaration(
   name: string
 ): string | null {
   return getStaticStringValue(declarations.get(name)?.init);
+}
+
+function readFirstStringDeclaration(
+  declarations: Map<string, ExtractedDeclaration>,
+  names: string[]
+): string | null {
+  for (const name of names) {
+    const value = readStringDeclaration(declarations, name);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 function isAllowedIdentifier(
@@ -382,6 +405,216 @@ function isZodSchema(value: unknown): value is z.ZodTypeAny {
   );
 }
 
+function countMatches(source: string, pattern: RegExp): number {
+  return source.match(pattern)?.length ?? 0;
+}
+
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function collectImageFieldsFromSchema(
+  schema: unknown,
+  path: string[] = []
+): string[] {
+  if (!isRecord(schema)) {
+    return [];
+  }
+
+  const properties = schema.properties;
+  if (isRecord(properties)) {
+    const propertyNames = Object.keys(properties);
+    const hasImageUrl = propertyNames.includes("__image_url__");
+    const hasImagePrompt = propertyNames.includes("__image_prompt__");
+
+    if (hasImageUrl || hasImagePrompt) {
+      return [path.join(".") || "image"];
+    }
+
+    return propertyNames.flatMap((name) =>
+      collectImageFieldsFromSchema(properties[name], [...path, name])
+    );
+  }
+
+  const items = schema.items;
+  if (items) {
+    return collectImageFieldsFromSchema(items, [...path, "[]"]);
+  }
+
+  return [];
+}
+
+function getTopLevelImageSlotSummary(schema: unknown): string {
+  const fields = collectImageFieldsFromSchema(schema);
+
+  if (fields.length === 0) {
+    return "no explicit image slots";
+  }
+
+  const hasArrayImage = fields.some((field) => field.includes("[]"));
+  const slotCount =
+    fields.length === 1
+      ? "1 image-capable field"
+      : `${fields.length} image-capable fields`;
+
+  return hasArrayImage ? `${slotCount}, including repeatable image arrays` : slotCount;
+}
+
+function inferLayoutIntent(layoutName: string, layoutDescription: string): {
+  avoidFor: string[];
+  bestFor: string[];
+} {
+  const text = `${layoutName} ${layoutDescription}`.toLowerCase();
+  const bestFor: string[] = [];
+  const avoidFor: string[] = [];
+
+  if (text.includes("gallery") || text.includes("team") || text.includes("member")) {
+    bestFor.push("decorative photo sets, people cards, visual variety");
+    avoidFor.push("scientific source figures, dense charts, screenshots, tables");
+  }
+
+  if (text.includes("chart") || text.includes("dashboard") || text.includes("metric")) {
+    bestFor.push("summaries, KPIs, generated charts, performance snapshots");
+    avoidFor.push("verbatim paper figures unless the figure is already simple and readable");
+  }
+
+  if (text.includes("table")) {
+    bestFor.push("structured comparisons and compact tabular information");
+  }
+
+  if (
+    text.includes("image") &&
+    !text.includes("gallery") &&
+    !text.includes("team")
+  ) {
+    bestFor.push("one supporting visual paired with explanatory text");
+  }
+
+  if (text.includes("cover") || text.includes("intro") || text.includes("hero")) {
+    bestFor.push("opening slides and broad visual framing");
+    avoidFor.push("evidence figures that must remain uncropped");
+  }
+
+  if (bestFor.length === 0) {
+    bestFor.push("text-led explanation or structured slide content");
+  }
+
+  return {
+    avoidFor: unique(avoidFor),
+    bestFor: unique(bestFor),
+  };
+}
+
+function buildLayoutIntelligence(
+  layoutCode: string,
+  layoutName: string,
+  layoutDescription: string,
+  schemaJSON: unknown
+): LayoutIntelligence {
+  const objectCoverCount = countMatches(layoutCode, /\bobject-cover\b/g);
+  const objectContainCount = countMatches(layoutCode, /\bobject-contain\b/g);
+  const backgroundCoverCount = countMatches(
+    layoutCode,
+    /backgroundSize:\s*["']cover["']|\bbg-cover\b/g
+  );
+  const backgroundContainCount = countMatches(
+    layoutCode,
+    /backgroundSize:\s*["']contain["']|\bbg-contain\b/g
+  );
+
+  const imageFieldNames = unique(collectImageFieldsFromSchema(schemaJSON));
+  const imageSlotSummary = getTopLevelImageSlotSummary(schemaJSON);
+  const mediaBehavior: string[] = [];
+
+  if (objectCoverCount > 0) {
+    mediaBehavior.push(
+      `uses object-cover ${objectCoverCount} time(s), so provided images may be cropped to fill boxes`
+    );
+  }
+  if (objectContainCount > 0) {
+    mediaBehavior.push(
+      `uses object-contain ${objectContainCount} time(s), so provided images are more likely to remain complete`
+    );
+  }
+  if (backgroundCoverCount > 0) {
+    mediaBehavior.push(
+      `uses background cover ${backgroundCoverCount} time(s), high risk for cropping source images`
+    );
+  }
+  if (backgroundContainCount > 0) {
+    mediaBehavior.push(
+      `uses background contain ${backgroundContainCount} time(s), safer for complete source images`
+    );
+  }
+  if (mediaBehavior.length === 0 && imageFieldNames.length > 0) {
+    mediaBehavior.push("image rendering behavior not explicit in static analysis");
+  }
+
+  let cropRisk: LayoutIntelligence["cropRisk"] = "low";
+  if (backgroundCoverCount > 0 || objectCoverCount >= 2) {
+    cropRisk = "high";
+  } else if (objectCoverCount === 1 || imageFieldNames.length >= 3) {
+    cropRisk = "medium";
+  }
+
+  const inferred = inferLayoutIntent(layoutName, layoutDescription);
+
+  if (cropRisk === "high") {
+    inferred.avoidFor.push(
+      "source images where exact geometry, labels, axes, or figure boundaries matter"
+    );
+  }
+
+  if (imageFieldNames.length === 1 && cropRisk === "low") {
+    inferred.bestFor.push(
+      "single important image when paired with concise explanation"
+    );
+  }
+
+  return {
+    avoidFor: unique(inferred.avoidFor),
+    bestFor: unique(inferred.bestFor),
+    cropRisk,
+    imageFieldNames,
+    imageSlotSummary,
+    mediaBehavior,
+  };
+}
+
+function appendLayoutIntelligenceToDescription(
+  layoutDescription: string,
+  intelligence: LayoutIntelligence
+): string {
+  const lines = [
+    layoutDescription.trim(),
+    "",
+    "Layout intelligence for AI selection:",
+    `- Image capacity: ${intelligence.imageSlotSummary}.`,
+    `- Image fields: ${
+      intelligence.imageFieldNames.length > 0
+        ? intelligence.imageFieldNames.join(", ")
+        : "none"
+    }.`,
+    `- Crop risk for supplied/source images: ${intelligence.cropRisk}.`,
+    `- Media behavior: ${
+      intelligence.mediaBehavior.length > 0
+        ? intelligence.mediaBehavior.join("; ")
+        : "no image-specific behavior detected"
+    }.`,
+    `- Best for: ${intelligence.bestFor.join("; ")}.`,
+  ];
+
+  if (intelligence.avoidFor.length > 0) {
+    lines.push(`- Avoid for: ${intelligence.avoidFor.join("; ")}.`);
+  }
+
+  return lines.join("\n");
+}
+
 export function compileTemplateSchema(
   layoutCode: string
 ): CompiledTemplateSchema | null {
@@ -417,13 +650,35 @@ export function compileTemplateSchema(
       return null;
     }
 
+    const layoutDescription =
+      readFirstStringDeclaration(declarations, [
+        "layoutDescription",
+        "slideLayoutDescription",
+      ]) ?? "";
+    const layoutId =
+      readFirstStringDeclaration(declarations, ["layoutId", "slideLayoutId"]) ??
+      "custom-layout";
+    const layoutName =
+      readFirstStringDeclaration(declarations, [
+        "layoutName",
+        "slideLayoutName",
+      ]) ?? "Custom Layout";
+    const schemaJSON = z.toJSONSchema(schema);
+    const layoutIntelligence = buildLayoutIntelligence(
+      normalizedLayoutCode,
+      layoutName,
+      layoutDescription,
+      schemaJSON
+    );
+
     return {
-      layoutDescription:
-        readStringDeclaration(declarations, "layoutDescription") ?? "",
-      layoutId: readStringDeclaration(declarations, "layoutId") ?? "custom-layout",
-      layoutName:
-        readStringDeclaration(declarations, "layoutName") ?? "Custom Layout",
-      schemaJSON: z.toJSONSchema(schema),
+      layoutDescription: appendLayoutIntelligenceToDescription(
+        layoutDescription,
+        layoutIntelligence
+      ),
+      layoutId,
+      layoutName,
+      schemaJSON,
     };
   } catch (error) {
     console.error("Failed to compile template schema", error);
