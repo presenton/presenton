@@ -109,6 +109,10 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         }
         if (llmConfig.LLM === 'custom') {
           const isAvailable = await checkIfSelectedCustomModelIsAvailable(llmConfig);
+          if (isAvailable === null) {
+            setIsLoading(false);
+            return;
+          }
           if (!isAvailable) {
             router.push('/');
             setLoadingToFalseAfterNavigatingTo('/');
@@ -117,6 +121,10 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         }
         if (llmConfig.LLM === 'deepseek') {
           const isAvailable = await checkIfSelectedDeepSeekModelIsAvailable(llmConfig);
+          if (isAvailable === null) {
+            setIsLoading(false);
+            return;
+          }
           if (!isAvailable) {
             router.push('/');
             setLoadingToFalseAfterNavigatingTo('/');
@@ -158,11 +166,29 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
           api_key: llmConfig.CUSTOM_LLM_API_KEY,
         }),
       });
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok) {
+        throw new Error(`Model availability request failed with status ${response.status}`);
+      }
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Model availability response is not JSON (${contentType})`);
+      }
+
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Model availability response is not an array');
+      }
       return data.includes(llmConfig.CUSTOM_MODEL);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error fetching custom models:', error);
-      return false;
+      notify.error(
+        'Could not connect to backend',
+        message.includes('status') || message.includes('JSON')
+          ? message
+          : 'Please check the backend URL and ensure the FastAPI service is reachable.'
+      );
+      return null;
     }
   }
 
@@ -178,11 +204,29 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
           api_key: llmConfig.DEEPSEEK_API_KEY,
         }),
       });
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok) {
+        throw new Error(`Model availability request failed with status ${response.status}`);
+      }
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Model availability response is not JSON (${contentType})`);
+      }
+
       const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Model availability response is not an array');
+      }
       return data.includes(llmConfig.DEEPSEEK_MODEL);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error fetching DeepSeek models:', error);
-      return false;
+      notify.error(
+        'Could not connect to backend',
+        message.includes('status') || message.includes('JSON')
+          ? message
+          : 'Please check the backend URL and ensure the FastAPI service is reachable.'
+      );
+      return null;
     }
   }
 
