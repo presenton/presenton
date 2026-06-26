@@ -732,6 +732,17 @@ async def generate_presentation_handler(
         language_to_use = (request.language or "").strip() or None
         additional_context = ""
 
+        def get_bounded_reference_context(content: str, max_chars: int = 20000) -> str:
+            if not content:
+                return ""
+            if len(content) <= max_chars:
+                return content
+            return (
+                content[:max_chars]
+                + "\n\n[Global reference context truncated for per-slide generation. "
+                + "Use the current slide content and user instructions as primary.]"
+            )
+
         if request.slides_markdown:
             using_slides_markdown = True
             request.n_slides = len(request.slides_markdown)
@@ -970,6 +981,11 @@ async def generate_presentation_handler(
 
         slide_layout_indices = presentation_structure.slides
         slide_layouts = [layout_model.slides[idx] for idx in slide_layout_indices]
+        slide_reference_context = (
+            get_bounded_reference_context(request.content)
+            if using_slides_markdown
+            else None
+        )
 
         # Schedule slide content generation and asset fetching in batches of 10
         batch_size = 10
@@ -987,6 +1003,7 @@ async def generate_presentation_handler(
                     request.tone.value,
                     request.verbosity.value,
                     request.instructions,
+                    slide_reference_context,
                 )
                 for i in range(start, end)
             ]

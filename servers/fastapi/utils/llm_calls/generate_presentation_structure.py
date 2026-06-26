@@ -28,6 +28,12 @@ You need to select a layout for each slide based on the mentioned guidelines.
 # Analyzing Content
 - Identify how the content is structured.
 - Identify if the content contains tables.
+- If content contains HTML comments, SLIDE_INTENT blocks, image metadata,
+  provenance notes, or layout directives, treat them as layout-selection
+  guidance. They describe slide purpose, audience takeaway, image role, and
+  media constraints. Do not infer that the slide must be centered only on the
+  image; choose a layout that supports the stated slide goal and the visible
+  teaching/argument text while respecting media constraints.
 
 # Selection Rules
 - If content contains table, then select either table layout or graph layout.

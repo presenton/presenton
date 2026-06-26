@@ -37,6 +37,18 @@ You need to generate structured content json based on the schema.
 - Apply slide-specific instructions only to the exact slide mentioned (first/second/last/named) and only once.
 - Do not apply patterns across multiple slides unless explicitly requested.
 - If instructions are ambiguous, use the most direct interpretation without extending scope.
+- If the slide content contains HTML comments, YAML-like intent blocks, image
+  metadata, provenance notes, or layout directives, treat them as planning
+  guidance. Use them to understand purpose, audience, image role, and layout
+  constraints, but do not copy them verbatim into visible slide text unless the
+  user explicitly asks for metadata/audit text on the slide.
+- Distinguish audience-facing slide prose from image/layout guidance. Image
+  explanations help you understand the visual; they should not automatically
+  become the slide body. The visible slide text should express the slide's
+  idea, claim, evidence, implication, or teaching point.
+- Use the global reference context only to resolve ambiguity, maintain the
+  deck's audience/purpose/narrative, and preserve source fidelity. The current
+  slide content remains the primary instruction for this exact slide.
 
 {markdown_emphasis_rules}
 
@@ -59,6 +71,10 @@ English
 
 # Slide Language:
 {language}
+
+# GLOBAL REFERENCE CONTEXT: START
+{reference_context}
+# GLOBAL REFERENCE CONTEXT: END
 
 # SLIDE CONTENT: START
 {content}
@@ -130,10 +146,15 @@ def get_system_prompt(
     )
 
 
-def get_user_prompt(outline: str, language: Optional[str]):
+def get_user_prompt(
+    outline: str,
+    language: Optional[str],
+    reference_context: Optional[str] = None,
+):
     return SLIDE_CONTENT_USER_PROMPT.format(
         current_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         language=_resolve_prompt_language(language),
+        reference_context=reference_context or "None",
         content=outline,
     )
 
@@ -145,6 +166,7 @@ def get_messages(
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
     response_schema: Optional[dict] = None,
+    reference_context: Optional[str] = None,
 ) -> list[Message]:
 
     return [
@@ -157,7 +179,7 @@ def get_messages(
             ),
         ),
         UserMessage(
-            content=get_user_prompt(outline, language),
+            content=get_user_prompt(outline, language, reference_context),
         ),
     ]
 
@@ -169,6 +191,7 @@ async def get_slide_content_from_type_and_outline(
     tone: Optional[str] = None,
     verbosity: Optional[str] = None,
     instructions: Optional[str] = None,
+    reference_context: Optional[str] = None,
 ):
     client = get_client(config=get_llm_config())
     model = get_model()
@@ -203,6 +226,7 @@ async def get_slide_content_from_type_and_outline(
             verbosity,
             instructions,
             response_schema,
+            reference_context,
         )
 
         return await generate_structured_with_schema_retries(
