@@ -34,12 +34,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
 
 
 }) => {
-  if (slides === undefined || slides === null || slides.length === 0) {
-    return null;
-  }
-
-
-
   const recomputeScale = useCallback(() => {
     if (typeof window === "undefined") return;
     const padding = isFullscreen ? 0 : 64; // match p-8 when not fullscreen
@@ -145,6 +139,10 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
     document.addEventListener("keydown", handleEscKey);
     return () => document.removeEventListener("keydown", handleEscKey);
   }, [isFullscreen, onFullscreenToggle]);
+
+  if (slides === undefined || slides === null || slides.length === 0) {
+    return null;
+  }
 
   return (
     <div

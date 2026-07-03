@@ -47,7 +47,7 @@ from utils.get_env import (
 def get_llm_provider():
     try:
         return LLMProvider(get_llm_provider_env())
-    except:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail=(
