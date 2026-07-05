@@ -21,3 +21,4 @@ SUPPORTED_CODEX_MODELS = {
     "gpt-5.3-codex-spark",
 }
 DEFAULT_CODEX_MODEL = "gpt-5.5"
+DEFAULT_KIRO_MODEL = "claude-sonnet-4-5"

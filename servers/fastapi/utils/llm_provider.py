@@ -10,6 +10,7 @@ from constants.llm import (
     DEFAULT_CODEX_MODEL,
     DEFAULT_DEEPSEEK_MODEL,
     DEFAULT_FIREWORKS_MODEL,
+    DEFAULT_KIRO_MODEL,
     DEFAULT_LITELLM_MODEL,
     DEFAULT_GOOGLE_MODEL,
     DEFAULT_LMSTUDIO_MODEL,
@@ -31,6 +32,7 @@ from utils.get_env import (
     get_fireworks_model_env,
     get_google_api_key_env,
     get_google_model_env,
+    get_kiro_model_env,
     get_litellm_model_env,
     get_lmstudio_model_env,
     get_llm_provider_env,
@@ -54,7 +56,7 @@ def get_llm_provider():
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
                 "fireworks, together, cerebras, anthropic, litellm, "
-                "lmstudio, ollama, custom, codex"
+                "lmstudio, ollama, custom, codex, kiro"
             ),
         )
 
@@ -162,6 +164,8 @@ def get_model():
     elif selected_llm == LLMProvider.CODEX:
         codex_model = get_codex_model_env()
         return codex_model if codex_model in SUPPORTED_CODEX_MODELS else DEFAULT_CODEX_MODEL
+    elif selected_llm == LLMProvider.KIRO:
+        return get_kiro_model_env() or DEFAULT_KIRO_MODEL
     else:
         raise HTTPException(
             status_code=500,
@@ -169,7 +173,7 @@ def get_model():
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
                 "fireworks, together, cerebras, anthropic, litellm, "
-                "lmstudio, ollama, custom, codex"
+                "lmstudio, ollama, custom, codex, kiro"
             ),
         )
 

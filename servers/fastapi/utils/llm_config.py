@@ -51,6 +51,8 @@ from utils.get_env import (
     get_fireworks_api_key_env,
     get_fireworks_base_url_env,
     get_google_api_key_env,
+    get_kiro_proxy_api_key_env,
+    get_kiro_proxy_url_env,
     get_litellm_api_key_env,
     get_litellm_base_url_env,
     get_lmstudio_api_key_env,
@@ -350,13 +352,20 @@ def get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 access_token=_get_codex_access_token(),
                 account_id=get_codex_account_id_env() or None,
             )
+        case LLMProvider.KIRO:
+            base_url = get_kiro_proxy_url_env() or "http://127.0.0.1:3456"
+            api_key = get_kiro_proxy_api_key_env() or "kiro"
+            return AnthropicClientConfig(
+                api_key=api_key,
+                base_url=base_url,
+            )
         case _:
             raise HTTPException(
                 status_code=400,
                 detail=(
                     "LLM Provider must be either openai, deepseek, google, vertex, azure, "
                     "bedrock, openrouter, fireworks, together, cerebras, "
-                    "anthropic, litellm, lmstudio, ollama, custom, or codex"
+                    "anthropic, litellm, lmstudio, ollama, custom, codex, or kiro"
                 ),
             )
 

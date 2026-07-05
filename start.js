@@ -467,8 +467,6 @@ const startServers = async (nginxReadyPromise) => {
       fastapiPort.toString(),
       "--reload",
       isDev ? "true" : "false",
-      "--log-level",
-      isDev ? "info" : "warning",
     ],
     {
       cwd: fastapiDir,
@@ -560,10 +558,37 @@ const startServers = async (nginxReadyPromise) => {
   const shouldStartOllamaRuntime = shouldStartOllama();
   const ollamaInstalled = isOllamaInstalled();
 
+  const shouldStartKiroProxy =
+    (process.env.LLM || "").toLowerCase() === "kiro";
+
   const exitPromises = [
     new Promise((resolve) => fastApiProcess.on("exit", resolve)),
     new Promise((resolve) => nextjsProcess.on("exit", resolve)),
   ];
+
+  if (shouldStartKiroProxy) {
+    const kiroProxyPort = process.env.KIRO_PROXY_PORT || "3456";
+    const kiroProxyProcess = spawn(
+      "npx",
+      ["@colin3191/kiro-proxy"],
+      {
+        cwd: "/app",
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          PORT: kiroProxyPort,
+          PROXY_API_KEY: process.env.KIRO_PROXY_API_KEY || "",
+        },
+      }
+    );
+    kiroProxyProcess.on("error", (err) => {
+      console.error("kiro-proxy process failed to start:", err);
+    });
+    forwardProcessOutput(kiroProxyProcess.stdout, process.stdout, { suppressStartupUrls });
+    forwardProcessOutput(kiroProxyProcess.stderr, process.stderr, { suppressStartupUrls });
+    exitPromises.push(new Promise((resolve) => kiroProxyProcess.on("exit", resolve)));
+    console.log(`kiro-proxy starting on port ${kiroProxyPort}...`);
+  }
 
   if (shouldStartOllamaRuntime && ollamaInstalled) {
     const ollamaProcess = spawn("ollama", ["serve"], {

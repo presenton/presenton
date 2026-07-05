@@ -398,3 +398,15 @@ def get_openai_compat_image_api_key_env():
 
 def get_openai_compat_image_model_env():
     return os.getenv("OPENAI_COMPAT_IMAGE_MODEL")
+
+
+def get_kiro_model_env():
+    return os.getenv("KIRO_MODEL")
+
+
+def get_kiro_proxy_url_env():
+    return os.getenv("KIRO_PROXY_URL")
+
+
+def get_kiro_proxy_api_key_env():
+    return os.getenv("KIRO_PROXY_API_KEY")
