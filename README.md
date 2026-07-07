@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/presenton-presenton-badge.png)](https://mseep.ai/app/presenton-presenton)
+
 <p align="center">
   <img src="./readme_assets/images/logo.png" alt="Presenton" />
 </p>
