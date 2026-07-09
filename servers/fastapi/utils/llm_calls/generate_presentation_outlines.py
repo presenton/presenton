@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 import logging
@@ -21,6 +22,8 @@ from utils.llm_config import get_llm_config
 from utils.llm_provider import get_model
 from utils.llm_utils import (
     get_generate_kwargs,
+    is_retryable_llm_error,
+    retry_after_seconds,
     serialize_structured_content,
     stream_generate_events,
 )
@@ -314,53 +317,78 @@ async def generate_ppt_outline(
                 part for part in (additional_context, search_context) if part
             )
 
-    try:
-        if emit_statuses:
-            yield OutlineGenerationStatus(
-                "Searching with model-native web search and drafting outlines"
-                if use_search_tool
-                else "Drafting your presentation outline"
-            )
-        outline_schema = prepare_schema_for_validation(
-            response_model.model_json_schema(),
-            strict=True,
-        )
-        response_format = JSONSchemaResponse(
-            name="response",
-            json_schema=outline_schema,
-            strict=True,
-        )
+    max_outline_attempts = 6
+    for outline_attempt in range(max_outline_attempts):
         emitted_content = False
-        async for event in stream_generate_events(
-            client,
-            **get_generate_kwargs(
-                model=model,
-                messages=get_messages(
-                    content,
-                    n_slides,
-                    language,
-                    additional_context,
-                    tone,
-                    verbosity,
-                    instructions,
-                    include_title_slide,
-                    include_table_of_contents,
+        try:
+            if emit_statuses and outline_attempt == 0:
+                yield OutlineGenerationStatus(
+                    "Searching with model-native web search and drafting outlines"
+                    if use_search_tool
+                    else "Drafting your presentation outline"
+                )
+            outline_schema = prepare_schema_for_validation(
+                response_model.model_json_schema(),
+                strict=True,
+            )
+            response_format = JSONSchemaResponse(
+                name="response",
+                json_schema=outline_schema,
+                strict=True,
+            )
+            async for event in stream_generate_events(
+                client,
+                **get_generate_kwargs(
+                    model=model,
+                    messages=get_messages(
+                        content,
+                        n_slides,
+                        language,
+                        additional_context,
+                        tone,
+                        verbosity,
+                        instructions,
+                        include_title_slide,
+                        include_table_of_contents,
+                    ),
+                    response_format=response_format,
+                    tools=([WebSearchTool()] if use_search_tool else None),
+                    stream=True,
                 ),
-                response_format=response_format,
-                tools=([WebSearchTool()] if use_search_tool else None),
-                stream=True,
-            ),
-        ):
-            if getattr(event, "type", None) == "content":
-                chunk = getattr(event, "chunk", None)
-                if chunk:
-                    emitted_content = True
-                    yield chunk
-            elif (
-                isinstance(event, ResponseStreamCompletionChunk) and not emitted_content
             ):
-                final_content = serialize_structured_content(event.content)
-                if final_content:
-                    yield final_content
-    except Exception as e:
-        yield handle_llm_client_exceptions(e)
+                if getattr(event, "type", None) == "content":
+                    chunk = getattr(event, "chunk", None)
+                    if chunk:
+                        emitted_content = True
+                        yield chunk
+                elif (
+                    isinstance(event, ResponseStreamCompletionChunk)
+                    and not emitted_content
+                ):
+                    final_content = serialize_structured_content(event.content)
+                    if final_content:
+                        emitted_content = True
+                        yield final_content
+            return
+        except Exception as e:
+            if (
+                not emitted_content
+                and outline_attempt < max_outline_attempts - 1
+                and is_retryable_llm_error(e)
+            ):
+                wait = min(
+                    max(retry_after_seconds(e) + 1.0 if retry_after_seconds(e) else 0.0, 1.0),
+                    65.0,
+                )
+                LOGGER.warning(
+                    "Outline generation attempt %s/%s failed (retryable), "
+                    "waiting %.1fs then retrying: %s",
+                    outline_attempt + 1,
+                    max_outline_attempts,
+                    wait,
+                    e,
+                )
+                await asyncio.sleep(wait)
+                continue
+            yield handle_llm_client_exceptions(e)
+            return

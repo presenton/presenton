@@ -82,6 +82,75 @@ def structured_validation_feedback_user_message(
     )
 
 
+def is_retryable_llm_error(exc: BaseException) -> bool:
+    """Transient provider-side failures worth retrying transparently.
+
+    Covers Groq strict structured-output glitches (json_validate_failed / schema
+    mismatch where the model emits garbage that fails the JSON Schema), rate
+    limits (429), and transient 5xx / overloaded errors.
+    """
+    status = getattr(exc, "status_code", None)
+    if not isinstance(status, int):
+        status = getattr(exc, "status", None)
+    if isinstance(status, int) and (status == 429 or 500 <= status < 600):
+        return True
+    text = (f"{getattr(exc, 'message', '') or ''} {exc}").lower()
+    signatures = (
+        "json_validate_failed",
+        "generated json does not match",
+        "does not match the expected schema",
+        "rate_limit",
+        "rate limit",
+        "too many requests",
+        "overloaded",
+        "service unavailable",
+        # Gemini / Google rate-limit + transient wording
+        "quota exceeded",
+        "exceeded your current quota",
+        "resource_exhausted",
+        "resource exhausted",
+        "please retry in",
+        "429",
+        "internal error",
+        "try again later",
+    )
+    return any(sig in text for sig in signatures)
+
+
+def retry_after_seconds(exc: BaseException, default: float = 0.0) -> float:
+    """Provider-suggested wait (seconds) for a rate-limit error, if present.
+
+    Gemini free-tier 429s carry 'Please retry in 59.2s' / 'retryDelay: "59s"'.
+    Honoring it lets a burst-limited free tier finish instead of hard-failing.
+    """
+    import re
+
+    text = f"{getattr(exc, 'message', '') or ''} {exc}"
+    match = re.search(
+        r"retry(?:\s+in|\s*delay\"?\s*:\s*\"?)\s*([\d.]+)\s*s",
+        text,
+        re.IGNORECASE,
+    )
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+    return default
+
+
+# Retry pacing: rate-limit waits honor the provider delay (capped); other
+# retryable glitches use a short exponential backoff.
+_MAX_RETRYABLE_ATTEMPTS = 6
+_MAX_RETRY_WAIT_SECONDS = 65.0
+
+
+def _retry_wait_seconds(exc: BaseException, attempt: int) -> float:
+    provider_delay = retry_after_seconds(exc)
+    backoff = min(0.5 * (attempt + 1), 8.0)
+    return min(max(provider_delay + 1.0 if provider_delay else 0.0, backoff), _MAX_RETRY_WAIT_SECONDS)
+
+
 async def generate_structured_with_schema_retries(
     client: Any,
     model: str,
@@ -102,19 +171,34 @@ async def generate_structured_with_schema_retries(
 
     for validation_attempt in range(max_validation_loops):
         content: Optional[dict] = None
-        for attempt in range(3):
-            response = await asyncio.to_thread(
-                client.generate,
-                **get_generate_kwargs(
-                    model=model,
-                    messages=working_messages,
-                    response_format=response_format,
-                ),
-            )
+        for attempt in range(_MAX_RETRYABLE_ATTEMPTS):
+            try:
+                response = await asyncio.to_thread(
+                    client.generate,
+                    **get_generate_kwargs(
+                        model=model,
+                        messages=working_messages,
+                        response_format=response_format,
+                    ),
+                )
+            except Exception as exc:
+                if attempt < _MAX_RETRYABLE_ATTEMPTS - 1 and is_retryable_llm_error(exc):
+                    wait = _retry_wait_seconds(exc, attempt)
+                    LOGGER.warning(
+                        "Structured generate attempt %s/%s failed (retryable), "
+                        "waiting %.1fs then retrying: %s",
+                        attempt + 1,
+                        _MAX_RETRYABLE_ATTEMPTS,
+                        wait,
+                        exc,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                raise
             content = extract_structured_content(response.content)
             if content is not None:
                 break
-            if attempt < 2:
+            if attempt < _MAX_RETRYABLE_ATTEMPTS - 1:
                 await asyncio.sleep(0.5 * (attempt + 1))
 
         if content is None:
