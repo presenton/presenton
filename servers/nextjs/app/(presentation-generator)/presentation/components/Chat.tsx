@@ -37,6 +37,7 @@ import {
   PRESENTON_BLANK_SLIDE_PROMPT_EVENT,
   type BlankSlidePromptEventDetail,
 } from "../../_shared/blank-slide-prompt-event";
+import { createBlankSlideAiInstruction } from "../../_shared/blank-slide-ai-instruction";
 import type {
   ChatAttachment,
   ChatConversationSummary,
@@ -2470,18 +2471,11 @@ const Chat = ({
       const prompt = typeof detail?.prompt === "string" ? detail.prompt.trim() : "";
       if (!prompt) return;
 
-      const target =
-        typeof detail.slideIndex === "number"
-          ? `slide ${detail.slideIndex + 1}`
-          : "the current blank slide";
-      const layoutReference =
-        typeof detail.layoutId === "string" && detail.layoutId.trim()
-          ? ` (layout id: ${detail.layoutId.trim()})`
-          : "";
-      const instruction =
-        detail.promptKind === "layout"
-          ? `Fill the existing selected ${target} using its selected layout${layoutReference} as the layout reference. Preserve the layout structure and update this slide; do not add another slide.`
-          : `Create content on the existing selected ${target}. Update this slide; do not add another slide.`;
+      const instruction = createBlankSlideAiInstruction({
+        slideIndex: detail.slideIndex,
+        layoutId: detail.layoutId,
+        promptKind: detail.promptKind,
+      });
       if (typeof detail.slideIndex === "number") {
         setHiddenOverlaySlideReference(detail.slideIndex);
       }

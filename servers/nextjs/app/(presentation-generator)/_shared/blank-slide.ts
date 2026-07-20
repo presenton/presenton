@@ -19,6 +19,37 @@ export const BLANK_TEMPLATE_V2_LAYOUT = {
       fill: { color: "#FFFFFF" },
       decorative: true,
     },
+    {
+      type: "text",
+      name: "Title placeholder",
+      position: { x: 120, y: 180 },
+      size: { width: 1040, height: 100 },
+      text: "Title",
+      runs: [{ text: "Title" }],
+      font: {
+        family: "Arial",
+        size: 48,
+        color: "#191919",
+        bold: true,
+        line_height: 1.1,
+      },
+      alignment: { horizontal: "center", vertical: "middle" },
+    },
+    {
+      type: "text",
+      name: "Subtitle placeholder",
+      position: { x: 180, y: 310 },
+      size: { width: 920, height: 64 },
+      text: "Subtitle",
+      runs: [{ text: "Subtitle" }],
+      font: {
+        family: "Arial",
+        size: 24,
+        color: "#667085",
+        line_height: 1.25,
+      },
+      alignment: { horizontal: "center", vertical: "middle" },
+    },
   ],
 };
 
