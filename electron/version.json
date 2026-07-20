@@ -1,9 +1,9 @@
 {
-  "version": "0.9.0-beta",
+  "version": "0.9.1-beta",
   "message": "Presenton Desktop electron-v0.8.9-beta\n\nA polished 0.8.9-beta release with lots of improvements across the Electron app.\n\nWhat's New\n\n• Faster, more reliable exports with Chromium export support\n• Better image editing with stock search and OpenAI-compatible generation\n• Improved AI model support, including LiteLLM, Azure, Vertex, and ComfyUI seeds\n• Cleaner editing workflows, markdown rendering, and slide management\n• Updated templates, Chart.js migration, and multilingual UI improvements\n• Stability fixes for packaging, onboarding, layouts, fonts, and exports\n\nInstallation\nDownload Link: https://presenton.ai/download\nLove the app? Star us on GitHub → github.com/presenton/presenton",
   "downloads": {
-    "linux": "https://github.com/presenton/presenton/releases/download/electron-v0.9.0-beta/Presenton-0.9.0-beta.deb",
-    "mac": "https://github.com/presenton/presenton/releases/download/electron-v0.9.0-beta/Presenton-0.9.0-beta.dmg",
-    "windows": "https://github.com/presenton/presenton/releases/download/electron-v0.9.0-beta/Presenton-0.9.0-beta.exe"
+    "linux": "https://github.com/presenton/presenton/releases/download/electron-v0.9.1-beta/Presenton-0.9.1-beta.deb",
+    "mac": "https://github.com/presenton/presenton/releases/download/electron-v0.9.1-beta/Presenton-0.9.1-beta.dmg",
+    "windows": "https://github.com/presenton/presenton/releases/download/electron-v0.9.1-beta/Presenton-0.9.1-beta.exe"
   }
 }

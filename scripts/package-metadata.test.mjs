@@ -13,21 +13,38 @@ async function readJson(relativePath) {
   return JSON.parse(await readFile(path.join(repoRoot, relativePath), "utf8"));
 }
 
-test("application versions stay aligned", async () => {
-  const [rootPackage, rootLock, electronPackage, electronLock] =
-    await Promise.all([
-      readJson("package.json"),
-      readJson("package-lock.json"),
-      readJson("electron/package.json"),
-      readJson("electron/package-lock.json"),
-    ]);
+test("application versions and desktop update metadata stay aligned", async () => {
+  const [
+    rootPackage,
+    rootLock,
+    electronPackage,
+    electronLock,
+    electronVersion,
+  ] = await Promise.all([
+    readJson("package.json"),
+    readJson("package-lock.json"),
+    readJson("electron/package.json"),
+    readJson("electron/package-lock.json"),
+    readJson("electron/version.json"),
+  ]);
 
-  assert.equal(rootPackage.version, "0.9.0-beta");
+  assert.match(rootPackage.version, /^\d+\.\d+\.\d+-beta$/);
   assert.equal(electronPackage.version, rootPackage.version);
   assert.equal(rootLock.version, rootPackage.version);
   assert.equal(rootLock.packages[""].version, rootPackage.version);
   assert.equal(electronLock.version, electronPackage.version);
   assert.equal(electronLock.packages[""].version, electronPackage.version);
+  assert.equal(electronVersion.version, electronPackage.version);
+  for (const [platform, extension] of Object.entries({
+    linux: "deb",
+    mac: "dmg",
+    windows: "exe",
+  })) {
+    assert.equal(
+      electronVersion.downloads[platform],
+      `https://github.com/presenton/presenton/releases/download/electron-v${electronPackage.version}/Presenton-${electronPackage.version}.${extension}`,
+    );
+  }
 });
 
 test("Docker and Electron use the same pinned presentation export", async () => {

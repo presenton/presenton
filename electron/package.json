@@ -1,7 +1,7 @@
 {
   "name": "presenton",
   "productName": "Presenton Open Source",
-  "version": "0.9.0-beta",
+  "version": "0.9.1-beta",
   "exportVersion": "v0.4.2",
   "exportChromiumBuildId": "149.0.7827.196",
   "exportMacChromiumBuildIds": {
