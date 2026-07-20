@@ -1,12 +1,19 @@
 {
-	"servers": {
-		"presentonmcp": {
-			"url": "https://api.presenton.ai/mcp",
-			"type": "http",
-			"headers": {
-				"Authorization": "Bearer sk-presenton-374409c928ff0cd6c622152f1791eacd023d95b8"
-			}
-		}
-	},
-	"inputs": []
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "presenton-api-key",
+      "description": "Presenton MCP API key",
+      "password": true
+    }
+  ],
+  "servers": {
+    "presentonmcp": {
+      "url": "https://api.presenton.ai/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer ${input:presenton-api-key}"
+      }
+    }
+  }
 }
