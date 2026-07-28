@@ -104,7 +104,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not load users", detail);
+        notify.error(t("admin.couldNotLoadUsers"), detail);
       }
     } catch (loadError) {
       trackEvent(MixpanelEvent.Auth_Admin_User_List_Failed, {
@@ -115,11 +115,11 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           "Could not load users"
         ),
       });
-      notify.error("Could not load users", "Please try again.");
+      notify.error(t("admin.couldNotLoadUsers"), t("admin.tryAgain"));
     } finally {
       setBusy(null);
     }
-  }, []);
+  }, [t]);
 
   const loadKeys = useCallback(async () => {
     setBusy("keys");
@@ -140,7 +140,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not load API keys", detail);
+        notify.error(t("admin.couldNotLoadApiKeys"), detail);
       }
     } catch (loadError) {
       trackEvent(MixpanelEvent.Auth_Admin_API_Key_List_Failed, {
@@ -150,11 +150,11 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           "Could not load API keys"
         ),
       });
-      notify.error("Could not load API keys", "Please try again.");
+      notify.error(t("admin.couldNotLoadApiKeys"), t("admin.tryAgain"));
     } finally {
       setBusy(null);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     trackEvent(MixpanelEvent.Auth_Admin_Viewed, {
@@ -183,7 +183,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           username_length: cleanedUsername.length,
           user_count_after: users.length + 1,
         });
-        notify.success("User created", `${cleanedUsername} can now sign in.`);
+        notify.success(t("admin.userCreated"), t("admin.userCanSignIn", { username: cleanedUsername }));
         setUsername("");
         setPassword("");
         await loadUsers("user_created");
@@ -193,7 +193,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not create user", detail);
+        notify.error(t("admin.couldNotCreateUser"), detail);
       }
     } catch (createError) {
       trackEvent(MixpanelEvent.Auth_Admin_User_Create_Failed, {
@@ -203,7 +203,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           "Could not create user"
         ),
       });
-      notify.error("Could not create user", "Please try again.");
+      notify.error(t("admin.couldNotCreateUser"), t("admin.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -235,7 +235,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           target_role: user.role,
           sessions_invalidated: true,
         });
-        notify.success("Password reset", "Existing sessions were signed out.");
+        notify.success(t("admin.passwordReset"), t("admin.sessionsSignedOut"));
         setDialog(null);
         setResetPasswordValue("");
       } else {
@@ -245,7 +245,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not reset password", detail);
+        notify.error(t("admin.couldNotResetPassword"), detail);
       }
     } catch (resetError) {
       trackEvent(MixpanelEvent.Auth_Admin_User_Password_Reset_Failed, {
@@ -256,7 +256,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           "Could not reset password"
         ),
       });
-      notify.error("Could not reset password", "Please try again.");
+      notify.error(t("admin.couldNotResetPassword"), t("admin.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -281,7 +281,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           target_role: user.role,
           user_count_after: Math.max(0, users.length - 1),
         });
-        notify.success("User deleted", `${user.username}'s workspace was removed.`);
+        notify.success(t("admin.userDeleted"), t("admin.userWorkspaceRemoved", { username: user.username }));
         setDialog(null);
         await loadUsers("user_deleted");
       } else {
@@ -291,7 +291,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not delete user", detail);
+        notify.error(t("admin.couldNotDeleteUser"), detail);
       }
     } catch (deleteError) {
       trackEvent(MixpanelEvent.Auth_Admin_User_Delete_Failed, {
@@ -302,7 +302,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           "Could not delete user"
         ),
       });
-      notify.error("Could not delete user", "Please try again.");
+      notify.error(t("admin.couldNotDeleteUser"), t("admin.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -326,9 +326,9 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
         });
         try {
           await navigator.clipboard.writeText(key.token);
-          notify.success("API key created", "The new key was copied to your clipboard.");
+          notify.success(t("admin.apiKeyCreated"), t("admin.apiKeyCopiedToClipboard"));
         } catch {
-          notify.success("API key created", "Use the copy button to copy the new key.");
+          notify.success(t("admin.apiKeyCreated"), t("admin.useCopyButton"));
         }
       } else {
         const detail = await errorDetail(response);
@@ -336,7 +336,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not create API key", detail);
+        notify.error(t("admin.couldNotCreateApiKey"), detail);
       }
     } catch (createError) {
       trackEvent(MixpanelEvent.Auth_Admin_API_Key_Create_Failed, {
@@ -346,7 +346,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           "Could not create API key"
         ),
       });
-      notify.error("Could not create API key", "Please try again.");
+      notify.error(t("admin.couldNotCreateApiKey"), t("admin.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -378,14 +378,14 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           api_key_count_after: Math.max(0, keys.length - 1),
         });
         setDialog(null);
-        notify.success("API key revoked");
+        notify.success(t("admin.apiKeyRevoked"));
       } else {
         const detail = await errorDetail(response);
         trackEvent(MixpanelEvent.Auth_Admin_API_Key_Revoke_Failed, {
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not revoke API key", detail);
+        notify.error(t("admin.couldNotRevokeApiKey"), detail);
       }
     } catch (revokeError) {
       trackEvent(MixpanelEvent.Auth_Admin_API_Key_Revoke_Failed, {
@@ -395,7 +395,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           "Could not revoke API key"
         ),
       });
-      notify.error("Could not revoke API key", "Please try again.");
+      notify.error(t("admin.couldNotRevokeApiKey"), t("admin.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -413,9 +413,9 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
   const copyKey = async (token: string) => {
     try {
       await navigator.clipboard.writeText(token);
-      notify.success("API key copied");
+      notify.success(t("admin.apiKeyCopied"));
     } catch {
-      notify.error("Could not copy API key", "Please try again.");
+      notify.error(t("admin.couldNotCopyApiKey"), t("admin.tryAgain"));
     }
   };
 

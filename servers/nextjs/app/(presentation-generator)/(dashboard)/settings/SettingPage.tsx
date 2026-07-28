@@ -131,9 +131,8 @@ const SettingsPage = () => {
       return true;
     } catch (error: any) {
       notify.error(
-        "Cannot save settings",
-        error?.message ||
-        `Unable to reach ${provider} with the provided API key. Please verify your settings and try again.`
+        t("settings.stockImageProviderUnavailable"),
+        error?.message || t("settings.stockImageProviderUnavailableDescription")
       );
       return false;
     }
@@ -162,7 +161,7 @@ const SettingsPage = () => {
       const isAuthenticated = await checkCurrentAuthStatus();
       if (!isAuthenticated) {
         requestChatGptReauth({
-          message: "Please sign in to ChatGPT again from Settings.",
+          message: t("settings.chatGptReauth"),
           source: "settings-save",
         });
         return;

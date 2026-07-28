@@ -49,6 +49,22 @@ test("translates known keys to Simplified Chinese", () => {
   assert.equal(i18n.translate("zh-CN", "admin.users"), "用户管理");
 });
 
+test("translates core admin operation feedback and settings errors", () => {
+  assert.equal(i18n.translate("zh-CN", "admin.userCreated"), "用户已创建");
+  assert.equal(
+    i18n.translate("zh-CN", "admin.userCanSignIn", { username: "alice" }),
+    "alice 现在可以登录。",
+  );
+  assert.equal(
+    i18n.translate("zh-CN", "settings.stockImageProviderUnavailable"),
+    "所选图库服务不可用",
+  );
+  assert.equal(
+    i18n.translate("zh-CN", "settings.chatGptReauth"),
+    "请在设置中重新登录 ChatGPT。",
+  );
+});
+
 test("falls back to English for unsupported locales", () => {
   assert.equal(i18n.translate("fr", "settings.save"), "Save Configuration");
 });
