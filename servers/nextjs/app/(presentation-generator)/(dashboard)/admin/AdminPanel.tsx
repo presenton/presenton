@@ -27,6 +27,8 @@ import { notify } from "@/components/ui/sonner";
 import { sanitizeAnalyticsError } from "@/utils/analytics";
 import { formatFastApiDetail } from "@/utils/authErrors";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
+import { useI18n } from "@/i18n/provider";
+import LanguageSelector from "@/components/LanguageSelector";
 
 type AdminUser = {
   id: string;
@@ -69,6 +71,7 @@ const inputClass =
   "h-11 w-full rounded-lg border border-[#E1E1E5] bg-white px-4 text-sm text-[#101323] outline-none transition placeholder:text-[#98A2B3] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15";
 
 export default function AdminPanel({ embedded = false }: AdminPanelProps) {
+  const { t } = useI18n();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [username, setUsername] = useState("");
@@ -432,9 +435,12 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
     >
       <div className={embedded ? "max-w-5xl" : "mx-auto max-w-5xl"}>
         {!embedded ? (
-          <h1 className="font-unbounded text-[28px] font-normal tracking-[-0.84px] text-black">
-            Admin
-          </h1>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="font-unbounded text-[28px] font-normal tracking-[-0.84px] text-black">
+              {t("admin.title")}
+            </h1>
+            <LanguageSelector />
+          </div>
         ) : null}
 
         <div
@@ -443,11 +449,10 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           }`}
         >
           <h2 className="text-sm font-semibold text-[#191919]">
-            Manage access
+            {t("admin.title")}
           </h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#6B7280]">
-            Create login accounts and manage admin-owned API/MCP access keys.
-            User workspaces remain private.
+            {t("admin.description")}
           </p>
 
           <Tabs defaultValue="users" className="mt-6">
@@ -456,13 +461,13 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
               value="users"
               className="h-9 rounded-full px-5 text-xs text-[#667085] shadow-none data-[state=active]:bg-white data-[state=active]:text-[#5146E5] data-[state=active]:shadow-sm"
             >
-              Users
+              {t("admin.users")}
             </TabsTrigger>
             <TabsTrigger
               value="keys"
               className="h-9 rounded-full px-5 text-xs text-[#667085] shadow-none data-[state=active]:bg-white data-[state=active]:text-[#5146E5] data-[state=active]:shadow-sm"
             >
-              API keys
+              {t("admin.apiKeys")}
             </TabsTrigger>
           </TabsList>
 
@@ -473,21 +478,21 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   <UserPlus className="h-4 w-4 text-[#5146E5]" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-[#101323]">Add user</h2>
+                  <h2 className="text-sm font-semibold text-[#101323]">{t("admin.addUser")}</h2>
                   <p className="mt-0.5 text-xs text-[#667085]">
-                    Create a private workspace and sign-in credentials.
+                    {t("admin.addUserDescription")}
                   </p>
                 </div>
               </div>
               <form onSubmit={addUser} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
                 <input
-                  aria-label="Username"
+                  aria-label={t("admin.username")}
                   className={inputClass}
-                  placeholder="Username"
+                  placeholder={t("admin.username")}
                   minLength={3}
                   maxLength={128}
                   pattern="\S+"
-                  title="Username cannot contain spaces"
+                  title={t("admin.usernameNoSpaces")}
                   value={username}
                   onChange={(event) =>
                     setUsername(event.target.value.replace(/\s/g, ""))
@@ -496,10 +501,10 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   spellCheck={false}
                 />
                 <input
-                  aria-label="Password"
+                  aria-label={t("admin.password")}
                   className={inputClass}
                   type="password"
-                  placeholder="Password (8+ characters)"
+                  placeholder={t("admin.passwordPlaceholder")}
                   minLength={8}
                   maxLength={128}
                   value={password}
@@ -508,7 +513,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                 />
                 <button type="submit" className={primaryButtonClass} disabled={busy === "add"}>
                   {busy === "add" && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Create user
+                  {t("admin.createUser")}
                 </button>
               </form>
             </section>
@@ -520,15 +525,15 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                     <Users className="h-4 w-4 text-[#5146E5]" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-semibold text-[#101323]">Accounts</h2>
+                    <h2 className="text-sm font-semibold text-[#101323]">{t("admin.accounts")}</h2>
                     <p className="mt-0.5 text-xs text-[#667085]">
-                      {users.length} account{users.length === 1 ? "" : "s"}
+                      {users.length} {users.length === 1 ? t("admin.account") : t("admin.accountsPlural")}
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  aria-label="Refresh accounts"
+                  aria-label={t("admin.refreshAccounts")}
                   className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F9FAFB] hover:text-[#5146E5]"
                   onClick={() => void loadUsers("manual")}
                 >
@@ -544,7 +549,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                     <div>
                       <p className="text-sm font-semibold text-[#101323]">{user.username}</p>
                       <p className="mt-1 text-xs text-[#667085]">
-                        {user.role === "admin" ? "Administrator" : "User"}
+                        {user.role === "admin" ? t("admin.administrator") : t("admin.user")}
                         {user.created_at
                           ? ` · ${new Date(user.created_at).toLocaleDateString()}`
                           : ""}
@@ -558,11 +563,11 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                           onClick={() => openResetPassword(user)}
                           disabled={busy !== null}
                         >
-                          Reset password
+                          {t("admin.resetPassword")}
                         </button>
                         <button
                           type="button"
-                          aria-label={`Delete ${user.username}`}
+                          aria-label={t("admin.deleteUserLabel", { username: user.username })}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-[#FEE4E2] bg-white text-[#D92D20] transition hover:bg-[#FEF3F2]"
                           onClick={() => setDialog({ kind: "delete-user", user })}
                           disabled={busy !== null}
@@ -585,9 +590,9 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                     <KeyRound className="h-4 w-4 text-[#5146E5]" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-semibold text-[#101323]">API and MCP keys</h2>
+                    <h2 className="text-sm font-semibold text-[#101323]">{t("admin.apiAndMcpKeys")}</h2>
                     <p className="mt-0.5 text-xs text-[#667085]">
-                      Keys are hidden by default. Generate as many as you need.
+                      {t("admin.apiKeysDescription")}
                     </p>
                   </div>
                 </div>
@@ -598,7 +603,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   disabled={busy === "create-key"}
                 >
                   {busy === "create-key" && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Generate key
+                  {t("admin.createApiKey")}
                 </button>
               </div>
               <div className="divide-y divide-[#EDEEEF]">
@@ -606,7 +611,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   <div className="px-6 py-12 text-center">
                     <KeyRound className="mx-auto h-6 w-6 text-[#B8B4C7]" />
                     <p className="mt-3 text-sm text-[#667085]">
-                      No API keys have been generated.
+                      {t("admin.noApiKeys")}
                     </p>
                   </div>
                 )}
@@ -622,13 +627,13 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                           {isVisible ? key.token : maskedKey(key.token)}
                         </code>
                         <p className="mt-1 text-[11px] text-[#98A2B3]">
-                          Created {new Date(key.created_at).toLocaleDateString()}
+                          {t("admin.createdDate", { date: new Date(key.created_at).toLocaleDateString() })}
                         </p>
                       </div>
                       <button
                         type="button"
-                        aria-label={isVisible ? "Hide API key" : "Show API key"}
-                        title={isVisible ? "Hide API key" : "Show API key"}
+                        aria-label={isVisible ? t("admin.hideApiKey") : t("admin.showApiKey")}
+                        title={isVisible ? t("admin.hideApiKey") : t("admin.showApiKey")}
                         className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F4F3FF] hover:text-[#5146E5]"
                         onClick={() => toggleKeyVisibility(key.token)}
                       >
@@ -636,8 +641,8 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                       </button>
                       <button
                         type="button"
-                        aria-label="Copy API key"
-                        title="Copy API key"
+                        aria-label={t("admin.copyApiKey")}
+                        title={t("admin.copyApiKey")}
                         className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F4F3FF] hover:text-[#5146E5]"
                         onClick={() => void copyKey(key.token)}
                       >
@@ -645,8 +650,8 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                       </button>
                       <button
                         type="button"
-                        aria-label="Revoke API key"
-                        title="Revoke API key"
+                        aria-label={t("admin.revokeApiKey")}
+                        title={t("admin.revokeApiKey")}
                         className="flex h-9 w-9 items-center justify-center rounded-full border border-[#FEE4E2] text-[#D92D20] transition hover:bg-[#FEF3F2]"
                         onClick={() => setDialog({ kind: "revoke-key", key })}
                         disabled={busy !== null}
@@ -680,22 +685,20 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   <LockKeyhole className="h-5 w-5 text-[#5146E5]" />
                 </div>
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
-                  Reset password
+                  {t("admin.resetPassword")}
                 </DialogTitle>
                 <DialogDescription className="pt-1 text-sm leading-6 text-[#667085]">
-                  Set a new password for{" "}
-                  <span className="font-semibold text-[#344054]">{dialog.user.username}</span>.
-                  Existing sessions will be signed out.
+                  {t("admin.resetPasswordDescription", { username: dialog.user.username })}
                 </DialogDescription>
                 <label className="pt-4 text-xs font-semibold text-[#344054]" htmlFor="reset-password">
-                  New password
+                  {t("admin.newPassword")}
                 </label>
                 <input
                   id="reset-password"
                   autoFocus
                   className={inputClass}
                   type="password"
-                  placeholder="Minimum 8 characters"
+                  placeholder={t("admin.minimumPassword")}
                   minLength={8}
                   maxLength={128}
                   value={resetPasswordValue}
@@ -710,11 +713,11 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
-                  Cancel
+                  {t("admin.cancel")}
                 </button>
                 <button type="submit" className={primaryButtonClass} disabled={dialogBusy}>
                   {dialogBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Reset password
+                  {t("admin.resetPassword")}
                 </button>
               </DialogFooter>
             </form>
@@ -727,11 +730,10 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   <AlertTriangle className="h-5 w-5 text-[#D92D20]" />
                 </div>
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
-                  Delete {dialog.user.username}?
+                  {t("admin.deleteUserTitle", { username: dialog.user.username })}
                 </DialogTitle>
                 <DialogDescription className="pt-1 text-sm leading-6 text-[#667085]">
-                  This permanently removes the user and all of their presentations,
-                  templates, chats, tasks, and files. This action cannot be undone.
+                  {t("admin.deleteUserDescription")}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter className="flex-row border-t border-[#EAECF0] p-4 sm:justify-end sm:space-x-0">
@@ -741,7 +743,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
-                  Cancel
+                  {t("admin.cancel")}
                 </button>
                 <button
                   type="button"
@@ -750,7 +752,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   disabled={dialogBusy}
                 >
                   {dialogBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  Delete user
+                  {t("admin.deleteUser")}
                 </button>
               </DialogFooter>
             </>
@@ -763,11 +765,10 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   <AlertTriangle className="h-5 w-5 text-[#D92D20]" />
                 </div>
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
-                  Revoke API key?
+                  {t("admin.revokeApiKeyTitle")}
                 </DialogTitle>
                 <DialogDescription className="pt-1 text-sm leading-6 text-[#667085]">
-                  Any application using this key will lose API and MCP access
-                  immediately. This action cannot be undone.
+                  {t("admin.revokeApiKeyDescription")}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter className="flex-row border-t border-[#EAECF0] p-4 sm:justify-end sm:space-x-0">
@@ -777,7 +778,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
-                  Cancel
+                  {t("admin.cancel")}
                 </button>
                 <button
                   type="button"
@@ -786,7 +787,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   disabled={dialogBusy}
                 >
                   {dialogBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  Revoke key
+                  {t("admin.revokeApiKey")}
                 </button>
               </DialogFooter>
             </>

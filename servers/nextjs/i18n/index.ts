@@ -1,0 +1,197 @@
+export const SUPPORTED_LOCALES = ["en", "zh-CN"] as const;
+
+export type Locale = (typeof SUPPORTED_LOCALES)[number];
+export type TranslationKey = keyof typeof englishMessages;
+
+const englishMessages = {
+  "language.label": "Interface language",
+  "language.english": "English",
+  "language.simplifiedChinese": "Simplified Chinese",
+  "settings.title": "Settings",
+  "settings.filterBy": "FILTER BY:",
+  "settings.selectProvider": "Select Provider",
+  "settings.textProvider": "Text Provider",
+  "settings.imageProvider": "Image Provider",
+  "settings.webSearchProvider": "Web Search Provider",
+  "settings.other": "Other",
+  "settings.usageAnalytics": "Usage Analytics",
+  "settings.admin": "Admin",
+  "settings.signOut": "Sign out",
+  "settings.signOutDescription": "End your session on this deployment. You will need to sign in again to use the app and access the API.",
+  "settings.save": "Save Configuration",
+  "settings.saving": "Saving Configuration...",
+  "settings.saved": "Settings saved",
+  "settings.savedDescription": "Your configuration was saved successfully.",
+  "settings.cannotSave": "Cannot save settings",
+  "settings.couldNotSave": "Could not save settings",
+  "settings.saveError": "Something went wrong while saving.",
+  "settings.summaryText": "Text",
+  "settings.summaryImage": "Image",
+  "settings.summaryWeb": "Web",
+  "settings.imageDisabled": "Image generation disabled",
+  "settings.noImageProvider": "No image provider",
+  "settings.webDisabled": "Web search disabled",
+  "settings.noWebProvider": "No provider",
+  "admin.title": "Administration",
+  "admin.description": "Manage users and API keys for this Presenton instance.",
+  "admin.users": "Users",
+  "admin.apiKeys": "API keys",
+  "admin.addUser": "Add user",
+  "admin.username": "Username",
+  "admin.password": "Password",
+  "admin.role": "Role",
+  "admin.created": "Created",
+  "admin.actions": "Actions",
+  "admin.createUser": "Create user",
+  "admin.resetPassword": "Reset password",
+  "admin.deleteUser": "Delete user",
+  "admin.createApiKey": "Create API key",
+  "admin.revokeApiKey": "Revoke API key",
+  "admin.copy": "Copy",
+  "admin.show": "Show",
+  "admin.hide": "Hide",
+  "admin.noUsers": "No users found.",
+  "admin.noApiKeys": "No API keys have been created.",
+  "admin.addUserDescription": "Create a private workspace and sign-in credentials.",
+  "admin.usernameNoSpaces": "Username cannot contain spaces",
+  "admin.passwordPlaceholder": "Password (8+ characters)",
+  "admin.accounts": "Accounts",
+  "admin.account": "account",
+  "admin.accountsPlural": "accounts",
+  "admin.refreshAccounts": "Refresh accounts",
+  "admin.administrator": "Administrator",
+  "admin.user": "User",
+  "admin.deleteUserLabel": "Delete {username}",
+  "admin.apiAndMcpKeys": "API and MCP keys",
+  "admin.apiKeysDescription": "Keys are hidden by default. Generate as many as you need.",
+  "admin.createdDate": "Created {date}",
+  "admin.showApiKey": "Show API key",
+  "admin.hideApiKey": "Hide API key",
+  "admin.copyApiKey": "Copy API key",
+  "admin.newPassword": "New password",
+  "admin.minimumPassword": "Minimum 8 characters",
+  "admin.cancel": "Cancel",
+  "admin.resetPasswordDescription": "Set a new password for {username}. Existing sessions will be signed out.",
+  "admin.deleteUserTitle": "Delete {username}?",
+  "admin.deleteUserDescription": "This permanently removes the user and all of their presentations, templates, chats, tasks, and files. This action cannot be undone.",
+  "admin.revokeApiKeyTitle": "Revoke API key?",
+  "admin.revokeApiKeyDescription": "Any application using this key will lose API and MCP access immediately. This action cannot be undone.",
+};
+
+const simplifiedChineseMessages: Partial<Record<TranslationKey, string>> = {
+  "language.label": "界面语言",
+  "language.english": "English",
+  "language.simplifiedChinese": "简体中文",
+  "settings.title": "设置",
+  "settings.filterBy": "筛选：",
+  "settings.selectProvider": "选择服务提供商",
+  "settings.textProvider": "文本模型",
+  "settings.imageProvider": "图像服务",
+  "settings.webSearchProvider": "联网搜索",
+  "settings.other": "其他",
+  "settings.usageAnalytics": "使用情况分析",
+  "settings.admin": "管理后台",
+  "settings.signOut": "退出登录",
+  "settings.signOutDescription": "结束此部署上的当前会话。再次使用应用和访问 API 时需要重新登录。",
+  "settings.save": "保存配置",
+  "settings.saving": "正在保存配置...",
+  "settings.saved": "设置已保存",
+  "settings.savedDescription": "配置已成功保存。",
+  "settings.cannotSave": "无法保存设置",
+  "settings.couldNotSave": "设置保存失败",
+  "settings.saveError": "保存时出现错误。",
+  "settings.summaryText": "文本",
+  "settings.summaryImage": "图像",
+  "settings.summaryWeb": "联网",
+  "settings.imageDisabled": "图像生成已关闭",
+  "settings.noImageProvider": "未选择图像服务",
+  "settings.webDisabled": "联网搜索已关闭",
+  "settings.noWebProvider": "未选择服务",
+  "admin.title": "系统管理",
+  "admin.description": "管理此 Presenton 实例的用户和 API 密钥。",
+  "admin.users": "用户管理",
+  "admin.apiKeys": "API 密钥",
+  "admin.addUser": "添加用户",
+  "admin.username": "用户名",
+  "admin.password": "密码",
+  "admin.role": "角色",
+  "admin.created": "创建时间",
+  "admin.actions": "操作",
+  "admin.createUser": "创建用户",
+  "admin.resetPassword": "重置密码",
+  "admin.deleteUser": "删除用户",
+  "admin.createApiKey": "创建 API 密钥",
+  "admin.revokeApiKey": "撤销 API 密钥",
+  "admin.copy": "复制",
+  "admin.show": "显示",
+  "admin.hide": "隐藏",
+  "admin.noUsers": "暂无用户。",
+  "admin.noApiKeys": "尚未创建 API 密钥。",
+  "admin.addUserDescription": "创建独立工作区和登录凭据。",
+  "admin.usernameNoSpaces": "用户名不能包含空格",
+  "admin.passwordPlaceholder": "密码（至少 8 个字符）",
+  "admin.accounts": "账户",
+  "admin.account": "个账户",
+  "admin.accountsPlural": "个账户",
+  "admin.refreshAccounts": "刷新账户列表",
+  "admin.administrator": "管理员",
+  "admin.user": "用户",
+  "admin.deleteUserLabel": "删除 {username}",
+  "admin.apiAndMcpKeys": "API 与 MCP 密钥",
+  "admin.apiKeysDescription": "密钥默认隐藏，可按需要创建多个。",
+  "admin.createdDate": "创建于 {date}",
+  "admin.showApiKey": "显示 API 密钥",
+  "admin.hideApiKey": "隐藏 API 密钥",
+  "admin.copyApiKey": "复制 API 密钥",
+  "admin.newPassword": "新密码",
+  "admin.minimumPassword": "至少 8 个字符",
+  "admin.cancel": "取消",
+  "admin.resetPasswordDescription": "为 {username} 设置新密码。现有会话将退出登录。",
+  "admin.deleteUserTitle": "删除 {username}？",
+  "admin.deleteUserDescription": "这将永久删除该用户及其所有演示文稿、模板、聊天、任务和文件。此操作无法撤销。",
+  "admin.revokeApiKeyTitle": "撤销 API 密钥？",
+  "admin.revokeApiKeyDescription": "使用此密钥的所有应用将立即失去 API 和 MCP 访问权限。此操作无法撤销。",
+};
+
+const messages: Record<Locale, Partial<Record<TranslationKey, string>>> = {
+  en: englishMessages,
+  "zh-CN": simplifiedChineseMessages,
+};
+
+export function normalizeLocale(value: string | null | undefined): Locale {
+  const locale = value?.trim().toLowerCase();
+  if (
+    locale === "zh" ||
+    locale === "zh-cn" ||
+    locale === "zh-sg" ||
+    locale?.startsWith("zh-hans")
+  ) {
+    return "zh-CN";
+  }
+  return "en";
+}
+
+export type TranslationValues = Record<string, string | number>;
+
+export function translate(
+  locale: Locale | string,
+  key: string,
+  values?: TranslationValues,
+): string {
+  const normalizedLocale = normalizeLocale(locale);
+  const translationKey = key as TranslationKey;
+  const message =
+    messages[normalizedLocale][translationKey] ??
+    englishMessages[translationKey] ??
+    key;
+
+  if (!values) {
+    return message;
+  }
+
+  return message.replace(/\{(\w+)\}/g, (placeholder, name: string) =>
+    Object.prototype.hasOwnProperty.call(values, name)
+      ? String(values[name])
+      : placeholder,
+  );
+}

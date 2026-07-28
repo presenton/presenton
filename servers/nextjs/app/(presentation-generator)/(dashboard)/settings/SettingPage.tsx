@@ -30,6 +30,7 @@ import {
   CHATGPT_AUTH_REQUIRED_EVENT,
   requestChatGptReauth,
 } from "@/utils/chatgptAuth";
+import { useI18n } from "@/i18n/provider";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 
@@ -46,6 +47,7 @@ interface ButtonState {
 const SettingsPage = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useI18n();
   const [selectedProvider, setSelectedProvider] = useState<SettingsSection>("text-provider");
   const userConfigState = useSelector((state: RootState) => state.userConfig);
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(
@@ -55,9 +57,16 @@ const SettingsPage = () => {
   const [buttonState, setButtonState] = useState<ButtonState>({
     isLoading: false,
     isDisabled: false,
-    text: "Save Configuration",
+    text: t("settings.save"),
     showProgress: false,
   });
+
+  useEffect(() => {
+    setButtonState((prev) => ({
+      ...prev,
+      text: prev.isLoading ? t("settings.saving") : t("settings.save"),
+    }));
+  }, [t]);
 
   const handleTextProviderInputChange = useCallback(
     (value: string | boolean, field: string) => {
@@ -164,7 +173,7 @@ const SettingsPage = () => {
     });
     const validationError = getLLMConfigValidationError(llmConfig);
     if (validationError) {
-      notify.warning("Cannot save settings", validationError);
+      notify.warning(t("settings.cannotSave"), validationError);
       if (
         selectedProvider === "image-provider" &&
         ((llmConfig.LLM === "openai" && !String(llmConfig.OPENAI_MODEL || "").trim()) ||
@@ -185,7 +194,7 @@ const SettingsPage = () => {
         ...prev,
         isLoading: true,
         isDisabled: true,
-        text: "Saving Configuration...",
+        text: t("settings.saving"),
       }));
       trackEvent(MixpanelEvent.Settings_SaveConfiguration_API_Call);
       if (
@@ -202,26 +211,26 @@ const SettingsPage = () => {
       }
       await handleSaveLLMConfig(llmConfig);
       notify.success(
-        "Settings saved",
-        "Your configuration was saved successfully."
+        t("settings.saved"),
+        t("settings.savedDescription")
       );
       setButtonState((prev) => ({
         ...prev,
         isLoading: false,
         isDisabled: false,
-        text: "Save Configuration",
+        text: t("settings.save"),
       }));
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Something went wrong while saving.";
-      notify.error("Could not save settings", message);
+          : t("settings.saveError");
+      notify.error(t("settings.couldNotSave"), message);
       setButtonState((prev) => ({
         ...prev,
         isLoading: false,
         isDisabled: false,
-        text: "Save Configuration",
+        text: t("settings.save"),
       }));
     }
   };
@@ -278,15 +287,15 @@ const SettingsPage = () => {
     : textProviderLabel;
 
   const imageSummary = llmConfig.DISABLE_IMAGE_GENERATION
-    ? "Image generation disabled"
+    ? t("settings.imageDisabled")
     : llmConfig.IMAGE_PROVIDER
       ? IMAGE_PROVIDERS[llmConfig.IMAGE_PROVIDER]?.label ||
       llmConfig.IMAGE_PROVIDER
-      : "No image provider";
+      : t("settings.noImageProvider");
   const webSearchProviderKey = (llmConfig.WEB_SEARCH_PROVIDER || "").toLowerCase();
   const webSearchSummary = llmConfig.WEB_GROUNDING
-    ? `Web: ${WEB_SEARCH_PROVIDERS[webSearchProviderKey]?.label || "No provider"}`
-    : "Web search disabled";
+    ? `${t("settings.summaryWeb")}: ${WEB_SEARCH_PROVIDERS[webSearchProviderKey]?.label || t("settings.noWebProvider")}`
+    : t("settings.webDisabled");
 
 
   useEffect(() => {
@@ -376,7 +385,7 @@ const SettingsPage = () => {
           <div className="sticky top-0 right-0 z-50 py-[28px]   backdrop-blur mb-4 ">
             <div className="flex  gap-3 items-center ">
               <h3 className=" text-[28px] tracking-[-0.84px] font-unbounded font-normal text-black flex items-center gap-2">
-                Settings
+                {t("settings.title")}
               </h3>
               <p className="text-[10px] px-2.5 py-0.5 rounded-[50px] text-[#7A5AF8] border border-[#EDEEEF]  font-medium ">
                 {textSummary} · {imageSummary} · {webSearchSummary}
@@ -395,13 +404,13 @@ const SettingsPage = () => {
           {selectedProvider === "session" && (
             <div className="w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
               <div>
-                <h4 className="font-unbounded text-lg font-normal text-black">Sign out</h4>
+                <h4 className="font-unbounded text-lg font-normal text-black">{t("settings.signOut")}</h4>
                 <p className="mt-2 font-syne text-sm leading-relaxed text-[#494A4D]">
-                  End your session on this deployment. You will need to sign in again to use the app and access the API.
+                  {t("settings.signOutDescription")}
                 </p>
               </div>
               <LogoutButton
-                label="Sign out"
+                label={t("settings.signOut")}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-[58px] border border-[#EDEEEF] bg-[#7C51F8] px-5 py-3 font-syne text-xs font-semibold text-white transition hover:bg-[#6d46e6] disabled:cursor-not-allowed disabled:opacity-60"
               />
             </div>
