@@ -23,6 +23,9 @@ import {
   resolveLaunchableExportChromiumPath,
 } from "../utils/export-chromium";
 import { resolveExportSpawnTarget } from "../utils/export-msix-runtime";
+import {
+  moveExportToDownloads,
+} from "../utils/unique-download-path";
 
 type BinaryFormat = "elf" | "mach-o" | "pe" | "unknown";
 type RuntimeCandidate = {
@@ -152,8 +155,11 @@ export function setupExportHandlers() {
         return { success: false, message: "Export finished but output file was not found." };
       }
 
-      const destinationPath = path.join(getDownloadsDir(), path.basename(exportFilePath));
-      await moveFile(exportFilePath, destinationPath);
+      const destinationPath = await moveExportToDownloads(
+        exportFilePath,
+        getDownloadsDir(),
+        path.basename(exportFilePath),
+      );
       showFileDownloadedDialogInBackground(destinationPath);
       addMainBreadcrumb("export", "electron.ipc_export.finish", {
         id,
@@ -561,14 +567,3 @@ function resolveExportedFilePath(responseData: any): string | null {
   return null;
 }
 
-async function moveFile(sourcePath: string, destinationPath: string) {
-  try {
-    await fs.promises.rename(sourcePath, destinationPath);
-  } catch (error: any) {
-    if (error?.code !== "EXDEV") {
-      throw error;
-    }
-    await fs.promises.copyFile(sourcePath, destinationPath);
-    await fs.promises.unlink(sourcePath);
-  }
-}

@@ -40,6 +40,7 @@
     "build:ts": "node -e \"fs.rmSync('app_dist',{recursive:true,force:true})\" && tsc",
     "check:main-no-undef": "node scripts/check-main-no-undef.cjs",
     "lint:main": "npm run build:ts && npm run check:main-no-undef",
+    "test:unique-download-path": "node --test tests/unique-download-path.test.mjs",
     "build:css": "tailwindcss -i ./resources/ui/assets/css/tailwind.import.css -o ./resources/ui/assets/css/tailwind.css --watch",
     "build:vectorstore": "echo 'Using prebuilt shared icons vectorstore index'",
     "build:export-runtime": "node scripts/sync-export-runtime.cjs",
