@@ -360,6 +360,8 @@ const getSelectedTextModel = (config: LLMConfig) => {
       return config.BEDROCK_MODEL;
     case "openrouter":
       return config.OPENROUTER_MODEL;
+    case "orcarouter":
+      return config.ORCAROUTER_MODEL;
     case "fireworks":
       return config.FIREWORKS_MODEL;
     case "together":

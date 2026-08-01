@@ -1,4 +1,4 @@
-from constants.llm import OPENAI_URL
+from constants.llm import OPENAI_URL, ORCAROUTER_URL
 from enums.image_provider import ImageProvider
 from enums.llm_provider import LLMProvider
 from utils.available_models import (
@@ -32,6 +32,9 @@ from utils.get_env import (
     get_openai_api_key_env,
     get_openai_model_env,
     get_openrouter_api_key_env,
+    get_orcarouter_api_key_env,
+    get_orcarouter_base_url_env,
+    get_orcarouter_model_env,
     get_together_api_key_env,
     get_together_base_url_env,
     get_together_model_env,
@@ -195,6 +198,24 @@ async def check_llm_and_image_provider_api_or_model_availability():
         elif get_llm_provider() == LLMProvider.OPENROUTER:
             if not get_openrouter_api_key_env():
                 raise Exception("OPENROUTER_API_KEY must be provided")
+
+        elif get_llm_provider() == LLMProvider.ORCAROUTER:
+            orcarouter_api_key = (get_orcarouter_api_key_env() or "").strip()
+            orcarouter_model = (get_orcarouter_model_env() or "").strip()
+            if not orcarouter_api_key:
+                raise Exception("ORCAROUTER_API_KEY must be provided")
+            if not orcarouter_model:
+                raise Exception("ORCAROUTER_MODEL must be provided")
+            orcarouter_base_url = normalize_openai_compatible_base_url(
+                (get_orcarouter_base_url_env() or "").strip() or ORCAROUTER_URL
+            )
+            available_models = await list_available_openai_compatible_models(
+                orcarouter_base_url, orcarouter_api_key
+            )
+            print("-" * 50)
+            print("Available models: ", available_models)
+            if orcarouter_model not in available_models:
+                raise Exception(f"Model {orcarouter_model} is not available")
 
         elif get_llm_provider() == LLMProvider.FIREWORKS:
             fireworks_api_key = (get_fireworks_api_key_env() or "").strip()

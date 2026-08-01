@@ -133,6 +133,13 @@ export const getLLMConfigValidationError = (
     if (!isProvided(llmConfig.OPENROUTER_MODEL)) {
       return "Select or enter an OpenRouter model id.";
     }
+  } else if (llm === "orcarouter") {
+    if (!isProvided(llmConfig.ORCAROUTER_API_KEY)) {
+      return "OrcaRouter API key is required.";
+    }
+    if (!isProvided(llmConfig.ORCAROUTER_MODEL)) {
+      return "Select or enter an OrcaRouter model id.";
+    }
   } else if (llm === "cerebras") {
     if (!isProvided(llmConfig.CEREBRAS_API_KEY)) {
       return "Cerebras API key is required.";

@@ -124,6 +124,8 @@ const PresentonMode = ({
                 return 'BEDROCK_MODEL';
             case 'openrouter':
                 return 'OPENROUTER_MODEL';
+            case 'orcarouter':
+                return 'ORCAROUTER_MODEL';
             case 'fireworks':
                 return 'FIREWORKS_MODEL';
             case 'together':
@@ -160,6 +162,8 @@ const PresentonMode = ({
                 return 'BEDROCK_API_KEY';
             case 'openrouter':
                 return 'OPENROUTER_API_KEY';
+            case 'orcarouter':
+                return 'ORCAROUTER_API_KEY';
             case 'fireworks':
                 return 'FIREWORKS_API_KEY';
             case 'together':
@@ -207,6 +211,8 @@ const PresentonMode = ({
                         ? 'Bedrock API Key (optional)'
                     : llmConfig.LLM === 'openrouter'
                         ? 'OpenRouter API Key'
+                    : llmConfig.LLM === 'orcarouter'
+                        ? 'OrcaRouter API Key'
                         : llmConfig.LLM === 'fireworks'
                             ? 'Fireworks API Key'
                             : llmConfig.LLM === 'together'
@@ -239,6 +245,8 @@ const PresentonMode = ({
                 return config.BEDROCK_MODEL || '';
             case 'openrouter':
                 return config.OPENROUTER_MODEL || '';
+            case 'orcarouter':
+                return config.ORCAROUTER_MODEL || '';
             case 'fireworks':
                 return config.FIREWORKS_MODEL || '';
             case 'together':
@@ -305,6 +313,7 @@ const PresentonMode = ({
         if (llmConfig.LLM === 'google' && !currentApiKey) return;
         if (llmConfig.LLM === 'anthropic' && !currentApiKey) return;
         if (llmConfig.LLM === 'openrouter' && !currentApiKey) return;
+        if (llmConfig.LLM === 'orcarouter' && !currentApiKey) return;
         if (llmConfig.LLM === 'fireworks' && !currentApiKey) return;
         if (llmConfig.LLM === 'together' && !currentApiKey) return;
         if (llmConfig.LLM === 'cerebras' && !currentApiKey) return;
@@ -1437,6 +1446,7 @@ const PresentonMode = ({
                                     (llmConfig.LLM === 'google' && !currentApiKey) ||
                                     (llmConfig.LLM === 'anthropic' && !currentApiKey) ||
                                     (llmConfig.LLM === 'openrouter' && !currentApiKey) ||
+                                    (llmConfig.LLM === 'orcarouter' && !currentApiKey) ||
                                     (llmConfig.LLM === 'fireworks' && !currentApiKey) ||
                                     (llmConfig.LLM === 'together' && !currentApiKey) ||
                                     (llmConfig.LLM === 'cerebras' && !currentApiKey) ||

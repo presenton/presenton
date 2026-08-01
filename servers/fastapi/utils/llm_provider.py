@@ -15,6 +15,7 @@ from constants.llm import (
     DEFAULT_LMSTUDIO_MODEL,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_ORCAROUTER_MODEL,
     DEFAULT_TOGETHER_MODEL,
     DEFAULT_VERTEX_MODEL,
     SUPPORTED_CODEX_MODELS,
@@ -39,6 +40,7 @@ from utils.get_env import (
     get_openai_model_env,
     get_cerebras_model_env,
     get_openrouter_model_env,
+    get_orcarouter_model_env,
     get_together_model_env,
     get_vertex_model_env,
 )
@@ -53,7 +55,7 @@ def get_llm_provider():
             detail=(
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
-                "fireworks, together, cerebras, anthropic, litellm, "
+                "orcarouter, fireworks, together, cerebras, anthropic, litellm, "
                 "lmstudio, ollama, custom, codex"
             ),
         )
@@ -103,6 +105,10 @@ def is_openrouter_selected():
     return get_llm_provider() == LLMProvider.OPENROUTER
 
 
+def is_orcarouter_selected():
+    return get_llm_provider() == LLMProvider.ORCAROUTER
+
+
 def is_fireworks_selected():
     return get_llm_provider() == LLMProvider.FIREWORKS
 
@@ -143,6 +149,8 @@ def get_model():
         return get_bedrock_model_env() or DEFAULT_BEDROCK_MODEL
     elif selected_llm == LLMProvider.OPENROUTER:
         return get_openrouter_model_env() or DEFAULT_OPENROUTER_MODEL
+    elif selected_llm == LLMProvider.ORCAROUTER:
+        return get_orcarouter_model_env() or DEFAULT_ORCAROUTER_MODEL
     elif selected_llm == LLMProvider.FIREWORKS:
         return get_fireworks_model_env() or DEFAULT_FIREWORKS_MODEL
     elif selected_llm == LLMProvider.TOGETHER:
@@ -168,7 +176,7 @@ def get_model():
             detail=(
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
-                "fireworks, together, cerebras, anthropic, litellm, "
+                "orcarouter, fireworks, together, cerebras, anthropic, litellm, "
                 "lmstudio, ollama, custom, codex"
             ),
         )

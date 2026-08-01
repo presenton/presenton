@@ -51,6 +51,9 @@ from utils.get_env import (
     get_openrouter_api_key_env,
     get_openrouter_base_url_env,
     get_openrouter_model_env,
+    get_orcarouter_api_key_env,
+    get_orcarouter_base_url_env,
+    get_orcarouter_model_env,
     get_gpt_image_1_5_quality_env,
     get_llm_provider_env,
     get_ollama_model_env,
@@ -139,6 +142,9 @@ from utils.set_env import (
     set_openrouter_api_key_env,
     set_openrouter_base_url_env,
     set_openrouter_model_env,
+    set_orcarouter_api_key_env,
+    set_orcarouter_base_url_env,
+    set_orcarouter_model_env,
     set_gpt_image_1_5_quality_env,
     set_llm_provider_env,
     set_ollama_model_env,
@@ -222,6 +228,9 @@ def get_user_config():
         OPENROUTER_API_KEY=existing_config.OPENROUTER_API_KEY or get_openrouter_api_key_env(),
         OPENROUTER_MODEL=existing_config.OPENROUTER_MODEL or get_openrouter_model_env(),
         OPENROUTER_BASE_URL=existing_config.OPENROUTER_BASE_URL or get_openrouter_base_url_env(),
+        ORCAROUTER_API_KEY=existing_config.ORCAROUTER_API_KEY or get_orcarouter_api_key_env(),
+        ORCAROUTER_MODEL=existing_config.ORCAROUTER_MODEL or get_orcarouter_model_env(),
+        ORCAROUTER_BASE_URL=existing_config.ORCAROUTER_BASE_URL or get_orcarouter_base_url_env(),
         FIREWORKS_API_KEY=existing_config.FIREWORKS_API_KEY or get_fireworks_api_key_env(),
         FIREWORKS_MODEL=existing_config.FIREWORKS_MODEL or get_fireworks_model_env(),
         FIREWORKS_BASE_URL=existing_config.FIREWORKS_BASE_URL
@@ -369,6 +378,12 @@ def update_env_with_user_config():
         set_openrouter_model_env(user_config.OPENROUTER_MODEL)
     if user_config.OPENROUTER_BASE_URL:
         set_openrouter_base_url_env(user_config.OPENROUTER_BASE_URL)
+    if user_config.ORCAROUTER_API_KEY:
+        set_orcarouter_api_key_env(user_config.ORCAROUTER_API_KEY)
+    if user_config.ORCAROUTER_MODEL:
+        set_orcarouter_model_env(user_config.ORCAROUTER_MODEL)
+    if user_config.ORCAROUTER_BASE_URL:
+        set_orcarouter_base_url_env(user_config.ORCAROUTER_BASE_URL)
     if user_config.FIREWORKS_API_KEY:
         set_fireworks_api_key_env(user_config.FIREWORKS_API_KEY)
     if user_config.FIREWORKS_MODEL:

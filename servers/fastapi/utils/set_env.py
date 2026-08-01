@@ -133,6 +133,18 @@ def set_openrouter_base_url_env(value):
     os.environ["OPENROUTER_BASE_URL"] = value
 
 
+def set_orcarouter_api_key_env(value):
+    os.environ["ORCAROUTER_API_KEY"] = value
+
+
+def set_orcarouter_model_env(value):
+    os.environ["ORCAROUTER_MODEL"] = value
+
+
+def set_orcarouter_base_url_env(value):
+    os.environ["ORCAROUTER_BASE_URL"] = value
+
+
 def set_fireworks_api_key_env(value):
     os.environ["FIREWORKS_API_KEY"] = value
 

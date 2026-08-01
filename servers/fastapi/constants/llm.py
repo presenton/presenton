@@ -8,6 +8,11 @@ DEFAULT_VERTEX_MODEL = "gemini-2.5-flash"
 DEFAULT_AZURE_MODEL = "gpt-4.1"
 DEFAULT_BEDROCK_MODEL = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
 DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o"
+ORCAROUTER_URL = "https://api.orcarouter.ai/v1"
+# Pinned rather than the "orcarouter/auto" router: presentation generation
+# depends on strict json_schema structured output, and the auto router may pick
+# an upstream that does not honour it.
+DEFAULT_ORCAROUTER_MODEL = "openai/gpt-5.5"
 DEFAULT_FIREWORKS_MODEL = "accounts/fireworks/models/llama-v3p1-8b-instruct"
 DEFAULT_TOGETHER_MODEL = "openai/gpt-oss-20b"
 DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"

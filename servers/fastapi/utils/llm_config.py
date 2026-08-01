@@ -23,6 +23,7 @@ from llmai.shared import (
     VertexAIClientConfig,
 )
 
+from constants.llm import ORCAROUTER_URL
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
     get_azure_openai_api_key_env,
@@ -59,6 +60,8 @@ from utils.get_env import (
     get_openai_api_key_env,
     get_openrouter_api_key_env,
     get_openrouter_base_url_env,
+    get_orcarouter_api_key_env,
+    get_orcarouter_base_url_env,
     get_together_api_key_env,
     get_together_base_url_env,
     get_vertex_api_key_env,
@@ -297,6 +300,20 @@ def get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 api_key=api_key,
                 base_url=base_url or None,
             )
+        case LLMProvider.ORCAROUTER:
+            api_key = (get_orcarouter_api_key_env() or "").strip()
+            if not api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="OrcaRouter API Key is not set",
+                )
+            base_url = normalize_openai_compatible_base_url(
+                (get_orcarouter_base_url_env() or "").strip() or ORCAROUTER_URL
+            )
+            return OpenAIClientConfig(
+                api_key=api_key,
+                base_url=base_url,
+            )
         case LLMProvider.FIREWORKS:
             api_key = (get_fireworks_api_key_env() or "").strip()
             if not api_key:
@@ -380,7 +397,7 @@ def get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 status_code=400,
                 detail=(
                     "LLM Provider must be either openai, deepseek, google, vertex, azure, "
-                    "bedrock, openrouter, fireworks, together, cerebras, "
+                    "bedrock, openrouter, orcarouter, fireworks, together, cerebras, "
                     "anthropic, litellm, lmstudio, ollama, custom, or codex"
                 ),
             )

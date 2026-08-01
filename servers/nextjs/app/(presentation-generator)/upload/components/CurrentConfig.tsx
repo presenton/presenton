@@ -24,6 +24,8 @@ const CurrentConfig = ({ webSearchEnabled }: { webSearchEnabled: boolean }) => {
                             ? llmConfig.BEDROCK_MODEL
                         : textProviderKey === "openrouter"
                             ? llmConfig.OPENROUTER_MODEL
+                            : textProviderKey === "orcarouter"
+                                ? llmConfig.ORCAROUTER_MODEL
                             : textProviderKey === "fireworks"
                                 ? llmConfig.FIREWORKS_MODEL
                                 : textProviderKey === "together"

@@ -339,7 +339,7 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 #### LLM and API keys
 
 - **CAN_CHANGE_KEYS**=[true/false]: Set to **false** if you want to keep API keys hidden and make them unmodifiable.
-- **LLM**=[openai/deepseek/google/vertex/azure/bedrock/openrouter/fireworks/together/cerebras/anthropic/litellm/lmstudio/ollama/custom/codex]: Select the text **LLM**.
+- **LLM**=[openai/deepseek/google/vertex/azure/bedrock/openrouter/orcarouter/fireworks/together/cerebras/anthropic/litellm/lmstudio/ollama/custom/codex]: Select the text **LLM**.
 - **OPENAI_API_KEY**: Required if **LLM** is **openai**.
 - **OPENAI_MODEL**: Required if **LLM** is **openai** (default: `gpt-4.1`).
 - **DEEPSEEK_API_KEY**: Required if **LLM** is **deepseek**.
@@ -365,6 +365,9 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **OPENROUTER_API_KEY**: Required if **LLM** is **openrouter**.
 - **OPENROUTER_MODEL**: Required if **LLM** is **openrouter** (default: `openai/gpt-4o`).
 - **OPENROUTER_BASE_URL**: Optional if **LLM** is **openrouter** (default: `https://openrouter.ai/api/v1`).
+- **ORCAROUTER_API_KEY**: Required if **LLM** is **orcarouter**.
+- **ORCAROUTER_MODEL**: Required if **LLM** is **orcarouter** (default: `openai/gpt-5.5`). Any model id from the [OrcaRouter catalog](https://www.orcarouter.ai/models) works. Prefer a pinned model over the `orcarouter/auto` router here: presentation generation relies on strict `json_schema` structured output, which `orcarouter/auto` does not guarantee because it may route to an upstream that ignores the schema.
+- **ORCAROUTER_BASE_URL**: Optional if **LLM** is **orcarouter** (default: `https://api.orcarouter.ai/v1`).
 - **FIREWORKS_API_KEY**: Required if **LLM** is **fireworks**.
 - **FIREWORKS_MODEL**: Required if **LLM** is **fireworks** (example: `accounts/fireworks/models/llama-v3p1-8b-instruct`).
 - **FIREWORKS_BASE_URL**: Optional if **LLM** is **fireworks** (default: `https://api.fireworks.ai/inference/v1`).
