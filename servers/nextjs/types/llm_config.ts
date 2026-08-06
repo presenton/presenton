@@ -43,6 +43,11 @@ export interface LLMConfig {
   OPENROUTER_MODEL?: string;
   OPENROUTER_BASE_URL?: string;
 
+  // OrcaRouter
+  ORCAROUTER_API_KEY?: string;
+  ORCAROUTER_MODEL?: string;
+  ORCAROUTER_BASE_URL?: string;
+
   // Fireworks
   FIREWORKS_API_KEY?: string;
   FIREWORKS_MODEL?: string;

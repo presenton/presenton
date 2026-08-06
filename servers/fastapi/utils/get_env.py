@@ -183,6 +183,18 @@ def get_openrouter_base_url_env():
     return os.getenv("OPENROUTER_BASE_URL")
 
 
+def get_orcarouter_api_key_env():
+    return os.getenv("ORCAROUTER_API_KEY")
+
+
+def get_orcarouter_model_env():
+    return os.getenv("ORCAROUTER_MODEL")
+
+
+def get_orcarouter_base_url_env():
+    return os.getenv("ORCAROUTER_BASE_URL")
+
+
 def get_fireworks_api_key_env():
     return os.getenv("FIREWORKS_API_KEY")
 

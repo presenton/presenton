@@ -42,6 +42,11 @@ class UserConfig(BaseModel):
     OPENROUTER_MODEL: Optional[str] = None
     OPENROUTER_BASE_URL: Optional[str] = None
 
+    # OrcaRouter
+    ORCAROUTER_API_KEY: Optional[str] = None
+    ORCAROUTER_MODEL: Optional[str] = None
+    ORCAROUTER_BASE_URL: Optional[str] = None
+
     # Fireworks
     FIREWORKS_API_KEY: Optional[str] = None
     FIREWORKS_MODEL: Optional[str] = None

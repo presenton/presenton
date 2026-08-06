@@ -84,6 +84,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "BEDROCK_MODEL";
       case "openrouter":
         return "OPENROUTER_MODEL";
+      case "orcarouter":
+        return "ORCAROUTER_MODEL";
       case "fireworks":
         return "FIREWORKS_MODEL";
       case "together":
@@ -123,6 +125,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "BEDROCK_API_KEY";
       case "openrouter":
         return "OPENROUTER_API_KEY";
+      case "orcarouter":
+        return "ORCAROUTER_API_KEY";
       case "fireworks":
         return "FIREWORKS_API_KEY";
       case "together":
@@ -182,6 +186,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       ? "Bedrock API Key (optional)"
       : selectedProvider === "openrouter"
       ? "OpenRouter API Key"
+      : selectedProvider === "orcarouter"
+      ? "OrcaRouter API Key"
       : selectedProvider === "fireworks"
       ? "Fireworks API Key"
       : selectedProvider === "together"
@@ -239,6 +245,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         ? "BEDROCK_API_KEY"
         : llm === "openrouter"
         ? "OPENROUTER_API_KEY"
+        : llm === "orcarouter"
+        ? "ORCAROUTER_API_KEY"
         : llm === "fireworks"
         ? "FIREWORKS_API_KEY"
         : llm === "together"
@@ -267,6 +275,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
     if (selectedProvider === "google" && !currentApiKey) return;
     if (selectedProvider === "anthropic" && !currentApiKey) return;
     if (selectedProvider === "openrouter" && !currentApiKey) return;
+    if (selectedProvider === "orcarouter" && !currentApiKey) return;
     if (selectedProvider === "fireworks" && !currentApiKey) return;
     if (selectedProvider === "together" && !currentApiKey) return;
     if (selectedProvider === "cerebras" && !currentApiKey) return;
@@ -364,6 +373,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
               ? "claude-sonnet-4-20250514"
               : selectedProvider === "openrouter"
               ? "openai/gpt-4o"
+              : selectedProvider === "orcarouter"
+              ? "openai/gpt-5.5"
               : selectedProvider === "fireworks"
               ? "accounts/fireworks/models/llama-v3p1-8b-instruct"
               : selectedProvider === "together"
@@ -788,6 +799,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                       (selectedProvider === "google" && !currentApiKey) ||
                       (selectedProvider === "anthropic" && !currentApiKey) ||
                       (selectedProvider === "openrouter" && !currentApiKey) ||
+                      (selectedProvider === "orcarouter" && !currentApiKey) ||
                       (selectedProvider === "fireworks" && !currentApiKey) ||
                       (selectedProvider === "together" && !currentApiKey) ||
                       (selectedProvider === "cerebras" && !currentApiKey) ||

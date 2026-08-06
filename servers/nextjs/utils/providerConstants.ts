@@ -238,6 +238,14 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     icon: "/providers/openai.png",
     getApiKeyUrl: "https://openrouter.ai/keys",
   },
+  orcarouter: {
+    value: "orcarouter",
+    label: "OrcaRouter",
+    description: "Many models through OrcaRouter’s OpenAI-compatible API",
+    url: "https://api.orcarouter.ai/v1",
+    icon: "/providers/openai.png",
+    getApiKeyUrl: "https://www.orcarouter.ai/console",
+  },
   cerebras: {
     value: "cerebras",
     label: "Cerebras",
