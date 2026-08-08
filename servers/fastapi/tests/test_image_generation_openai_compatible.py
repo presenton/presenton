@@ -17,44 +17,39 @@ class TestImageGenerationOpenAICompatible:
 
     def test_get_image_gen_func_openai_compatible_selected(self, mock_images_directory):
         with patch(
+            "services.image_generation_service.is_image_generation_disabled",
+            return_value=False,
+        ), patch(
             "services.image_generation_service.is_openai_compatible_selected",
             return_value=True,
+        ), patch(
+            "services.image_generation_service.is_pixabay_selected",
+            return_value=False,
+        ), patch(
+            "services.image_generation_service.is_pixels_selected",
+            return_value=False,
+        ), patch(
+            "services.image_generation_service.is_gemini_flash_selected",
+            return_value=False,
+        ), patch(
+            "services.image_generation_service.is_nanobanana_pro_selected",
+            return_value=False,
+        ), patch(
+            "services.image_generation_service.is_dalle3_selected",
+            return_value=False,
+        ), patch(
+            "services.image_generation_service.is_gpt_image_1_5_selected",
+            return_value=False,
+        ), patch(
+            "services.image_generation_service.is_comfyui_selected",
+            return_value=False,
+        ), patch(
+            "services.image_generation_service.is_open_webui_selected",
+            return_value=False,
         ):
-            with patch(
-                "services.image_generation_service.is_pixabay_selected",
-                return_value=False,
-            ):
-                with patch(
-                    "services.image_generation_service.is_pixels_selected",
-                    return_value=False,
-                ):
-                    with patch(
-                        "services.image_generation_service.is_gemini_flash_selected",
-                        return_value=False,
-                    ):
-                        with patch(
-                            "services.image_generation_service.is_dalle3_selected",
-                            return_value=False,
-                        ):
-                            with patch(
-                                "services.image_generation_service.is_gpt_image_1_5_selected",
-                                return_value=False,
-                            ):
-                                with patch(
-                                    "services.image_generation_service.is_comfyui_selected",
-                                    return_value=False,
-                                ):
-                                    with patch.dict(
-                                        os.environ,
-                                        {"IMAGE_PROVIDER": "openai_compatible"},
-                                    ):
-                                        service = ImageGenerationService(
-                                            mock_images_directory
-                                        )
-                                        assert (
-                                            service.image_gen_func
-                                            == service.generate_image_openai_compatible
-                                        )
+            service = ImageGenerationService(mock_images_directory)
+
+        assert service.image_gen_func == service.generate_image_openai_compatible
 
     @pytest.mark.anyio
     async def test_generate_image_openai_compatible_success(

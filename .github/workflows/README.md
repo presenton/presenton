@@ -1,50 +1,63 @@
-# GitHub Actions Workflows
+# GitHub Actions workflows
 
 ## Test All Applications (`test-all.yml`)
 
-This workflow runs comprehensive tests for all parts of the application:
+The test workflow runs on pushes and pull requests to `main`, and can also be
+started manually. It enforces the checks that exist in the current repository:
 
-- **Main FastAPI** - Python tests for the main backend
-- **Main Next.js** - Lint, build, and Cypress component tests
-- **Docker Build** - Verifies Docker image builds successfully
+- repository tooling: template-converter tests and bundled export verification;
+- FastAPI: every pytest test using the Python version and locked dependencies
+  declared in `servers/fastapi`;
+- Next.js: all Node.js unit tests, ESLint, a production build, and Cypress
+  component tests.
 
-## Testing Locally
+No test step is allowed to fail silently.
 
-Before pushing, you can test everything locally using the provided script:
+## Run the CI checks locally
+
+Install Node.js 20+, npm, Python 3.11, and `uv`, then run:
 
 ```bash
 ./test-local.sh
 ```
 
-This script runs the same tests that GitHub Actions will run, so you can catch issues early.
+The script installs locked dependencies and runs the same commands as the
+GitHub Actions workflow.
 
-## Manual Testing
+## Run one test group
 
-If you prefer to test individual components:
+### FastAPI
 
-### FastAPI Tests
 ```bash
-# Main FastAPI
 cd servers/fastapi
-export APP_DATA_DIRECTORY=/tmp/app_data
-export TEMP_DIRECTORY=/tmp/presenton
-export DATABASE_URL=sqlite+aiosqlite:///./test.db
-export DISABLE_ANONYMOUS_TRACKING=true
-export DISABLE_IMAGE_GENERATION=true
-export PYTHONPATH=$(pwd)
-pytest tests/ -v
+uv sync --locked --dev
+mkdir -p /tmp/presenton-tests/app-data /tmp/presenton-tests/temp
+APP_DATA_DIRECTORY=/tmp/presenton-tests/app-data \
+TEMP_DIRECTORY=/tmp/presenton-tests/temp \
+DATABASE_URL=sqlite+aiosqlite:////tmp/presenton-tests/test.db \
+DISABLE_ANONYMOUS_TRACKING=true \
+DISABLE_IMAGE_GENERATION=true \
+uv run --locked python -m pytest --verbose --tb=short
 ```
 
-### Next.js Tests
+### Next.js
+
 ```bash
-# Main Next.js
 cd servers/nextjs
+npm ci
+npm test
 npm run lint
+NEXT_PUBLIC_FAST_API=http://localhost:8000 \
+NEXT_PUBLIC_URL=http://localhost:3000 \
 npm run build
+npx cypress run --component --browser electron
 ```
 
-### Docker Build
+### Repository tooling
+
 ```bash
-docker build -t presenton:test -f Dockerfile .
-docker images | grep presenton:test
+npm ci
+npm test
+npm run sync:presentation-export
+npm run check:presentation-export
 ```

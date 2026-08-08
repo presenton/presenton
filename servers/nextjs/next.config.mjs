@@ -1,33 +1,23 @@
-const presentonHttpHostPort =
-  process.env.PRESENTON_HTTP_HOST_PORT ||
-  process.env.PRESENTON_HOST_HTTP_PORT ||
-  process.env.PRESENTON_PUBLIC_PORT ||
-  "5001";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const nextjsRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
   output: "standalone",
+  turbopack: {
+    root: nextjsRoot,
+  },
   ...(process.env.NODE_ENV !== "production"
     ? {
         allowedDevOrigins: [
-          "http://127.0.0.1:40001",
-          "http://localhost:40001",
           "127.0.0.1",
           "localhost",
         ],
       }
     : {}),
-
-  // Rewrites for development - proxy font requests to FastAPI backend
-  async rewrites() {
-    return [
-      {
-        source: '/app_data/fonts/:path*',
-        destination: `http://localhost:${presentonHttpHostPort}/app_data/fonts/:path*`,
-      },
-    ];
-  },
 
   images: {
     remotePatterns: [

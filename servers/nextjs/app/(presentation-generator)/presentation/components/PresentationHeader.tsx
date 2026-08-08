@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   Pencil,
   Check,
+  Keyboard,
   X,
   AlertTriangle,
 } from "lucide-react";
@@ -20,12 +21,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import { useDispatch, useSelector } from "react-redux";
 
 import { RootState } from "@/store/store";
 import { notify } from "@/components/ui/sonner";
-import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
+import {
+  trackEvent,
+  trackEventImmediately,
+  MixpanelEvent,
+} from "@/utils/mixpanel";
 import { usePresentationUndoRedo } from "../hooks/PresentationUndoRedo";
 import ToolTip from "@/components/ToolTip";
 import {
@@ -42,12 +46,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import ThemeSelector from "./ThemeSelector";
-import { DEFAULT_THEMES } from "../../(dashboard)/theme/components/ThemePanel/constants";
-import ThemeApi from "../../services/api/theme";
-import { Theme } from "../../services/api/types";
 import MarkdownRenderer from "@/components/MarkDownRender";
 import { cn } from "@/lib/utils";
+import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 
 const MAX_EXPORT_TITLE_LENGTH = 40;
 
@@ -95,9 +96,9 @@ const PresentationHeader = ({
   currentSlide?: number;
 }) => {
   const [open, setOpen] = useState(false);
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
   const router = useRouter();
   const [isExporting, setIsExporting] = useState(false);
-  const [themes, setThemes] = useState<Theme[]>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
@@ -111,21 +112,6 @@ const PresentationHeader = ({
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [customThemes] = await Promise.all([ThemeApi.getThemes()]);
-        setThemes([...customThemes, ...DEFAULT_THEMES]);
-      } catch (e: any) {
-        notify.error("Could not load themes", e?.message || "Failed to load themes.");
-      }
-    };
-    if (themes.length === 0) {
-      load();
-    }
-  }, []);
-
   const { onUndo, onRedo, canUndo, canRedo } = usePresentationUndoRedo();
 
   useEffect(() => {
@@ -206,27 +192,18 @@ const PresentationHeader = ({
 
     let exportToastId: string | number | undefined;
     try {
-      trackEvent(MixpanelEvent.Presentation_Export_Started, {
-        pathname,
-        presentation_id,
-        format: "pptx",
-        slide_count: presentationData?.slides?.length || 0,
-      });
       exportToastId = notify.loading(
         "Exporting PPTX",
         "Your presentation is being exported. This may take a moment."
       );
       setIsExporting(true);
-      // Save the presentation data before exporting
-      await PresentationGenerationApi.updatePresentationContent(
-        presentationData
-      );
       const safePptxFileName = buildSafeExportFileName(
         presentationData?.title,
         "pptx"
       );
       const safePptxTitle = safePptxFileName.replace(/\.pptx$/i, "");
       if (window.electron?.exportPresentation) {
+        await trackExportCompleted("pptx", "electron");
         await exportViaIpc("pptx", safePptxTitle);
       } else {
         const response = await fetch("/api/export-presentation", {
@@ -247,6 +224,7 @@ const PresentationHeader = ({
           throw new Error("No path returned from export");
         }
 
+        await trackExportCompleted("pptx", "browser_api");
         downloadLink(pptxPath, safePptxFileName);
       }
       notify.success(
@@ -271,27 +249,18 @@ const PresentationHeader = ({
 
     let exportToastId: string | number | undefined;
     try {
-      trackEvent(MixpanelEvent.Presentation_Export_Started, {
-        pathname,
-        presentation_id,
-        format: "pdf",
-        slide_count: presentationData?.slides?.length || 0,
-      });
       exportToastId = notify.loading(
         "Exporting PDF",
         "Your presentation is being exported. This may take a moment."
       );
       setIsExporting(true);
-      // Save the presentation data before exporting
-      await PresentationGenerationApi.updatePresentationContent(
-        presentationData
-      );
       const safePdfFileName = buildSafeExportFileName(
         presentationData?.title,
         "pdf"
       );
       const safePdfTitle = safePdfFileName.replace(/\.pdf$/i, "");
       if (window.electron?.exportPresentation) {
+        await trackExportCompleted("pdf", "electron");
         await exportViaIpc("pdf", safePdfTitle);
       } else {
         const response = await fetch("/api/export-presentation", {
@@ -305,6 +274,10 @@ const PresentationHeader = ({
 
         if (response.ok) {
           const { path: pdfPath } = await response.json();
+          if (!pdfPath) {
+            throw new Error("No path returned from export");
+          }
+          await trackExportCompleted("pdf", "browser_api");
           downloadLink(pdfPath, safePdfFileName);
         } else {
           throw new Error("Failed to export PDF");
@@ -347,6 +320,19 @@ const PresentationHeader = ({
     document.body.removeChild(link);
   };
 
+  const trackExportCompleted = async (
+    format: "pptx" | "pdf",
+    exportRuntime: "electron" | "browser_api"
+  ) => {
+    await trackEventImmediately(MixpanelEvent.Presentation_Export_Completed, {
+      pathname,
+      presentation_id,
+      format,
+      slide_count: presentationData?.slides?.length || 0,
+      export_runtime: exportRuntime,
+    });
+  };
+
   const ExportOptions = ({ mobile }: { mobile: boolean }) => (
     <div
       className={` rounded-[18px] max-md:mt-4 ${mobile ? "" : "bg-white"}  p-5`}
@@ -360,9 +346,8 @@ const PresentationHeader = ({
             setOpen(false);
           }}
           variant="ghost"
-          className={`  rounded-none px-0 w-full text-xs flex justify-start text-black hover:bg-transparent ${
-            mobile ? "bg-white py-6 border-none rounded-lg" : ""
-          }`}
+          className={`  rounded-none px-0 w-full text-xs flex justify-start text-black hover:bg-transparent ${mobile ? "bg-white py-6 border-none rounded-lg" : ""
+            }`}
         >
           PDF
           <ArrowUpRight className="w-3.5 h-3.5" />
@@ -373,9 +358,8 @@ const PresentationHeader = ({
             setOpen(false);
           }}
           variant="ghost"
-          className={`w-full flex px-0 justify-start text-xs text-black hover:bg-transparent  ${
-            mobile ? "bg-white py-6" : ""
-          }`}
+          className={`w-full flex px-0 justify-start text-xs text-black hover:bg-transparent  ${mobile ? "bg-white py-6" : ""
+            }`}
         >
           PPTX
           <ArrowUpRight className="w-3.5 h-3.5" />
@@ -491,15 +475,6 @@ const PresentationHeader = ({
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             </div>
           )}
-          {presentationData &&
-            presentationData.slides?.[0]?.layout &&
-            !presentationData.slides[0].layout.includes("custom") && (
-              <ThemeSelector
-                current_theme={presentationData?.theme || {}}
-                themes={themes}
-              />
-            )}
-
           <div className="flex items-center gap-2 bg-[#F6F6F9] px-3.5 h-[38px] border border-[#EDECEC] rounded-[80px]">
             <ToolTip content="Regenerate Presentation">
               <button
@@ -538,9 +513,8 @@ const PresentationHeader = ({
             <ToolTip content="Present">
               <button
                 onClick={() => {
-                  const to = `?id=${presentation_id}&mode=present&slide=${
-                    currentSlide || 0
-                  }`;
+                  const to = `?id=${presentation_id}&mode=present&slide=${currentSlide || 0
+                    }`;
                   trackEvent(MixpanelEvent.Presentation_Mode_Entered, {
                     pathname,
                     presentation_id,
@@ -561,6 +535,25 @@ const PresentationHeader = ({
               </button>
             </ToolTip>
           </div>
+
+          <ToolTip content="Keyboard shortcuts (?)">
+            <button
+              type="button"
+              aria-label="Keyboard shortcuts"
+              aria-haspopup="dialog"
+              aria-expanded={shortcutsDialogOpen}
+              aria-keyshortcuts="?"
+              data-testid="keyboard-shortcuts-btn"
+              className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[#EDECEC] bg-[#F6F6F9] text-[#101323] transition-colors hover:border-[#D8D3FE] hover:bg-[#F0EDFF] hover:text-[#6847F4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2"
+              onClick={() => setShortcutsDialogOpen(true)}
+            >
+              <Keyboard
+                aria-hidden="true"
+                className="size-4"
+                strokeWidth={1.8}
+              />
+            </button>
+          </ToolTip>
 
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -626,6 +619,10 @@ const PresentationHeader = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <KeyboardShortcutsDialog
+        open={shortcutsDialogOpen}
+        onOpenChange={setShortcutsDialogOpen}
+      />
     </>
   );
 };

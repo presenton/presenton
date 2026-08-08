@@ -7,11 +7,11 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from api.v1.auth.internal import authenticated_internal_request_headers
 from services.export_task_service import EXPORT_TASK_SERVICE
 from templates.custom_layout_from_db import load_custom_presentation_layout
 from templates.presentation_layout import PresentationLayoutModel
-from utils.icon_weights import extract_icon_weight_from_settings
-from utils.internal_http import internal_request_headers
+from utils.icon_weights import extract_icon_type_from_settings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -87,10 +87,9 @@ async def _fetch_template_fallback_payload(
         fallback_url,
     )
     try:
+        headers = await authenticated_internal_request_headers()
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                fallback_url, headers=internal_request_headers()
-            ) as response:
+            async with session.get(fallback_url, headers=headers) as response:
                 if response.status == 200:
                     payload = await response.json()
                     LOGGER.info(
@@ -148,11 +147,11 @@ async def get_layout_by_name(layout_name: str) -> PresentationLayoutModel:
         slide_ids = [s.get("id") for s in schema_payload.get("slides") or []][:12]
         LOGGER.info(
             "[template_layout] extract-schema succeeded template=%r "
-            "payload_name=%r ordered=%s icon_weight=%s slide_count=%d slide_ids(sample)=%s",
+            "payload_name=%r ordered=%s icon_type=%s slide_count=%d slide_ids(sample)=%s",
             layout_name,
             schema_payload.get("name"),
             schema_payload.get("ordered"),
-            schema_payload.get("icon_weight"),
+            schema_payload.get("icon_type") or schema_payload.get("icon_weight"),
             len(schema_payload.get("slides") or []),
             slide_ids,
         )
@@ -194,20 +193,22 @@ async def get_layout_by_name(layout_name: str) -> PresentationLayoutModel:
     elif not layout_name.startswith("custom-"):
         # The bundled export runtime can read the schema page but currently keeps
         # only name/order/slides from settings. The JSON fallback is cheaper and
-        # preserves template-level settings such as icon weight.
+        # preserves template-level settings such as icon type.
         fallback_payload, _ = await _fetch_template_fallback_payload(layout_name)
         if fallback_payload:
-            fallback_icon_weight = extract_icon_weight_from_settings(fallback_payload)
-            schema_payload["icon_weight"] = fallback_icon_weight
+            fallback_icon_type = extract_icon_type_from_settings(fallback_payload)
+            schema_payload["icon_type"] = fallback_icon_type
+            schema_payload["icon_weight"] = fallback_icon_type
 
     local_settings = _read_builtin_template_settings(layout_name)
     if local_settings:
-        local_icon_weight = extract_icon_weight_from_settings(local_settings)
-        schema_payload["icon_weight"] = local_icon_weight
+        local_icon_type = extract_icon_type_from_settings(local_settings)
+        schema_payload["icon_type"] = local_icon_type
+        schema_payload["icon_weight"] = local_icon_type
         LOGGER.info(
-            "[template_layout] local settings applied template=%r icon_weight=%s",
+            "[template_layout] local settings applied template=%r icon_type=%s",
             layout_name,
-            local_icon_weight,
+            local_icon_type,
         )
 
     slides = schema_payload.get("slides") or []
@@ -223,9 +224,9 @@ async def get_layout_by_name(layout_name: str) -> PresentationLayoutModel:
         )
 
     LOGGER.info(
-        "[template_layout] building PresentationLayoutModel template=%r slides=%d icon_weight=%s",
+        "[template_layout] building PresentationLayoutModel template=%r slides=%d icon_type=%s",
         layout_name,
         len(slides),
-        schema_payload.get("icon_weight"),
+        schema_payload.get("icon_type") or schema_payload.get("icon_weight"),
     )
     return PresentationLayoutModel(**schema_payload)

@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field, model_validator
 
 from models.presentation_structure_model import PresentationStructureModel
-from utils.icon_weights import DEFAULT_ICON_WEIGHT, extract_icon_weight_from_settings
+from utils.icon_weights import DEFAULT_ICON_TYPE, extract_icon_type_from_settings
 
 
 class SlideLayoutModel(BaseModel):
@@ -18,15 +18,18 @@ class SlideLayoutModel(BaseModel):
 class PresentationLayoutModel(BaseModel):
     name: str
     ordered: bool = Field(default=False)
-    icon_weight: str = Field(default=DEFAULT_ICON_WEIGHT)
+    icon_type: str = Field(default=DEFAULT_ICON_TYPE)
+    icon_weight: str = Field(default=DEFAULT_ICON_TYPE)
     slides: List[SlideLayoutModel]
 
     @model_validator(mode="before")
     @classmethod
-    def normalize_icon_weight(cls, data):
+    def normalize_icon_type(cls, data):
         if isinstance(data, dict):
             normalized = dict(data)
-            normalized["icon_weight"] = extract_icon_weight_from_settings(normalized)
+            icon_type = extract_icon_type_from_settings(normalized)
+            normalized["icon_type"] = icon_type
+            normalized["icon_weight"] = icon_type
             return normalized
         return data
 

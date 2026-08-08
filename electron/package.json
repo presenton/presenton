@@ -1,8 +1,13 @@
 {
   "name": "presenton",
   "productName": "Presenton Open Source",
-  "version": "0.8.9-beta",
-  "exportVersion": "v0.3.6",
+  "version": "0.9.3-beta",
+  "exportVersion": "v0.4.2",
+  "exportChromiumBuildId": "149.0.7827.196",
+  "exportMacChromiumBuildIds": {
+    "darwin-arm64": "1625085",
+    "darwin-x64": "1625072"
+  },
   "main": "app_dist/main.js",
   "description": "Open-Source AI Presentation Generator",
   "homepage": "https://presenton.ai",
@@ -25,10 +30,10 @@
     "automation"
   ],
   "scripts": {
-    "start": "electron . --no-sandbox",
+    "start": "npm run copy:templates && electron . --no-sandbox",
     "dist": "electron-builder",
     "postinstall": "electron-builder install-app-deps",
-    "dev": "node -e \"fs.rmSync('app_dist',{recursive:true,force:true})\" && tsc && electron . --no-sandbox",
+    "dev": "npm run copy:templates && node -e \"fs.rmSync('app_dist',{recursive:true,force:true})\" && tsc && electron . --no-sandbox",
     "setup:env": "npm install && cd ../servers/fastapi && uv sync && cd ../nextjs && npm install && cd ../../electron && npm run setup:export-runtime && npm run prepare:imagemagick",
     "install:pyinstaller": "cd ../servers/fastapi && echo 'pyinstaller will be installed via uv run --with when building'",
     "typecheck": "tsc --noEmit",
@@ -40,17 +45,18 @@
     "build:export-runtime": "node scripts/sync-export-runtime.cjs",
     "setup:export-runtime": "node scripts/sync-export-runtime.cjs",
     "fetch:export-runtime": "node scripts/sync-export-runtime.cjs --force",
-    "fetch:export-runtime:latest": "EXPORT_RUNTIME_VERSION=latest node scripts/sync-export-runtime.cjs --force",
+    "fetch:export-runtime:latest": "EXPORT_RUNTIME_VERSION=latest node scripts/sync-export-runtime.cjs --force --allow-version-override",
     "prepare:export-chromium": "node scripts/prepare-export-chromium.cjs",
     "prepare:imagemagick": "node scripts/prepare-imagemagick.cjs",
+    "copy:templates": "node scripts/copy-templates.cjs",
     "build:nextjs": "node scripts/build-nextjs-resources.cjs",
     "build:fastapi": "node -e \"fs.rmSync('resources/fastapi',{recursive:true,force:true})\" && npm run build:vectorstore && cross-env MEM0_SPACY_STRICT=true node scripts/ensure-spacy-model.cjs && cd ../servers/fastapi && uv run --with pyinstaller python -m PyInstaller --distpath ../../electron/resources server.spec && cd ../../electron && node scripts/copy-fastapi-assets.cjs",
     "generate:version": "node scripts/generate-version.cjs",
     "upload:sourcemaps": "node scripts/upload-sourcemaps.cjs",
-    "build:electron": "npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && node build.js",
-    "build:electron:mac:signed": "npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && cross-env PRESENTON_MAC_TARGET=dmg PRESENTON_REQUIRE_MAC_SIGNING=1 node build.js",
-    "build:electron:mas-dev": "npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && cross-env PRESENTON_MAC_TARGET=mas-dev node build.js",
-    "build:electron:mas": "npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && cross-env PRESENTON_MAC_TARGET=mas node build.js",
+    "build:electron": "npm run copy:templates && npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && node build.js",
+    "build:electron:mac:signed": "npm run copy:templates && npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && cross-env PRESENTON_MAC_TARGET=dmg PRESENTON_REQUIRE_MAC_SIGNING=1 node build.js",
+    "build:electron:mas-dev": "npm run copy:templates && npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && cross-env PRESENTON_MAC_TARGET=mas-dev node build.js",
+    "build:electron:mas": "npm run copy:templates && npm run generate:version && npm run build:export-runtime && npm run prepare:export-chromium && npm run prepare:imagemagick && npm run typecheck && npm run build:ts && npm run check:main-no-undef && cross-env PRESENTON_MAC_TARGET=mas node build.js",
     "dist:mac:signed": "cross-env PRESENTON_MAC_TARGET=dmg PRESENTON_REQUIRE_MAC_SIGNING=1 node build.js",
     "dist:mac:mas-dev": "cross-env PRESENTON_MAC_TARGET=mas-dev node build.js",
     "dist:mac:mas": "cross-env PRESENTON_MAC_TARGET=mas node build.js",
@@ -58,7 +64,8 @@
     "build:all:mac:signed": "npm run clean:build && npm run setup:env && npm run build:ts && npm run install:pyinstaller && npm run build:nextjs && npm run build:fastapi && npm run build:electron:mac:signed",
     "build:all:mas-dev": "npm run clean:build && npm run setup:env && npm run build:ts && npm run install:pyinstaller && npm run build:nextjs && npm run build:fastapi && npm run build:electron:mas-dev",
     "build:all:mas": "npm run clean:build && npm run setup:env && npm run build:ts && npm run install:pyinstaller && npm run build:nextjs && npm run build:fastapi && npm run build:electron:mas",
-    "clean:build": "node -e \"for (const p of ['resources/nextjs','resources/fastapi','app_dist']) fs.rmSync(p,{recursive:true,force:true})\""
+    "clean:build": "node scripts/clean-build.cjs",
+    "cleanup:installed-app-cache": "node scripts/cleanup-installed-app-cache.cjs"
   },
   "author": {
     "name": "Presenton",

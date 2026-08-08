@@ -7,6 +7,7 @@ from api.v1.ppt.endpoints import anthropic as anthropic_endpoint
 from api.v1.ppt.endpoints import google as google_endpoint
 from api.v1.ppt.endpoints import openai as openai_endpoint
 from utils.available_models import ModelAvailabilityError
+from utils.provider_error_messages import INVALID_API_KEY_MESSAGE
 
 
 def test_model_availability_error_maps_provider_client_errors_to_bad_request():
@@ -17,7 +18,8 @@ def test_model_availability_error_maps_provider_client_errors_to_bad_request():
     )
 
     assert error.status_code == 400
-    assert "Incorrect API key provided." in str(error)
+    assert str(error) == INVALID_API_KEY_MESSAGE
+    assert error.raw_message == "Incorrect API key provided."
 
 
 def test_model_availability_error_keeps_provider_server_errors_internal():
@@ -58,4 +60,4 @@ def test_model_availability_endpoints_return_400_for_provider_validation_errors(
         asyncio.run(endpoint_module.get_available_models(*args))
 
     assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == "Provider model validation failed: Invalid API key."
+    assert exc_info.value.detail == INVALID_API_KEY_MESSAGE

@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import type { ReadableStream as NodeReadableStream } from "stream/web";
+import { authStatusForRequest } from "@/lib/server-auth-role";
 
 const MAX_UPLOAD_IMAGE_BYTES = 20 * 1024 * 1024;
 
@@ -18,6 +19,10 @@ export async function POST(request: NextRequest) {
         { error: "User data directory not found" },
         { status: 500 }
       );
+    }
+    const auth = await authStatusForRequest(request);
+    if (!auth.authenticated) {
+      return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
     }
 
     const formData = await request.formData();
@@ -38,7 +43,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(userDataDir, "uploads");
+    const uploadsDir = auth.user_id
+      ? path.join(userDataDir, "uploads", "users", auth.user_id)
+      : path.join(userDataDir, "uploads");
     fs.mkdirSync(uploadsDir, { recursive: true });
 
 

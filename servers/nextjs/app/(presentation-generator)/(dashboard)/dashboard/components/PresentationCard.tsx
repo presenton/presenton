@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 
 import { Card } from "@/components/ui/card";
 import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashboard";
-import { AlertTriangle, EllipsisVertical, Loader2, Trash } from "lucide-react";
+import { Archive, AlertTriangle, Copy, EllipsisVertical, Loader2, Trash } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
@@ -14,6 +14,10 @@ import { notify } from "@/components/ui/sonner";
 
 import { useFontLoader } from "@/app/(presentation-generator)/hooks/useFontLoad";
 import SlideScale from "@/app/(presentation-generator)/components/PresentationRender";
+import {
+  shouldRenderTemplateV2HtmlPreview,
+  TemplateV2HtmlSlidePreview,
+} from "@/app/(presentation-generator)/components/TemplateV2HtmlSlidePreview";
 import MarkdownRenderer from "@/components/MarkDownRender";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
@@ -21,20 +25,35 @@ export const PresentationCard = ({
   id,
   title,
   presentation,
-  onDeleted
+  viewMode = "grid",
+  onDeleted,
+  onDuplicated
 }: {
   id: string;
   title: string;
   presentation: any;
+  viewMode?: "grid" | "list";
   onDeleted?: (presentationId: string) => void;
+  onDuplicated?: (presentation: any) => void;
 }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isDuplicating, setIsDuplicating] = React.useState(false);
+  const isUnsupported = presentation?.version === "v1-standard";
+
+  
 
   const handlePreview = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (isUnsupported) {
+      notify.warning(
+        "Unsupported presentation",
+        "This deck was created in an older Presenton version. Downgrade to a compatible version to open it."
+      );
+      return;
+    }
     trackEvent(MixpanelEvent.Dashboard_Presentation_Opened, {
       pathname,
       presentation_id: id,
@@ -43,47 +62,7 @@ export const PresentationCard = ({
     });
     router.push(`/presentation?id=${id}&type=standard`);
   };
-  useEffect(() => {
-    applyTheme(presentation.theme)
-  }, [])
-  const applyTheme = async (theme: any) => {
-    const element = document.getElementById(`dashboard-presentation-card-${id}`)
-    if (!element) return;
 
-    if (!theme || !theme.data || !theme.data.colors['graph_0']) { return; }
-    const cssVariables = {
-      '--primary-color': theme.data.colors['primary'],
-      '--background-color': theme.data.colors['background'],
-      '--card-color': theme.data.colors['card'],
-      '--stroke': theme.data.colors['stroke'],
-      '--primary-text': theme.data.colors['primary_text'],
-      '--background-text': theme.data.colors['background_text'],
-      '--graph-0': theme.data.colors['graph_0'],
-      '--graph-1': theme.data.colors['graph_1'],
-      '--graph-2': theme.data.colors['graph_2'],
-      '--graph-3': theme.data.colors['graph_3'],
-      '--graph-4': theme.data.colors['graph_4'],
-      '--graph-5': theme.data.colors['graph_5'],
-      '--graph-6': theme.data.colors['graph_6'],
-      '--graph-7': theme.data.colors['graph_7'],
-      '--graph-8': theme.data.colors['graph_8'],
-      '--graph-9': theme.data.colors['graph_9'],
-    }
-    Object.entries(cssVariables).forEach(([key, value]) => {
-      element.style.setProperty(key, value)
-    })
-    // 
-    if (theme.data.fonts.textFont.url && theme.data.fonts.textFont.name) {
-      useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
-    }
-
-    // Apply fonts to preview container
-    element.style.setProperty('font-family', `"${theme.data.fonts.textFont.name}"`)
-    element.style.setProperty('--heading-font-family', `"${theme.data.fonts.textFont.name}"`)
-    element.style.setProperty('--body-font-family', `"${theme.data.fonts.textFont.name}"`)
-
-
-  }
 
   const handleDelete = async () => {
     if (isDeleting) return;
@@ -106,28 +85,86 @@ export const PresentationCard = ({
     }
     setIsDeleting(false);
   };
+
+  const handleDuplicate = async () => {
+    if (isDuplicating) return;
+    setIsDuplicating(true);
+    try {
+      const duplicated = await DashboardApi.duplicatePresentation(id);
+      trackEvent(MixpanelEvent.Dashboard_Presentation_Duplicated, {
+        pathname,
+        presentation_id: id,
+        duplicate_presentation_id: duplicated?.id,
+        slide_count: presentation?.slides?.length || 0,
+      });
+      notify.success("Presentation duplicated", "A copy was added to your dashboard.");
+      onDuplicated?.(duplicated);
+    } catch (error) {
+      notify.error(
+        "Could not duplicate presentation",
+        error instanceof Error ? error.message : "Something went wrong while duplicating the presentation."
+      );
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
   const firstSlide = presentation?.slides?.[0];
+  const useTemplateV2HtmlPreview = shouldRenderTemplateV2HtmlPreview(
+    firstSlide,
+    presentation?.version
+  );
+  console.log('presentation'  , presentation)
   return (
     <Card
       suppressHydrationWarning={true}
       onClick={handlePreview}
-      className="bg-[#F8FBFB] font-syne shadow-none sm:shadow-none  presentation-card rounded-[12px] p-0 group hover:shadow-md transition-all duration-500 slide-theme cursor-pointer overflow-hidden flex flex-col"
+      aria-disabled={isUnsupported}
+      title={isUnsupported ? "Unsupported in this version of Presenton" : undefined}
+      className={`bg-[#F8FBFB] font-syne relative shadow-none sm:shadow-none presentation-card rounded-[12px] p-0 group transition-all duration-500 slide-theme overflow-hidden flex flex-col ${
+        isUnsupported
+          ? "cursor-not-allowed border-[#EDEEEF]"
+          : "cursor-pointer hover:shadow-md"
+      }`}
     >
+     
       <div
         id={`dashboard-presentation-card-${id}`}
-        suppressHydrationWarning={true} className="flex flex-col flex-1 relative z-40">
+        suppressHydrationWarning={true}
+        className={`relative z-40 flex flex-1 ${viewMode === "list" ? "min-h-[122px] flex-row" : "flex-col"}`}
+      >
         {/* <p className=" text-xs font-syne absolute top-2 flex gap-1 capitalize  items-center left-2 rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40 ">
 
           {presentation.type}
         </p> */}
 
         <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
-        <div className="scale-[0.75] mt-4  border border-gray-300 rounded-lg overflow-hidden">
+        <div className={isUnsupported
+          ? `relative flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-[#EDEEEF] bg-white/90 ${viewMode === "list" ? "m-3 w-[170px] shrink-0" : "mx-5 mt-4"}`
+          : `border border-gray-300 rounded-lg overflow-hidden ${viewMode === "list" ? "m-3 w-[170px] shrink-0" : "scale-[0.75] mt-4"}`
+        }>
 
-          <SlideScale slide={firstSlide} isClickable={false} />
+          {isUnsupported ? (
+            <div className="flex flex-col items-center gap-2 px-5 text-center text-[#666666]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4F3FF] text-[#7A5AF8]">
+                <Archive className="h-[18px] w-[18px]" aria-hidden="true" />
+              </span>
+              <p className="text-xs font-medium">Preview unavailable</p>
+            </div>
+          ) : useTemplateV2HtmlPreview ? (
+            <TemplateV2HtmlSlidePreview
+              slide={firstSlide}
+              fonts={presentation.fonts}
+            />
+          ) : (
+            <SlideScale
+              slide={firstSlide}
+              isClickable={false}
+              presentationLayout={presentation.layout}
+            />
+          )}
         </div>
-
-        <div className="w-full py-3 px-5 mt-auto z-40 relative bg-white  border-t border-[#EDEEEF]">
+       <p className="absolute top-1 z-40 right-2">{presentation.n_slides}</p>
+        <div className={`z-40 flex bg-white px-5 py-3 ${viewMode === "list" ? "min-w-0 flex-1 items-center border-l border-[#EDEEEF]" : "relative mt-auto w-full border-t border-[#EDEEEF]"}`}>
           <div className="flex items-center justify-between gap-7 w-full">
             <div className="flex flex-col items-start gap-1">
               <div className="text-sm text-[#191919] font-semibold  overflow-hidden line-clamp-1">
@@ -143,6 +180,24 @@ export const PresentationCard = ({
                 <EllipsisVertical className="w-6 h-6 text-gray-500" />
               </PopoverTrigger>
               <PopoverContent align="end" className="bg-white w-[200px]">
+                {!isUnsupported && (
+                  <button
+                    className="flex items-center justify-between w-full px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDuplicating}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void handleDuplicate();
+                    }}
+                  >
+                    <p>{isDuplicating ? "Duplicating..." : "Duplicate"}</p>
+                    {isDuplicating ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-gray-500" />
+                    )}
+                  </button>
+                )}
                 <button
                   className="flex items-center justify-between w-full px-2 py-1 hover:bg-gray-100"
                   onClick={(e) => {

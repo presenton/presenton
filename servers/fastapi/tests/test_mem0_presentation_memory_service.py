@@ -68,6 +68,7 @@ class TestMem0PresentationMemoryService:
             "os.environ",
             {
                 "MEM0_ENABLED": "true",
+                "MEM0_REQUIRE_SPACY_MODEL": "false",
                 "APP_DATA_DIRECTORY": "/tmp/presenton-test",
                 "OLLAMA_URL": "http://ollama:11434",
                 "OLLAMA_MODEL": "llama3.1:8b",
@@ -220,4 +221,3 @@ class TestMem0PresentationMemoryService:
             "user_id": f"presentation:{presentation_id}"
         }
         assert client.search_calls[0]["top_k"] == 5
-

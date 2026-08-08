@@ -21,11 +21,10 @@ export const usePresentationUndoRedo = () => {
         return;
       }
 
-      const clonedSlides = JSON.parse(JSON.stringify(slidesSnapshot));
       dispatch(
         setPresentationData({
           ...presentationData,
-          slides: clonedSlides,
+          slides: slidesSnapshot,
         })
       );
     },

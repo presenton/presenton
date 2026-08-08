@@ -53,6 +53,7 @@ export async function GET() {
                         description: `${templateName} presentation layouts`,
                         ordered: false,
                         default: false,
+                        icon_type: 'bold',
                         icon_weight: 'bold'
                     }
                    

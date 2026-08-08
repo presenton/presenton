@@ -2,9 +2,9 @@
  * Download presenton-export release into repo-root `presentation-export/`.
  * Same release host as Electron (`electron/scripts/sync-export-runtime.cjs`); Docker uses this at build time.
  *
- * Version resolution (first match):
- *   1. EXPORT_RUNTIME_VERSION env
- *   2. package.json → presentationExportVersion
+ * Version resolution defaults to package.json → presentationExportVersion.
+ * EXPORT_RUNTIME_VERSION is only honored with --allow-version-override so build
+ * environments cannot accidentally replace the pinned runtime.
  *
  * CLI: --force  re-download even if valid runtime already exists
  *       --check-only  verify index.cjs + converter exist and exit 0/1
@@ -23,6 +23,10 @@ const targetRoot = path.join(repoRoot, "presentation-export");
 const targetPyDir = path.join(targetRoot, "py");
 const targetIndexJs = path.join(targetRoot, "index.js");
 const targetIndexCjs = path.join(targetRoot, "index.cjs");
+const versionManifestPath = path.join(
+  targetRoot,
+  "presenton-export-version.json"
+);
 const packageJsonFile = path.join(repoRoot, "package.json");
 const cacheDir = path.join(repoRoot, ".cache", "presentation-export");
 const exportRepoBase =
@@ -31,6 +35,7 @@ const exportRepoBase =
 const cliArgs = new Set(process.argv.slice(2));
 const forceDownload = cliArgs.has("--force");
 const checkOnly = cliArgs.has("--check-only");
+const allowVersionOverride = cliArgs.has("--allow-version-override");
 
 function resolveLinuxAssetName() {
   const arch = (
@@ -73,7 +78,7 @@ function readPinnedVersion() {
 
 async function getTargetVersion() {
   const fromEnv = (process.env.EXPORT_RUNTIME_VERSION || "").trim();
-  if (fromEnv) {
+  if (allowVersionOverride && fromEnv) {
     return fromEnv === "latest" ? await resolveLatestTag() : fromEnv;
   }
   const pinned = readPinnedVersion();
@@ -81,6 +86,33 @@ async function getTargetVersion() {
     return await resolveLatestTag();
   }
   return pinned;
+}
+
+function readInstalledVersion() {
+  if (!fs.existsSync(versionManifestPath)) {
+    return {
+      ok: false,
+      reason: `Missing export version manifest: ${versionManifestPath}`,
+    };
+  }
+
+  try {
+    const manifest = JSON.parse(fs.readFileSync(versionManifestPath, "utf8"));
+    return { ok: true, manifest };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `Invalid export version manifest ${versionManifestPath}: ${err.message}`,
+    };
+  }
+}
+
+function writeInstalledVersion(version) {
+  fs.writeFileSync(
+    versionManifestPath,
+    `${JSON.stringify({ version, asset: linuxAssetName }, null, 2)}\n`,
+    "utf8"
+  );
 }
 
 function requestJson(url, redirects = 5) {
@@ -227,7 +259,25 @@ function ensureCommonJsEntrypoint() {
   }
 }
 
-function validateExistingRuntime() {
+function validateExistingRuntime(expectedVersion) {
+  const installedVersion = readInstalledVersion();
+  if (!installedVersion.ok) {
+    return installedVersion;
+  }
+  if (
+    installedVersion.manifest.version !== expectedVersion ||
+    installedVersion.manifest.asset !== linuxAssetName
+  ) {
+    return {
+      ok: false,
+      reason: [
+        "Installed export runtime does not match package.json.",
+        `Expected: ${expectedVersion} (${linuxAssetName})`,
+        `Installed: ${installedVersion.manifest.version || "unknown"} (${installedVersion.manifest.asset || "unknown"})`,
+      ].join("\n"),
+    };
+  }
+
   normalizeRuntimeLayout();
 
   const entrypoint = ensureCommonJsEntrypoint();
@@ -313,12 +363,12 @@ function resolveExtractedRoot(extractDir) {
   throw new Error(`Unable to locate export runtime root under ${extractDir}`);
 }
 
-async function downloadAndInstallRuntime() {
-  const tag = await getTargetVersion();
+async function downloadAndInstallRuntime(tag) {
   const downloadUrl = `${exportRepoBase}/${tag}/${linuxAssetName}`;
 
   ensureDir(cacheDir);
-  const zipPath = path.join(cacheDir, linuxAssetName);
+  const cacheKey = tag.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const zipPath = path.join(cacheDir, `${cacheKey}-${linuxAssetName}`);
   const extractDir = path.join(cacheDir, `extract-${Date.now()}`);
 
   console.log(`[presentation-export] Downloading ${downloadUrl}`);
@@ -331,6 +381,7 @@ async function downloadAndInstallRuntime() {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   ensureDir(targetRoot);
   fs.cpSync(sourceRoot, targetRoot, { recursive: true, force: true });
+  writeInstalledVersion(tag);
 
   fs.rmSync(extractDir, { recursive: true, force: true });
 
@@ -338,7 +389,8 @@ async function downloadAndInstallRuntime() {
 }
 
 async function main() {
-  const existing = validateExistingRuntime();
+  const targetVersion = await getTargetVersion();
+  const existing = validateExistingRuntime(targetVersion);
 
   if (checkOnly) {
     if (!existing.ok) {
@@ -348,6 +400,7 @@ async function main() {
     console.log(`  - ${existing.entrypointPath}`);
     console.log(`  - ${existing.converterPath}`);
     console.log(`  - ${existing.currentConverterPath}`);
+    console.log(`  - release: ${targetVersion}`);
     return;
   }
 
@@ -356,11 +409,12 @@ async function main() {
     console.log(`  - ${existing.entrypointPath}`);
     console.log(`  - ${existing.converterPath}`);
     console.log(`  - ${existing.currentConverterPath}`);
+    console.log(`  - release: ${targetVersion}`);
     return;
   }
 
-  const { tag, downloadUrl } = await downloadAndInstallRuntime();
-  const installed = validateExistingRuntime();
+  const { tag, downloadUrl } = await downloadAndInstallRuntime(targetVersion);
+  const installed = validateExistingRuntime(targetVersion);
   if (!installed.ok) {
     throw new Error(installed.reason);
   }

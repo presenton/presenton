@@ -4,10 +4,11 @@ import logging
 import traceback
 import uuid
 import dirtyjson
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from constants.presentation import MAX_NUMBER_OF_SLIDES
 from models.presentation_outline_model import PresentationOutlineModel
 from models.sql.presentation import PresentationModel
 from models.sse_response import (
@@ -27,6 +28,7 @@ from utils.outline_utils import (
     get_no_of_outlines_to_generate_for_n_slides,
     get_presentation_title_from_presentation_outline,
 )
+from utils.outline_limits import normalize_outline_payload
 from utils.llm_calls.generate_presentation_outlines import (
     OutlineGenerationStatus,
     generate_ppt_outline,
@@ -81,7 +83,9 @@ async def update_outline(
 
 @OUTLINES_ROUTER.get("/stream/{id}")
 async def stream_outlines(
-    id: uuid.UUID, sql_session: AsyncSession = Depends(get_async_session)
+    id: uuid.UUID,
+    request: Request,
+    sql_session: AsyncSession = Depends(get_async_session),
 ):
     presentation = await sql_session.get(PresentationModel, id)
 
@@ -106,6 +110,9 @@ async def stream_outlines(
     temp_dir = TEMP_FILE_SERVICE.create_temp_dir()
 
     async def inner():
+        if await request.is_disconnected():
+            return
+
         yield SSEStatusResponse(
             status="Preparing your presentation outline"
         ).to_string()
@@ -172,6 +179,7 @@ async def stream_outlines(
             presentation.web_search,
             presentation.include_table_of_contents,
             emit_statuses=True,
+            disconnect_checker=request.is_disconnected,
         ):
             # Give control to the event loop
             await asyncio.sleep(0)
@@ -207,7 +215,12 @@ async def stream_outlines(
             ).to_string()
             return
 
-        presentation_outlines = PresentationOutlineModel(**presentation_outlines_json)
+        presentation_outlines = PresentationOutlineModel(
+            **normalize_outline_payload(
+                presentation_outlines_json,
+                MAX_NUMBER_OF_SLIDES,
+            )
+        )
 
         if (
             n_slides_to_generate is not None

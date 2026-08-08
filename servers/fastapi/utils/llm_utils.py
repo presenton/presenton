@@ -1,7 +1,8 @@
 import asyncio
 import json
 import logging
-from collections.abc import AsyncGenerator, Sequence
+import threading
+from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from typing import Any, Optional
 
 import dirtyjson
@@ -10,6 +11,7 @@ from llmai.shared import (
     LLMTool,
     Message,
     ResponseFormat,
+    ResponseStreamCompletionChunk,
     UserMessage,
     normalize_content_parts,
 )
@@ -19,6 +21,45 @@ from utils.schema_utils import get_schema_validation_errors
 
 
 LOGGER = logging.getLogger(__name__)
+CLIENT_DISCONNECT_POLL_SECONDS = 0.1
+DisconnectChecker = Callable[[], Awaitable[bool]]
+
+
+async def _raise_if_client_disconnected(
+    disconnect_checker: Optional[DisconnectChecker],
+) -> None:
+    if disconnect_checker and await disconnect_checker():
+        raise asyncio.CancelledError
+
+
+async def _generate_structured_content(
+    client: Any,
+    *,
+    disconnect_checker: Optional[DisconnectChecker],
+    **kwargs: Any,
+) -> Optional[dict]:
+    if disconnect_checker is None:
+        response = await asyncio.to_thread(client.generate, **kwargs)
+        return extract_structured_content(response.content)
+
+    completion_content: Any = None
+    streamed_text: list[str] = []
+    async for event in stream_generate_events(
+        client,
+        disconnect_checker=disconnect_checker,
+        **{**kwargs, "stream": True},
+    ):
+        if isinstance(event, ResponseStreamCompletionChunk):
+            completion_content = event.content
+        elif getattr(event, "type", None) == "content":
+            chunk = getattr(event, "chunk", None)
+            if isinstance(chunk, str):
+                streamed_text.append(chunk)
+
+    content = extract_structured_content(completion_content)
+    if content is not None:
+        return content
+    return extract_structured_content("".join(streamed_text))
 
 
 def get_generate_kwargs(
@@ -161,6 +202,7 @@ async def generate_structured_with_schema_retries(
     strict: bool = False,
     validate_schema: bool = False,
     validate_schema_max_loop_count: int = 4,
+    disconnect_checker: Optional[DisconnectChecker] = None,
 ) -> dict:
     """
     Parse retries (inner loop) plus optional JSON Schema validation feedback loops (outer loop),
@@ -171,31 +213,17 @@ async def generate_structured_with_schema_retries(
 
     for validation_attempt in range(max_validation_loops):
         content: Optional[dict] = None
-        for attempt in range(_MAX_RETRYABLE_ATTEMPTS):
-            try:
-                response = await asyncio.to_thread(
-                    client.generate,
-                    **get_generate_kwargs(
-                        model=model,
-                        messages=working_messages,
-                        response_format=response_format,
-                    ),
-                )
-            except Exception as exc:
-                if attempt < _MAX_RETRYABLE_ATTEMPTS - 1 and is_retryable_llm_error(exc):
-                    wait = _retry_wait_seconds(exc, attempt)
-                    LOGGER.warning(
-                        "Structured generate attempt %s/%s failed (retryable), "
-                        "waiting %.1fs then retrying: %s",
-                        attempt + 1,
-                        _MAX_RETRYABLE_ATTEMPTS,
-                        wait,
-                        exc,
-                    )
-                    await asyncio.sleep(wait)
-                    continue
-                raise
-            content = extract_structured_content(response.content)
+        for attempt in range(3):
+            await _raise_if_client_disconnected(disconnect_checker)
+            content = await _generate_structured_content(
+                client,
+                disconnect_checker=disconnect_checker,
+                **get_generate_kwargs(
+                    model=model,
+                    messages=working_messages,
+                    response_format=response_format,
+                ),
+            )
             if content is not None:
                 break
             if attempt < _MAX_RETRYABLE_ATTEMPTS - 1:
@@ -306,28 +334,81 @@ def message_content_to_text(content: Sequence[Any] | str | None) -> Optional[str
     return joined or None
 
 
-async def stream_generate_events(client: Any, **kwargs) -> AsyncGenerator[Any, None]:
+async def stream_generate_events(
+    client: Any,
+    *,
+    disconnect_checker: Optional[DisconnectChecker] = None,
+    **kwargs,
+) -> AsyncGenerator[Any, None]:
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[Any] = asyncio.Queue()
     sentinel = object()
+    stop_requested = threading.Event()
+
+    def enqueue(item: Any) -> None:
+        try:
+            loop.call_soon_threadsafe(queue.put_nowait, item)
+        except RuntimeError:
+            pass
 
     def worker():
+        events = None
         try:
-            for event in client.generate(**kwargs):
-                loop.call_soon_threadsafe(queue.put_nowait, event)
+            events = iter(client.generate(**kwargs))
+            while not stop_requested.is_set():
+                try:
+                    event = next(events)
+                except StopIteration:
+                    break
+                if stop_requested.is_set():
+                    break
+                enqueue(event)
         except Exception as exc:
-            loop.call_soon_threadsafe(queue.put_nowait, exc)
+            if not stop_requested.is_set():
+                enqueue(exc)
         finally:
-            loop.call_soon_threadsafe(queue.put_nowait, sentinel)
+            if stop_requested.is_set() and events is not None:
+                close = getattr(events, "close", None)
+                if callable(close):
+                    try:
+                        close()
+                    except Exception:
+                        LOGGER.debug(
+                            "Failed to close cancelled LLM stream",
+                            exc_info=True,
+                        )
+            enqueue(sentinel)
 
     worker_task = asyncio.create_task(asyncio.to_thread(worker))
+    completed = False
     try:
         while True:
-            item = await queue.get()
+            await _raise_if_client_disconnected(disconnect_checker)
+            try:
+                item = await asyncio.wait_for(
+                    queue.get(),
+                    timeout=(
+                        CLIENT_DISCONNECT_POLL_SECONDS
+                        if disconnect_checker
+                        else None
+                    ),
+                )
+            except asyncio.TimeoutError:
+                continue
             if item is sentinel:
+                completed = True
                 break
             if isinstance(item, Exception):
                 raise item
             yield item
+    except asyncio.CancelledError:
+        LOGGER.info("LLM stream cancelled because the client disconnected")
+        raise
     finally:
-        await worker_task
+        stop_requested.set()
+        if completed or worker_task.done():
+            await worker_task
+        else:
+            worker_task.add_done_callback(
+                lambda task: None if task.cancelled() else task.exception()
+            )

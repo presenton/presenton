@@ -28,6 +28,7 @@ import { ChevronRight, PanelRightOpen, X } from "lucide-react";
 import ToolTip from "@/components/ToolTip";
 import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/components/Header";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
+import { parseLimitedSlideCount } from "@/utils/presentationLimits";
 
 // Types
 interface LoadingState {
@@ -153,7 +154,8 @@ const DocumentsPreviewPage: React.FC = () => {
       const createResponse = await PresentationGenerationApi.createPresentation(
         {
           content: config?.prompt ?? "",
-          n_slides: config?.slides ? parseInt(config.slides) : null,
+          version: "v2-standard",
+          n_slides: parseLimitedSlideCount(config?.slides),
           file_paths: documentPaths,
           language: config?.language ?? "",
           tone: config?.tone,

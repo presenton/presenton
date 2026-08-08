@@ -12,6 +12,10 @@ const packageJson = JSON.parse(
 const targetRoot = path.join(electronRoot, "resources", "export");
 const targetPyDir = path.join(targetRoot, "py");
 const targetIndex = path.join(targetRoot, "index.js");
+const versionManifestPath = path.join(
+  targetRoot,
+  "presenton-export-version.json",
+);
 const cacheDir = path.join(electronRoot, ".cache", "export-runtime");
 const exportRepoBase = "https://github.com/presenton/presenton-export/releases/download";
 const exportVersion = packageJson.exportVersion || "v0.1.0";
@@ -19,9 +23,12 @@ const exportVersion = packageJson.exportVersion || "v0.1.0";
 const cliArgs = new Set(process.argv.slice(2));
 const forceDownload = cliArgs.has("--force");
 const checkOnly = cliArgs.has("--check-only");
+const allowVersionOverride = cliArgs.has("--allow-version-override");
 
 async function getTargetVersion() {
-  const requestedVersion = process.env.EXPORT_RUNTIME_VERSION || exportVersion;
+  const requestedVersion = allowVersionOverride
+    ? process.env.EXPORT_RUNTIME_VERSION || exportVersion
+    : exportVersion;
   if (requestedVersion !== "latest") {
     return requestedVersion;
   }
@@ -33,6 +40,33 @@ async function getTargetVersion() {
   }
 
   return latest.tag_name;
+}
+
+function readInstalledVersion() {
+  if (!fs.existsSync(versionManifestPath)) {
+    return {
+      ok: false,
+      reason: `Missing export version manifest: ${versionManifestPath}`,
+    };
+  }
+
+  try {
+    const manifest = JSON.parse(fs.readFileSync(versionManifestPath, "utf8"));
+    return { ok: true, manifest };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: `Invalid export version manifest ${versionManifestPath}: ${error.message}`,
+    };
+  }
+}
+
+function writeInstalledVersion(version, asset) {
+  fs.writeFileSync(
+    versionManifestPath,
+    `${JSON.stringify({ version, asset }, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 function getPlatformAssetName() {
@@ -130,7 +164,25 @@ function isFormatCompatible(format) {
   return true;
 }
 
-function validateExistingRuntime() {
+function validateExistingRuntime(expectedVersion, expectedAsset) {
+  const installedVersion = readInstalledVersion();
+  if (!installedVersion.ok) {
+    return installedVersion;
+  }
+  if (
+    installedVersion.manifest.version !== expectedVersion ||
+    installedVersion.manifest.asset !== expectedAsset
+  ) {
+    return {
+      ok: false,
+      reason: [
+        "Installed export runtime does not match electron/package.json.",
+        `Expected: ${expectedVersion} (${expectedAsset})`,
+        `Installed: ${installedVersion.manifest.version || "unknown"} (${installedVersion.manifest.asset || "unknown"})`,
+      ].join("\n"),
+    };
+  }
+
   if (!fs.existsSync(targetIndex)) {
     return { ok: false, reason: `Missing runtime bundle: ${targetIndex}` };
   }
@@ -465,13 +517,12 @@ function resolveExtractedRoot(extractDir) {
   );
 }
 
-async function downloadAndInstallRuntime() {
-  const tag = await getTargetVersion();
-  const assetName = getPlatformAssetName();
+async function downloadAndInstallRuntime(tag, assetName) {
   const downloadUrl = `${exportRepoBase}/${tag}/${assetName}`;
 
   ensureDir(cacheDir);
-  const zipPath = path.join(cacheDir, assetName);
+  const cacheKey = tag.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const zipPath = path.join(cacheDir, `${cacheKey}-${assetName}`);
   const extractDir = path.join(cacheDir, `extract-${Date.now()}`);
 
   console.log(`[export-runtime] Downloading ${downloadUrl}`);
@@ -494,6 +545,7 @@ async function downloadAndInstallRuntime() {
     fs.rmSync(targetRoot, { recursive: true, force: true });
     ensureDir(targetRoot);
     fs.cpSync(sourceRoot, targetRoot, { recursive: true, force: true });
+    writeInstalledVersion(tag, assetName);
   } finally {
     fs.rmSync(extractDir, { recursive: true, force: true });
   }
@@ -502,7 +554,9 @@ async function downloadAndInstallRuntime() {
 }
 
 async function main() {
-  const existing = validateExistingRuntime();
+  const targetVersion = await getTargetVersion();
+  const assetName = getPlatformAssetName();
+  const existing = validateExistingRuntime(targetVersion, assetName);
 
   if (checkOnly) {
     if (!existing.ok) {
@@ -511,6 +565,7 @@ async function main() {
     console.log("[export-runtime] Existing runtime is valid.");
     console.log(`  - ${targetIndex}`);
     console.log(`  - ${existing.converterPath}`);
+    console.log(`  - release: ${targetVersion}`);
     return;
   }
 
@@ -519,6 +574,7 @@ async function main() {
     console.log("[export-runtime] Using existing runtime artifacts:");
     console.log(`  - ${targetIndex}`);
     console.log(`  - ${existing.converterPath}`);
+    console.log(`  - release: ${targetVersion}`);
     return;
   }
 
@@ -526,9 +582,12 @@ async function main() {
     console.log("[export-runtime] Existing export directory is invalid, re-syncing package.");
   }
 
-  const { tag, downloadUrl } = await downloadAndInstallRuntime();
+  const { tag, downloadUrl } = await downloadAndInstallRuntime(
+    targetVersion,
+    assetName,
+  );
   patchHtmlToImageRuntime();
-  const installed = validateExistingRuntime();
+  const installed = validateExistingRuntime(targetVersion, assetName);
   if (!installed.ok) {
     throw new Error(installed.reason);
   }

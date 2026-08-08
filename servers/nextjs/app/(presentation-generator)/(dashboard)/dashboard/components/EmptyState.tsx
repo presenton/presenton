@@ -1,22 +1,35 @@
-import React from 'react';
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 export const EmptyState = () => {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-[70vh] bg-white/50 rounded-lg">
-            <div className="mb-4">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M42 14.4V33.6C42 40.8 38 44.8 30.8 44.8H17.2C10 44.8 6 40.8 6 33.6V14.4C6 7.2 10 3.2 17.2 3.2H30.8C38 3.2 42 7.2 42 14.4Z" stroke="#667085" strokeWidth="3" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M6.96002 16.4188H41.04" stroke="#667085" strokeWidth="3" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M19.04 3.21875V15.1388" stroke="#667085" strokeWidth="3" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M28.96 3.21875V14.2388" stroke="#667085" strokeWidth="3" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-            </div>
-            <h3 className="text-[#101828] text-lg font-roboto font-medium mb-1">
-                You don't have any presentations yet.
-            </h3>
-            <p className="text-[#667085] text-base font-roboto">
-                Start creating the first one.
-            </p>
-        </div>
-    );
-}; 
+  return (
+    <div className="w-full border-y border-[#EDEEEF]">
+      <Link
+        href="/upload"
+        aria-label="Create your first presentation"
+        className="group mx-auto flex h-[250px] w-full max-w-[577px] flex-col items-center justify-center gap-[14px] border-x border-[#EDEEEF] bg-white px-5 outline-none transition-colors hover:bg-[#FDFDFF] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#7A5AF8]"
+        onClick={() =>
+          trackEvent(MixpanelEvent.Dashboard_New_Presentation_Clicked, {
+            source: "dashboard_empty_state",
+          })
+        }
+      >
+        <Image
+          src="/dashboard-body/empty-folder.png"
+          alt=""
+          width={1453}
+          height={1083}
+          className="h-[48.817px] w-[65.495px] object-cover transition-transform group-hover:-translate-y-0.5"
+          aria-hidden="true"
+        />
+        <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-center font-syne text-sm font-medium">
+          <span className="text-[#191919]">No presentations yet.</span>
+          <span className="text-[#7A5AF8]">Get started now</span>
+        </span>
+      </Link>
+    </div>
+  );
+};

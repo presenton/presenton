@@ -1,50 +1,15 @@
-// API Error Response Interface
-interface ApiErrorResponse {
-  detail?: unknown;
-  message?: string;
-  error?: string;
-}
+import {
+  isChatGptAuthRequiredResponse,
+  normalizeChatGptAuthMessage,
+  requestChatGptReauth,
+} from "@/utils/chatgptAuth";
+import {
+  extractApiErrorMessage,
+  type ApiErrorResponse,
+} from "@/utils/apiErrorMessages";
 
 // API Response Handler Utility
 export class ApiResponseHandler {
-  private static normalizeErrorDetail(detail: unknown): string | null {
-    if (!detail) return null;
-
-    if (typeof detail === "string") {
-      return detail;
-    }
-
-    if (Array.isArray(detail)) {
-      const parts = detail
-        .map((item) => {
-          if (typeof item === "string") return item;
-          if (item && typeof item === "object") {
-            const maybeMsg = (item as { msg?: unknown }).msg;
-            const maybeLoc = (item as { loc?: unknown }).loc;
-            const locPath = Array.isArray(maybeLoc)
-              ? maybeLoc
-                  .filter((v) => typeof v === "string" || typeof v === "number")
-                  .join(".")
-              : "";
-            if (typeof maybeMsg === "string") {
-              return locPath ? `${locPath}: ${maybeMsg}` : maybeMsg;
-            }
-          }
-          return null;
-        })
-        .filter((v): v is string => Boolean(v));
-
-      return parts.length ? parts.join("; ") : JSON.stringify(detail);
-    }
-
-    if (typeof detail === "object") {
-      return JSON.stringify(detail);
-    }
-
-    return String(detail);
-  }
-
- 
   static async handleResponse(response: Response, defaultErrorMessage: string): Promise<any> {
     // Handle successful responses
     if (response.ok) {
@@ -56,7 +21,7 @@ export class ApiResponseHandler {
       // Try to parse JSON response
       try {
         return await response.json();
-      } catch (error) {
+      } catch {
         // If JSON parsing fails but response is ok, return empty object
         return {};
       }
@@ -67,19 +32,29 @@ export class ApiResponseHandler {
     
     try {
       const errorData: ApiErrorResponse = await response.json();
-      
-      // Extract error message in order of preference
-      const normalizedDetail = this.normalizeErrorDetail(errorData.detail);
-      if (normalizedDetail) {
-        errorMessage = normalizedDetail;
-      } else if (errorData.message) {
-        errorMessage = errorData.message;
-      } else if (errorData.error) {
-        errorMessage = errorData.error;
+      errorMessage = extractApiErrorMessage(
+        errorData,
+        defaultErrorMessage,
+        response.status
+      );
+
+      if (isChatGptAuthRequiredResponse(response, errorData, errorMessage)) {
+        errorMessage = normalizeChatGptAuthMessage(errorMessage);
+        requestChatGptReauth({
+          message: errorMessage,
+          source: "api-response",
+        });
       }
-    } catch (parseError) {
+    } catch {
       // If JSON parsing fails, use status-based messages
       errorMessage = this.getStatusBasedErrorMessage(response.status, defaultErrorMessage);
+      if (isChatGptAuthRequiredResponse(response, null, errorMessage)) {
+        errorMessage = normalizeChatGptAuthMessage(errorMessage);
+        requestChatGptReauth({
+          message: errorMessage,
+          source: "api-response",
+        });
+      }
     }
 
     // Throw error with appropriate message
@@ -99,19 +74,29 @@ export class ApiResponseHandler {
       
       try {
         const errorData: ApiErrorResponse = await response.json();
-        
-        // Extract error message in order of preference
-        const normalizedDetail = this.normalizeErrorDetail(errorData.detail);
-        if (normalizedDetail) {
-          errorMessage = normalizedDetail;
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
-        } else if (errorData.error) {
-          errorMessage = errorData.error;
+        errorMessage = extractApiErrorMessage(
+          errorData,
+          defaultErrorMessage,
+          response.status
+        );
+
+        if (isChatGptAuthRequiredResponse(response, errorData, errorMessage)) {
+          errorMessage = normalizeChatGptAuthMessage(errorMessage);
+          requestChatGptReauth({
+            message: errorMessage,
+            source: "api-response-result",
+          });
         }
-      } catch (parseError) {
+      } catch {
         // If JSON parsing fails, use status-based messages
         errorMessage = this.getStatusBasedErrorMessage(response.status, defaultErrorMessage);
+        if (isChatGptAuthRequiredResponse(response, null, errorMessage)) {
+          errorMessage = normalizeChatGptAuthMessage(errorMessage);
+          requestChatGptReauth({
+            message: errorMessage,
+            source: "api-response-result",
+          });
+        }
       }
 
       return {
@@ -157,4 +142,4 @@ export class ApiResponseHandler {
   }
 }
 
-export type { ApiErrorResponse }; 
+export type { ApiErrorResponse };

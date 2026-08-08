@@ -1,173 +1,43 @@
-interface FastApiEnv {
-  DEBUG?: string,
-  CAN_CHANGE_KEYS?: string,
-  LLM?: string,
-  OPENAI_API_KEY?: string,
-  OPENAI_MODEL?: string,
-  DEEPSEEK_API_KEY?: string,
-  DEEPSEEK_MODEL?: string,
-  DEEPSEEK_BASE_URL?: string,
-  GOOGLE_API_KEY?: string,
-  GOOGLE_MODEL?: string,
-  ANTHROPIC_API_KEY?: string,
-  ANTHROPIC_MODEL?: string,
-  OLLAMA_URL?: string,
-  OLLAMA_MODEL?: string,
-  CUSTOM_LLM_URL?: string,
-  CUSTOM_LLM_API_KEY?: string,
-  CUSTOM_MODEL?: string,
-  BEDROCK_REGION?: string,
-  BEDROCK_API_KEY?: string,
-  BEDROCK_AWS_ACCESS_KEY_ID?: string,
-  BEDROCK_AWS_SECRET_ACCESS_KEY?: string,
-  BEDROCK_AWS_SESSION_TOKEN?: string,
-  BEDROCK_PROFILE_NAME?: string,
-  BEDROCK_MODEL?: string,
-  FIREWORKS_API_KEY?: string,
-  FIREWORKS_MODEL?: string,
-  FIREWORKS_BASE_URL?: string,
-  TOGETHER_API_KEY?: string,
-  TOGETHER_MODEL?: string,
-  TOGETHER_BASE_URL?: string,
-  LMSTUDIO_BASE_URL?: string,
-  LMSTUDIO_API_KEY?: string,
-  LMSTUDIO_MODEL?: string,
-  PEXELS_API_KEY?: string,
-  PIXABAY_API_KEY?: string,
-  IMAGE_PROVIDER?: string,
-  DISABLE_IMAGE_GENERATION?: string,
-  EXTENDED_REASONING?: string,
-  TOOL_CALLS?: string,
-  DISABLE_THINKING?: string,
-  WEB_GROUNDING?: string,
-  WEB_SEARCH_PROVIDER?: string,
-  WEB_SEARCH_MAX_RESULTS?: string,
-  SEARXNG_BASE_URL?: string,
-  TAVILY_API_KEY?: string,
-  EXA_API_KEY?: string,
-  BRAVE_SEARCH_API_KEY?: string,
-  SERPER_API_KEY?: string,
-  DATABASE_URL?: string,
-  DISABLE_ANONYMOUS_TRACKING?: string,
-  COMFYUI_URL?: string,
-  COMFYUI_WORKFLOW?: string,
-  DALL_E_3_QUALITY?: string,
-  GPT_IMAGE_1_5_QUALITY?: string,
-  APP_DATA_DIRECTORY?: string,
-  /** Same origin the Next.js app uses for FastAPI (assets + API). Passed through to Python. */
-  NEXT_PUBLIC_FAST_API?: string,
-  TEMP_DIRECTORY?: string,
-  USER_CONFIG_PATH?: string,
-  MIGRATE_DATABASE_ON_STARTUP?: string,
-  DISABLE_AUTH?: string,
-  PRESENTON_ELECTRON?: string,
-  /** Absolute path to the bundled/resolved ImageMagick magick executable. */
-  IMAGEMAGICK_BINARY?: string,
-  /** ImageMagick runtime root used by the bundled portable build. */
-  MAGICK_HOME?: string,
-  /** ImageMagick configuration directory used by the bundled portable build. */
-  MAGICK_CONFIGURE_PATH?: string,
-  /** POSIX-style path key used on macOS/Linux child processes. */
-  PATH?: string,
-  /** Windows path key, preserved to avoid duplicate PATH/Path env entries. */
-  Path?: string,
+interface FastApiEnv extends NodeJS.ProcessEnv {
+  /** Same runtime FastAPI origin used by the Electron renderer and Next.js. */
+  NEXT_PUBLIC_FAST_API?: string;
+  /** Absolute path to the bundled/resolved ImageMagick executable. */
+  IMAGEMAGICK_BINARY?: string;
+  MAGICK_HOME?: string;
+  MAGICK_CONFIGURE_PATH?: string;
   /** Absolute path to the bundled LiteParse runner script. */
-  LITEPARSE_RUNNER_PATH?: string,
-  /** Binary path used by LiteParseService to execute liteparse_runner.mjs. */
-  LITEPARSE_NODE_BINARY?: string,
-  /** Set to "1" when using the Electron binary as a Node runtime. */
-  ELECTRON_RUN_AS_NODE?: string,
-  /** Root directory of the bundled presentation export runtime package. */
-  EXPORT_PACKAGE_ROOT?: string,
-  /** Directory used by FastAPI export task runtime resolution. */
-  EXPORT_RUNTIME_DIR?: string,
-  /** Absolute path to the Chromium executable used by the export runtime. */
-  PUPPETEER_EXECUTABLE_PATH?: string,
-  /** Writable Puppeteer browser cache directory. */
-  PUPPETEER_CACHE_DIR?: string,
-  /** Writable Puppeteer temporary directory. */
-  PUPPETEER_TMP_DIR?: string,
-  /** Absolute path to bundled PyInstaller converter binary for export runtime. */
-  BUILT_PYTHON_MODULE_PATH?: string,
+  LITEPARSE_RUNNER_PATH?: string;
+  /** Binary used by LiteParse to execute its runner. */
+  LITEPARSE_NODE_BINARY?: string;
+  /** Root directory of the bundled presentation export runtime. */
+  EXPORT_PACKAGE_ROOT?: string;
+  EXPORT_RUNTIME_DIR?: string;
+  PUPPETEER_EXECUTABLE_PATH?: string;
+  PUPPETEER_CACHE_DIR?: string;
+  PUPPETEER_TMP_DIR?: string;
+  BUILT_PYTHON_MODULE_PATH?: string;
 }
 
-interface NextJsEnv {
-  NEXT_PUBLIC_FAST_API?: string,
-  /** Optional Docker-only: SSR/middleware reach FastAPI on a different base than the browser. */
-  FAST_API_INTERNAL_URL?: string,
-  TEMP_DIRECTORY?: string,
-  NEXT_PUBLIC_URL?: string,
-  NEXT_PUBLIC_USER_CONFIG_PATH?: string,
-  USER_CONFIG_PATH?: string,
-  APP_DATA_DIRECTORY?: string,
-  DISABLE_AUTH?: string,
-  EXPORT_PACKAGE_ROOT?: string,
-  PRESENTON_APP_ROOT?: string,
-  BUILT_PYTHON_MODULE_PATH?: string,
+interface NextJsEnv extends NodeJS.ProcessEnv {
+  NEXT_PUBLIC_FAST_API?: string;
+  /** SSR, route handlers, and proxy middleware use this loopback URL. */
+  FAST_API_INTERNAL_URL?: string;
+  USER_CONFIG_PATH?: string;
+  APP_DATA_DIRECTORY?: string;
+  DISABLE_AUTH?: string;
+  EXPORT_PACKAGE_ROOT?: string;
+  PRESENTON_APP_ROOT?: string;
+  PUPPETEER_EXECUTABLE_PATH?: string;
+  PUPPETEER_CACHE_DIR?: string;
+  PUPPETEER_TMP_DIR?: string;
+  BUILT_PYTHON_MODULE_PATH?: string;
 }
 
 interface UserConfig {
-  CAN_CHANGE_KEYS?: string,
-  LLM?: string,
-  OPENAI_API_KEY?: string,
-  OPENAI_MODEL?: string,
-  DEEPSEEK_API_KEY?: string,
-  DEEPSEEK_MODEL?: string,
-  DEEPSEEK_BASE_URL?: string,
-  GOOGLE_API_KEY?: string,
-  GOOGLE_MODEL?: string,
-  ANTHROPIC_API_KEY?: string,
-  ANTHROPIC_MODEL?: string,
-  OLLAMA_URL?: string,
-  OLLAMA_MODEL?: string,
-  CUSTOM_LLM_URL?: string,
-  CUSTOM_LLM_API_KEY?: string,
-  CUSTOM_MODEL?: string,
-  BEDROCK_REGION?: string,
-  BEDROCK_API_KEY?: string,
-  BEDROCK_AWS_ACCESS_KEY_ID?: string,
-  BEDROCK_AWS_SECRET_ACCESS_KEY?: string,
-  BEDROCK_AWS_SESSION_TOKEN?: string,
-  BEDROCK_PROFILE_NAME?: string,
-  BEDROCK_MODEL?: string,
-  FIREWORKS_API_KEY?: string,
-  FIREWORKS_MODEL?: string,
-  FIREWORKS_BASE_URL?: string,
-  TOGETHER_API_KEY?: string,
-  TOGETHER_MODEL?: string,
-  TOGETHER_BASE_URL?: string,
-  LMSTUDIO_BASE_URL?: string,
-  LMSTUDIO_API_KEY?: string,
-  LMSTUDIO_MODEL?: string,
-  PEXELS_API_KEY?: string,
-  PIXABAY_API_KEY?: string,
-  IMAGE_PROVIDER?: string,
-  DISABLE_IMAGE_GENERATION?: string,
-  EXTENDED_REASONING?: string,
-  TOOL_CALLS?: string,
-  DISABLE_THINKING?: string,
-  WEB_GROUNDING?: string,
-  WEB_SEARCH_PROVIDER?: string,
-  WEB_SEARCH_MAX_RESULTS?: string,
-  SEARXNG_BASE_URL?: string,
-  TAVILY_API_KEY?: string,
-  EXA_API_KEY?: string,
-  BRAVE_SEARCH_API_KEY?: string,
-  SERPER_API_KEY?: string,
-  DATABASE_URL?: string,
-  DISABLE_ANONYMOUS_TRACKING?: string,
-  COMFYUI_URL?: string,
-  COMFYUI_WORKFLOW?: string,
-  DALL_E_3_QUALITY?: string,
-  GPT_IMAGE_1_5_QUALITY?: string,
-  CODEX_MODEL?: string,
-  CODEX_ACCESS_TOKEN?: string,
-  CODEX_REFRESH_TOKEN?: string,
-  CODEX_TOKEN_EXPIRES?: string,
-  CODEX_ACCOUNT_ID?: string,
+  [key: string]: string | boolean | undefined;
 }
 
 interface IPCStatus {
-  success: boolean,
-  message?: string,
+  success: boolean;
+  message?: string;
 }

@@ -1,0 +1,35 @@
+<svg width="294" height="458" viewBox="0 0 294 458" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <clipPath id="chat-bg-clip">
+      <rect width="293.611" height="457.951" />
+    </clipPath>
+    <filter id="chat-bg-blue-blur" x="0" y="0" width="374.354" height="374.354" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+      <feGaussianBlur stdDeviation="61.1689" />
+    </filter>
+    <filter id="chat-bg-indigo-blur" x="0" y="0" width="374.966" height="374.966" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+      <feGaussianBlur stdDeviation="61.1689" />
+    </filter>
+    <filter id="chat-bg-purple-blur" x="0" y="0" width="374.354" height="374.558" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+      <feGaussianBlur stdDeviation="61.1689" />
+    </filter>
+  </defs>
+  <g clip-path="url(#chat-bg-clip)">
+    <rect width="293.611" height="457.951" fill="#FFFFFF" />
+    <g transform="translate(-40.57 32.63)" filter="url(#chat-bg-indigo-blur)">
+      <circle cx="187.483" cy="187.483" r="65.1449" fill="#6172F3" />
+    </g>
+    <g transform="translate(-40.36 -44.65)" filter="url(#chat-bg-blue-blur)" style="mix-blend-mode:hard-light">
+      <circle cx="187.177" cy="187.177" r="64.8391" fill="#53B1FD" />
+    </g>
+    <g transform="translate(-40.36 128.05)" filter="url(#chat-bg-purple-blur)" style="mix-blend-mode:hard-light">
+      <ellipse cx="187.177" cy="187.279" rx="64.8391" ry="64.941" fill="#7A5AF8" />
+    </g>
+    <image x="0.2" y="0" width="293.203" height="457.951" preserveAspectRatio="xMidYMid slice" xlink:href="chat-panel-background.svg" style="mix-blend-mode:plus-lighter" />
+  </g>
+</svg>

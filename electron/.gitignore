@@ -23,6 +23,7 @@ container.db
 app_dist
 resources/fastapi
 resources/nextjs
+resources/templates/
 dist
 eng.traineddata
 .cache/

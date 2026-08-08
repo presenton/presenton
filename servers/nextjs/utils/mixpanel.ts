@@ -7,10 +7,6 @@ const MIXPANEL_TOKEN = 'd726e8bea8ec147f4c7720060cb2e6d1';
 export enum MixpanelEvent {
   PageView = 'Page View',
   Navigation = 'Navigation',
-  Home_SaveConfiguration_Button_Clicked = 'Home Save Configuration Button Clicked',
-  Home_SaveConfiguration_API_Call = 'Home Save Configuration API Call',
-  Home_CheckOllamaModelPulled_API_Call = 'Home Check Ollama Model Pulled API Call',
-  Home_DownloadOllamaModel_API_Call = 'Home Download Ollama Model API Call',
 
   Onboarding_Providers_Models_Selected = 'Onboarding Providers Models Selected',
   Onboarding_Configuration_Saved = 'Onboarding Configuration Saved',
@@ -19,7 +15,6 @@ export enum MixpanelEvent {
   Onboarding_Step_Continued = 'Onboarding Step Continued',
   Onboarding_Back_Clicked = 'Onboarding Back Clicked',
   Onboarding_Validation_Failed = 'Onboarding Validation Failed',
-  Onboarding_Mode_Selected = 'Onboarding Mode Selected',
   Onboarding_Text_Provider_Tab_Selected = 'Onboarding Text Provider Tab Selected',
   Onboarding_Text_Provider_Selected = 'Onboarding Text Provider Selected',
   Onboarding_Text_Model_Selected = 'Onboarding Text Model Selected',
@@ -34,15 +29,46 @@ export enum MixpanelEvent {
   Codex_SignIn_Failed = 'Codex Sign In Failed',
   Codex_SignIn_Cancelled = 'Codex Sign In Cancelled',
   Codex_Signed_Out = 'Codex Signed Out',
+  Codex_Reauth_Required = 'Codex Reauth Required',
+
+  Auth_Gate_Viewed = 'Auth Gate Viewed',
+  Auth_Status_Checked = 'Auth Status Checked',
+  Auth_Unauthorized_Redirect = 'Auth Unauthorized Redirect',
+  Auth_Validation_Failed = 'Auth Validation Failed',
+  Auth_Setup_Started = 'Auth Setup Started',
+  Auth_Setup_Completed = 'Auth Setup Completed',
+  Auth_Setup_Failed = 'Auth Setup Failed',
+  Auth_SignIn_Started = 'Auth Sign In Started',
+  Auth_SignIn_Completed = 'Auth Sign In Completed',
+  Auth_SignIn_Failed = 'Auth Sign In Failed',
+  Auth_SignOut_Started = 'Auth Sign Out Started',
+  Auth_Signed_Out = 'Auth Signed Out',
+  Auth_SignOut_Failed = 'Auth Sign Out Failed',
+  Auth_Admin_Viewed = 'Auth Admin Viewed',
+  Auth_Admin_User_List_Loaded = 'Auth Admin User List Loaded',
+  Auth_Admin_User_List_Failed = 'Auth Admin User List Failed',
+  Auth_Admin_User_Create_Started = 'Auth Admin User Create Started',
+  Auth_Admin_User_Create_Completed = 'Auth Admin User Create Completed',
+  Auth_Admin_User_Create_Failed = 'Auth Admin User Create Failed',
+  Auth_Admin_User_Password_Reset_Started = 'Auth Admin User Password Reset Started',
+  Auth_Admin_User_Password_Reset_Completed = 'Auth Admin User Password Reset Completed',
+  Auth_Admin_User_Password_Reset_Failed = 'Auth Admin User Password Reset Failed',
+  Auth_Admin_User_Delete_Started = 'Auth Admin User Delete Started',
+  Auth_Admin_User_Delete_Completed = 'Auth Admin User Delete Completed',
+  Auth_Admin_User_Delete_Failed = 'Auth Admin User Delete Failed',
+  Auth_Admin_API_Key_List_Loaded = 'Auth Admin API Key List Loaded',
+  Auth_Admin_API_Key_List_Failed = 'Auth Admin API Key List Failed',
+  Auth_Admin_API_Key_Create_Started = 'Auth Admin API Key Create Started',
+  Auth_Admin_API_Key_Create_Completed = 'Auth Admin API Key Create Completed',
+  Auth_Admin_API_Key_Create_Failed = 'Auth Admin API Key Create Failed',
+  Auth_Admin_API_Key_Revoke_Started = 'Auth Admin API Key Revoke Started',
+  Auth_Admin_API_Key_Revoke_Completed = 'Auth Admin API Key Revoke Completed',
+  Auth_Admin_API_Key_Revoke_Failed = 'Auth Admin API Key Revoke Failed',
 
   Upload_Configuration_Invalid = 'Upload Configuration Invalid',
   Upload_Generation_Started = 'Upload Generation Started',
   Upload_Documents_Processed = 'Upload Documents Processed',
   Upload_Outline_Generation_Requested = 'Upload Outline Generation Requested',
-  Outline_Generate_Presentation_Button_Clicked = 'Outline Generate Presentation Button Clicked',
-  Outline_Select_Template_Button_Clicked = 'Outline Select Template Button Clicked',
-  Outline_Add_Slide_Button_Clicked = 'Outline Add Slide Button Clicked',
-  Outline_Template_Selected = 'Outline Template Selected',
   Outline_Presentation_Generation_Started = 'Outline Presentation Generation Started',
 
   Presentation_Editor_Viewed = 'Presentation Editor Viewed',
@@ -50,63 +76,69 @@ export enum MixpanelEvent {
   Presentation_Title_Updated = 'Presentation Title Updated',
   Presentation_Slides_Reordered = 'Presentation Slides Reordered',
   Presentation_Slide_Added = 'Presentation Slide Added',
-  Presentation_Slide_Updated = 'Presentation Slide Updated',
   Presentation_Slide_Deleted = 'Presentation Slide Deleted',
   Presentation_Theme_Changed = 'Presentation Theme Changed',
   Presentation_Theme_Reset = 'Presentation Theme Reset',
-  Presentation_Export_Started = 'Presentation Export Started',
+  Presentation_Export_Completed = 'Presentation Export Completed',
   Presentation_Regenerated = 'Presentation Regenerated',
 
-  Presentation_Prepare_API_Call = 'Presentation Prepare API Call',
   Presentation_Stream_API_Call = 'Presentation Stream API Call',
-  Group_Layout_Selected_Clicked = 'Group Layout Selected Clicked',
-  Header_Export_PDF_Button_Clicked = 'Header Export PDF Button Clicked',
-  Header_Export_PPTX_Button_Clicked = 'Header Export PPTX Button Clicked',
-  Header_UpdatePresentationContent_API_Call = 'Header Update Presentation Content API Call',
-  Header_ExportAsPDF_API_Call = 'Header Export As PDF API Call',
-  Header_ExportAsPPTX_API_Call = 'Header Export As PPTX API Call',
-  Slide_Add_New_Slide_Button_Clicked = 'Slide Add New Slide Button Clicked',
-  Slide_Delete_Slide_Button_Clicked = 'Slide Delete Slide Button Clicked',
-  Slide_Update_From_Prompt_Button_Clicked = 'Slide Update From Prompt Button Clicked',
-  Slide_Edit_API_Call = 'Slide Edit API Call',
-  Slide_Delete_API_Call = 'Slide Delete API Call',
-  TemplatePreview_Back_Button_Clicked = 'Template Preview Back Button Clicked',
-  TemplatePreview_All_Groups_Button_Clicked = 'Template Preview All Groups Button Clicked',
   TemplatePreview_Delete_Templates_Button_Clicked = 'Template Preview Delete Templates Button Clicked',
   TemplatePreview_Delete_Templates_API_Call = 'Template Preview Delete Templates API Call',
-  TemplatePreview_Open_Editor_Button_Clicked = 'Template Preview Open Editor Button Clicked',
-  CustomTemplate_Save_Templates_API_Call = 'Custom Template Save Templates API Call',
   PdfMaker_Retry_Button_Clicked = 'PDF Maker Retry Button Clicked',
-  Upload_Upload_Documents_API_Call = 'Upload Upload Documents API Call',
-  Upload_Decompose_Documents_API_Call = 'Upload Decompose Documents API Call',
-  Upload_Create_Presentation_API_Call = 'Upload Create Presentation API Call',
-  Upload_GetStarted_Button_Clicked = 'Upload Get Started Button Clicked',
-  Upload_Validation_Failed = 'Upload Validation Failed',
   DocumentsPreview_Create_Presentation_API_Call = 'Documents Preview Create Presentation API Call',
-  DocumentsPreview_Next_Button_Clicked = 'Documents Preview Next Button Clicked',
   Settings_SaveConfiguration_Button_Clicked = 'Settings Save Configuration Button Clicked',
   Settings_SaveConfiguration_API_Call = 'Settings Save Configuration API Call',
-  Settings_CheckOllamaModelPulled_API_Call = 'Settings Check Ollama Model Pulled API Call',
-  Settings_DownloadOllamaModel_API_Call = 'Settings Download Ollama Model API Call',
   Settings_Section_Entered = 'Settings Section Entered',
   Settings_Tab_Switched = 'Settings Tab Switched',
   Settings_Provider_Selected = 'Settings Provider Selected',
   Settings_Model_Selected = 'Settings Model Selected',
   PresentationPage_Refresh_Page_Button_Clicked = 'Presentation Page Refresh Page Button Clicked',
-  PresentationMode_Fullscreen_Toggle_Clicked = 'Presentation Mode Fullscreen Toggle Clicked',
-  PresentationMode_Exit_Clicked = 'Presentation Mode Exit Clicked',
   ImageEditor_GetPreviousGeneratedImages_API_Call = 'Image Editor Get Previous Generated Images API Call',
   ImageEditor_GenerateImage_API_Call = 'Image Editor Generate Image API Call',
   ImageEditor_UploadImage_API_Call = 'Image Editor Upload Image API Call',
-  Header_ReGenerate_Button_Clicked = 'Header ReGenerate Button Clicked',
+
+  AI_Assistant_Opened = 'AI Assistant Opened',
+  AI_Assistant_Prompt_Submitted = 'AI Assistant Prompt Submitted',
+  AI_Assistant_Prompt_Completed = 'AI Assistant Prompt Completed',
+  AI_Assistant_Prompt_Failed = 'AI Assistant Prompt Failed',
+  AI_Assistant_Prompt_Stopped = 'AI Assistant Prompt Stopped',
+  AI_Assistant_Chat_Reset = 'AI Assistant Chat Reset',
+  AI_Assistant_Attachment_Added = 'AI Assistant Attachment Added',
+  AI_Assistant_Attachment_Failed = 'AI Assistant Attachment Failed',
+
+  TemplateV2_Template_Selected = 'Template V2 Template Selected',
+  TemplateV2_Outline_Regeneration_Started = 'Template V2 Outline Regeneration Started',
+  TemplateV2_Outline_Regeneration_Completed = 'Template V2 Outline Regeneration Completed',
+  TemplateV2_Outline_Regeneration_Failed = 'Template V2 Outline Regeneration Failed',
+  TemplateV2_Prepare_Completed = 'Template V2 Prepare Completed',
+  TemplateV2_Prepare_Failed = 'Template V2 Prepare Failed',
+  TemplateV2_Stream_Completed = 'Template V2 Stream Completed',
+  TemplateV2_Stream_Failed = 'Template V2 Stream Failed',
+  TemplateV2_Editor_Loaded = 'Template V2 Editor Loaded',
+
+  Editor_Side_Panel_Tab_Selected = 'Editor Side Panel Tab Selected',
+  Editor_Insert_Palette_Item_Selected = 'Editor Insert Palette Item Selected',
+  Editor_Template_Block_Inserted = 'Editor Template Block Inserted',
+  Editor_Template_Blocks_Loaded = 'Editor Template Blocks Loaded',
+  Editor_Template_Blocks_Load_Failed = 'Editor Template Blocks Load Failed',
+  Editor_Element_Text_Edited = 'Editor Element Text Edited',
+  Editor_Element_Style_Changed = 'Editor Element Style Changed',
+  Editor_Element_Deleted = 'Editor Element Deleted',
+  Editor_Element_Duplicated = 'Editor Element Duplicated',
+  Editor_Component_Ungrouped = 'Editor Component Ungrouped',
+  Editor_Component_Layer_Changed = 'Editor Component Layer Changed',
+  Editor_Image_Replaced = 'Editor Image Replaced',
+  Editor_Image_Replace_Failed = 'Editor Image Replace Failed',
+  Editor_Icon_Replaced = 'Editor Icon Replaced',
 
   Dashboard_Page_Viewed = 'Dashboard Page Viewed',
   Dashboard_New_Presentation_Clicked = 'Dashboard New Presentation Clicked',
+  Dashboard_Blank_Presentation_Created = 'Dashboard Blank Presentation Created',
+  Dashboard_Blank_Presentation_Create_Failed = 'Dashboard Blank Presentation Create Failed',
   Dashboard_Presentation_Opened = 'Dashboard Presentation Opened',
   Dashboard_Presentation_Deleted = 'Dashboard Presentation Deleted',
-  Dashboard_Create_New_Card_Clicked = 'Dashboard Create New Card Clicked',
-
-  Sidebar_Navigation_Clicked = 'Sidebar Navigation Clicked',
+  Dashboard_Presentation_Duplicated = 'Dashboard Presentation Duplicated',
 
   Templates_Page_Viewed = 'Templates Page Viewed',
   Templates_Tab_Switched = 'Templates Tab Switched',
@@ -130,6 +162,20 @@ export enum MixpanelEvent {
 
   CustomTemplate_Creation_Started = 'Custom Template Creation Started',
   CustomTemplate_Creation_Completed = 'Custom Template Creation Completed',
+  CustomTemplate_Creation_Failed = 'Custom Template Generation Failed',
+  CustomTemplate_Font_Check_Completed = 'Custom Template Font Check Completed',
+  CustomTemplate_Font_Check_Failed = 'Custom Template Font Check Failed',
+  CustomTemplate_Preview_Started = 'Custom Template Preview Started',
+  CustomTemplate_Preview_Completed = 'Custom Template Preview Completed',
+  CustomTemplate_Preview_Failed = 'Custom Template Preview Failed',
+  CustomTemplate_Slide_Generation_Started = 'Custom Template Slide Generation Started',
+  CustomTemplate_Slide_Generation_Completed = 'Custom Template Slide Generation Completed',
+  CustomTemplate_Slide_Generation_Failed = 'Custom Template Slide Generation Failed',
+  CustomTemplate_Blocks_Generation_Completed = 'Custom Template Blocks Generation Completed',
+  CustomTemplate_Blocks_Generation_Failed = 'Custom Template Blocks Generation Failed',
+  TemplatePreview_Loaded = 'Template Preview Loaded',
+  TemplatePreview_Failed = 'Template Preview Failed',
+  TemplatePreview_Not_Found = 'Template Preview Not Found',
   CustomTemplate_Save_Started = 'Custom Template Save Started',
   CustomTemplate_Saved = 'Custom Template Saved',
   CustomTemplate_Save_Modal_Opened = 'Custom Template Save Modal Opened',
@@ -158,13 +204,9 @@ async function ensureTelemetryStatus(): Promise<boolean> {
   if (!trackingCheckPromise) {
     trackingCheckPromise = (async () => {
       try {
-        let data;
-        if (typeof window !== "undefined" && window.electron?.telemetryStatus) {
-          data = await window.electron.telemetryStatus();
-        } else {
-          const res = await fetch('/api/telemetry-status');
-          data = await res.json();
-        }
+        const res = await fetch('/api/telemetry-status');
+        if (!res.ok) throw new Error(`telemetry-status returned ${res.status}`);
+        const data = await res.json();
         const enabled = Boolean(data?.telemetryEnabled);
         window.__mixpanel_telemetry_enabled = enabled;
         return enabled;
@@ -191,7 +233,16 @@ export function initMixpanel(): void {
 
 function initializeMixpanelNow(): void {
   if (window.__mixpanel_initialized) return;
-  mixpanel.init(MIXPANEL_TOKEN as string, { track_pageview: false, api_host: 'https://api-eu.mixpanel.com', });
+  mixpanel.init(MIXPANEL_TOKEN as string, {
+    track_pageview: false,
+    autocapture: false,
+    api_host: 'https://api-eu.mixpanel.com',
+    record_sessions_percent: 100,
+    record_mask_text_selector: '',
+    record_block_selector: '',
+    record_collect_fonts: true,
+    record_canvas: true,
+  });
   const appVersion = window.env?.APP_VERSION;
   if (appVersion) {
     mixpanel.register({ app_version: appVersion });
@@ -218,6 +269,21 @@ export function track(eventName: string, props?: Record<string, unknown>): void 
 
 export function trackEvent(event: MixpanelEvent, props?: MixpanelProps): void {
   track(event, props);
+}
+
+/**
+ * Sends an event at a navigation/download boundary without leaving it in the
+ * normal request batch. Await this before triggering the boundary action.
+ */
+export async function trackEventImmediately(
+  event: MixpanelEvent,
+  props?: MixpanelProps
+): Promise<void> {
+  if (!canUseMixpanel()) return;
+  const enabled = await ensureTelemetryStatus();
+  if (!enabled) return;
+  initializeMixpanelNow();
+  mixpanel.track(event, props, { transport: 'sendBeacon' });
 }
 
 export function getDistinctId(): string | undefined {
@@ -266,6 +332,7 @@ export default {
   initMixpanel,
   track,
   trackEvent,
+  trackEventImmediately,
   getDistinctId,
   identifyAnonymous,
   resetTelemetryCache,

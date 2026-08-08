@@ -2,107 +2,110 @@ name: Test All Applications
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  test-fastapi:
-    name: Test Main FastAPI
+  test-repository-tools:
+    name: Test repository tooling
     runs-on: ubuntu-latest
-    
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run repository tests
+        run: npm test
+
+      - name: Install presentation export runtime
+        run: npm run sync:presentation-export
+
+      - name: Verify presentation export runtime
+        run: npm run check:presentation-export
+
+  test-fastapi:
+    name: Test FastAPI
+    runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./servers/fastapi
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-        cache: 'pip'
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libreoffice \
-          fontconfig \
-          chromium \
-          chromium-driver \
-          imagemagick
-    
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        # Install package in editable mode if pyproject.toml exists, otherwise install dependencies directly
-        if [ -f "pyproject.toml" ]; then
-          pip install -e .
-        else
-          pip install aiohttp aiomysql aiosqlite asyncpg fastapi[standard] \
-            pathvalidate pdfplumber chromadb sqlmodel \
-            anthropic google-genai openai fastmcp dirtyjson
-        fi
-    
-    - name: Set up environment variables
-      run: |
-        echo "APP_DATA_DIRECTORY=/tmp/app_data" >> $GITHUB_ENV
-        echo "TEMP_DIRECTORY=/tmp/presenton" >> $GITHUB_ENV
-        echo "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium" >> $GITHUB_ENV
-        echo "DATABASE_URL=sqlite+aiosqlite:///./test.db" >> $GITHUB_ENV
-        echo "DISABLE_ANONYMOUS_TRACKING=true" >> $GITHUB_ENV
-        echo "DISABLE_IMAGE_GENERATION=true" >> $GITHUB_ENV
+        working-directory: servers/fastapi
+    env:
+      APP_DATA_DIRECTORY: /tmp/presenton-app-data
+      TEMP_DIRECTORY: /tmp/presenton-temp
+      DATABASE_URL: sqlite+aiosqlite:////tmp/presenton-test.db
+      DISABLE_ANONYMOUS_TRACKING: "true"
+      DISABLE_IMAGE_GENERATION: "true"
 
-    - name: Build FastAPI binary
-      run: |
-        python -m pip install pyinstaller
-        pyinstaller server.spec
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: servers/fastapi/uv.lock
+
+      - name: Install locked dependencies
+        run: uv sync --locked --dev
+
+      - name: Create test directories
+        run: mkdir -p "$APP_DATA_DIRECTORY" "$TEMP_DIRECTORY"
+
+      - name: Run all pytest tests
+        run: uv run --locked python -m pytest --verbose --tb=short
 
   test-nextjs:
-    name: Test Main Next.js
+    name: Test Next.js
     runs-on: ubuntu-latest
-    
     defaults:
       run:
-        working-directory: ./servers/nextjs
-    
+        working-directory: servers/nextjs
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: servers/nextjs/package-lock.json
-    
-    - name: Install dependencies
-      run: npm ci
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Check layout code
-      run: npm run check:layout-code
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: servers/nextjs/package-lock.json
 
-    - name: Test layout validator
-      run: npm run test:layout-code
-    
-    - name: Build application
-      env:
-        NEXT_PUBLIC_FAST_API: http://localhost:8000
-        NEXT_PUBLIC_URL: http://localhost:3000
-      run: npm run build
-    
-    - name: Run Cypress component tests
-      continue-on-error: true
-      run: |
-        # Check if Cypress tests exist
-        if [ -d "cypress" ] || [ -n "$(find . -name '*.cy.*' -type f 2>/dev/null)" ]; then
-          echo "Running Cypress component tests..."
-          npx cypress run --component
-        else
-          echo "No Cypress tests found, skipping component tests"
-        fi
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Node.js tests
+        run: npm test
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build application
+        env:
+          NEXT_PUBLIC_FAST_API: http://localhost:8000
+          NEXT_PUBLIC_URL: http://localhost:3000
+        run: npm run build
+
+      - name: Run Cypress component tests
+        run: npx cypress run --component --browser electron

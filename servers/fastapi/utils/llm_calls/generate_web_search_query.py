@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from llmai.shared import JSONSchemaResponse, SystemMessage, UserMessage
 
-from utils.llm_utils import generate_structured_with_schema_retries
+from utils.llm_utils import DisconnectChecker, generate_structured_with_schema_retries
 
 SEARCH_QUERY_GENERATION_PROMPT = """
 Generate a concise web search query that finds useful factual context for a presentation.
@@ -41,11 +41,12 @@ async def generate_web_search_query(
     model: str,
     content: str,
     instructions: Optional[str] = None,
+    disconnect_checker: Optional[DisconnectChecker] = None,
 ) -> Optional[str]:
     response_format = JSONSchemaResponse(
         name="web_search_query",
         json_schema=SEARCH_QUERY_RESPONSE_SCHEMA,
-        strict=True,
+        strict=False,
     )
     response = await generate_structured_with_schema_retries(
         client,
@@ -62,8 +63,9 @@ async def generate_web_search_query(
         ],
         response_format=response_format,
         json_schema=SEARCH_QUERY_RESPONSE_SCHEMA,
-        strict=True,
+        strict=False,
         validate_schema=True,
+        disconnect_checker=disconnect_checker,
     )
     query = response.get("query")
     if not isinstance(query, str):

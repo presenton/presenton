@@ -1,0 +1,4 @@
+- generic [active]:
+  - status "Preparing your workspace..." [ref=e1]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e8] [cursor=pointer]

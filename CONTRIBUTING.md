@@ -116,6 +116,14 @@ npm run build:all
 
 # Before Opening a PR
 
+### CLA and PR age policy
+
+Pull requests must have the Contributor License Agreement (CLA) signed before
+they can be accepted. Pull requests that remain open for more than 30 days
+without a signed CLA may be discarded and closed. Please complete the CLA
+prompt as soon as you open a pull request and update the pull request after
+signing so maintainers can verify it.
+
 Please ensure:
 
 - Changes are **inside `electron/`**

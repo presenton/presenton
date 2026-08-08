@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { setCanChangeKeys, setLLMConfig } from '@/store/slices/userConfig';
 import { hasValidLLMConfig, normalizeLLMConfig } from '@/utils/storeHelpers';
 import { usePathname, useRouter } from 'next/navigation';
@@ -9,13 +10,51 @@ import { isOllamaModelAvailable } from '@/utils/providerUtils';
 import { LLMConfig } from '@/types/llm_config';
 import { getApiUrl } from '@/utils/api';
 import { notify } from '@/components/ui/sonner';
+import { PRESENTON_SPLASH_MIN_DURATION_MS } from '@/components/ui/presenton-splash-loader';
+
+function ConfigurationLoadingScreen() {
+  return (
+    <main
+      aria-busy="true"
+      className="fixed inset-0 z-[2147483000] overflow-hidden bg-white"
+      role="status"
+    >
+      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-7 whitespace-nowrap">
+        <div aria-hidden="true" className="configuration-loader" />
+        <p className="font-syne text-[18px] font-normal leading-normal tracking-[-0.54px] text-[#191919]">
+          Loading Presenton...
+        </p>
+      </div>
+
+      {/* <div className="absolute left-1/2 top-[calc(50%+123.47px)] flex h-[42px] w-[352px] max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-1 rounded-md bg-[#F5F8FF] px-[14px]">
+        <Image
+          alt=""
+          aria-hidden="true"
+          className="h-[14px] w-[14px] shrink-0"
+          height={14}
+          src="/figma-assets/configuration-status-icon.svg"
+          width={14}
+        />
+        <p className="whitespace-nowrap font-manrope text-[14px] font-medium leading-normal tracking-[0.3px] text-[#6172F3]">
+          Checking &amp; configuring application assets.
+        </p>
+      </div> */}
+    </main>
+  );
+}
 
 export function ConfigurationInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
 
   const route = usePathname();
+  const shouldShowStartupSplash = !route?.startsWith("/pdf-maker");
+  const isSettingsRoute =
+    route === "/settings" || route?.startsWith("/settings/");
   const [isLoading, setIsLoading] = useState(
-    () => !route?.startsWith("/pdf-maker")
+    () => shouldShowStartupSplash
+  );
+  const [hasMetSplashDuration, setHasMetSplashDuration] = useState(
+    () => !shouldShowStartupSplash
   );
   const router = useRouter();
 
@@ -23,6 +62,19 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
   useEffect(() => {
     fetchUserConfigState();
   }, []);
+
+  useEffect(() => {
+    if (!shouldShowStartupSplash) {
+      setHasMetSplashDuration(true);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setHasMetSplashDuration(true);
+    }, PRESENTON_SPLASH_MIN_DURATION_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [shouldShowStartupSplash]);
 
   const setLoadingToFalseAfterNavigatingTo = (pathname: string) => {
     if (window.location.pathname === pathname) {
@@ -48,13 +100,10 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
 
     let canChangeKeys = false;
     try {
-      if (window.electron?.getCanChangeKeys) {
-        canChangeKeys = await window.electron.getCanChangeKeys();
-      } else {
-        const res = await fetch('/api/can-change-keys');
-        const data = await res.json();
-        canChangeKeys = data.canChange ?? false;
-      }
+      const res = await fetch('/api/can-change-keys');
+      if (!res.ok) throw new Error(`can-change-keys returned ${res.status}`);
+      const data = await res.json();
+      canChangeKeys = data.canChange ?? false;
     } catch (e) {
       console.error('Failed to fetch can-change-keys:', e);
       canChangeKeys = false;
@@ -64,12 +113,9 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
     if (canChangeKeys) {
       let llmConfig: LLMConfig = {};
       try {
-        if (window.electron?.getUserConfig) {
-          llmConfig = await window.electron.getUserConfig();
-        } else {
-          const res = await fetch('/api/user-config');
-          llmConfig = await res.json();
-        }
+        const res = await fetch('/api/user-config');
+        if (!res.ok) throw new Error(`user-config returned ${res.status}`);
+        llmConfig = await res.json();
       } catch (e) {
         console.error('Failed to fetch user config:', e);
         llmConfig = {};
@@ -129,13 +175,35 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         } else {
           setIsLoading(false);
         }
-      } else if (route !== '/') {
+      } else if (route !== '/' && !(isSettingsRoute && llmConfig.LLM === 'codex')) {
         router.push('/');
         setLoadingToFalseAfterNavigatingTo('/');
       } else {
         setIsLoading(false);
       }
     } else {
+      try {
+        const res = await fetch("/api/runtime-config", {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const runtime = await res.json();
+          const runtimeConfig = normalizeLLMConfig(
+            (runtime.config || {}) as LLMConfig
+          );
+          dispatch(setLLMConfig(runtimeConfig));
+          if (!runtime.configured) {
+            notify.error(
+              "Instance not configured",
+              "Ask the administrator to configure the AI providers in Settings."
+            );
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch runtime configuration:", error);
+      }
       if (route === '/') {
         router.push('/upload');
         setLoadingToFalseAfterNavigatingTo('/upload');
@@ -187,43 +255,8 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
   }
 
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white p-4">
-        <div className="w-full max-w-md">
-          <div className="rounded-2xl border border-[#EDEEEF] bg-white p-8 text-center shadow-xl">
-            {/* Logo/Branding */}
-            <div className="mb-6">
-              <img
-                src="/Logo.png"
-                alt="PresentOn"
-                className="mx-auto mb-4 h-12 opacity-90"
-              />
-              <div className="mx-auto h-1 w-16 rounded-full bg-[#7C51F8]" />
-            </div>
-
-            {/* Loading Text */}
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-gray-800 font-inter">
-                Initializing Application
-              </h3>
-              <p className="text-sm text-gray-600 font-inter">
-                Loading configuration and checking model availability...
-              </p>
-            </div>
-
-            {/* Progress Indicator */}
-            <div className="mt-6">
-              <div className="flex space-x-1 justify-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  if (isLoading || !hasMetSplashDuration) {
+    return <ConfigurationLoadingScreen />;
   }
 
   return children;

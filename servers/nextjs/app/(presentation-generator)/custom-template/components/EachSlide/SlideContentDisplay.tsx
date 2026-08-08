@@ -6,9 +6,11 @@ import { ProcessedSlide } from "../../types";
 import { RotateCcw, X, AlertCircle, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompiledLayout } from "@/app/hooks/compileLayout";
+import { TemplateV2LayoutPreview } from "./TemplateV2LayoutPreview";
 
 export interface SlideContentDisplayProps {
   slide: ProcessedSlide;
+  templateFonts?: Record<string, string>;
   compiledLayout: CompiledLayout | null;
   previewData?: Record<string, any> | null;
   retrySlide: (slideNumber: number) => void;
@@ -18,12 +20,27 @@ export interface SlideContentDisplayProps {
 
 export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
   slide,
+  templateFonts,
   compiledLayout,
   previewData,
   retrySlide,
   onClearPreview,
   slideDisplayRef,
 }) => {
+  if (slide.processed && slide.v2Layout && !slide.processing) {
+    return (
+      <div className="relative flex-1">
+        <div className="relative overflow-x-auto rounded-xl border border-[#E5E7EB] bg-white shadow-sm">
+          <TemplateV2LayoutPreview
+            layout={slide.v2Layout}
+            slideDisplayRef={slideDisplayRef}
+            fonts={templateFonts}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // Successfully processed slide
   if (slide.processed && slide.react && !slide.processing) {
     return (

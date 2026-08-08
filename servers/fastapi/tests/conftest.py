@@ -28,6 +28,9 @@ class FakeAsyncSession:
     async def commit(self) -> None:
         self.commit_count += 1
 
+    async def rollback(self) -> None:
+        return None
+
     async def refresh(self, _obj: Any) -> None:
         return None
 

@@ -8,11 +8,13 @@ from typing import Any
 
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from models.sql.chat_history_message import ChatHistoryMessageModel
 from utils.datetime_utils import get_current_utc_datetime
+from api.v1.auth.context import get_current_owner_id
 
 
 def _compact_preview(content: str) -> str:
@@ -48,15 +50,29 @@ def _parse_created_at(value: Any) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
+def _resource_filter(
+    *,
+    presentation_id: uuid.UUID | None = None,
+    template_id: str | None = None,
+) -> ColumnElement[bool]:
+    if (presentation_id is None) == (template_id is None):
+        raise ValueError("Exactly one chat resource id is required.")
+    if presentation_id is not None:
+        return ChatHistoryMessageModel.presentation_id == presentation_id
+    return ChatHistoryMessageModel.template_v2_id == template_id
+
+
 async def load_messages(
     session: AsyncSession,
     *,
-    presentation_id: uuid.UUID,
+    presentation_id: uuid.UUID | None = None,
+    template_id: str | None = None,
     conversation_id: uuid.UUID,
 ) -> list[dict[str, str]]:
     rows = await load_messages_with_meta(
         session,
         presentation_id=presentation_id,
+        template_id=template_id,
         conversation_id=conversation_id,
     )
     return [
@@ -69,15 +85,20 @@ async def load_messages(
 async def load_messages_with_meta(
     session: AsyncSession,
     *,
-    presentation_id: uuid.UUID,
+    presentation_id: uuid.UUID | None = None,
+    template_id: str | None = None,
     conversation_id: uuid.UUID,
 ) -> list[dict[str, Any]]:
+    resource_clause = _resource_filter(
+        presentation_id=presentation_id,
+        template_id=template_id,
+    )
     rows = list(
         (
             await session.scalars(
                 select(ChatHistoryMessageModel)
                 .where(
-                    ChatHistoryMessageModel.presentation_id == presentation_id,
+                    resource_clause,
                     ChatHistoryMessageModel.conversation_id == conversation_id,
                 )
                 .order_by(ChatHistoryMessageModel.position.asc())
@@ -100,14 +121,20 @@ async def load_messages_with_meta(
 async def replace_messages(
     session: AsyncSession,
     *,
-    presentation_id: uuid.UUID,
+    presentation_id: uuid.UUID | None = None,
+    template_id: str | None = None,
     conversation_id: uuid.UUID,
     messages: list[dict[str, str]],
 ) -> None:
+    resource_clause = _resource_filter(
+        presentation_id=presentation_id,
+        template_id=template_id,
+    )
     await session.execute(
         sa_delete(ChatHistoryMessageModel).where(
-            ChatHistoryMessageModel.presentation_id == presentation_id,
+            resource_clause,
             ChatHistoryMessageModel.conversation_id == conversation_id,
+            ChatHistoryMessageModel.owner_id == get_current_owner_id(),
         )
     )
 
@@ -127,6 +154,7 @@ async def replace_messages(
         session.add(
             ChatHistoryMessageModel(
                 presentation_id=presentation_id,
+                template_v2_id=template_id,
                 conversation_id=conversation_id,
                 position=next_position,
                 role=role,
@@ -138,18 +166,44 @@ async def replace_messages(
     await session.flush()
 
 
+async def delete_conversation(
+    session: AsyncSession,
+    *,
+    presentation_id: uuid.UUID | None = None,
+    template_id: str | None = None,
+    conversation_id: uuid.UUID,
+) -> None:
+    resource_clause = _resource_filter(
+        presentation_id=presentation_id,
+        template_id=template_id,
+    )
+    await session.execute(
+        sa_delete(ChatHistoryMessageModel).where(
+            resource_clause,
+            ChatHistoryMessageModel.conversation_id == conversation_id,
+            ChatHistoryMessageModel.owner_id == get_current_owner_id(),
+        )
+    )
+    await session.flush()
+
+
 async def append_turn(
     session: AsyncSession,
     *,
-    presentation_id: uuid.UUID,
+    presentation_id: uuid.UUID | None = None,
+    template_id: str | None = None,
     conversation_id: uuid.UUID,
     user_message: str,
     assistant_message: str,
     tool_calls: list[str] | None = None,
 ) -> None:
+    resource_clause = _resource_filter(
+        presentation_id=presentation_id,
+        template_id=template_id,
+    )
     max_position = await session.scalar(
         select(func.max(ChatHistoryMessageModel.position)).where(
-            ChatHistoryMessageModel.presentation_id == presentation_id,
+            resource_clause,
             ChatHistoryMessageModel.conversation_id == conversation_id,
         )
     )
@@ -159,6 +213,7 @@ async def append_turn(
     session.add(
         ChatHistoryMessageModel(
             presentation_id=presentation_id,
+            template_v2_id=template_id,
             conversation_id=conversation_id,
             position=next_position,
             role="user",
@@ -169,6 +224,7 @@ async def append_turn(
     session.add(
         ChatHistoryMessageModel(
             presentation_id=presentation_id,
+            template_v2_id=template_id,
             conversation_id=conversation_id,
             position=next_position + 1,
             role="assistant",
@@ -181,13 +237,20 @@ async def append_turn(
 
 
 async def list_conversations(
-    session: AsyncSession, *, presentation_id: uuid.UUID
+    session: AsyncSession,
+    *,
+    presentation_id: uuid.UUID | None = None,
+    template_id: str | None = None,
 ) -> list[dict[str, Any]]:
+    resource_clause = _resource_filter(
+        presentation_id=presentation_id,
+        template_id=template_id,
+    )
     rows = list(
         (
             await session.scalars(
                 select(ChatHistoryMessageModel)
-                .where(ChatHistoryMessageModel.presentation_id == presentation_id)
+                .where(resource_clause)
                 .order_by(
                     ChatHistoryMessageModel.created_at.desc(),
                     ChatHistoryMessageModel.position.desc(),

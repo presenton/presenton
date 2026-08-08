@@ -39,13 +39,13 @@ Direct macOS distribution is configured in `electron/build.js`:
 - `mac.notarize` is enabled unless `PRESENTON_SKIP_NOTARIZATION=1`.
 - `dmg.sign` is disabled because the app bundle is signed and notarized; signing the DMG itself is not required.
 
-Use the release scripts in `electron/package.json`:
+Use the full release build in `electron/package.json`:
 
 ```bash
 npm run build:all:mac:signed
-npm run build:electron:mac:signed
-npm run dist:mac:signed
 ```
+
+`build:electron:mac:signed` and `dist:mac:signed` are packaging-only reruns. Use them only after `resources/fastapi`, `resources/nextjs`, and `app_dist/` are already current. The packager checks for those generated resources before signing so it cannot produce a notarized app with missing bundled servers.
 
 The `:mac:signed` scripts set `PRESENTON_REQUIRE_MAC_SIGNING=1`, so they fail before packaging if a Developer ID certificate or notarization credentials are missing.
 

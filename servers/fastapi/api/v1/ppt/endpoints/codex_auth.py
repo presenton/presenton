@@ -46,6 +46,8 @@ from utils.set_env import (
 from utils.user_config import save_codex_tokens_to_user_config
 
 CODEX_AUTH_ROUTER = APIRouter(prefix="/codex/auth", tags=["Codex OAuth"])
+CHATGPT_AUTH_REQUIRED_HEADERS = {"X-Presenton-Auth-Action": "codex-reauth"}
+CHATGPT_AUTH_REQUIRED_PREFIX = "CHATGPT_AUTH_REQUIRED:"
 
 # ---------------------------------------------------------------------------
 # In-memory session store  {session_id: {"verifier": str, "state": str, "server": OAuthCallbackServer}}
@@ -266,13 +268,24 @@ async def refresh_codex_token():
     refresh_token = get_codex_refresh_token_env()
     if not refresh_token:
         raise HTTPException(
-            status_code=400,
-            detail="No Codex refresh token stored. Please authenticate first via /initiate",
+            status_code=401,
+            detail=(
+                f"{CHATGPT_AUTH_REQUIRED_PREFIX} ChatGPT authentication is required. "
+                "Please sign in again from Settings."
+            ),
+            headers=CHATGPT_AUTH_REQUIRED_HEADERS,
         )
 
     result = refresh_access_token(refresh_token)
     if not isinstance(result, TokenSuccess):
-        raise HTTPException(status_code=502, detail=f"Token refresh failed: {result.reason}")
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                f"{CHATGPT_AUTH_REQUIRED_PREFIX} Your ChatGPT session expired. "
+                "Please sign in again from Settings."
+            ),
+            headers=CHATGPT_AUTH_REQUIRED_HEADERS,
+        )
 
     profile = _store_token(result)
     return RefreshResponse(
@@ -332,5 +345,5 @@ async def logout_codex():
     set_codex_email_env("")
     set_codex_is_pro_env("")
     set_codex_model_env("")
-    save_codex_tokens_to_user_config()
+    save_codex_tokens_to_user_config(include_model=True)
     return {"detail": "Logged out successfully"}

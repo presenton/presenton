@@ -11,7 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Wand2, Upload, Loader2, Delete, Trash, Search } from "lucide-react";
+import { Wand2, Upload, Loader2, Trash, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PresentationGenerationApi } from "../services/api/presentation-generation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,7 @@ import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { ImagesApi } from "../services/api/images";
 import { ImageAssetResponse } from "../services/api/types";
 import { resolveBackendAssetSource } from "@/utils/api";
+import { ImageEditorToolbar } from "./ImageEditorToolbar";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 
@@ -76,6 +77,9 @@ const ImageEditor = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<"generate" | "upload" | "edit">(
+    "generate",
+  );
   const [uploadedImages, setUploadedImages] = useState<ImageAssetResponse[]>([]);
   const [uploadedImagesLoading, setUploadedImagesLoading] = useState(false);
   // Focus point and object fit for image editing
@@ -343,6 +347,8 @@ const ImageEditor = ({
     }
   };
   const handleTabChange = (value: string) => {
+    if (value !== "generate" && value !== "upload" && value !== "edit") return;
+    setActiveTab(value);
     if (value === "upload") {
       getUploadedImages();
     }
@@ -371,7 +377,7 @@ const ImageEditor = ({
           </SheetHeader>
 
           <div className="mt-6">
-            <Tabs defaultValue="generate" className="w-full" onValueChange={handleTabChange}>
+            <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
               <TabsList className="grid bg-blue-100 border border-blue-300 w-full grid-cols-3 mx-auto">
                 <TabsTrigger className="font-medium" value="generate">
                   {stockImageProvider ? "Stock search" : "AI Generate"}
@@ -409,7 +415,7 @@ const ImageEditor = ({
 
                   <Button
                     onClick={handleGenerateImage}
-                    className="w-full"
+                    className="w-full rounded-[38.4px] bg-[#EDEEEF] px-[12.8px] py-2 text-[#191919] shadow-none hover:bg-[#E1E1E5] disabled:bg-[#EDEEEF] disabled:text-[#999]"
                     disabled={!prompt.trim() || isGenerating || isSearchingStock}
                   >
                     {stockImageProvider ? (
@@ -645,6 +651,13 @@ const ImageEditor = ({
               </TabsContent>
               <TabsContent value="edit" className="mt-4 space-y-4">
                 <div className="space-y-4">
+                  <ImageEditorToolbar
+                    objectFit={objectFit}
+                    isFocusPointMode={isFocusPointMode}
+                    onObjectFitChange={handleFitChange}
+                    onToggleFocusPoint={toggleFocusPointMode}
+                    onReplaceImage={() => setActiveTab("generate")}
+                  />
                   <h3 className="text-sm font-medium mb-2">Current Image</h3>
                   <div
                     onClick={(e) => {
@@ -707,46 +720,6 @@ const ImageEditor = ({
                       </div>
                     )}
                   </div>
-                  {/* Edit Image  */}
-                  {/* Object Fit */}
-                  {
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">Object Fit</h3>
-                      <div className="flex gap-4">
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            objectFit === "cover" &&
-                              "bg-blue-50 border-blue-500"
-                          )}
-                          onClick={() => handleFitChange("cover")}
-                        >
-                          Cover
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            objectFit === "contain" &&
-                              "bg-blue-50 border-blue-500"
-                          )}
-                          onClick={() => handleFitChange("contain")}
-                        >
-                          Contain
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            objectFit === "fill" && "bg-blue-50 border-blue-500"
-                          )}
-                          onClick={() => handleFitChange("fill")}
-                        >
-                          Fill
-                        </Button>
-                      </div>
-                    </div>
-                  }
-                  {/* Focus Point */}
-                  {}
                 </div>
               </TabsContent>
             </Tabs>

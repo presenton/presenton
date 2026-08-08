@@ -4,8 +4,11 @@ import {
 import { ApiResponseHandler } from "@/app/(presentation-generator)/services/api/api-error-handler";
 import { getApiUrl } from "@/utils/api";
 
+export type PresentationVersion = "v1-standard" | "v2-standard";
+
 export interface PresentationResponse {
   id: string;
+  version?: PresentationVersion;
   title: string;
   created_at: string;
   updated_at: string;
@@ -20,15 +23,30 @@ export interface PresentationResponse {
   vector_store: any;
 
   thumbnail: string;
+  layout?: any;
+  structure?: any;
+  components?: any;
+  fonts?: any;
   slides: any[];
 }
 
 export class DashboardApi {
 
-  static async getPresentations(): Promise<PresentationResponse[]> {
+  static async getPresentations(
+    version?: PresentationVersion,
+    options?: { includeSlides?: boolean }
+  ): Promise<PresentationResponse[]> {
     try {
+      const params = new URLSearchParams();
+      if (version) {
+        params.set("version", version);
+      }
+      if (options?.includeSlides === false) {
+        params.set("include_slides", "false");
+      }
+      const query = params.toString();
       const response = await fetch(
-        getApiUrl(`/api/v1/ppt/presentation/all`),
+        getApiUrl(`/api/v1/ppt/presentation/all${query ? `?${query}` : ""}`),
         {
           method: "GET",
         }
@@ -81,6 +99,23 @@ export class DashboardApi {
         success: false,
         message: error instanceof Error ? error.message : "Failed to delete presentation",
       };
+    }
+  }
+
+  static async duplicatePresentation(presentation_id: string) {
+    try {
+      const response = await fetch(
+        getApiUrl(`/api/v1/ppt/presentation/${presentation_id}/duplicate`),
+        {
+          method: "POST",
+          headers: getHeader(),
+        }
+      );
+
+      return await ApiResponseHandler.handleResponse(response, "Failed to duplicate presentation");
+    } catch (error) {
+      console.error("Error duplicating presentation:", error);
+      throw error;
     }
   }
 }

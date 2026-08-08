@@ -3,6 +3,8 @@ from typing import Any
 from fastapi import HTTPException
 from openai import APIError as OpenAIAPIError
 
+from utils.provider_error_messages import safe_provider_error_detail
+
 
 class ImageGenerationHTTPException(HTTPException):
     def __init__(
@@ -26,16 +28,31 @@ def _openai_error_code(error: OpenAIAPIError) -> str | None:
     return str(code) if code else None
 
 
-def openai_error_detail(error: OpenAIAPIError, *, operation: str) -> str:
-    code = _openai_error_code(error)
-    if code == "insufficient_quota":
-        return (
-            f"OpenAI {operation} failed because API quota is unavailable. "
-            "Check OpenAI API billing and the limits for the project that owns this API key."
-        )
+def _openai_error_type(error: OpenAIAPIError) -> str | None:
+    body = getattr(error, "body", None)
+    if not isinstance(body, dict):
+        return None
 
-    message = getattr(error, "message", None) or str(error)
-    return f"OpenAI {operation} failed: {message}"
+    nested_error = body.get("error")
+    if isinstance(nested_error, dict):
+        error_type = nested_error.get("type")
+        return str(error_type) if error_type else None
+
+    error_type = body.get("type")
+    return str(error_type) if error_type else None
+
+
+def openai_error_detail(error: OpenAIAPIError, *, operation: str) -> str:
+    return safe_provider_error_detail(
+        "OpenAI",
+        operation,
+        status_code=getattr(error, "status_code", None),
+        code=_openai_error_code(error),
+        error_type=_openai_error_type(error),
+        message=getattr(error, "body", None)
+        or getattr(error, "message", None)
+        or str(error),
+    )
 
 
 def normalize_image_generation_error(error: Exception) -> HTTPException:
@@ -51,7 +68,7 @@ def normalize_image_generation_error(error: Exception) -> HTTPException:
 
     return ImageGenerationHTTPException(
         status_code=500,
-        detail=f"Image generation failed: {error}",
+        detail="Image generation failed. Please try again or use a different prompt.",
     )
 
 

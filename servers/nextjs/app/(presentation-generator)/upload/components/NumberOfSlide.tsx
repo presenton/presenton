@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { clampSlideCountValue, MAX_NUMBER_OF_SLIDES } from '@/utils/presentationLimits';
 import React, { useState } from 'react'
 
 const SLIDE_OPTIONS: string[] = ["5", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"];
@@ -10,11 +11,7 @@ const NumberOfSlide = ({ value, onValueChange }: { value: string, onValueChange:
     );
 
     const sanitizeToPositiveInteger = (raw: string): string => {
-        const digitsOnly = raw.replace(/\D+/g, "");
-        if (!digitsOnly) return "";
-        // Remove leading zeros
-        const noLeadingZeros = digitsOnly.replace(/^0+/, "");
-        return noLeadingZeros;
+        return clampSlideCountValue(raw);
     };
 
     const applyCustomValue = () => {
@@ -43,6 +40,7 @@ const NumberOfSlide = ({ value, onValueChange }: { value: string, onValueChange:
                         <Input
                             inputMode="numeric"
                             pattern="[0-9]*"
+                            max={MAX_NUMBER_OF_SLIDES}
                             value={customInput}
                             onMouseDown={(e) => e.stopPropagation()}
                             onPointerDown={(e) => e.stopPropagation()}

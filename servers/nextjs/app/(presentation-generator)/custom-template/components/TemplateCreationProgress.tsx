@@ -49,6 +49,8 @@ const steps: StepConfig[] = [
     },
 ];
 
+const MAX_PROCESSING_PROGRESS_PERCENT = 95;
+
 export const TemplateCreationProgress: React.FC<TemplateCreationProgressProps> = ({
     currentStep,
     totalSlides = 0,
@@ -70,7 +72,10 @@ export const TemplateCreationProgress: React.FC<TemplateCreationProgressProps> =
     };
 
     const progressPercentage = totalSlides > 0
-        ? Math.round((processedSlides / totalSlides) * 100)
+        ? Math.min(
+            MAX_PROCESSING_PROGRESS_PERCENT,
+            Math.round((processedSlides / totalSlides) * 100)
+        )
         : 0;
 
     return (

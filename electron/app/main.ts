@@ -1,9 +1,9 @@
 require("dotenv").config();
-import { app, BrowserWindow, globalShortcut } from "electron";
+import { app, BrowserWindow, dialog, globalShortcut } from "electron";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { findUnusedPorts, setupEnv, setUserConfig } from "./utils";
+import { findUnusedPorts, setupEnv } from "./utils";
 import { startFastApiServer, startNextJsServer } from "./utils/servers";
 import {
   baseDir,
@@ -46,7 +46,11 @@ import {
   prepareChromiumCacheRecovery,
   type ChromiumCacheRecoveryStatus,
 } from "./utils/chromium-cache-recovery";
-import { resolveLaunchableExportChromiumPath } from "./utils/export-chromium";
+import {
+  removeBrokenExportChromiumCaches,
+  resolveLaunchableExportChromiumPath,
+} from "./utils/export-chromium";
+import { syncUserConfigFromEnv } from "./utils/user-config-env";
 
 installSafeConsole();
 
@@ -212,15 +216,48 @@ safeLog("[Presenton] Startup memory:", {
   memory: memorySnapshotMb(),
 });
 
-const createWindow = () => {
+function isAllowedMainWindowUrl(url: string, appOrigin: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === appOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function openUrlOutsideApp(mainWindow: BrowserWindow, url: string): void {
+  if (!isSupportedExternalUrl(url)) {
+    safeWarn("[Presenton] Blocked unsupported external URL.");
+    return;
+  }
+
+  void openExternalUrl(url)
+    .then(async (result) => {
+      if (result.success) {
+        return;
+      }
+
+      safeWarn(`[Presenton] Failed to open external URL: ${result.message || "Unknown error"}`);
+      await showOpenTargetErrorDialog({
+        parent: mainWindow,
+        title: "Could Not Open Link",
+        message: "Presenton could not open this link in your browser.",
+        detail: `${result.message || "No application is registered to open this link."}\n\n${url}`,
+      });
+    })
+    .catch((error) => {
+      safeWarn("[Presenton] Failed to handle external URL open:", error);
+    });
+}
+
+const createWindow = (appOrigin: string) => {
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
-    show: false, // Reveal once the launch screen has painted to avoid a blank flash.
+    show: false, // Reveal once the app URL is ready to avoid a blank flash.
     backgroundColor: "#f3f5ff",
     icon: path.join(resourceBaseDir, "resources/ui/assets/images/presenton_short_filled.png"),
     webPreferences: {
-        webSecurity: false,
         // Ensure a known preload path and explicit isolation settings so
         // the `contextBridge` API is exposed reliably to renderer pages.
         contextIsolation: true,
@@ -251,32 +288,20 @@ const createWindow = () => {
     recordProcessGone("renderer", details);
   });
 
+  const guardMainFrameNavigation = (event: Electron.Event, url: string) => {
+    if (isAllowedMainWindowUrl(url, appOrigin)) {
+      return;
+    }
+    event.preventDefault();
+    openUrlOutsideApp(mainWindow, url);
+  };
+  mainWindow.webContents.on("will-navigate", guardMainFrameNavigation);
+  mainWindow.webContents.on("will-redirect", guardMainFrameNavigation);
+
   // Open external links (e.g. "Download update") in the system browser so the user
   // sees download progress and can manage downloads normally.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!isSupportedExternalUrl(url)) {
-      safeWarn("[Presenton] Blocked unsupported window open URL.");
-      return { action: "deny" };
-    }
-
-    void openExternalUrl(url)
-      .then(async (result) => {
-        if (result.success) {
-          return;
-        }
-
-        safeWarn(`[Presenton] Failed to open external URL: ${result.message || "Unknown error"}`);
-        await showOpenTargetErrorDialog({
-          parent: mainWindow,
-          title: "Could Not Open Link",
-          message: "Presenton could not open this link in your browser.",
-          detail: `${result.message || "No application is registered to open this link."}\n\n${url}`,
-        });
-      })
-      .catch((error) => {
-        safeWarn("[Presenton] Failed to handle external URL open:", error);
-      });
-
+    openUrlOutsideApp(mainWindow, url);
     return { action: "deny" };
   });
 
@@ -317,6 +342,7 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
     const imageMagickRuntime = resolveImageMagickRuntime();
     const exportPackageRoot = path.join(resourceBaseDir, "resources", "export");
     const exportConverterPath = resolveExportConverterPath(resourceBaseDir);
+    await removeBrokenExportChromiumCaches();
     const exportChromiumPath = await resolveLaunchableExportChromiumPath();
     const puppeteerCacheDir = path.join(getCacheDir(), "puppeteer");
     const puppeteerTempDir = path.join(tempDir, "puppeteer");
@@ -344,60 +370,10 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
       fastapiDir,
       fastApiPort,
       {
+        // The child inherits process.env, including every provider supported by
+        // Docker. Keep only Electron-specific overrides here.
         DEBUG: isDev ? "True" : "False",
         CAN_CHANGE_KEYS: process.env.CAN_CHANGE_KEYS,
-        LLM: process.env.LLM,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-        OPENAI_MODEL: process.env.OPENAI_MODEL,
-        DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
-        DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL,
-        DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL,
-        GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
-        GOOGLE_MODEL: process.env.GOOGLE_MODEL,
-        ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-        ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
-        OLLAMA_URL: process.env.OLLAMA_URL,
-        OLLAMA_MODEL: process.env.OLLAMA_MODEL,
-        CUSTOM_LLM_URL: process.env.CUSTOM_LLM_URL,
-        CUSTOM_LLM_API_KEY: process.env.CUSTOM_LLM_API_KEY,
-        CUSTOM_MODEL: process.env.CUSTOM_MODEL,
-        BEDROCK_REGION: process.env.BEDROCK_REGION,
-        BEDROCK_API_KEY: process.env.BEDROCK_API_KEY,
-        BEDROCK_AWS_ACCESS_KEY_ID: process.env.BEDROCK_AWS_ACCESS_KEY_ID,
-        BEDROCK_AWS_SECRET_ACCESS_KEY: process.env.BEDROCK_AWS_SECRET_ACCESS_KEY,
-        BEDROCK_AWS_SESSION_TOKEN: process.env.BEDROCK_AWS_SESSION_TOKEN,
-        BEDROCK_PROFILE_NAME: process.env.BEDROCK_PROFILE_NAME,
-        BEDROCK_MODEL: process.env.BEDROCK_MODEL,
-        FIREWORKS_API_KEY: process.env.FIREWORKS_API_KEY,
-        FIREWORKS_MODEL: process.env.FIREWORKS_MODEL,
-        FIREWORKS_BASE_URL: process.env.FIREWORKS_BASE_URL,
-        TOGETHER_API_KEY: process.env.TOGETHER_API_KEY,
-        TOGETHER_MODEL: process.env.TOGETHER_MODEL,
-        TOGETHER_BASE_URL: process.env.TOGETHER_BASE_URL,
-        LMSTUDIO_BASE_URL: process.env.LMSTUDIO_BASE_URL,
-        LMSTUDIO_API_KEY: process.env.LMSTUDIO_API_KEY,
-        LMSTUDIO_MODEL: process.env.LMSTUDIO_MODEL,
-        PEXELS_API_KEY: process.env.PEXELS_API_KEY,
-        PIXABAY_API_KEY: process.env.PIXABAY_API_KEY,
-        IMAGE_PROVIDER: process.env.IMAGE_PROVIDER,
-        DISABLE_IMAGE_GENERATION: process.env.DISABLE_IMAGE_GENERATION,
-        EXTENDED_REASONING: process.env.EXTENDED_REASONING,
-        TOOL_CALLS: process.env.TOOL_CALLS,
-        DISABLE_THINKING: process.env.DISABLE_THINKING,
-        WEB_GROUNDING: process.env.WEB_GROUNDING,
-        WEB_SEARCH_PROVIDER: process.env.WEB_SEARCH_PROVIDER,
-        WEB_SEARCH_MAX_RESULTS: process.env.WEB_SEARCH_MAX_RESULTS,
-        SEARXNG_BASE_URL: process.env.SEARXNG_BASE_URL,
-        TAVILY_API_KEY: process.env.TAVILY_API_KEY,
-        EXA_API_KEY: process.env.EXA_API_KEY,
-        BRAVE_SEARCH_API_KEY: process.env.BRAVE_SEARCH_API_KEY,
-        SERPER_API_KEY: process.env.SERPER_API_KEY,
-        DATABASE_URL: process.env.DATABASE_URL,
-        DISABLE_ANONYMOUS_TRACKING: process.env.DISABLE_ANONYMOUS_TRACKING,
-        COMFYUI_URL: process.env.COMFYUI_URL,
-        COMFYUI_WORKFLOW: process.env.COMFYUI_WORKFLOW,
-        DALL_E_3_QUALITY: process.env.DALL_E_3_QUALITY,
-        GPT_IMAGE_1_5_QUALITY: process.env.GPT_IMAGE_1_5_QUALITY,
         APP_DATA_DIRECTORY: appDataDir,
         TEMP_DIRECTORY: tempDir,
         USER_CONFIG_PATH: userConfigPath,
@@ -431,14 +407,19 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
       nextjsPort,
       {
         NEXT_PUBLIC_FAST_API: process.env.NEXT_PUBLIC_FAST_API,
+        FAST_API_INTERNAL_URL: process.env.FAST_API_INTERNAL_URL,
         TEMP_DIRECTORY: process.env.TEMP_DIRECTORY,
         NEXT_PUBLIC_URL: process.env.NEXT_PUBLIC_URL,
-        NEXT_PUBLIC_USER_CONFIG_PATH: process.env.NEXT_PUBLIC_USER_CONFIG_PATH,
-        USER_CONFIG_PATH: process.env.NEXT_PUBLIC_USER_CONFIG_PATH,
+        USER_CONFIG_PATH: process.env.USER_CONFIG_PATH,
         APP_DATA_DIRECTORY: appDataDir,
         DISABLE_AUTH: disableAuthForElectron,
         EXPORT_PACKAGE_ROOT: exportPackageRoot,
         PRESENTON_APP_ROOT: resourceBaseDir,
+        PUPPETEER_CACHE_DIR: puppeteerCacheDir,
+        PUPPETEER_TMP_DIR: puppeteerTempDir,
+        ...(exportChromiumPath && {
+          PUPPETEER_EXECUTABLE_PATH: exportChromiumPath,
+        }),
         ...(exportConverterPath && {
           BUILT_PYTHON_MODULE_PATH: exportConverterPath,
         }),
@@ -449,6 +430,8 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
     await nextjs.ready;
   } catch (error) {
     safeError("Server startup error:", error);
+    await stopServers();
+    throw error;
   }
 }
 
@@ -491,98 +474,43 @@ app.whenReady().then(async () => {
   // Ensure all required directories exist before starting
   ensureDirectoriesExist();
 
+  // Resolve runtime ports and publish their URLs before creating the first
+  // renderer. Electron renderer processes snapshot their environment at
+  // launch, so assigning these after loadFile/loadURL can leave window.env
+  // empty for the lifetime of the renderer.
+  const [fastApiPort, nextjsPort] = await findUnusedPorts();
+  safeLog(`FastAPI port: ${fastApiPort}, NextJS port: ${nextjsPort}`);
+  setupEnv(fastApiPort, nextjsPort);
+  setupIpcHandlers();
+
   await finishChromiumCacheRecovery(
     electronAppPaths.userDataDir,
     chromiumCacheRecovery,
   );
   updateSentryRuntimeContext(chromiumCacheRecovery);
 
-  // Create main window and show the launch page while local servers boot.
-  createWindow();
-  const initialWindow = getLiveMainWindow();
-  if (initialWindow && !initialWindow.webContents.isDestroyed()) {
-    void initialWindow
-      .loadFile(path.join(resourceBaseDir, "resources/ui/homepage/index.html"))
-      .catch((error) => {
-        if (!initialWindow.isDestroyed()) {
-          safeWarn("[Presenton] Failed to load startup page", error);
-        }
-      });
-  }
-
-  // Ensure the launch screen stays visible and focused during the server boot.
-  const launchWindow = getLiveMainWindow();
-  launchWindow?.show();
-  launchWindow?.focus();
+  // Create the main window hidden; the app splash handles the visible startup state.
+  createWindow(`${localhost}:${nextjsPort}`);
 
   try {
-    setUserConfig({
-      CAN_CHANGE_KEYS: process.env.CAN_CHANGE_KEYS,
-      LLM: process.env.LLM,
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-      OPENAI_MODEL: process.env.OPENAI_MODEL,
-      DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
-      DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL,
-      DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL,
-      GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
-      GOOGLE_MODEL: process.env.GOOGLE_MODEL,
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-      ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
-      OLLAMA_URL: process.env.OLLAMA_URL,
-      OLLAMA_MODEL: process.env.OLLAMA_MODEL,
-      CUSTOM_LLM_URL: process.env.CUSTOM_LLM_URL,
-      CUSTOM_LLM_API_KEY: process.env.CUSTOM_LLM_API_KEY,
-      CUSTOM_MODEL: process.env.CUSTOM_MODEL,
-      BEDROCK_REGION: process.env.BEDROCK_REGION,
-      BEDROCK_API_KEY: process.env.BEDROCK_API_KEY,
-      BEDROCK_AWS_ACCESS_KEY_ID: process.env.BEDROCK_AWS_ACCESS_KEY_ID,
-      BEDROCK_AWS_SECRET_ACCESS_KEY: process.env.BEDROCK_AWS_SECRET_ACCESS_KEY,
-      BEDROCK_AWS_SESSION_TOKEN: process.env.BEDROCK_AWS_SESSION_TOKEN,
-      BEDROCK_PROFILE_NAME: process.env.BEDROCK_PROFILE_NAME,
-      BEDROCK_MODEL: process.env.BEDROCK_MODEL,
-      FIREWORKS_API_KEY: process.env.FIREWORKS_API_KEY,
-      FIREWORKS_MODEL: process.env.FIREWORKS_MODEL,
-      FIREWORKS_BASE_URL: process.env.FIREWORKS_BASE_URL,
-      TOGETHER_API_KEY: process.env.TOGETHER_API_KEY,
-      TOGETHER_MODEL: process.env.TOGETHER_MODEL,
-      TOGETHER_BASE_URL: process.env.TOGETHER_BASE_URL,
-      LMSTUDIO_BASE_URL: process.env.LMSTUDIO_BASE_URL,
-      LMSTUDIO_API_KEY: process.env.LMSTUDIO_API_KEY,
-      LMSTUDIO_MODEL: process.env.LMSTUDIO_MODEL,
-      PEXELS_API_KEY: process.env.PEXELS_API_KEY,
-      PIXABAY_API_KEY: process.env.PIXABAY_API_KEY,
-      IMAGE_PROVIDER: process.env.IMAGE_PROVIDER,
-      DISABLE_IMAGE_GENERATION: process.env.DISABLE_IMAGE_GENERATION,
-      EXTENDED_REASONING: process.env.EXTENDED_REASONING,
-      TOOL_CALLS: process.env.TOOL_CALLS,
-      DISABLE_THINKING: process.env.DISABLE_THINKING,
-      WEB_GROUNDING: process.env.WEB_GROUNDING,
-      WEB_SEARCH_PROVIDER: process.env.WEB_SEARCH_PROVIDER,
-      WEB_SEARCH_MAX_RESULTS: process.env.WEB_SEARCH_MAX_RESULTS,
-      SEARXNG_BASE_URL: process.env.SEARXNG_BASE_URL,
-      TAVILY_API_KEY: process.env.TAVILY_API_KEY,
-      EXA_API_KEY: process.env.EXA_API_KEY,
-      BRAVE_SEARCH_API_KEY: process.env.BRAVE_SEARCH_API_KEY,
-      SERPER_API_KEY: process.env.SERPER_API_KEY,
-      DATABASE_URL: process.env.DATABASE_URL,
-      DISABLE_ANONYMOUS_TRACKING: process.env.DISABLE_ANONYMOUS_TRACKING,
-      COMFYUI_URL: process.env.COMFYUI_URL,
-      COMFYUI_WORKFLOW: process.env.COMFYUI_WORKFLOW,
-      DALL_E_3_QUALITY: process.env.DALL_E_3_QUALITY,
-      GPT_IMAGE_1_5_QUALITY: process.env.GPT_IMAGE_1_5_QUALITY,
-    })
+    if (process.env.CAN_CHANGE_KEYS !== "false") {
+      syncUserConfigFromEnv();
+    }
   } catch (error) {
     safeWarn("[Presenton] Failed to persist startup user config", error);
   }
 
-  const [fastApiPort, nextjsPort] = await findUnusedPorts();
-  safeLog(`FastAPI port: ${fastApiPort}, NextJS port: ${nextjsPort}`);
-
-  //? Setup environment variables to be used in the preloads
-  setupEnv(fastApiPort, nextjsPort);
-  setupIpcHandlers();
-
-  await startServers(fastApiPort, nextjsPort);
+  try {
+    await startServers(fastApiPort, nextjsPort);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    dialog.showErrorBox(
+      "Presenton Could Not Start",
+      `The local application servers failed to start.\n\n${detail}`,
+    );
+    await forceQuitApp(1);
+    return;
+  }
   if (isStopping) {
     return;
   }

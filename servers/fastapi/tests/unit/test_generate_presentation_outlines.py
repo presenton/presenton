@@ -57,19 +57,60 @@ def test_get_user_prompt_makes_selected_language_authoritative():
     ) in prompt
 
 
+def test_get_user_prompt_marks_instructions_as_non_content_constraints():
+    prompt = outline_module.get_user_prompt(
+        content="Quarterly revenue",
+        n_slides=5,
+        language="English",
+        instructions="Create a bar chart on slide 5",
+    )
+
+    assert (
+        "Instructions (apply as constraints; never quote as slide content): "
+        "Create a bar chart on slide 5"
+    ) in prompt
+
+
 def test_system_prompt_forbids_sources_in_outlines():
     prompt = outline_module.get_system_prompt()
 
     assert "Do not include URLs" in prompt
     assert "without mentioning sources" in prompt
     assert "Give each slide one clear purpose" in prompt
-    assert "Vary content structures where appropriate" in prompt
+    assert "Vary audience-facing content structures where appropriate" in prompt
     assert "Generation settings are authoritative" in prompt
+
+
+def test_system_prompt_requires_content_only_outlines_for_visual_instructions():
+    prompt = outline_module.get_system_prompt()
+
+    assert "user-visible content plan, not a production brief" in prompt
+    assert (
+        "Never include or paraphrase commands, configuration, or meta-commentary"
+        in prompt
+    )
+    assert "compact Markdown table with labels and numeric values" in prompt
+    assert "Preserve supplied data" in prompt
+    assert "otherwise add a small relevant dataset" in prompt
+    assert "it must not contain the words 'create a bar chart'" in prompt
+    assert "never copy production instructions into slide content" in prompt
+
+
+def test_outline_schema_describes_audience_facing_content_only():
+    content_schema = PresentationOutlineModel.model_json_schema()["$defs"][
+        "SlideOutlineModel"
+    ]["properties"]["content"]
+
+    assert "Audience-facing Markdown content and data" in content_schema["description"]
+    assert "never slide-creation commands" in content_schema["description"]
 
 
 def test_generate_ppt_outline_default_openai_uses_native_search_tool(monkeypatch):
     captured_kwargs = {}
     captured_config_kwargs = {}
+
+    async def is_disconnected():
+        return False
 
     async def fake_stream_generate_events(_client, **kwargs):
         captured_kwargs.update(kwargs)
@@ -101,12 +142,14 @@ def test_generate_ppt_outline_default_openai_uses_native_search_tool(monkeypatch
                 n_slides=1,
                 language="English",
                 web_search=True,
+                disconnect_checker=is_disconnected,
             )
         )
 
     assert captured_config_kwargs == {"use_openai_responses_api": True}
     assert len(captured_kwargs["tools"]) == 1
     assert isinstance(captured_kwargs["tools"][0], WebSearchTool)
+    assert captured_kwargs["disconnect_checker"] is is_disconnected
 
 
 def test_generate_ppt_outline_streams_json_chunks_and_keeps_schema_shape():

@@ -1,5 +1,7 @@
+from io import BytesIO
 from typing import List
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Header
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -21,6 +23,66 @@ from utils.file_utils import get_file_name_with_random_uuid
 
 IMAGES_ROUTER = APIRouter(prefix="/images", tags=["Images"])
 
+ALLOWED_UPLOAD_IMAGE_EXTENSIONS = {
+    ".avif",
+    ".bmp",
+    ".gif",
+    ".jpeg",
+    ".jpg",
+    ".png",
+    ".tif",
+    ".tiff",
+    ".webp",
+}
+ALLOWED_UPLOAD_IMAGE_FORMATS = {
+    "AVIF",
+    "BMP",
+    "GIF",
+    "JPEG",
+    "PNG",
+    "TIFF",
+    "WEBP",
+}
+REDACTED_SECRET_PLACEHOLDER = "__configured__"
+
+
+async def _read_validated_image_upload(file: UploadFile) -> bytes:
+    filename = file.filename or ""
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in ALLOWED_UPLOAD_IMAGE_EXTENSIONS:
+        accepted = ", ".join(sorted(ALLOWED_UPLOAD_IMAGE_EXTENSIONS))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image file type. Accepted types: {accepted}",
+        )
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded image file is empty")
+
+    try:
+        with Image.open(BytesIO(content)) as image:
+            if image.format not in ALLOWED_UPLOAD_IMAGE_FORMATS:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Uploaded image format is not supported",
+                )
+            image.verify()
+    except HTTPException:
+        raise
+    except (
+        Image.DecompressionBombError,
+        OSError,
+        SyntaxError,
+        UnidentifiedImageError,
+        ValueError,
+    ):
+        raise HTTPException(
+            status_code=400, detail="Uploaded file is not a valid image"
+        )
+
+    return content
+
 
 def _normalize_stock_provider(provider: str | None) -> str:
     normalized_provider = (provider or "").strip().lower()
@@ -41,6 +103,15 @@ def _normalize_stock_provider(provider: str | None) -> str:
     return "pexels"
 
 
+def _resolve_stock_api_key(
+    request_api_key: str | None, configured_api_key: str | None
+) -> str:
+    normalized_request_key = (request_api_key or "").strip()
+    if normalized_request_key == REDACTED_SECRET_PLACEHOLDER:
+        normalized_request_key = ""
+    return (normalized_request_key or configured_api_key or "").strip()
+
+
 @IMAGES_ROUTER.get("/search", response_model=List[str])
 async def search_stock_images(
     query: str,
@@ -54,7 +125,7 @@ async def search_stock_images(
     image_generation_service = ImageGenerationService(get_images_directory())
 
     if normalized_provider == "pexels":
-        api_key = (x_provider_api_key or get_pexels_api_key_env() or "").strip()
+        api_key = _resolve_stock_api_key(x_provider_api_key, get_pexels_api_key_env())
         if strict_api_key and not api_key:
             raise HTTPException(status_code=401, detail="Pexels API key is required")
 
@@ -77,7 +148,7 @@ async def search_stock_images(
             return [images] if images else []
         return images
 
-    api_key = (x_provider_api_key or get_pixabay_api_key_env() or "").strip()
+    api_key = _resolve_stock_api_key(x_provider_api_key, get_pixabay_api_key_env())
     if strict_api_key and not api_key:
         raise HTTPException(status_code=401, detail="Pixabay API key is required")
 
@@ -140,13 +211,14 @@ async def upload_image(
     file: UploadFile = File(...), sql_session: AsyncSession = Depends(get_async_session)
 ):
     try:
+        content = await _read_validated_image_upload(file)
         new_filename = get_file_name_with_random_uuid(file)
         image_path = os.path.join(
             get_images_directory(), os.path.basename(new_filename)
         )
 
         with open(image_path, "wb") as f:
-            f.write(await file.read())
+            f.write(content)
 
         image_asset = ImageAsset(path=image_path, is_uploaded=True)
 
@@ -156,6 +228,8 @@ async def upload_image(
         await sql_session.refresh(image_asset)
 
         return _image_asset_api_dict(image_asset)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload image: {str(e)}")
 

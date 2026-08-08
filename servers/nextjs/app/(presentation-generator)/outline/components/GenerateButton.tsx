@@ -1,33 +1,32 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "../types/index";
-import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import { ChevronRight } from "lucide-react";
 
 interface GenerateButtonProps {
   loadingState: LoadingState;
   streamState: { isStreaming: boolean; isLoading: boolean };
-  selectedTemplate: TemplateLayoutsWithSettings | string | null;
+  selectedTemplateId: string | null;
   onSubmit: () => void;
 }
 
 const GenerateButton: React.FC<GenerateButtonProps> = ({
   loadingState,
   streamState,
-  selectedTemplate,
+  selectedTemplateId,
   onSubmit,
 }) => {
   const isDisabled =
     loadingState.isLoading ||
     streamState.isLoading ||
     streamState.isStreaming ||
-    !selectedTemplate;
+    !selectedTemplateId;
 
   const getButtonText = () => {
     if (loadingState.isLoading) return loadingState.message;
     if (streamState.isLoading || streamState.isStreaming) return "Loading...";
-    if (!selectedTemplate) return "Select a Template";
-    return "Generate Presentation";
+    if (!selectedTemplateId) return "Select a Template";
+    return "Continue";
   };
 
   return (
@@ -36,14 +35,17 @@ const GenerateButton: React.FC<GenerateButtonProps> = ({
       onClick={() => {
         onSubmit();
       }}
-      className=" w-full flex items-center gap-0.5 rounded-[58px] text-sm py-3 px-5 font-instrument_sans font-semibold  text-[#101323] disabled:opacity-50 disabled:cursor-not-allowed font-syne"
+      className="flex h-[46px] w-fit items-center gap-[2px] rounded-[58px] px-6 py-3 font-syne text-lg font-medium tracking-[-0.18px] text-[#101323] shadow-none hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
       style={{
         background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
       }}
     >
-
       {getButtonText()}
-      <ChevronRight className="w-4 h-4" />
+      <ChevronRight
+        aria-hidden="true"
+        strokeWidth={1.7}
+        className="h-[18px] w-[18px]"
+      />
     </Button>
   );
 };

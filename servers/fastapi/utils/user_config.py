@@ -483,17 +483,19 @@ def update_env_with_user_config():
         set_openai_compat_image_model_env(user_config.OPENAI_COMPAT_IMAGE_MODEL)
 
 
-def save_codex_tokens_to_user_config() -> None:
+def save_codex_tokens_to_user_config(*, include_model: bool = False) -> None:
     """
     Write the current in-memory Codex OAuth token env vars back to userConfig.json
-    so they survive container restarts.  Called after a successful token exchange
-    and on logout (where the env vars have already been cleared to "").
+    so they survive container restarts.  Pass include_model=True on logout, where
+    CODEX_MODEL has already been cleared and should be persisted as cleared.
     """
     user_config_path = get_user_config_path_env()
     if not user_config_path:
         return
 
     def merge_codex_tokens(existing: dict) -> dict:
+        if include_model:
+            existing["CODEX_MODEL"] = get_codex_model_env()
         existing["CODEX_ACCESS_TOKEN"] = get_codex_access_token_env()
         existing["CODEX_REFRESH_TOKEN"] = get_codex_refresh_token_env()
         existing["CODEX_TOKEN_EXPIRES"] = get_codex_token_expires_env()
@@ -505,5 +507,10 @@ def save_codex_tokens_to_user_config() -> None:
 
     try:
         update_user_config_file(user_config_path, merge_codex_tokens)
+        from services.provider_settings import (
+            sync_legacy_file_to_provider_settings,
+        )
+
+        sync_legacy_file_to_provider_settings()
     except Exception as error:
         print(f"Error while saving Codex tokens to user config: {error}")

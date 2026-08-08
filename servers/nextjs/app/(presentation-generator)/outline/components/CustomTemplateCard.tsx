@@ -2,24 +2,29 @@
 import React, { memo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { CustomTemplates, useCustomTemplatePreview } from "@/app/hooks/useCustomTemplates";
 import { CheckCircle2 } from "lucide-react";
 import {
     TemplatePreviewStage,
     LayoutsBadge,
-    CustomTemplatePreview,
 } from "../../components/TemplatePreviewComponents";
+import { TemplateThumbnailPreview } from "../../components/TemplateListUi";
+
+interface TemplateListItem {
+    id: string;
+    name: string;
+    layout_count?: number;
+    thumbnail?: string | null;
+}
 
 export const CustomTemplateCard = memo(function CustomTemplateCard({
     template,
     onSelectTemplate,
     selectedTemplate,
 }: {
-    template: CustomTemplates;
+    template: TemplateListItem;
     onSelectTemplate: (template: string) => void;
     selectedTemplate: string | null;
 }) {
-    const { previewLayouts, loading } = useCustomTemplatePreview(template.id);
     const isSelected = selectedTemplate === template.id;
     const handleSelect = useCallback(() => onSelectTemplate(template.id), [onSelectTemplate, template.id]);
     const handleKeyDown = useCallback(
@@ -57,12 +62,10 @@ export const CustomTemplateCard = memo(function CustomTemplateCard({
                 </span>
             )}
             <TemplatePreviewStage>
-                <LayoutsBadge count={template.layoutCount} />
-                <CustomTemplatePreview
-                    previewLayouts={previewLayouts}
-                    loading={loading}
-                    templateId={template.id}
-                    isOutline={true}
+                <LayoutsBadge count={template.layout_count ?? 0} />
+                <TemplateThumbnailPreview
+                    thumbnail={template.thumbnail}
+                    templateName={template.name}
                 />
             </TemplatePreviewStage>
             <div className="flex items-center justify-between px-6 py-5 bg-white border-t border-[#EDEEEF] relative z-40">

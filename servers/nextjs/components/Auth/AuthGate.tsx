@@ -5,18 +5,26 @@ import Image from "next/image";
 import { getApiUrl } from "@/utils/api";
 import { isAuthDisabled } from "@/utils/auth";
 import { formatFastApiDetail, UNAUTHORIZED_DETAIL } from "@/utils/authErrors";
+import {
+  PRESENTON_SPLASH_MIN_DURATION_MS,
+  PresentonSplashLoader,
+} from "@/components/ui/presenton-splash-loader";
 import { notify } from "@/components/ui/sonner";
+import { sanitizeAnalyticsError } from "@/utils/analytics";
+import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 
 type AuthStatus = {
   configured: boolean;
   authenticated: boolean;
   username: string | null;
+  role?: "admin" | "user" | null;
 };
 
 const initialStatus: AuthStatus = {
   configured: false,
   authenticated: false,
   username: null,
+  role: null,
 };
 
 export default function AuthGate() {
@@ -24,17 +32,32 @@ export default function AuthGate() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasMetSplashDuration, setHasMetSplashDuration] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const isSetupMode = useMemo(() => !status.configured, [status.configured]);
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setHasMetSplashDuration(true);
+    }, PRESENTON_SPLASH_MIN_DURATION_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
     if (isAuthDisabled()) {
+      trackEvent(MixpanelEvent.Auth_Status_Checked, {
+        configured: true,
+        authenticated: true,
+        auth_disabled: true,
+      });
       setStatus({
         configured: true,
         authenticated: true,
         username: "electron",
+        role: "admin",
       });
       setIsLoading(false);
       return;
@@ -64,6 +87,9 @@ export default function AuthGate() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("reason") === "unauthorized") {
       if (status.configured && !status.authenticated) {
+        trackEvent(MixpanelEvent.Auth_Unauthorized_Redirect, {
+          configured: true,
+        });
         notify.error("Unauthorized", "Sign in to view this page.", {
           id: "auth-unauthorized-redirect",
           duration: 5000,
@@ -88,13 +114,29 @@ export default function AuthGate() {
       }
 
       const data = (await response.json()) as AuthStatus;
+      trackEvent(MixpanelEvent.Auth_Status_Checked, {
+        configured: Boolean(data.configured),
+        authenticated: Boolean(data.authenticated),
+        auth_disabled: false,
+        role: data.role ?? null,
+      });
       setStatus({
         configured: Boolean(data.configured),
         authenticated: Boolean(data.authenticated),
         username: data.username ?? null,
+        role: data.role ?? null,
       });
     } catch (fetchError) {
       console.error(fetchError);
+      trackEvent(MixpanelEvent.Auth_Status_Checked, {
+        configured: false,
+        authenticated: false,
+        auth_disabled: false,
+        error_message: sanitizeAnalyticsError(
+          fetchError,
+          "Could not load login state"
+        ),
+      });
       notify.error(
         "Could not load login",
         "We could not connect to the login service. Please refresh and try again."
@@ -104,11 +146,36 @@ export default function AuthGate() {
     }
   };
 
+  useEffect(() => {
+    if (
+      isLoading ||
+      isRedirecting ||
+      status.authenticated ||
+      !hasMetSplashDuration
+    ) {
+      return;
+    }
+
+    trackEvent(MixpanelEvent.Auth_Gate_Viewed, {
+      flow: status.configured ? "sign_in" : "setup",
+    });
+  }, [
+    hasMetSplashDuration,
+    isLoading,
+    isRedirecting,
+    status.authenticated,
+    status.configured,
+  ]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const cleanedUsername = username.trim();
     if (cleanedUsername.length < 3) {
+      trackEvent(MixpanelEvent.Auth_Validation_Failed, {
+        flow: isSetupMode ? "setup" : "sign_in",
+        reason: "username_too_short",
+      });
       notify.warning(
         "Username too short",
         "Your username must be at least 3 characters."
@@ -116,15 +183,24 @@ export default function AuthGate() {
       return;
     }
 
-    if (password.length < 6) {
+    const minimumPasswordLength = isSetupMode ? 8 : 6;
+    if (password.length < minimumPasswordLength) {
+      trackEvent(MixpanelEvent.Auth_Validation_Failed, {
+        flow: isSetupMode ? "setup" : "sign_in",
+        reason: "password_too_short",
+      });
       notify.warning(
         "Password too short",
-        "Your password must be at least 6 characters."
+        `Your password must be at least ${minimumPasswordLength} characters.`
       );
       return;
     }
 
     if (isSetupMode && password !== confirmPassword) {
+      trackEvent(MixpanelEvent.Auth_Validation_Failed, {
+        flow: "setup",
+        reason: "passwords_do_not_match",
+      });
       notify.warning(
         "Passwords do not match",
         "Make sure both password fields match before continuing."
@@ -133,6 +209,14 @@ export default function AuthGate() {
     }
 
     setIsSubmitting(true);
+    trackEvent(
+      isSetupMode
+        ? MixpanelEvent.Auth_Setup_Started
+        : MixpanelEvent.Auth_SignIn_Started,
+      {
+        username_length: cleanedUsername.length,
+      }
+    );
 
     try {
       const response = await fetch(
@@ -153,6 +237,18 @@ export default function AuthGate() {
       const payload = await response.json();
       if (!response.ok) {
         const detail = formatFastApiDetail(payload?.detail);
+        trackEvent(
+          isSetupMode
+            ? MixpanelEvent.Auth_Setup_Failed
+            : MixpanelEvent.Auth_SignIn_Failed,
+          {
+            status_code: response.status,
+            error_message: sanitizeAnalyticsError(
+              detail,
+              isSetupMode ? "Could not create account" : "Sign-in failed"
+            ),
+          }
+        );
         if (response.status === 401) {
           notify.error(
             "Sign-in failed",
@@ -170,10 +266,14 @@ export default function AuthGate() {
       }
 
       if (isSetupMode) {
+        trackEvent(MixpanelEvent.Auth_Setup_Completed, {
+          username_length: cleanedUsername.length,
+        });
         setStatus({
           configured: true,
           authenticated: false,
           username: (payload as AuthStatus).username ?? cleanedUsername,
+          role: (payload as AuthStatus).role ?? "admin",
         });
         setPassword("");
         setConfirmPassword("");
@@ -187,6 +287,11 @@ export default function AuthGate() {
         configured: Boolean((payload as AuthStatus).configured),
         authenticated: Boolean((payload as AuthStatus).authenticated),
         username: (payload as AuthStatus).username ?? cleanedUsername,
+        role: (payload as AuthStatus).role ?? null,
+      });
+      trackEvent(MixpanelEvent.Auth_SignIn_Completed, {
+        username_length: cleanedUsername.length,
+        role: (payload as AuthStatus).role ?? null,
       });
       setPassword("");
       setConfirmPassword("");
@@ -196,6 +301,18 @@ export default function AuthGate() {
       );
     } catch (submitError) {
       console.error(submitError);
+      trackEvent(
+        isSetupMode
+          ? MixpanelEvent.Auth_Setup_Failed
+          : MixpanelEvent.Auth_SignIn_Failed,
+        {
+          status_code: null,
+          error_message: sanitizeAnalyticsError(
+            submitError,
+            isSetupMode ? "Could not create account" : "Login unavailable"
+          ),
+        }
+      );
       notify.error(
         "Login unavailable",
         "The login service is unavailable right now. Please try again in a moment."
@@ -205,88 +322,72 @@ export default function AuthGate() {
     }
   };
 
-  if (isLoading || isRedirecting || status.authenticated) {
-    return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white p-6">
-        <div className="relative z-10 w-full max-w-md">
-          <div className="rounded-2xl border border-[#EDEEEF] bg-white p-8 text-center shadow-xl">
-            <Image
-              src="/Logo.png"
-              alt="Presenton"
-              width={160}
-              height={48}
-              className="mx-auto mb-5 h-12 w-auto opacity-95"
-              priority
-            />
-            <div className="mx-auto mb-4 h-1 w-16 rounded-full bg-[#7C51F8]" />
-            <h1 className="font-syne text-lg font-semibold text-black">Presenton</h1>
-            <p className="mt-3 font-syne text-sm text-[#000000CC]">Preparing your workspace…</p>
-            <div className="mt-6 flex justify-center gap-1.5">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[#5146E5]" />
-              <span
-                className="h-2 w-2 animate-pulse rounded-full bg-[#7C51F8]"
-                style={{ animationDelay: "0.2s" }}
-              />
-              <span
-                className="h-2 w-2 animate-pulse rounded-full bg-[#5146E5]"
-                style={{ animationDelay: "0.4s" }}
-              />
-            </div>
-          </div>
-        </div>
-      </main>
-    );
+  if (
+    isLoading ||
+    isRedirecting ||
+    status.authenticated ||
+    !hasMetSplashDuration
+  ) {
+    return <PresentonSplashLoader message="Preparing your workspace..." />;
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white p-6">
-      <section className="relative z-10 w-full max-w-xl rounded-2xl border border-[#E1E1E5] bg-white p-7 shadow-xl sm:p-10">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white p-6 font-syne">
+      <section className="relative z-10 w-full max-w-lg rounded-[20px] border border-[#EDEEEF] bg-[#F9F8F8] p-7 sm:p-10">
+        <div className="mb-7">
           <div className="flex items-center gap-4">
-            <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[4px] bg-[#F4F3FF] p-3">
+            <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-[4px] bg-[#F4F3FF] p-3">
               <Image
                 src="/logo-with-bg.png"
                 alt=""
-                width={40}
-                height={40}
-                className="h-10 w-10 object-contain"
+                width={161}
+                height={166}
+                className="h-10 w-auto object-contain"
               />
             </div>
             <div>
               <p className="font-syne text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7A5AF8]">
                 Secure instance
               </p>
-              <h1 className="mt-1 font-syne text-2xl font-semibold leading-tight text-black sm:text-[26px]">
+              <h1 className="mt-1 font-unbounded text-xl font-normal leading-tight tracking-[-0.03em] text-black sm:text-[22px]">
                 {isSetupMode ? "Create your admin login" : "Sign in to continue"}
               </h1>
             </div>
           </div>
         </div>
 
-        <p className="font-syne text-base text-[#000000CC] sm:text-lg">
+        <p className="max-w-md text-sm leading-relaxed text-[#6B7280]">
           {isSetupMode
             ? "One-time setup for this deployment. You will use the same username and password on future visits."
             : "This deployment is protected. Enter your credentials to open the app."}
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        <form onSubmit={handleSubmit} className="mt-7 space-y-5">
           <div className="space-y-2">
-            <label htmlFor="username" className="block font-syne text-sm font-medium text-black">
+            <label htmlFor="username" className="block text-sm font-medium text-[#374151]">
               Username
             </label>
             <input
               id="username"
               autoComplete="username"
               value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="your-admin-user"
-              className="w-full rounded-[11px] border border-[#EDEEEF] bg-white px-4 py-3 font-syne text-sm text-black outline-none transition placeholder:text-[#999999] focus:border-[#a49cfc] focus:ring-2 focus:ring-[#5146E5]/20"
+              onChange={(event) =>
+                setUsername(event.target.value.replace(/\s/g, ""))
+              }
+              placeholder="Username"
+              minLength={3}
+              maxLength={128}
+              pattern="\S+"
+              title="Username cannot contain spaces"
+              required
+              spellCheck={false}
+              className="h-12 w-full rounded-lg border border-[#E1E1E5] bg-white px-4 text-sm text-[#191919] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15"
               disabled={isSubmitting}
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="block font-syne text-sm font-medium text-black">
+            <label htmlFor="password" className="block text-sm font-medium text-[#374151]">
               Password
             </label>
             <input
@@ -295,15 +396,20 @@ export default function AuthGate() {
               autoComplete={isSetupMode ? "new-password" : "current-password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 6 characters"
-              className="w-full rounded-[11px] border border-[#EDEEEF] bg-white px-4 py-3 font-syne text-sm text-black outline-none transition placeholder:text-[#999999] focus:border-[#a49cfc] focus:ring-2 focus:ring-[#5146E5]/20"
+              placeholder={
+                isSetupMode ? "At least 8 characters" : "Enter your password"
+              }
+              minLength={isSetupMode ? 8 : 6}
+              maxLength={128}
+              required
+              className="h-12 w-full rounded-lg border border-[#E1E1E5] bg-white px-4 text-sm text-[#191919] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15"
               disabled={isSubmitting}
             />
           </div>
 
           {isSetupMode ? (
             <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="block font-syne text-sm font-medium text-black">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#374151]">
                 Confirm password
               </label>
               <input
@@ -313,15 +419,18 @@ export default function AuthGate() {
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 placeholder="Re-enter your password"
-                className="w-full rounded-[11px] border border-[#EDEEEF] bg-white px-4 py-3 font-syne text-sm text-black outline-none transition placeholder:text-[#999999] focus:border-[#a49cfc] focus:ring-2 focus:ring-[#5146E5]/20"
+                minLength={8}
+                maxLength={128}
+                required
+                className="h-12 w-full rounded-lg border border-[#E1E1E5] bg-white px-4 text-sm text-[#191919] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15"
                 disabled={isSubmitting}
               />
             </div>
           ) : null}
 
           {!isSetupMode && status.configured ? (
-            <p className="font-syne text-sm text-[#494A4D]">
-              Setup is complete for this instance. Use the username and password you configured.
+            <p className="rounded-lg border border-[#EDEEEF] bg-white px-4 py-3 text-xs leading-relaxed text-[#6B7280]">
+              Use the username and password provided by your administrator.
             </p>
           ) : null}
 

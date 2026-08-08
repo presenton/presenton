@@ -10,9 +10,9 @@ import EachSlide from "../EachSlide/NewEachSlide";
 
 interface SlidesListProps {
   slides: ProcessedSlide[];
+  templateFonts?: Record<string, string>;
   setSlides: React.Dispatch<React.SetStateAction<ProcessedSlide[]>>;
   retrySlide: (index: number) => void;
-  onSlideUpdate: (index: number, updatedSlideData: Partial<ProcessedSlide>) => void;
   onOpenSchemaEditor: (index: number | null) => void;
   schemaEditorSlideIndex: number | null;
   schemaPreviewData: Record<number, Record<string, any>>;
@@ -22,9 +22,9 @@ interface SlidesListProps {
 
 export const SlidesList: React.FC<SlidesListProps> = ({
   slides,
+  templateFonts,
   setSlides,
   retrySlide,
-  onSlideUpdate,
   onOpenSchemaEditor,
   schemaEditorSlideIndex,
   schemaPreviewData,
@@ -43,13 +43,11 @@ export const SlidesList: React.FC<SlidesListProps> = ({
           <EachSlide
             key={index}
             slide={slide}
+            templateFonts={templateFonts}
             index={index}
             isProcessing={slides.some((s) => s.processing)}
             retrySlide={retrySlide}
             setSlides={setSlides}
-            onSlideUpdate={(updatedSlideData) =>
-              onSlideUpdate(index, updatedSlideData)
-            }
             onOpenSchemaEditor={onOpenSchemaEditor}
             isSchemaEditorOpen={schemaEditorSlideIndex === index}
             schemaPreviewData={schemaPreviewData[index] ?? null}
@@ -60,4 +58,3 @@ export const SlidesList: React.FC<SlidesListProps> = ({
     </div>
   );
 };
-

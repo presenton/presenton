@@ -1,27 +1,6 @@
 import net from 'net'
 import treeKill from 'tree-kill'
 import { getTempDir, getUserConfigPath, localhost } from './constants'
-import { readUserConfigFile, updateUserConfigFile } from './user-config-store'
-
-export function setUserConfig(userConfig: UserConfig) {
-  const userConfigPath = getUserConfigPath()
-  updateUserConfigFile<UserConfig>(userConfigPath, (existingConfig) => {
-    const definedIncomingEntries = Object.entries(userConfig).filter(([, value]) => value !== undefined)
-    return {
-      ...existingConfig,
-      ...Object.fromEntries(definedIncomingEntries),
-      CODEX_ACCESS_TOKEN: existingConfig.CODEX_ACCESS_TOKEN,
-      CODEX_REFRESH_TOKEN: existingConfig.CODEX_REFRESH_TOKEN,
-      CODEX_TOKEN_EXPIRES: existingConfig.CODEX_TOKEN_EXPIRES,
-      CODEX_ACCOUNT_ID: existingConfig.CODEX_ACCOUNT_ID,
-    }
-  })
-}
-
-export function getUserConfig(): UserConfig {
-  const userConfigPath = getUserConfigPath()
-  return readUserConfigFile<UserConfig>(userConfigPath)
-}
 
 export function setupEnv(fastApiPort: number, nextjsPort: number) {
   const { app } = require('electron');
@@ -31,10 +10,13 @@ export function setupEnv(fastApiPort: number, nextjsPort: number) {
   const tempDir = getTempDir();
   const userConfigPath = getUserConfigPath();
   process.env.NEXT_PUBLIC_FAST_API = `${localhost}:${fastApiPort}`;
+  // Next.js server components, route handlers, and proxy middleware use the
+  // internal URL at runtime. In Electron it is the same loopback origin as the
+  // browser-facing FastAPI URL; Docker assigns its own value in start.js.
+  process.env.FAST_API_INTERNAL_URL = process.env.NEXT_PUBLIC_FAST_API;
   process.env.TEMP_DIRECTORY = tempDir;
-  process.env.NEXT_PUBLIC_USER_CONFIG_PATH = userConfigPath;
   process.env.NEXT_PUBLIC_URL = `${localhost}:${nextjsPort}`;
-  
+
   // Set environment variables for NextJS API routes
   process.env.USER_CONFIG_PATH = userConfigPath;
   // Read CAN_CHANGE_KEYS from existing env or default to true

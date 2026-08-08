@@ -1,6 +1,5 @@
 import uvicorn
 import argparse
-import os
 from api.main import app
 
 if __name__ == "__main__":
@@ -20,9 +19,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     reload = args.reload == "true"
     host = "127.0.0.1"
-
-    # Bind asset/base URL generation to the active runtime port (same env name as Next/Electron).
-    os.environ["NEXT_PUBLIC_FAST_API"] = f"http://{host}:{args.port}"
 
     uvicorn.run(
         "api.main:app",

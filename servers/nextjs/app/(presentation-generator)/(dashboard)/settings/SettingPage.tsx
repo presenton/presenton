@@ -25,6 +25,11 @@ import {
 import { ImagesApi } from "@/app/(presentation-generator)/services/api/images";
 import { getApiUrl } from "@/utils/api";
 import LogoutButton from "@/components/Auth/LogoutButton";
+import AdminPanel from "../admin/AdminPanel";
+import {
+  CHATGPT_AUTH_REQUIRED_EVENT,
+  requestChatGptReauth,
+} from "@/utils/chatgptAuth";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 
@@ -63,6 +68,21 @@ const SettingsPage = () => {
     },
     []
   );
+
+  useEffect(() => {
+    setLlmConfig(userConfigState.llm_config);
+  }, [userConfigState.llm_config]);
+
+  useEffect(() => {
+    const handleChatGptReauth = () => {
+      setSelectedProvider("text-provider");
+    };
+
+    window.addEventListener(CHATGPT_AUTH_REQUIRED_EVENT, handleChatGptReauth);
+    return () => {
+      window.removeEventListener(CHATGPT_AUTH_REQUIRED_EVENT, handleChatGptReauth);
+    };
+  }, []);
 
   const selectSettingsSection = (section: SettingsSection) => {
     trackEvent(MixpanelEvent.Settings_Tab_Switched, {
@@ -132,7 +152,10 @@ const SettingsPage = () => {
     if (llmConfig.LLM === 'codex') {
       const isAuthenticated = await checkCurrentAuthStatus();
       if (!isAuthenticated) {
-        notify.error("Sign in required", "Please sign in to ChatGPT to continue.");
+        requestChatGptReauth({
+          message: "Please sign in to ChatGPT again from Settings.",
+          source: "settings-save",
+        });
         return;
       }
     }
@@ -368,6 +391,7 @@ const SettingsPage = () => {
           {selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === 'web-search-provider' && <WebSearchProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === 'privacy' && <PrivacySettings />}
+          {selectedProvider === "admin" && <AdminPanel embedded />}
           {selectedProvider === "session" && (
             <div className="w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
               <div>
@@ -387,7 +411,7 @@ const SettingsPage = () => {
       </main>
 
       {/* Fixed Bottom Button — hidden on Sign out; nothing to save there */}
-      {selectedProvider !== "session" ? (
+      {!["session", "admin"].includes(selectedProvider) ? (
         <div className=" mx-auto fixed bottom-20 right-5 ">
           <button
             onClick={handleSaveConfig}

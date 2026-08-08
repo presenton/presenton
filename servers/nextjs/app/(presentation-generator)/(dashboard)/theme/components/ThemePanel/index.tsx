@@ -26,7 +26,6 @@ import { notify } from '@/components/ui/sonner'
 import { Theme, ThemeParams } from '@/app/(presentation-generator)/services/api/types'
 import { ImagesApi } from '@/app/(presentation-generator)/services/api/images'
 import { Input } from '@/components/ui/input'
-import { getTemplatesByTemplateName } from '@/app/presentation-templates'
 import { usePathname, useSearchParams } from 'next/navigation'
 import CustomTabEmpty from './CustomTabEmpty'
 import ThemeApi from '@/app/(presentation-generator)/services/api/theme'
@@ -221,7 +220,7 @@ const ThemePanel: React.FC = () => {
 
 
 
-  const template = getTemplatesByTemplateName('neo-general')
+
   const applyTheme = (theme: Theme) => {
     const cssVariables = {
       '--primary-color': theme.data.colors['primary'],
@@ -1148,7 +1147,7 @@ const ThemePanel: React.FC = () => {
               // ref={previewContainerRef}
               className=" w-full p-3 bg-gray-50">
               <div className="space-y-4">
-                <div
+                {/* <div
                   ref={slideContainerRef}
                   style={{ backgroundColor: 'var(--page-background-color)' }}
                   className="overflow-y-auto overflow-x-hidden custom_scrollbar space-y-4 h-[90vh] rounded-lg shadow-lg border bg-white"
@@ -1181,7 +1180,7 @@ const ThemePanel: React.FC = () => {
                       </div>
                     )
                   })}
-                </div>
+                </div> */}
               </div>
             </div>
           </div>

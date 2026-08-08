@@ -1,17 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  X,
-  Minimize2,
-  Maximize2,
-  StickyNote,
-  EyeOff,
-  Keyboard,
+  LayoutGrid,
+  ScreenShareOff,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Slide } from "../../types/slide";
 import SlideScale from "../../components/PresentationRender";
 import type { Theme } from "../../services/api/types";
@@ -21,18 +17,197 @@ interface PresentationModeProps {
   slides: Slide[];
   currentSlide: number;
   theme?: Theme | null;
+  fonts?: unknown;
   isFullscreen: boolean;
   onFullscreenToggle: (target?: Element | null) => void;
   onExit: () => void;
   onSlideChange: (slideNumber: number) => void;
 }
 
-const CHROME_HIDE_MS = 800;
+const SLIDE_BASE_WIDTH = 1280;
+const SLIDE_BASE_HEIGHT = 720;
+const THUMBNAIL_WIDTH = 252;
+const THUMBNAIL_SCALE = THUMBNAIL_WIDTH / SLIDE_BASE_WIDTH;
+const THUMBNAIL_HEIGHT = SLIDE_BASE_HEIGHT * THUMBNAIL_SCALE;
+const CHROME_HIDE_MS = 2000;
+
+function SpeakerNoteIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M7.33 16.67v-3.42l1.59.17c.46-.03.9-.22 1.23-.54.33-.32.54-.75.58-1.21V6.92a4.58 4.58 0 0 0-9.16-.04c0 2.33.55 2.54.83 3.79.2.75.21 1.54.03 2.29l-.86 3.71"
+        stroke="currentColor"
+        strokeWidth="1.55"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16.5 14.83a6.25 6.25 0 0 0 0-8.83"
+        stroke="currentColor"
+        strokeWidth="1.55"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.17 12.5a2.95 2.95 0 0 0-.02-4.15"
+        stroke="currentColor"
+        strokeWidth="1.55"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PresentationIconButton({
+  title,
+  children,
+  active = false,
+  disabled = false,
+  onClick,
+}: {
+  title: string;
+  children: React.ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      aria-pressed={active || undefined}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex size-[18px] shrink-0 items-center justify-center text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-4 focus-visible:ring-offset-[#1A1B20]",
+        active ? "text-[#7A5AF8]" : "hover:text-[#E6E6E6]",
+        disabled && "cursor-not-allowed opacity-35 hover:text-white"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+const PresentationModeSlide = memo(
+  function PresentationModeSlide({
+    slide,
+    slideIndex,
+    theme,
+    fonts,
+  }: {
+    slide: Slide;
+    slideIndex: number;
+    theme?: Theme | null;
+    fonts?: unknown;
+  }) {
+    return (
+      <SlideScale
+        slide={slide}
+        theme={theme ?? undefined}
+        fonts={fonts}
+        isEditMode={false}
+        presentMode
+        isClickable={false}
+        renderIndex={slideIndex}
+      />
+    );
+  },
+  (previous, next) =>
+    previous.slide === next.slide &&
+    previous.slideIndex === next.slideIndex &&
+    previous.theme === next.theme &&
+    previous.fonts === next.fonts
+);
+
+const PresentationThumbnail = memo(
+  function PresentationThumbnail({
+    slide,
+    slideIndex,
+    isActive,
+    theme,
+    fonts,
+    onSelect,
+  }: {
+    slide: Slide;
+    slideIndex: number;
+    isActive: boolean;
+    theme?: Theme | null;
+    fonts?: unknown;
+    onSelect: (index: number) => void;
+  }) {
+    return (
+      <button
+        type="button"
+        className="group flex w-full flex-col items-start gap-[10px] text-left focus-visible:outline-none"
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect(slideIndex);
+        }}
+      >
+        <div
+          className={cn(
+            "relative w-full overflow-hidden bg-[#F9F8F8] transition-shadow",
+            isActive
+              ? "shadow-[0_0_0_2px_#7A5AF8]"
+              : "shadow-[0_0_0_1px_rgba(76,76,76,0)] group-hover:shadow-[0_0_0_1px_#4C4C4C] group-focus-visible:shadow-[0_0_0_2px_#7A5AF8]"
+          )}
+          style={{ height: THUMBNAIL_HEIGHT }}
+          aria-hidden="true"
+        >
+          <div
+            className="pointer-events-none absolute left-0 top-0 origin-top-left"
+            style={{
+              width: SLIDE_BASE_WIDTH,
+              height: SLIDE_BASE_HEIGHT,
+              transform: `scale(${THUMBNAIL_SCALE})`,
+            }}
+          >
+            <SlideScale
+              slide={slide}
+              theme={theme ?? undefined}
+              fonts={fonts}
+              isEditMode={false}
+              fixedSize
+              isClickable={false}
+              renderIndex={slideIndex}
+            />
+          </div>
+        </div>
+        <span
+          className={cn(
+            "font-manrope text-[16px] font-medium leading-[25px] tracking-[-0.16px]",
+            isActive ? "text-white" : "text-[#E6E6E6]"
+          )}
+        >
+          {slideIndex + 1}
+        </span>
+      </button>
+    );
+  },
+  (previous, next) =>
+    previous.slide === next.slide &&
+    previous.slideIndex === next.slideIndex &&
+    previous.isActive === next.isActive &&
+    previous.theme === next.theme &&
+    previous.fonts === next.fonts
+);
 
 const PresentationMode: React.FC<PresentationModeProps> = ({
   slides,
   currentSlide,
   theme,
+  fonts,
   isFullscreen,
   onFullscreenToggle,
   onExit,
@@ -40,59 +215,76 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const hideChromeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showSpeakerNotes, setShowSpeakerNotes] = useState(true);
+  const [showSpeakerNotes, setShowSpeakerNotes] = useState(false);
+  const [showSlideGrid, setShowSlideGrid] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(true);
 
+  const slideCount = Array.isArray(slides) ? slides.length : 0;
+  const activeSlideIndex = useMemo(() => {
+    if (slideCount <= 0) return 0;
+    const parsedSlide = Number.isFinite(currentSlide) ? currentSlide : 0;
+    return Math.min(Math.max(parsedSlide, 0), slideCount - 1);
+  }, [currentSlide, slideCount]);
+
+  const activeSlide = slideCount > 0 ? slides[activeSlideIndex] : null;
   const currentSpeakerNote = useMemo(
-    () => slides[currentSlide]?.speaker_note?.trim() || "",
-    [slides, currentSlide]
+    () => activeSlide?.speaker_note?.trim() || "",
+    [activeSlide]
   );
+  const notesPanelOpen = showSpeakerNotes && !showSlideGrid;
 
-  const activeSlide = slides[currentSlide];
+  const clearChromeTimer = useCallback(() => {
+    if (!hideChromeTimerRef.current) return;
+    clearTimeout(hideChromeTimerRef.current);
+    hideChromeTimerRef.current = null;
+  }, []);
 
-  const bumpChromeVisibility = useCallback(() => {
-    setChromeVisible(true);
-    if (hideChromeTimerRef.current) clearTimeout(hideChromeTimerRef.current);
+  const scheduleChromeHide = useCallback(() => {
+    clearChromeTimer();
+    if (showSlideGrid || notesPanelOpen) {
+      setChromeVisible(true);
+      return;
+    }
     hideChromeTimerRef.current = setTimeout(() => {
-      if (isFullscreen) setChromeVisible(false);
+      setChromeVisible(false);
     }, CHROME_HIDE_MS);
-  }, [isFullscreen]);
+  }, [clearChromeTimer, notesPanelOpen, showSlideGrid]);
+
+  const revealChrome = useCallback(() => {
+    setChromeVisible(true);
+    scheduleChromeHide();
+  }, [scheduleChromeHide]);
 
   useEffect(() => {
     rootRef.current?.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => {
-    if (!isFullscreen) {
-      setChromeVisible(true);
-      if (hideChromeTimerRef.current) {
-        clearTimeout(hideChromeTimerRef.current);
-        hideChromeTimerRef.current = null;
-      }
-      return;
-    }
-    bumpChromeVisibility();
-    return () => {
-      if (hideChromeTimerRef.current) clearTimeout(hideChromeTimerRef.current);
-    };
-  }, [isFullscreen, bumpChromeVisibility]);
+    setChromeVisible(true);
+    scheduleChromeHide();
+    return clearChromeTimer;
+  }, [clearChromeTimer, scheduleChromeHide]);
 
   useLayoutEffect(() => {
     if (!theme || !rootRef.current) return;
     applyPresentationThemeToElement(rootRef.current, theme);
   }, [theme]);
 
-  const handlePointerActivity = useCallback(() => {
-    bumpChromeVisibility();
-  }, [bumpChromeVisibility]);
-
   const goNext = useCallback(() => {
-    if (currentSlide < slides.length - 1) onSlideChange(currentSlide + 1);
-  }, [currentSlide, slides.length, onSlideChange]);
+    if (activeSlideIndex < slideCount - 1) onSlideChange(activeSlideIndex + 1);
+  }, [activeSlideIndex, slideCount, onSlideChange]);
 
   const goPrev = useCallback(() => {
-    if (currentSlide > 0) onSlideChange(currentSlide - 1);
-  }, [currentSlide, onSlideChange]);
+    if (activeSlideIndex > 0) onSlideChange(activeSlideIndex - 1);
+  }, [activeSlideIndex, onSlideChange]);
+
+  const handleThumbnailSelect = useCallback(
+    (index: number) => {
+      setShowSlideGrid(false);
+      onSlideChange(index);
+    },
+    [onSlideChange]
+  );
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -111,10 +303,8 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         event.preventDefault();
       }
 
-      if (event.repeat) {
-        if (event.key === " " || event.key === "ArrowRight" || event.key === "ArrowLeft") {
-          return;
-        }
+      if (event.repeat && [" ", "ArrowRight", "ArrowLeft"].includes(event.key)) {
+        return;
       }
 
       switch (event.key) {
@@ -122,28 +312,28 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         case "ArrowDown":
         case " ":
         case "PageDown":
-          goNext();
+          if (!showSlideGrid) goNext();
           break;
         case "ArrowLeft":
         case "ArrowUp":
         case "PageUp":
-          goPrev();
+          if (!showSlideGrid) goPrev();
           break;
         case "Home":
-          if (currentSlide !== 0) onSlideChange(0);
+          if (!showSlideGrid && activeSlideIndex !== 0) onSlideChange(0);
           break;
         case "End":
-          if (slides.length > 0 && currentSlide !== slides.length - 1) {
-            onSlideChange(slides.length - 1);
+          if (!showSlideGrid && slideCount > 0 && activeSlideIndex !== slideCount - 1) {
+            onSlideChange(slideCount - 1);
           }
           break;
         case "Escape":
+          if (showSlideGrid) {
+            setShowSlideGrid(false);
+            return;
+          }
           if (document.fullscreenElement) {
-            try {
-              document.exitFullscreen();
-            } catch {
-              /* ignore */
-            }
+            document.exitFullscreen().catch(() => undefined);
             return;
           }
           onExit();
@@ -154,17 +344,34 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
             onFullscreenToggle(rootRef.current);
           }
           break;
+        case "g":
+        case "G":
+          if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+            setShowSlideGrid((previous) => !previous);
+            setShowSpeakerNotes(false);
+          }
+          break;
         case "n":
         case "N":
           if (!event.ctrlKey && !event.metaKey && !event.altKey) {
-            setShowSpeakerNotes((prev) => !prev);
+            setShowSpeakerNotes((previous) => !previous);
+            setShowSlideGrid(false);
           }
           break;
         default:
           break;
       }
     },
-    [currentSlide, slides.length, onSlideChange, onExit, onFullscreenToggle, goNext, goPrev]
+    [
+      activeSlideIndex,
+      goNext,
+      goPrev,
+      onExit,
+      onFullscreenToggle,
+      onSlideChange,
+      showSlideGrid,
+      slideCount,
+    ]
   );
 
   useEffect(() => {
@@ -172,17 +379,15 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleSlideAreaClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest(".presentation-controls")) return;
-    const clickX = e.clientX;
-    const w = window.innerWidth;
-    if (clickX < w / 5) goPrev();
-    else if (clickX > (w * 4) / 5) goNext();
+  const handleSlideAreaClick = (event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest(".presentation-controls")) return;
+    const clickX = event.clientX;
+    const width = window.innerWidth;
+    if (clickX < width / 5) goPrev();
+    else if (clickX > (width * 4) / 5) goNext();
   };
 
-  const progress = slides.length > 0 ? ((currentSlide + 1) / slides.length) * 100 : 0;
-
-  if (slides === undefined || slides === null || slides.length === 0) {
+  if (slideCount === 0 || !activeSlide) {
     return null;
   }
 
@@ -192,184 +397,212 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
       ref={rootRef}
       role="application"
       aria-label="Presentation"
-      className="fixed inset-0 z-[100] flex h-[100dvh] w-[100dvw] flex-col overflow-hidden outline-none select-none"
-      style={{ backgroundColor: "var(--page-background-color, #c8c7c9)" }}
+      data-fullscreen={isFullscreen ? "true" : "false"}
+      className="fixed inset-0 z-[100] h-[100dvh] w-[100dvw] overflow-hidden bg-black font-syne text-white outline-none select-none"
       tabIndex={0}
-      onMouseMove={handlePointerActivity}
-      onClick={handleSlideAreaClick}
+      onClick={showSlideGrid ? undefined : handleSlideAreaClick}
+      onMouseMove={revealChrome}
     >
       <span className="sr-only">
-        Slide {currentSlide + 1} of {slides.length}
+        Slide {activeSlideIndex + 1} of {slideCount}
       </span>
 
-      {/* Top bar — fullscreen: auto-hide */}
-      <div
-        className={`presentation-controls absolute left-0 right-0 top-0 z-50 flex justify-end gap-2 px-3 py-3 transition-opacity duration-300 md:px-4 ${isFullscreen && !chromeVisible ? "pointer-events-none opacity-0" : "opacity-100"
-          }`}
-      >
-        <div className="flex items-center gap-1 rounded-full  bg-white/95 px-1 py-1  backdrop-blur-sm">
-          <Button
+      {showSlideGrid ? (
+        <div className="absolute inset-0 overflow-hidden bg-black">
+          <button
             type="button"
-            variant="ghost"
-            size="icon"
-            title="Fullscreen (F)"
-            onClick={(e) => {
-              e.stopPropagation();
-              onFullscreenToggle(rootRef.current);
+            className="presentation-controls absolute right-5 top-5 z-50 rounded-[48px] border border-[#4C4C4C] px-5 py-2.5 text-[14px] font-semibold leading-none tracking-[-0.14px] text-white transition-colors hover:border-[#E6E6E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]"
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowSlideGrid(false);
             }}
-            className="h-9 w-9 text-gray-800 hover:bg-gray-100"
           >
-            {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            title="Exit presentation (Esc)"
-            onClick={(e) => {
-              e.stopPropagation();
-              onExit();
-            }}
-            className="h-9 w-9 text-gray-800 hover:bg-gray-100"
+            Back
+          </button>
+          <div className="absolute inset-0 overflow-y-auto px-5 pb-14 pt-[88px] sm:px-[49px] sm:pt-[96px]">
+            <div
+              className="grid gap-x-5 gap-y-5"
+              style={{
+                gridTemplateColumns: "repeat(auto-fill, minmax(min(252px, 100%), 252px))",
+              }}
+            >
+              {slides.map((slide, index) => (
+                <PresentationThumbnail
+                  key={slide.id ?? `present-thumbnail-${index}`}
+                  slide={slide}
+                  slideIndex={index}
+                  isActive={index === activeSlideIndex}
+                  theme={theme}
+                  fonts={fonts}
+                  onSelect={handleThumbnailSelect}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <main
+            className={cn(
+              "absolute left-0 right-0 top-0 min-h-0 overflow-hidden bg-black transition-[right,bottom] duration-200",
+              isFullscreen ? "bottom-0" : "bottom-[70px]",
+              notesPanelOpen && "md:right-[302px]"
+            )}
           >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
+            <div className="h-full w-full overflow-hidden">
+              <PresentationModeSlide
+                slide={activeSlide}
+                slideIndex={activeSlideIndex}
+                theme={theme}
+                fonts={fonts}
+              />
+            </div>
+          </main>
 
-      {/* Slide stage — large viewport; SlideScale uses width+height so slides scale up */}
-      <div
-        className={`flex min-h-0 flex-1 items-stretch justify-stretch ${isFullscreen ? "p-0" : "px-3 pb-24 pt-14 sm:px-4 md:pb-28 md:pt-16"
-          }`}
-      >
-        <div
-          className={`min-h-0 w-full flex-1 overflow-hidden ${isFullscreen ? "rounded-none" : "rounded-sm"}`}
-        >
-          {activeSlide ? (
-            <SlideScale
-              key={activeSlide.id ?? `slide-${currentSlide}`}
-              slide={activeSlide}
-              theme={theme ?? undefined}
-              isEditMode={false}
-              presentMode
-            />
-          ) : null}
-        </div>
-      </div>
+          <div
+            className={cn(
+              "presentation-controls pointer-events-none absolute bottom-0 left-0 right-0 z-40 flex h-[2px] gap-px transition-opacity duration-300",
+              chromeVisible ? "opacity-0" : "opacity-100",
+              notesPanelOpen && "md:right-[302px]"
+            )}
+            aria-hidden="true"
+          >
+            {slides.map((slide, index) => (
+              <div
+                key={slide.id ?? `present-mini-progress-${index}`}
+                className={cn(
+                  "h-full min-w-px flex-1",
+                  index <= activeSlideIndex ? "bg-[#7A5AF8]" : "bg-[#323436]"
+                )}
+              />
+            ))}
+          </div>
 
-      {/* Progress */}
-      <div
-        className={`absolute bottom-0 left-0 right-0 z-40 h-1 bg-gray-200 ${isFullscreen && !chromeVisible ? "opacity-70" : "opacity-100"
-          }`}
-        aria-hidden
-      >
-        <div
-          className="h-full bg-[#5141e5] transition-[width] duration-300 ease-out"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      {/* Bottom controls */}
-      <div
-        className={`presentation-controls absolute bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200/90 bg-white/95 px-2 py-2 shadow-md backdrop-blur-sm transition-all duration-300 md:gap-4 md:px-3 ${isFullscreen && !chromeVisible
-          ? "pointer-events-none translate-y-4 opacity-0"
-          : "translate-y-0 opacity-100"
-          }`}
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          title="Previous slide"
-          onClick={(e) => {
-            e.stopPropagation();
-            goPrev();
-          }}
-          disabled={currentSlide === 0}
-          className="h-10 w-10 text-gray-800 hover:bg-gray-100 disabled:opacity-35"
-        >
-          <ChevronLeft className="h-6 w-6" />
-        </Button>
-        <div
-          className="min-w-22 text-center text-sm font-medium tabular-nums text-gray-800"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          {currentSlide + 1} / {slides.length}
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          title="Next slide"
-          onClick={(e) => {
-            e.stopPropagation();
-            goNext();
-          }}
-          disabled={currentSlide === slides.length - 1}
-          className="h-10 w-10 text-gray-800 hover:bg-gray-100 disabled:opacity-35"
-        >
-          <ChevronRight className="h-6 w-6" />
-        </Button>
-        <div className="mx-1 hidden h-6 w-px bg-gray-200 sm:block" />
-        <div
-          className="hidden max-w-[200px] items-center gap-1.5 text-[11px] leading-tight text-gray-500 sm:flex"
-          title="Keyboard shortcuts"
-        >
-          <Keyboard className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            ← → space · Home/End · F fullscreen · N notes · Esc exit
-          </span>
-        </div>
-      </div>
-
-      {currentSpeakerNote ? (
-        <div
-          className={`presentation-controls absolute bottom-16 right-3 z-50 max-w-[min(380px,46vw)] md:bottom-20 md:right-6 ${isFullscreen && !chromeVisible ? "opacity-90" : ""
-            }`}
-        >
-          {showSpeakerNotes ? (
-            <div className="rounded-xl border border-gray-200/90 bg-white/95 shadow-lg backdrop-blur-sm">
-              <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                  <StickyNote className="h-4 w-4 text-amber-600" />
-                  Speaker notes
+          <div
+            className={cn(
+              "presentation-controls absolute bottom-0 left-0 right-0 z-40 flex h-[70px] flex-col bg-[#1A1B20] pt-[10px] transition-all duration-300",
+              chromeVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-full opacity-0",
+              notesPanelOpen && "md:right-[302px]"
+            )}
+          >
+            <div className="flex h-[6px] w-full gap-[3px]" aria-hidden="true">
+              {slides.map((slide, index) => (
+                <div
+                  key={slide.id ?? `present-progress-${index}`}
+                  className={cn(
+                    "h-full min-w-px flex-1",
+                    index <= activeSlideIndex ? "bg-[#7A5AF8]" : "bg-[#323436]"
+                  )}
+                />
+              ))}
+            </div>
+            <div className="flex flex-1 items-center justify-between px-5 sm:px-9">
+              <div className="flex items-center gap-[26px]">
+                <PresentationIconButton
+                  title="Previous slide"
+                  disabled={activeSlideIndex === 0}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    goPrev();
+                  }}
+                >
+                  <ChevronLeft className="size-[18px]" strokeWidth={2} />
+                </PresentationIconButton>
+                <div
+                  className="flex items-center gap-[5px] whitespace-nowrap font-manrope text-[16px] font-normal leading-none text-white"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <span>{activeSlideIndex + 1}</span>
+                  <span>of</span>
+                  <span>{slideCount}</span>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                <PresentationIconButton
+                  title="Next slide"
+                  disabled={activeSlideIndex === slideCount - 1}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    goNext();
+                  }}
+                >
+                  <ChevronRight className="size-[18px]" strokeWidth={2} />
+                </PresentationIconButton>
+              </div>
+              <div className="flex items-center gap-[26px]">
+                <PresentationIconButton
+                  title="Layout preview"
+                  active={showSlideGrid}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setShowSlideGrid(true);
                     setShowSpeakerNotes(false);
                   }}
-                  className="h-8 px-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 >
-                  <EyeOff className="mr-1 h-4 w-4" />
-                  Hide
-                </Button>
-              </div>
-              <div className="max-h-[min(28vh,220px)] overflow-auto whitespace-pre-wrap px-3 py-2.5 text-sm leading-relaxed text-gray-700">
-                {currentSpeakerNote}
+                  <LayoutGrid className="size-[18px]" strokeWidth={2} />
+                </PresentationIconButton>
+                <PresentationIconButton
+                  title="Speaker note"
+                  active={notesPanelOpen}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setShowSpeakerNotes((previous) => !previous);
+                  }}
+                >
+                  <SpeakerNoteIcon className="size-[18px]" />
+                </PresentationIconButton>
+                <PresentationIconButton
+                  title="Exit presentation"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onExit();
+                  }}
+                >
+                  <ScreenShareOff className="size-[18px]" strokeWidth={2} />
+                </PresentationIconButton>
               </div>
             </div>
-          ) : (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowSpeakerNotes(true);
-              }}
-              className="h-9 rounded-full border border-gray-200 bg-white/95 px-3 text-gray-800 shadow-md backdrop-blur-sm hover:bg-gray-50"
-            >
-              <StickyNote className="mr-2 h-4 w-4 text-amber-600" />
-              Show notes
-            </Button>
-          )}
-        </div>
-      ) : null}
+          </div>
+
+          {notesPanelOpen ? (
+            <aside className="presentation-controls absolute bottom-0 right-0 top-0 z-50 w-full border-l border-[#333333] bg-black md:w-[302px]">
+              <button
+                type="button"
+                className="absolute right-5 top-5 rounded-[48px] border border-[#4C4C4C] px-5 py-2.5 text-[14px] font-semibold leading-none tracking-[-0.14px] text-white transition-colors hover:border-[#E6E6E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowSpeakerNotes(false);
+                }}
+              >
+                Hide
+              </button>
+              <div className="mx-auto mt-[105px] flex w-[262px] max-w-[calc(100%-40px)] flex-col items-start gap-6">
+                <div className="flex items-center gap-2">
+                  <SpeakerNoteIcon className="size-5 text-white" />
+                  <h2 className="text-[16px] font-medium leading-none tracking-[-0.16px] text-white">
+                    Speaker Note
+                  </h2>
+                </div>
+                <div className="w-full">
+                  {currentSpeakerNote ? (
+                    <p className="whitespace-pre-wrap font-manrope text-[16px] font-medium leading-[25px] tracking-[-0.16px] text-[#E6E6E6]">
+                      {currentSpeakerNote}
+                    </p>
+                  ) : null}
+                  <p
+                    className={cn(
+                      "text-[16px] font-normal leading-none text-[#999999]",
+                      currentSpeakerNote && "mt-6"
+                    )}
+                  >
+                    Add notes in the editor
+                  </p>
+                </div>
+              </div>
+            </aside>
+          ) : null}
+        </>
+      )}
     </div>
   );
 };

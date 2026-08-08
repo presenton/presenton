@@ -10,6 +10,7 @@ import tempfile
 import uuid
 import shutil
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 from fastapi import HTTPException, UploadFile
@@ -40,6 +41,12 @@ from utils.asset_directory_utils import (
 )
 from utils.download_helpers import download_file
 from utils.get_env import get_app_data_directory_env
+from utils.font_uploads import (
+    download_font_uploads,
+    get_font_upload_url,
+    get_font_uploads_for_names_by_variant,
+    persist_font_file,
+)
 
 
 class FontInfo(BaseModel):
@@ -56,11 +63,68 @@ class FontCheckResponse(BaseModel):
     unavailable_fonts: List[FontInfo]
 
 
+FontInfoData = Tuple[str, Optional[str]] | Tuple[str, Optional[str], List[str]]
+
+
 class FontsUploadAndSlidesPreviewResponse(BaseModel):
     slide_image_urls: List[str]
     pptx_url: str
     modified_pptx_url: str
     fonts: dict
+
+
+def _selected_google_font_maps(
+    google_font_original_names: Optional[List[str]],
+    google_font_replacement_names: Optional[List[str]],
+    google_font_names: Optional[List[str]],
+    google_font_urls: Optional[List[str]],
+) -> Tuple[Dict[str, str], Dict[str, str]]:
+    replacement_names = google_font_replacement_names or google_font_names
+    num_original_names = len(google_font_original_names or [])
+    num_replacement_names = len(replacement_names or [])
+    num_urls = len(google_font_urls or [])
+
+    if (num_replacement_names and not num_urls) or (
+        num_urls and not num_replacement_names
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Both Google font replacement names and URLs must be provided together",
+        )
+    if num_replacement_names != num_urls:
+        raise HTTPException(
+            status_code=400,
+            detail="Number of Google font replacement names must match number of Google font URLs",
+        )
+    if num_original_names and num_original_names != num_replacement_names:
+        raise HTTPException(
+            status_code=400,
+            detail="Number of Google font original names must match number of Google font replacements",
+        )
+
+    selected_fonts: Dict[str, str] = {}
+    replacements: Dict[str, str] = {}
+    if google_font_original_names:
+        for original_name, replacement_name, url in zip(
+            google_font_original_names,
+            replacement_names or [],
+            google_font_urls or [],
+        ):
+            original_name = original_name.strip()
+            replacement_name = replacement_name.strip()
+            url = url.strip()
+            if not original_name or not replacement_name or not url:
+                continue
+            selected_fonts[replacement_name] = url
+            replacements[original_name] = replacement_name
+        return selected_fonts, replacements
+
+    for replacement_name, url in zip(replacement_names or [], google_font_urls or []):
+        replacement_name = replacement_name.strip()
+        url = url.strip()
+        if replacement_name and url:
+            selected_fonts[replacement_name] = url
+    return selected_fonts, replacements
 
 
 class _PreviewLogger:
@@ -76,11 +140,25 @@ class _PreviewLogger:
 
 PREVIEW_WIDTH = 1280
 PREVIEW_HEIGHT = 720
+TAILWIND_BROWSER_SCRIPT_PATH = "/static/vendor/tailwindcss-browser-4.3.3.js"
+CHART_JS_SCRIPT_PATH = "/static/vendor/chart-4.5.1.umd.min.js"
+CHART_DATALABELS_SCRIPT_PATH = (
+    "/static/vendor/chartjs-plugin-datalabels-2.2.0.min.js"
+)
+MAX_TEMPLATE_PREVIEW_SLIDES = 50
 MAX_FONT_CHECK_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024
 FONT_CHECK_UPLOAD_SIZE_ERROR = "File size must be less than 100MB."
 INVALID_PPTX_UPLOAD_ERROR = (
     "The uploaded PowerPoint file is corrupted or unsupported."
 )
+PPT_NS = {
+    "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+}
+REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+
+ET.register_namespace("p", PPT_NS["p"])
+ET.register_namespace("r", PPT_NS["r"])
 
 
 def _preview_dimensions_from_document(width: float, height: float) -> Tuple[int, int]:
@@ -166,6 +244,7 @@ def _preview_asset_url_to_data_uri(url: str) -> str:
         return url
 
     parsed = urllib.parse.urlparse(url)
+    fallback_url = url
     if parsed.scheme in ("http", "https"):
         if not parsed.path.startswith(("/app_data/", "/static/")):
             return url
@@ -174,17 +253,18 @@ def _preview_asset_url_to_data_uri(url: str) -> str:
         candidate = urllib.parse.unquote(parsed.path)
     elif url.startswith(("/app_data/", "/static/")):
         candidate = url
+        fallback_url = absolute_fastapi_asset_url(candidate)
     else:
         return url
 
     resolved = resolve_app_path_to_filesystem(candidate)
     if not resolved:
-        return url
+        return fallback_url
 
     try:
         data = Path(resolved).read_bytes()
     except OSError:
-        return url
+        return fallback_url
 
     mime_type = mimetypes.guess_type(resolved)[0] or "application/octet-stream"
     encoded = base64.b64encode(data).decode("ascii")
@@ -247,6 +327,245 @@ def _font_stylesheet_links_for_slide_html(
     )
 
 
+def _is_font_stylesheet_url(url: str) -> bool:
+    return bool(re.search(r"\.css(?:\?|$)", url, flags=re.IGNORECASE)) or (
+        "fonts.googleapis.com" in url
+    )
+
+
+def _font_stylesheet_links_for_urls(urls: List[str]) -> str:
+    links: List[str] = []
+    seen: Set[str] = set()
+    for url in urls:
+        if not url or url in seen or not _is_font_stylesheet_url(url):
+            continue
+        seen.add(url)
+        links.append(
+            f'<link href="{html.escape(url, quote=True)}" rel="stylesheet">'
+        )
+    return "\n".join(links)
+
+
+def _font_css_family_aliases(font_css: str) -> str:
+    if not font_css:
+        return ""
+
+    aliases: List[str] = []
+    seen: Set[str] = set()
+    font_face_blocks = re.findall(
+        r"@font-face\s*{[^{}]*}",
+        font_css,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    for block in font_face_blocks:
+        family_match = re.search(
+            r"font-family\s*:\s*['\"]?([^;'\"}]+)['\"]?",
+            block,
+            flags=re.IGNORECASE,
+        )
+        if not family_match:
+            continue
+
+        family_name = family_match.group(1).strip()
+        alias_name = " ".join(family_name.replace("_", " ").split())
+        if not alias_name or alias_name == family_name:
+            continue
+
+        alias_block = re.sub(
+            r"(font-family\s*:\s*)['\"]?[^;'\"}]+['\"]?",
+            lambda match: f'{match.group(1)}"{_css_string(alias_name)}"',
+            block,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if alias_block in seen:
+            continue
+        seen.add(alias_block)
+        aliases.append(alias_block)
+
+    return "\n".join(aliases)
+
+
+def _css_attribute_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _css_url_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "")
+
+
+def _font_face_css_for_declared_fonts(font_css: str) -> str:
+    if not font_css:
+        return ""
+
+    rules: List[str] = []
+    seen: Set[Tuple[str, str, int, str]] = set()
+    font_face_blocks = re.findall(
+        r"@font-face\s*{[^{}]*}",
+        font_css,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    for block in font_face_blocks:
+        family_match = re.search(
+            r"font-family\s*:\s*['\"]?([^;'\"}]+)['\"]?",
+            block,
+            flags=re.IGNORECASE,
+        )
+        src_match = re.search(
+            r"url\(\s*['\"]?([^)'\"\s]+)['\"]?\s*\)",
+            block,
+            flags=re.IGNORECASE,
+        )
+        if not family_match or not src_match:
+            continue
+
+        declared_family = family_match.group(1).strip()
+        source_url = src_match.group(1).strip()
+        resolved_path = resolve_app_path_to_filesystem(source_url)
+        if not declared_family or not resolved_path:
+            continue
+
+        font_detail = get_font_details(resolved_path)
+        if font_detail.error:
+            continue
+
+        variant = _font_detail_variant(font_detail, os.path.basename(resolved_path))
+        if variant == "unsupported":
+            variant = "regular"
+        font_weight = _font_weight_for_css(font_detail, variant)
+        font_style = _font_style_for_css(variant)
+        family_names = {
+            declared_family,
+            " ".join(declared_family.replace("_", " ").split()),
+            font_detail.family_name,
+            font_detail.full_name,
+            font_detail.postscript_name,
+        }
+        for family_name in sorted(name for name in family_names if name):
+            key = (family_name, source_url, font_weight, font_style)
+            if key in seen:
+                continue
+            seen.add(key)
+            rules.append(
+                "@font-face { "
+                f'font-family: "{_css_string(family_name)}"; '
+                f'src: url("{_css_url_value(source_url)}"); '
+                f"font-weight: {font_weight}; "
+                f"font-style: {font_style}; "
+                "font-display: swap; "
+                "}"
+            )
+
+    return "\n".join(rules)
+
+
+def _tailwind_fallback_css_for_slide_html(slide_html: str) -> str:
+    if not slide_html:
+        return ""
+
+    class_values = re.findall(
+        r"\bclass\s*=\s*(['\"])(.*?)\1",
+        slide_html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    classes: Set[str] = set()
+    for _quote, class_value in class_values:
+        classes.update(token for token in class_value.split() if token)
+
+    static_rules = {
+        "absolute": "position:absolute;",
+        "relative": "position:relative;",
+        "inset-0": "inset:0;",
+        "overflow-hidden": "overflow:hidden;",
+        "overflow-visible": "overflow:visible;",
+        "flex": "display:flex;",
+        "flex-col": "flex-direction:column;",
+        "justify-center": "justify-content:center;",
+        "items-center": "align-items:center;",
+        "text-left": "text-align:left;",
+        "text-center": "text-align:center;",
+        "text-right": "text-align:right;",
+        "font-bold": "font-weight:700;",
+        "w-full": "width:100%;",
+        "h-full": "height:100%;",
+        "min-h-[1.2em]": "min-height:1.2em;",
+        "object-cover": "object-fit:cover;",
+        "pointer-events-none": "pointer-events:none;",
+    }
+    spacing_scale = {"5": "1.25rem"}
+
+    rules: List[str] = []
+    seen: Set[str] = set()
+
+    def append_rule(class_name: str, declarations: str) -> None:
+        if class_name in seen:
+            return
+        seen.add(class_name)
+        rules.append(
+            f'[class~="{_css_attribute_value(class_name)}"]{{{declarations}}}'
+        )
+
+    for class_name in sorted(classes):
+        if class_name in static_rules:
+            append_rule(class_name, static_rules[class_name])
+            continue
+
+        match = re.fullmatch(r"(left|top|right|bottom)-\[(.+)\]", class_name)
+        if match:
+            append_rule(class_name, f"{match.group(1)}:{match.group(2)};")
+            continue
+
+        match = re.fullmatch(r"([wh])-\[(.+)\]", class_name)
+        if match:
+            property_name = "width" if match.group(1) == "w" else "height"
+            append_rule(class_name, f"{property_name}:{match.group(2)};")
+            continue
+
+        match = re.fullmatch(r"mb-(\d+)", class_name)
+        if match and match.group(1) in spacing_scale:
+            append_rule(class_name, f"margin-bottom:{spacing_scale[match.group(1)]};")
+            continue
+
+        match = re.fullmatch(r"rotate-\[(.+)\]", class_name)
+        if match:
+            append_rule(class_name, f"transform:rotate({match.group(1)});")
+            continue
+
+        match = re.fullmatch(
+            r"bg-\[(#[0-9A-Fa-f]{3,8}|rgba?\([^\]]+\))\]",
+            class_name,
+        )
+        if match:
+            append_rule(class_name, f"background-color:{match.group(1)};")
+            continue
+
+        match = re.fullmatch(
+            r"text-\[(#[0-9A-Fa-f]{3,8}|rgba?\([^\]]+\))\]",
+            class_name,
+        )
+        if match:
+            append_rule(class_name, f"color:{match.group(1)};")
+            continue
+
+        match = re.fullmatch(r"text-\[([0-9.]+(?:px|rem|em|%)?)\]", class_name)
+        if match:
+            size = match.group(1)
+            if re.fullmatch(r"[0-9.]+", size):
+                size = f"{size}px"
+            append_rule(class_name, f"font-size:{size};")
+            continue
+
+        match = re.fullmatch(r"font-\[['\"](.+)['\"]\]", class_name)
+        if match:
+            family = match.group(1)
+            append_rule(
+                class_name,
+                f'font-family:"{_css_string(family)}", Arial, sans-serif;',
+            )
+
+    return "\n".join(rules)
+
+
 def _app_data_directory() -> str:
     app_data_dir = get_app_data_directory_env() or "/tmp/presenton"
     os.makedirs(app_data_dir, exist_ok=True)
@@ -267,6 +586,14 @@ def _get_template_preview_session_dir(session_id: uuid.UUID) -> str:
     return session_dir
 
 
+def _chart_js_url() -> str:
+    return absolute_fastapi_asset_url(CHART_JS_SCRIPT_PATH)
+
+
+def _chart_datalabels_url() -> str:
+    return absolute_fastapi_asset_url(CHART_DATALABELS_SCRIPT_PATH)
+
+
 def _build_slide_preview_html(
     slide_html: str,
     font_css: str,
@@ -275,12 +602,17 @@ def _build_slide_preview_html(
     height: int = PREVIEW_HEIGHT,
 ) -> str:
     fastapi_base = absolute_fastapi_asset_url("/").rstrip("/") + "/"
+    tailwind_browser_url = absolute_fastapi_asset_url(
+        TAILWIND_BROWSER_SCRIPT_PATH
+    )
     return f"""<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <base href="{fastapi_base}" />
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="{html.escape(tailwind_browser_url, quote=True)}"></script>
+  <script src="{html.escape(_chart_js_url(), quote=True)}"></script>
+  <script src="{html.escape(_chart_datalabels_url(), quote=True)}"></script>
   {font_links}
   <style>
     html,
@@ -350,6 +682,7 @@ async def render_pptx_slides_to_images(
     font_paths_for_install: List[str],
     max_slides: Optional[int],
     logger,
+    font_stylesheet_urls: Optional[List[str]] = None,
 ) -> List[str]:
     local_font_css = ""
     if font_paths_for_install:
@@ -363,7 +696,7 @@ async def render_pptx_slides_to_images(
         modified_pptx_path, get_fonts=True
     )
     if not pptx_document.slides:
-        raise RuntimeError("PPTX-to-HTML returned no slides")
+        raise HTTPException(status_code=500, detail="PPTX-to-HTML returned no slides")
 
     slide_htmls = pptx_document.slides
     if max_slides:
@@ -380,18 +713,43 @@ async def render_pptx_slides_to_images(
     )
 
     localized_slide_htmls = []
-    localized_font_css = _localize_preview_asset_urls(
-        "\n".join(css for css in (pptx_document.font_css, local_font_css) if css)
+    font_css = "\n".join(
+        css
+        for css in (
+            pptx_document.font_css,
+            _font_face_css_for_declared_fonts(pptx_document.font_css),
+            local_font_css,
+        )
+        if css
     )
+    localized_font_css = _localize_preview_asset_urls(font_css)
+    localized_font_css = "\n".join(
+        css
+        for css in (
+            localized_font_css,
+            _font_css_family_aliases(localized_font_css),
+        )
+        if css
+    )
+    explicit_font_links = _font_stylesheet_links_for_urls(font_stylesheet_urls or [])
     for slide_html in slide_htmls:
         localized_slide_html = _localize_preview_asset_urls(slide_html)
+        inferred_font_links = _font_stylesheet_links_for_slide_html(
+            localized_slide_html, localized_font_css
+        )
+        font_links = "\n".join(
+            link for link in (explicit_font_links, inferred_font_links) if link
+        )
+        slide_fallback_css = _tailwind_fallback_css_for_slide_html(
+            localized_slide_html
+        )
         localized_slide_htmls.append(
             _build_slide_preview_html(
                 localized_slide_html,
-                localized_font_css,
-                font_links=_font_stylesheet_links_for_slide_html(
-                    localized_slide_html, localized_font_css
+                "\n".join(
+                    css for css in (slide_fallback_css, localized_font_css) if css
                 ),
+                font_links=font_links,
                 width=width,
                 height=height,
             )
@@ -402,6 +760,14 @@ async def render_pptx_slides_to_images(
         width=width,
         height=height,
     )
+    if len(rendered.paths) != len(localized_slide_htmls):
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "PPTX preview renderer returned an unexpected slide count: "
+                f"expected {len(localized_slide_htmls)}, got {len(rendered.paths)}"
+            ),
+        )
     logger.info(
         f"Rendered {len(rendered.paths)} HTML slide previews in one Chromium task"
     )
@@ -442,24 +808,32 @@ def _font_info_entry(
     variant: str,
     original_name: Optional[str] = None,
 ) -> FontInfo:
+    family_name = normalize_font_family_name(font_name)
+    if not family_name:
+        family_name = font_name
     return FontInfo(
-        name=_font_variant_display_name(font_name, variant),
+        name=_font_variant_display_name(family_name, variant),
         url=url,
         original_name=original_name or font_name,
-        family_name=font_name,
+        family_name=family_name,
         variant=variant,
         variants=[variant],
     )
 
 
 def _font_info_entries(
-    fonts_data: List[Tuple[str, Optional[str]]],
+    fonts_data: List[FontInfoData],
     variants_by_normalized_name: Dict[str, Set[str]],
     original_names_by_normalized_variant: Optional[Dict[Tuple[str, str], str]] = None,
 ) -> List[FontInfo]:
     entries: List[FontInfo] = []
-    for name, url in fonts_data:
-        variants = _variants_for_font_name(name, variants_by_normalized_name)
+    for font_data in fonts_data:
+        if len(font_data) == 3:
+            name, url, explicit_variants = font_data
+            variants = normalize_font_variants(explicit_variants)
+        else:
+            name, url = font_data
+            variants = _variants_for_font_name(name, variants_by_normalized_name)
         for variant in variants:
             original_name = (original_names_by_normalized_variant or {}).get(
                 (normalize_font_family_name(name), variant)
@@ -623,6 +997,97 @@ def _validate_pptx_package(pptx_path: str) -> None:
         raise HTTPException(status_code=400, detail=INVALID_PPTX_UPLOAD_ERROR)
 
 
+def _resolve_template_preview_slide_cap(max_slides: Optional[int]) -> int:
+    if max_slides is None:
+        return MAX_TEMPLATE_PREVIEW_SLIDES
+    if max_slides < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="max_slides must be greater than zero",
+        )
+    return min(max_slides, MAX_TEMPLATE_PREVIEW_SLIDES)
+
+
+def _relationship_target_path(base_dir: str, target: str) -> str:
+    if target.startswith("/"):
+        return target.lstrip("/")
+    return os.path.normpath(os.path.join(base_dir, target)).replace(os.sep, "/")
+
+
+def _trim_pptx_to_max_slides(
+    pptx_path: str,
+    max_slides: int,
+    temp_dir: str,
+    logger,
+) -> str:
+    try:
+        with zipfile.ZipFile(pptx_path, "r") as archive:
+            presentation_xml = ET.fromstring(archive.read("ppt/presentation.xml"))
+            rels_xml = ET.fromstring(archive.read("ppt/_rels/presentation.xml.rels"))
+            slide_id_list = presentation_xml.find("p:sldIdLst", PPT_NS)
+            if slide_id_list is None:
+                raise ValueError("PPTX presentation is missing slide references")
+
+            slide_ids = list(slide_id_list.findall("p:sldId", PPT_NS))
+            if len(slide_ids) <= max_slides:
+                return pptx_path
+
+            rels_by_id = {
+                rel.get("Id"): rel
+                for rel in rels_xml.findall(f"{{{REL_NS}}}Relationship")
+            }
+            rel_attr = f"{{{PPT_NS['r']}}}id"
+            removed_parts: set[str] = set()
+            removed_part_names: set[str] = set()
+            for slide_id in slide_ids[max_slides:]:
+                slide_id_list.remove(slide_id)
+                rel = rels_by_id.get(slide_id.get(rel_attr))
+                if rel is None:
+                    continue
+                rels_xml.remove(rel)
+                target = rel.get("Target") or ""
+                if target:
+                    slide_path = _relationship_target_path("ppt", target)
+                    removed_parts.add(slide_path)
+                    removed_parts.add(
+                        slide_path.replace("ppt/slides/", "ppt/slides/_rels/")
+                        + ".rels"
+                    )
+                    removed_part_names.add(f"/{slide_path}")
+
+            output_path = os.path.join(
+                temp_dir,
+                f"{Path(pptx_path).stem}-first-{max_slides}.pptx",
+            )
+            with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as output:
+                for member in archive.infolist():
+                    if member.filename in removed_parts:
+                        continue
+                    if member.filename == "ppt/presentation.xml":
+                        output.writestr(member, ET.tostring(presentation_xml))
+                    elif member.filename == "ppt/_rels/presentation.xml.rels":
+                        output.writestr(member, ET.tostring(rels_xml))
+                    elif member.filename == "[Content_Types].xml":
+                        content_types_xml = ET.fromstring(archive.read(member.filename))
+                        for override in list(content_types_xml):
+                            if override.get("PartName") in removed_part_names:
+                                content_types_xml.remove(override)
+                        output.writestr(member, ET.tostring(content_types_xml))
+                    else:
+                        output.writestr(member, archive.read(member.filename))
+            logger.info(
+                f"Trimmed PPTX from {len(slide_ids)} to {max_slides} slides for template preview"
+            )
+            return output_path
+    except HTTPException:
+        raise
+    except (KeyError, OSError, zipfile.BadZipFile, ET.ParseError, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to prepare PPTX slide preview. The file may be corrupted or unsupported.",
+        ) from exc
+
+
 async def check_fonts_in_pptx_handler(pptx_file: UploadFile) -> FontCheckResponse:
     """
     Extract fonts from a PPTX file and check their availability in Google Fonts.
@@ -660,24 +1125,134 @@ async def check_fonts_in_pptx_handler(pptx_file: UploadFile) -> FontCheckRespons
             unavailable_fonts_data,
         ) = await get_available_and_unavailable_fonts_for_pptx(pptx_path, temp_dir)
 
-        return FontCheckResponse(
-            available_fonts=_font_info_entries(
-                available_fonts_data,
-                variants_by_normalized_name,
-                original_names_by_normalized_variant,
-            ),
-            unavailable_fonts=_font_info_entries(
-                unavailable_fonts_data,
-                variants_by_normalized_name,
-                original_names_by_normalized_variant,
-            ),
+        available_font_entries = _font_info_entries(
+            available_fonts_data,
+            variants_by_normalized_name,
+            original_names_by_normalized_variant,
         )
+        unavailable_font_entries: List[FontInfo] = []
+
+        if unavailable_fonts_data:
+            uploaded_fonts_by_variant = await get_font_uploads_for_names_by_variant(
+                [font_data[0] for font_data in unavailable_fonts_data]
+            )
+            for font_data in unavailable_fonts_data:
+                font_name = font_data[0]
+                font_url = font_data[1]
+                variants = (
+                    normalize_font_variants(font_data[2])
+                    if len(font_data) == 3
+                    else _variants_for_font_name(
+                        font_name, variants_by_normalized_name
+                    )
+                )
+                uploaded_variants = uploaded_fonts_by_variant.get(font_name, {})
+                for variant in variants:
+                    original_name = original_names_by_normalized_variant.get(
+                        (normalize_font_family_name(font_name), variant)
+                    )
+                    font_upload = uploaded_variants.get(variant)
+                    if font_upload:
+                        available_font_entries.append(
+                            _font_info_entry(
+                                font_name,
+                                await get_font_upload_url(font_upload),
+                                variant,
+                                original_name,
+                            )
+                        )
+                    else:
+                        unavailable_font_entries.append(
+                            _font_info_entry(
+                                font_name, font_url, variant, original_name
+                            )
+                        )
+
+        return FontCheckResponse(
+            available_fonts=available_font_entries,
+            unavailable_fonts=unavailable_font_entries,
+        )
+
+
+async def _build_upload_preview_font_urls(
+    raw_fonts: Set[str],
+    found_embedded_fonts_with_url: Dict[str, str],
+    font_mapping: Dict[str, str],
+    custom_font_files: List[Tuple[str, str]],
+    font_upload_pairs: List[Tuple[str, str]],
+    original_font_names: Optional[List[str]],
+    font_variant_mapping: Dict[str, Dict[str, str]],
+    variants_by_normalized_name: Dict[str, Set[str]],
+    logger,
+) -> Dict[str, str]:
+    fonts: Dict[str, str] = {}
+    for name, url in found_embedded_fonts_with_url.items():
+        actual_name = font_mapping.get(name, name)
+        fonts[actual_name] = url
+        logger.info(f"Added embedded font: {actual_name} -> {url}")
+
+    if font_upload_pairs:
+        font_urls = _public_urls_for_local_paths(
+            [dest for dest, _ in font_upload_pairs]
+        )
+        for (font_path, original_name), font_url in zip(custom_font_files, font_urls):
+            detail = await asyncio.to_thread(get_font_details, font_path)
+            variant = _font_detail_variant(detail, os.path.basename(font_path))
+            actual_name = (
+                (font_variant_mapping.get(original_name) or {}).get(variant)
+                or font_mapping.get(original_name)
+                or detail.full_name
+                or detail.family_name
+                or original_name
+            )
+            fonts[actual_name] = font_url
+            logger.info(f"Added custom font: {actual_name} -> {font_url}")
+
+    logger.info("Checking for Google Fonts availability")
+    all_fonts = set(raw_fonts)
+    normalized_original_font_names = {
+        normalize_font_family_name(name) for name in (original_font_names or [])
+    }
+    replaced_names = set(normalized_original_font_names)
+    replaced_names.update(font_mapping.keys())
+    replaced_names.update(found_embedded_fonts_with_url.keys())
+    all_fonts = {
+        normalize_font_family_name(f) for f in all_fonts if f not in replaced_names
+    }
+    fonts_to_check = sorted(font for font in all_fonts if font)
+
+    tasks = [
+        check_google_font_availability(
+            font,
+            variants=_variants_for_font_name(font, variants_by_normalized_name),
+        )
+        for font in fonts_to_check
+    ]
+    results = await asyncio.gather(*tasks)
+
+    for font, is_available in zip(fonts_to_check, results):
+        if is_available:
+            google_fonts_url = build_google_fonts_stylesheet_url(
+                font,
+                variants=_variants_for_font_name(font, variants_by_normalized_name),
+            )
+            fonts[font] = google_fonts_url
+            logger.info(f"Added Google Font: {font} -> {google_fonts_url}")
+
+    logger.info(
+        f"Found {len([k for k, v in fonts.items() if 'fonts.googleapis.com' in v])} available Google Fonts"
+    )
+    return fonts
 
 
 async def upload_fonts_and_preview_handler(
     pptx_file: UploadFile,
     font_files: Optional[List[UploadFile]] = None,
     original_font_names: Optional[List[str]] = None,
+    google_font_original_names: Optional[List[str]] = None,
+    google_font_replacement_names: Optional[List[str]] = None,
+    google_font_names: Optional[List[str]] = None,
+    google_font_urls: Optional[List[str]] = None,
     max_slides: Optional[int] = None,
     upload_fonts: bool = True,
     get_slide_images: bool = True,
@@ -710,6 +1285,12 @@ async def upload_fonts_and_preview_handler(
             status_code=400,
             detail="Number of font files must match number of original font names",
         )
+    selected_google_fonts, google_font_replacements = _selected_google_font_maps(
+        google_font_original_names,
+        google_font_replacement_names,
+        google_font_names,
+        google_font_urls,
+    )
 
     # Validate PPTX file
     filename = getattr(pptx_file, "filename", "") or ""
@@ -719,6 +1300,7 @@ async def upload_fonts_and_preview_handler(
         )
 
     logger = _PreviewLogger()
+    slide_cap = _resolve_template_preview_slide_cap(max_slides)
 
     logger.info(f"Processing font upload and preview for {num_font_files} fonts")
 
@@ -732,6 +1314,13 @@ async def upload_fonts_and_preview_handler(
         await asyncio.to_thread(_write_bytes_to_path, pptx_path, pptx_content)
         await asyncio.to_thread(_validate_pptx_package, pptx_path)
         logger.info(f"Saved PPTX file to {pptx_path}")
+        pptx_path = await asyncio.to_thread(
+            _trim_pptx_to_max_slides,
+            pptx_path,
+            slide_cap,
+            temp_dir,
+            logger,
+        )
         variants_by_normalized_name = await asyncio.to_thread(
             _font_variants_by_normalized_name, pptx_path
         )
@@ -756,11 +1345,27 @@ async def upload_fonts_and_preview_handler(
             original_filename=filename,
             font_files=font_files,
             original_font_names=original_font_names,
+            google_font_replacements=google_font_replacements,
             logger=logger,
             session_dir=session_dir,
             upload_fonts=upload_fonts,
         )
-
+        replaced_font_names = [
+            *(original_font_names or []),
+            *google_font_replacements.keys(),
+        ]
+        fonts = await _build_upload_preview_font_urls(
+            raw_fonts=raw_fonts,
+            found_embedded_fonts_with_url=found_embedded_fonts_with_url,
+            font_mapping=font_mapping,
+            custom_font_files=custom_font_files,
+            font_upload_pairs=font_upload_pairs,
+            original_font_names=replaced_font_names,
+            font_variant_mapping=font_variant_mapping,
+            variants_by_normalized_name=variants_by_normalized_name,
+            logger=logger,
+        )
+        fonts.update(selected_google_fonts)
         slide_image_paths: List[str] = []
         if get_slide_images:
             slide_image_paths = await create_slide_previews(
@@ -770,9 +1375,12 @@ async def upload_fonts_and_preview_handler(
                 font_mapping=font_mapping,
                 explicit_font_aliases=embedded_font_aliases,
                 protected_font_names=protected_embedded_font_names,
-                max_slides=max_slides,
+                max_slides=slide_cap,
                 logger=logger,
                 session_dir=session_dir,
+                font_stylesheet_urls=[
+                    url for url in fonts.values() if _is_font_stylesheet_url(url)
+                ],
             )
 
         modified_pptx_path_out = ""
@@ -782,70 +1390,6 @@ async def upload_fonts_and_preview_handler(
                 logger=logger,
                 session_dir=session_dir,
             )
-
-        fonts: Dict[str, str] = {}
-        for name, url in found_embedded_fonts_with_url.items():
-            actual_name = font_mapping.get(name, name)
-            fonts[actual_name] = url
-            logger.info(f"Added embedded font: {actual_name} -> {url}")
-
-        if font_upload_pairs:
-            font_urls = _public_urls_for_local_paths(
-                [dest for dest, _ in font_upload_pairs]
-            )
-            for (font_path, original_name), font_url in zip(
-                custom_font_files, font_urls
-            ):
-                detail = await asyncio.to_thread(get_font_details, font_path)
-                variant = _font_detail_variant(detail, os.path.basename(font_path))
-                actual_name = (
-                    (font_variant_mapping.get(original_name) or {}).get(variant)
-                    or font_mapping.get(original_name)
-                    or detail.full_name
-                    or detail.family_name
-                    or original_name
-                )
-                fonts[actual_name] = font_url
-                logger.info(f"Added custom font: {actual_name} -> {font_url}")
-
-        # Check for Google Fonts availability
-        logger.info("Checking for Google Fonts availability")
-        all_fonts = set(raw_fonts)
-
-        # Remove fonts that were replaced with custom or embedded fonts
-        normalized_original_font_names = {
-            normalize_font_family_name(name) for name in (original_font_names or [])
-        }
-        replaced_names = set(normalized_original_font_names)
-        replaced_names.update(font_mapping.keys())
-        replaced_names.update(found_embedded_fonts_with_url.keys())
-        all_fonts = {
-            normalize_font_family_name(f) for f in all_fonts if f not in replaced_names
-        }
-        fonts_to_check = sorted(font for font in all_fonts if font)
-
-        # Check each font's availability in Google Fonts concurrently
-        tasks = [
-            check_google_font_availability(
-                font,
-                variants=_variants_for_font_name(font, variants_by_normalized_name),
-            )
-            for font in fonts_to_check
-        ]
-        results = await asyncio.gather(*tasks)
-
-        for font, is_available in zip(fonts_to_check, results):
-            if is_available:
-                google_fonts_url = build_google_fonts_stylesheet_url(
-                    font,
-                    variants=_variants_for_font_name(font, variants_by_normalized_name),
-                )
-                fonts[font] = google_fonts_url
-                logger.info(f"Added Google Font: {font} -> {google_fonts_url}")
-
-        logger.info(
-            f"Found {len([k for k, v in fonts.items() if 'fonts.googleapis.com' in v])} available Google Fonts"
-        )
 
         slide_image_urls: List[str] = []
         if get_slide_images:
@@ -867,6 +1411,41 @@ async def upload_fonts_and_preview_handler(
         )
 
 
+def _add_google_font_replacements_to_mapping(
+    google_font_replacements: Optional[Dict[str, str]],
+    font_mapping: Dict[str, str],
+    font_variant_mapping: Dict[str, Dict[str, str]],
+    logger,
+) -> None:
+    if not google_font_replacements:
+        return
+
+    for original_name, replacement_name in google_font_replacements.items():
+        original_name = (original_name or "").strip()
+        replacement_name = (replacement_name or "").strip()
+        if not original_name or not replacement_name:
+            continue
+        if original_name in font_mapping:
+            logger.info(
+                f"Skipping Google font mapping for {original_name}; custom font mapping already exists"
+            )
+            continue
+
+        font_mapping[original_name] = replacement_name
+        if _font_name_has_explicit_variant(original_name):
+            requested_variant = _font_style_variant(original_name, None, [])
+            font_variant_mapping.setdefault(original_name, {})[
+                requested_variant
+            ] = replacement_name
+            original_family_name = normalize_font_family_name(original_name)
+            if original_family_name:
+                font_variant_mapping.setdefault(original_family_name, {})[
+                    requested_variant
+                ] = replacement_name
+
+        logger.info(f"Google font mapping: {original_name} -> {replacement_name}")
+
+
 async def upload_fonts_and_fix_fonts_in_pptx(
     pptx_path: str,
     temp_dir: str,
@@ -876,6 +1455,7 @@ async def upload_fonts_and_fix_fonts_in_pptx(
     logger,
     session_dir: str,
     upload_fonts: bool = True,
+    google_font_replacements: Optional[Dict[str, str]] = None,
 ) -> Tuple[
     Set[str],
     Dict[str, str],
@@ -921,6 +1501,12 @@ async def upload_fonts_and_fix_fonts_in_pptx(
         font_files, original_font_names, temp_dir, logger
     )
     logger.info("Saved uploaded fonts to temp")
+    _add_google_font_replacements_to_mapping(
+        google_font_replacements,
+        font_mapping,
+        font_variant_mapping,
+        logger,
+    )
 
     embedded_font_aliases: Dict[str, str] = {}
     protected_embedded_font_names = list(found_embedded_fonts_with_path.keys())
@@ -929,6 +1515,102 @@ async def upload_fonts_and_fix_fonts_in_pptx(
         font_path for font_path, _ in custom_font_files
     ]
     font_paths_for_install.extend(found_embedded_fonts_with_path.values())
+
+    variants_by_normalized_name = await asyncio.to_thread(
+        _font_variants_by_normalized_name, pptx_path
+    )
+    explicit_source_font_names = [
+        *(original_font_names or []),
+        *(google_font_replacements or {}).keys(),
+    ]
+    original_font_name_set = {name for name in explicit_source_font_names if name}
+    explicitly_replaced = {
+        normalize_font_family_name(name) for name in explicit_source_font_names
+    }
+    embedded_replaced = set(found_embedded_fonts_with_path.keys())
+    normalized_embedded_replaced = {
+        normalize_font_family_name(name) for name in embedded_replaced
+    }
+    candidate_uploaded_fonts = [
+        font_name
+        for font_name in raw_fonts
+        if font_name not in original_font_name_set
+        and normalize_font_family_name(font_name) not in explicitly_replaced
+        and font_name not in embedded_replaced
+        and normalize_font_family_name(font_name) not in normalized_embedded_replaced
+    ]
+    uploaded_fonts_by_variant = await get_font_uploads_for_names_by_variant(
+        candidate_uploaded_fonts
+    )
+    if uploaded_fonts_by_variant:
+        unique_uploaded_fonts = list(
+            {
+                font_upload.id: font_upload
+                for variants in uploaded_fonts_by_variant.values()
+                for font_upload in variants.values()
+            }.values()
+        )
+        downloaded_paths = await download_font_uploads(
+            unique_uploaded_fonts, temp_dir
+        )
+        appended_downloads: Set[str] = set()
+        for original_name in candidate_uploaded_fonts:
+            required_variants = _variants_for_font_name(
+                original_name, variants_by_normalized_name
+            )
+            uploaded_variants = uploaded_fonts_by_variant.get(original_name, {})
+            matched_uploads = [
+                uploaded_variants[variant]
+                for variant in required_variants
+                if variant in uploaded_variants
+            ]
+            if not matched_uploads:
+                continue
+
+            for font_upload in matched_uploads:
+                downloaded_path = downloaded_paths.get(font_upload.id)
+                if downloaded_path and downloaded_path not in appended_downloads:
+                    font_paths_for_install.append(downloaded_path)
+                    appended_downloads.add(downloaded_path)
+
+            if len(matched_uploads) != len(required_variants):
+                logger.info(
+                    f"Partial uploaded font coverage for {original_name}: "
+                    f"matched {len(matched_uploads)}/"
+                    f"{len(required_variants)} variants"
+                )
+                continue
+
+            variant_replacement_names: Dict[str, str] = {}
+            normalized_original_name = normalize_font_family_name(original_name)
+            replacement_family_name = normalized_original_name or original_name
+            for variant, font_upload in uploaded_variants.items():
+                if variant not in required_variants:
+                    continue
+                replacement_name = _font_variant_family_name(
+                    replacement_family_name, variant
+                )
+                variant_replacement_names[variant] = replacement_name
+                found_embedded_fonts_with_url[replacement_name] = (
+                    await get_font_upload_url(font_upload)
+                )
+            font_variant_mapping.setdefault(original_name, {}).update(
+                variant_replacement_names
+            )
+            if normalized_original_name:
+                font_variant_mapping.setdefault(normalized_original_name, {}).update(
+                    variant_replacement_names
+                )
+
+            actual_name = (
+                variant_replacement_names.get("regular")
+                or next(iter(variant_replacement_names.values()))
+            )
+            font_mapping[original_name] = actual_name
+            logger.info(
+                f"Font upload mapping: {original_name} -> {actual_name} "
+                f"({', '.join(required_variants)})"
+            )
 
     # Replace fonts in PPTX using python-pptx
     modified_pptx_filename = _build_modified_pptx_filename(original_filename)
@@ -945,21 +1627,19 @@ async def upload_fonts_and_fix_fonts_in_pptx(
         logger.info("Fonts replaced successfully")
     else:
         modified_pptx_path = pptx_path
-        logger.info("No custom fonts provided; using original PPTX without replacement")
+        logger.info(
+            "No custom fonts provided; using original PPTX without replacement"
+        )
 
     font_upload_pairs: List[Tuple[str, str]] = []
     if upload_fonts:
-        font_upload_pairs = [
-            (
-                os.path.join(session_dir, "fonts", os.path.basename(font_path)),
-                font_path,
+        for font_path, _original_name in custom_font_files:
+            _font_upload, persisted_path = await persist_font_file(
+                font_path, os.path.basename(font_path)
             )
-            for font_path, _ in custom_font_files
-        ]
+            font_upload_pairs.append((persisted_path, font_path))
         if font_upload_pairs:
-            logger.info(f"Persisting {len(font_upload_pairs)} font files")
-            await _persist_files_to_session(font_upload_pairs)
-            logger.info("Persisted font files")
+            logger.info(f"Persisted {len(font_upload_pairs)} reusable font files")
 
     return (
         raw_fonts,
@@ -985,6 +1665,7 @@ async def create_slide_previews(
     max_slides: Optional[int],
     logger,
     session_dir: str,
+    font_stylesheet_urls: Optional[List[str]] = None,
 ) -> List[str]:
     del temp_dir, font_mapping, explicit_font_aliases, protected_font_names
 
@@ -993,6 +1674,7 @@ async def create_slide_previews(
         font_paths_for_install=font_paths_for_install,
         max_slides=max_slides,
         logger=logger,
+        font_stylesheet_urls=font_stylesheet_urls,
     )
     logger.info("Generated slide previews from PPTX-to-HTML with Chromium")
 

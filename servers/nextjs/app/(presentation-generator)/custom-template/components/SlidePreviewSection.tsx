@@ -2,6 +2,17 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     Loader2,
     Images,
@@ -16,9 +27,49 @@ export const SlidePreviewSection: React.FC<SlidePreviewSectionProps> = ({
     previewData,
     onInitTemplate,
     isLoading,
+    defaultTemplateName,
+    requiresTemplateMetadata = true,
 }) => {
+    const [isMetadataOpen, setIsMetadataOpen] = React.useState(false);
+    const [templateName, setTemplateName] = React.useState(defaultTemplateName);
+    const [description, setDescription] = React.useState("");
     const slideCount = previewData.slide_image_urls?.length || 0;
     const fontCount = Object.keys(previewData.fonts || {}).length;
+
+    React.useEffect(() => {
+        setTemplateName(defaultTemplateName);
+    }, [defaultTemplateName]);
+
+    const handleOpenMetadata = () => {
+        setTemplateName((current) => current.trim() ? current : defaultTemplateName);
+        setIsMetadataOpen(true);
+    };
+
+    const handleCloseMetadata = () => {
+        if (!isLoading) {
+            setIsMetadataOpen(false);
+        }
+    };
+
+    const handleGenerateTemplate = () => {
+        const name = templateName.trim();
+        if (!name) return;
+
+        const trimmedDescription = description.trim();
+        void onInitTemplate({
+            name,
+            ...(trimmedDescription ? { description: trimmedDescription } : {}),
+        });
+    };
+
+    const handlePrimaryAction = () => {
+        if (requiresTemplateMetadata) {
+            handleOpenMetadata();
+            return;
+        }
+
+        void onInitTemplate();
+    };
 
     return (
         <div className="my-8 max-w-[1440px] mx-auto">
@@ -80,7 +131,7 @@ export const SlidePreviewSection: React.FC<SlidePreviewSectionProps> = ({
                         </p>
                         <Button
                             size="lg"
-                            onClick={onInitTemplate}
+                            onClick={handlePrimaryAction}
                             disabled={isLoading}
                             className="px-4 py-2 h-auto text-xs font-syne font-medium rounded-full shadow-lg hover:shadow-xl transition-all duration-300 "
                             style={{
@@ -106,6 +157,74 @@ export const SlidePreviewSection: React.FC<SlidePreviewSectionProps> = ({
                     </div>
                 </div>
             </div>
+            <Dialog open={isMetadataOpen} onOpenChange={handleCloseMetadata}>
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-[#7A5AF8]" />
+                            Template details
+                        </DialogTitle>
+                        <DialogDescription>
+                            Name this template before generation starts.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-5 py-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="template-name">
+                                Name <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                                id="template-name"
+                                value={templateName}
+                                onChange={(event) => setTemplateName(event.target.value)}
+                                disabled={isLoading}
+                                placeholder="Template name"
+                                aria-required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="template-description">
+                                Description <span className="text-gray-400">(optional)</span>
+                            </Label>
+                            <Textarea
+                                id="template-description"
+                                value={description}
+                                onChange={(event) => setDescription(event.target.value)}
+                                disabled={isLoading}
+                                placeholder="Add a short summary of this template..."
+                                rows={3}
+                                className="resize-none"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={handleCloseMetadata}
+                            disabled={isLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleGenerateTemplate}
+                            disabled={isLoading || !templateName.trim()}
+                            aria-busy={isLoading}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    Generate Template
+                                    <ChevronRight className="ml-2 h-4 w-4" />
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

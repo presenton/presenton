@@ -61,12 +61,12 @@ async def get_slide_layout_from_prompt(
     try:
         layout_index_schema = prepare_schema_for_validation(
             SlideLayoutIndex.model_json_schema(),
-            strict=True,
+            strict=False,
         )
         response_format = JSONSchemaResponse(
             name="response",
             json_schema=layout_index_schema,
-            strict=True,
+            strict=False,
         )
         messages = get_messages(
             prompt,
@@ -82,7 +82,7 @@ async def get_slide_layout_from_prompt(
             messages=messages,
             response_format=response_format,
             json_schema=layout_index_schema,
-            strict=True,
+            strict=False,
             validate_schema=True,
         )
         index = SlideLayoutIndex(**content).index

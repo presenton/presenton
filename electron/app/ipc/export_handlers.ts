@@ -54,15 +54,6 @@ export async function stopActiveExportProcesses(): Promise<void> {
 }
 
 export function setupExportHandlers() {
-  ipcMain.handle("file-downloaded", async (_, filePath: string): Promise<IPCStatus> => {
-    const fileName = path.basename(filePath);
-    const destinationPath = path.join(getDownloadsDir(), fileName);
-
-    await fs.promises.rename(filePath, destinationPath);
-    showFileDownloadedDialogInBackground(destinationPath);
-    return { success: true };
-  });
-
   ipcMain.handle("export-presentation", async (_, id: string, title: string, exportAs: "pptx" | "pdf") => {
     let exportTempDir: string | undefined;
     try {

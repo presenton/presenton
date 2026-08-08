@@ -39,7 +39,7 @@ export function SortableListItem({ slide, index, selectedSlide, onSlideClick }: 
         // Only trigger click if not dragging
         if (!isDragging) {
             lastClickTime.current = now;
-            onSlideClick(slide.index);
+            onSlideClick(index);
         }
     };
 
@@ -60,4 +60,4 @@ export function SortableListItem({ slide, index, selectedSlide, onSlideClick }: 
           
         </div>
     );
-} 
+}

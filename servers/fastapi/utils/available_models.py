@@ -7,6 +7,8 @@ from openai import AsyncOpenAI
 from google import genai
 from google.genai.errors import APIError as GoogleAPIError
 
+from utils.provider_error_messages import safe_provider_error_detail
+
 
 class ModelAvailabilityError(Exception):
     def __init__(self, provider: str, message: str, *, provider_status_code: Any):
@@ -16,9 +18,17 @@ class ModelAvailabilityError(Exception):
             status_code = 500
 
         self.provider = provider
+        self.raw_message = message
         self.provider_status_code = status_code
         self.status_code = 400 if 400 <= status_code < 500 else 500
-        super().__init__(f"{provider} model validation failed: {message}")
+        super().__init__(
+            safe_provider_error_detail(
+                provider,
+                "model validation",
+                status_code=status_code,
+                message=message,
+            )
+        )
 
 
 def _payload_error_message(payload: Any) -> str | None:

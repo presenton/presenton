@@ -1,6 +1,9 @@
 import pytest
+from pydantic import ValidationError
 
+from constants.presentation import MAX_NUMBER_OF_SLIDES, MAX_OUTLINE_CONTENT_WORDS
 from models.presentation_outline_model import PresentationOutlineModel, SlideOutlineModel
+from utils.outline_limits import count_outline_words
 from utils.outline_utils import (
     _extract_outline_title,
     get_images_for_slides_from_outline,
@@ -22,6 +25,29 @@ def test_get_presentation_title_handles_prefixed_page_heading():
 def test_get_presentation_title_for_empty_outline():
     outline = PresentationOutlineModel(slides=[])
     assert get_presentation_title_from_presentation_outline(outline) == "Untitled Presentation"
+
+
+def test_slide_outline_content_is_trimmed_to_word_limit():
+    assert MAX_OUTLINE_CONTENT_WORDS == 100
+    content = " ".join(
+        f"word{i}" for i in range(MAX_OUTLINE_CONTENT_WORDS + 3)
+    )
+
+    slide = SlideOutlineModel(content=content)
+
+    assert count_outline_words(slide.content) == MAX_OUTLINE_CONTENT_WORDS
+    assert f"word{MAX_OUTLINE_CONTENT_WORDS - 1}" in slide.content
+    assert f"word{MAX_OUTLINE_CONTENT_WORDS}" not in slide.content
+
+
+def test_presentation_outline_rejects_more_than_max_slides():
+    with pytest.raises(ValidationError):
+        PresentationOutlineModel(
+            slides=[
+                SlideOutlineModel(content=f"## Slide {index}")
+                for index in range(MAX_NUMBER_OF_SLIDES + 1)
+            ]
+        )
 
 
 @pytest.mark.parametrize(

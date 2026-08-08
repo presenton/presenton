@@ -12,6 +12,7 @@ app_data
 tmp
 debug
 .fastembed_cache
+.DS_Store
 
 generated_models
 nltk
@@ -19,9 +20,11 @@ chroma
 container.db
 .next-build
 .cursor
+.vscode
 .agents
 skills-lock.json
-.codex/
+.DS_Store
+.codex
 eng.traineddata
 
 # presenton-export runtime (downloaded via scripts/sync-presentation-export.cjs or Docker build)
@@ -31,4 +34,3 @@ servers/fastapi/build/
 servers/fastapi/dist/
 servers/fastapi/fastembed_cache/
 servers/fastapi/*.egg-info/
-.codex/

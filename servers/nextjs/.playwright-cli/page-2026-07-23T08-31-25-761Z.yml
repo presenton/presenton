@@ -1,0 +1,62 @@
+- generic [ref=f12e3]:
+  - generic [ref=f12e5]:
+    - complementary "Dashboard sidebar" [ref=f12e6]:
+      - generic [ref=f12e7]:
+        - link [ref=f12e8] [cursor=pointer]:
+          - /url: /dashboard
+          - img "Presenton logo" [ref=f12e10]
+        - navigation "Dashboard sections" [ref=f12e11]:
+          - generic [ref=f12e12]:
+            - link "Dashboard" [ref=f12e13] [cursor=pointer]:
+              - /url: /dashboard
+            - link "Templates" [ref=f12e20] [cursor=pointer]:
+              - /url: /templates
+      - link "Help" [ref=f12e27] [cursor=pointer]:
+        - /url: https://docs.presenton.ai/help
+    - main [ref=f12e34]:
+      - generic [ref=f12e35]:
+        - paragraph [ref=f12e36]: "FILTER BY:"
+        - generic [ref=f12e37]:
+          - paragraph [ref=f12e38]: Select Provider
+          - generic [ref=f12e39]:
+            - button [ref=f12e40] [cursor=pointer]:
+              - img "google" [ref=f12e42]
+              - paragraph [ref=f12e43]: Text Provider
+            - button [ref=f12e44] [cursor=pointer]:
+              - img "google" [ref=f12e46]
+              - paragraph [ref=f12e47]: Image Provider
+            - button [ref=f12e48] [cursor=pointer]:
+              - paragraph [ref=f12e53]: Web Search Provider
+        - generic [ref=f12e54]:
+          - paragraph [ref=f12e55]: Other
+          - generic [ref=f12e56]:
+            - button [ref=f12e57] [cursor=pointer]:
+              - paragraph [ref=f12e61]: Usage Analytics
+            - button [ref=f12e62] [cursor=pointer]:
+              - paragraph [ref=f12e67]: Admin
+            - button [ref=f12e68] [cursor=pointer]:
+              - paragraph [ref=f12e73]: Sign out
+      - generic [ref=f12e74]:
+        - generic [ref=f12e76]:
+          - heading "Settings" [level=3] [ref=f12e77]
+          - paragraph [ref=f12e78]: OpenAI (gpt-4o-mini) · Image generation disabled · Web search disabled
+        - main [ref=f12e126]:
+          - generic [ref=f12e127]:
+            - paragraph [ref=f12e128]: Instance administration
+            - heading "Admin" [level=1] [ref=f12e129]
+            - paragraph [ref=f12e130]: Manage login accounts and admin-owned API/MCP access keys. User workspaces remain private.
+            - generic [ref=f12e131]:
+              - tablist [ref=f12e132]:
+                - tab "Users" [ref=f12e133] [cursor=pointer]
+                - tab "API keys" [active] [selected] [ref=f12e134] [cursor=pointer]
+              - tabpanel "API keys" [ref=f12e222]:
+                - generic [ref=f12e223]:
+                  - generic [ref=f12e224]:
+                    - generic [ref=f12e230]:
+                      - heading "API and MCP keys" [level=2] [ref=f12e231]
+                      - paragraph [ref=f12e232]: Keys are hidden by default. Generate as many as you need.
+                    - button "Generate key" [ref=f12e233] [cursor=pointer]
+                  - paragraph [ref=f12e239]: No API keys have been generated.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f12e121] [cursor=pointer]
+  - alert [ref=f12e125]

@@ -1,4 +1,5 @@
 import { getApiUrl } from "@/utils/api";
+import type { TemplateV2Layout } from "@/components/slide-editor/importing/template-v2-import";
 import { ApiResponseHandler } from "./api-error-handler";
 import { getHeader } from "./header";
 
@@ -14,11 +15,102 @@ export interface CloneLayoutPayload {
     layout_name?: string;
 }
 
+export interface CreateTemplatePayload {
+    pptx_url: string;
+    slide_image_urls: string[];
+    fonts: Record<string, unknown>;
+    name: string;
+    description?: string | null;
+}
+
+export interface TemplateListResponse {
+    items: TemplateListItem[];
+    total: number;
+    page: number;
+    page_size: number;
+}
+
+export interface TemplateListItem {
+    id: string;
+    name: string;
+    description?: string | null;
+    layout_count?: number;
+    thumbnail?: string | null;
+    is_default?: boolean;
+    status?: string | null;
+    generation_status?: string | null;
+    error?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface TemplateDetailsResponse extends TemplateListItem {
+    raw_layouts?: unknown;
+    components?: unknown;
+    merged_components?: unknown;
+    layouts?: unknown;
+    assets?: unknown;
+}
+
+export interface AsyncTaskResponse {
+    id: string;
+    type: string;
+    status: string;
+    message?: string | null;
+    error?: unknown;
+    data?: unknown;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface TemplateCreateTaskData {
+    created_layouts?: number;
+    remaining_layouts?: number;
+    name?: string;
+    thumbnail?: string | null;
+}
+
+export interface TemplateCreateTaskResponse extends AsyncTaskResponse {
+    type: "template.create";
+    data?: TemplateCreateTaskData | null;
+}
+
+export interface UpdateTemplateMetadataPayload {
+    name: string;
+    description?: string | null;
+}
+
+export interface UpdateTemplatePayload extends Partial<TemplateDetailsResponse> {
+    id: string;
+}
+
+export interface UpdateTemplateLayoutsPayload {
+    layouts: Array<{
+        index: number;
+        layout: unknown;
+    }>;
+}
+
+export interface CreateTemplateLayoutPayload {
+    template_id: string;
+    index: number;
+}
+
+export interface GenerateTemplateLayoutPayload {
+    template_id: string;
+    prompt: string;
+}
+
+export interface GenerateTemplateLayoutResponse {
+    layout: TemplateV2Layout;
+    response: string;
+}
+
 class TemplateService {
 
     static async getCustomTemplateSummaries() {
         try {
-            const response = await fetch(getApiUrl(`/api/v1/ppt/template/all`),);
+            const response = await fetch(getApiUrl(`/api/v1/ppt/template/all?page_size=100&default=false`),);
             return await ApiResponseHandler.handleResponse(response, "Failed to get custom template summaries");
         } catch (error) {
             console.error("Failed to get custom template summaries", error);
@@ -32,6 +124,169 @@ class TemplateService {
             return await ApiResponseHandler.handleResponse(response, "Failed to get custom template details");
         } catch (error) {
             console.error("Failed to get custom template details", error);
+            throw error;
+        }
+    }
+
+    static async getTemplateSummaries(isDefault?: boolean): Promise<TemplateListResponse> {
+        try {
+            const params = new URLSearchParams({ page_size: "100" });
+            if (typeof isDefault === "boolean") {
+                params.set("default", String(isDefault));
+            }
+            const response = await fetch(getApiUrl(`/api/v1/ppt/template/all?${params.toString()}`));
+            return await ApiResponseHandler.handleResponse(response, "Failed to get Templates summaries");
+        } catch (error) {
+            console.error("Failed to get Templates summaries", error);
+            throw error;
+        }
+    }
+
+    static async getTemplateDetails(templateId: string): Promise<TemplateDetailsResponse> {
+        try {
+            const apiTemplateId = templateId.replace(/^template-v2-/, "");
+            const response = await fetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(apiTemplateId)}`));
+            return await ApiResponseHandler.handleResponse(response, "Failed to get template details");
+        } catch (error) {
+            console.error("Failed to get Templates v1 details", error);
+            throw error;
+        }
+    }
+
+    static async createTemplate(payload: CreateTemplatePayload): Promise<AsyncTaskResponse> {
+        try {
+            const response = await fetch(getApiUrl(`/api/v1/ppt/template/async`), {
+                method: "POST",
+                headers: getHeader(),
+                body: JSON.stringify(payload),
+            });
+            return await ApiResponseHandler.handleResponse(response, "Failed to create template");
+        } catch (error) {
+            console.error("Failed to create template", error);
+            throw error;
+        }
+    }
+
+    static async getProcessingTemplateCreateTasks(createdAtFrom: Date): Promise<TemplateCreateTaskResponse[]> {
+        try {
+            const params = new URLSearchParams({
+                type: "template.create",
+                status: "pending",
+                order_by: "created_at",
+                order: "desc",
+                limit: "50",
+                offset: "0",
+                created_at: createdAtFrom.toISOString(),
+            });
+            const response = await fetch(getApiUrl(`/api/v1/async-tasks?${params.toString()}`));
+            return await ApiResponseHandler.handleResponse(response, "Failed to get processing template tasks");
+        } catch (error) {
+            console.error("Failed to get processing template tasks", error);
+            throw error;
+        }
+    }
+
+    static async deleteTemplate(templateId: string) {
+        try {
+            const response = await fetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(templateId)}`), {
+                method: "DELETE",
+                headers: getHeader(),
+            });
+            return await ApiResponseHandler.handleResponseWithResult(response, "Failed to delete template");
+        } catch (error) {
+            console.error("Failed to delete Templates template", error);
+            throw error;
+        }
+    }
+
+    static async updateTemplateMetadata(
+        templateId: string,
+        payload: UpdateTemplateMetadataPayload,
+    ) {
+        return this.updateTemplate(templateId, {
+            id: templateId,
+            ...payload,
+        });
+    }
+
+    static async updateTemplate(
+        templateId: string,
+        payload: UpdateTemplatePayload,
+    ) {
+        try {
+            const response = await fetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(templateId)}`), {
+                method: "PATCH",
+                headers: getHeader(),
+                body: JSON.stringify(payload),
+            });
+            return await ApiResponseHandler.handleResponse(response, "Failed to update template");
+        } catch (error) {
+            console.error("Failed to update template", error);
+            throw error;
+        }
+    }
+
+    static async updateTemplateLayouts(
+        templateId: string,
+        payload: UpdateTemplateLayoutsPayload,
+    ) {
+        try {
+            const response = await fetch(
+                getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(templateId)}/layouts`),
+                {
+                    method: "PATCH",
+                    headers: getHeader(),
+                    body: JSON.stringify(payload),
+                },
+            );
+            return await ApiResponseHandler.handleResponse(
+                response,
+                "Failed to update template layouts",
+            );
+        } catch (error) {
+            console.error("Failed to update template layouts", error);
+            throw error;
+        }
+    }
+
+    static async createTemplateLayout(payload: CreateTemplateLayoutPayload) {
+        try {
+            const response = await fetch(
+                getApiUrl("/api/v1/ppt/template/layouts/create"),
+                {
+                    method: "POST",
+                    headers: getHeader(),
+                    body: JSON.stringify(payload),
+                },
+            );
+            return await ApiResponseHandler.handleResponse(
+                response,
+                `Failed to create layout for slide ${payload.index + 1}`,
+            );
+        } catch (error) {
+            console.error("Failed to create template layout", error);
+            throw error;
+        }
+    }
+
+    static async generateTemplateLayout(
+        payload: GenerateTemplateLayoutPayload,
+    ): Promise<GenerateTemplateLayoutResponse> {
+        try {
+            const response = await fetch(
+                getApiUrl("/api/v1/ppt/template/layouts/generate"),
+                {
+                    method: "POST",
+                    headers: getHeader(),
+                    body: JSON.stringify(payload),
+                },
+            );
+            return await ApiResponseHandler.handleResponse(
+                response,
+                "Failed to generate template layout",
+            );
+        } catch (error) {
+            console.error("Failed to generate template layout", error);
             throw error;
         }
     }

@@ -48,9 +48,48 @@ const macDistributionIdentity =
   undefined
 const shouldNotarizeDirectMacBuild =
   isDirectMacBuild && process.env.PRESENTON_SKIP_NOTARIZATION !== "1"
+const shouldSignDirectMacDmg = isDirectMacBuild && requireDirectMacSigning
 const masSigningExtraArgs =
   process.env.PRESENTON_CODESIGN_TIMESTAMP === "1" ? [] : ["--timestamp=none"]
-
+const codesignTimestampRetries = Number.parseInt(
+  process.env.PRESENTON_CODESIGN_TIMESTAMP_RETRIES || "4",
+  10
+)
+const untimestampedNestedResourceExtensions = new Set([
+  ".asar",
+  ".avif",
+  ".bcmap",
+  ".bin",
+  ".body",
+  ".car",
+  ".dat",
+  ".emf",
+  ".gif",
+  ".gz",
+  ".icns",
+  ".ico",
+  ".jpeg",
+  ".jpg",
+  ".json",
+  ".nib",
+  ".onnx",
+  ".otf",
+  ".pak",
+  ".pb",
+  ".pdf",
+  ".pfb",
+  ".png",
+  ".pnm",
+  ".pptx",
+  ".pyc",
+  ".strings",
+  ".ttf",
+  ".wasm",
+  ".webp",
+  ".woff",
+  ".woff2",
+  ".zip",
+])
 function getAppStoreBundleShortVersion() {
   const configuredVersion = process.env.PRESENTON_APP_STORE_VERSION
   if (configuredVersion) {
@@ -169,6 +208,99 @@ function commandSucceeds(command, args) {
   } catch {
     return false
   }
+}
+
+async function signDirectMacApp(signOptions) {
+  installCodesignTimestampRetry()
+  const { signAsync } = require("@electron/osx-sign")
+  const baseOptionsForFile = signOptions.optionsForFile
+
+  return signAsync({
+    ...signOptions,
+    optionsForFile(filePath) {
+      const options = baseOptionsForFile ? baseOptionsForFile(filePath) || {} : {}
+
+      if (filePath === signOptions.app || !isUntimestampedNestedResource(filePath)) {
+        return options
+      }
+
+      // osx-sign also signs binary resource blobs. Notarization requires secure
+      // timestamps for Mach-O code, but not for data files like Chromium .pak files.
+      return {
+        ...options,
+        timestamp: "none",
+      }
+    },
+  })
+}
+
+function installCodesignTimestampRetry() {
+  const osxSignUtil = require("@electron/osx-sign/dist/cjs/util.js")
+  if (osxSignUtil.execFileAsync.__presentonTimestampRetryInstalled) {
+    return
+  }
+
+  const execFileAsync = osxSignUtil.execFileAsync
+
+  async function execFileAsyncWithTimestampRetry(file, args, options) {
+    const maxRetries = Number.isFinite(codesignTimestampRetries)
+      ? Math.max(0, codesignTimestampRetries)
+      : 4
+
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await execFileAsync(file, args, options)
+      } catch (error) {
+        if (
+          attempt >= maxRetries ||
+          !isRetryableCodesignTimestampFailure(file, args, error)
+        ) {
+          throw error
+        }
+
+        const delayMs = Math.min(30000, 1000 * 2 ** attempt)
+        console.warn(
+          `codesign timestamp failed; retrying in ${delayMs}ms (${attempt + 1}/${maxRetries})`
+        )
+        await sleep(delayMs)
+      }
+    }
+  }
+
+  execFileAsyncWithTimestampRetry.__presentonTimestampRetryInstalled = true
+  osxSignUtil.execFileAsync = execFileAsyncWithTimestampRetry
+}
+
+function isRetryableCodesignTimestampFailure(file, args, error) {
+  if (file !== "codesign" || !codesignArgsRequireTimestamp(args)) {
+    return false
+  }
+
+  const message = `${error && error.message ? error.message : error}`
+  return (
+    message.includes("A timestamp was expected but was not found") ||
+    /timestamp/i.test(message)
+  )
+}
+
+function codesignArgsRequireTimestamp(args) {
+  if (!Array.isArray(args)) {
+    return false
+  }
+
+  return args.some((arg) => arg === "--timestamp" || (
+    arg.startsWith("--timestamp=") && arg !== "--timestamp=none"
+  ))
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isUntimestampedNestedResource(filePath) {
+  return untimestampedNestedResourceExtensions.has(
+    path.extname(filePath).toLowerCase()
+  )
 }
 
 function resolveMasSigningIdentitiesForTarget() {
@@ -514,6 +646,81 @@ function assertCodesignCanUseDirectIdentity(identity) {
   }
 }
 
+function getFastApiBinaryName(platform = process.platform) {
+  return platform === "win32" ? "fastapi.exe" : "fastapi"
+}
+
+function findNextJsStandaloneServer(nextjsRoot) {
+  const directScript = path.join(nextjsRoot, "server.js")
+  if (fs.existsSync(directScript)) {
+    return directScript
+  }
+
+  const nestedScript = path.join(nextjsRoot, "servers", "nextjs", "server.js")
+  if (fs.existsSync(nestedScript)) {
+    return nestedScript
+  }
+
+  return null
+}
+
+function formatMissingBundleResources(missing) {
+  return missing.map((item) => `  - ${item.label}: ${item.path}`).join("\n")
+}
+
+function collectMissingBundleResources(resourcesRoot) {
+  const fastapiPath = path.join(resourcesRoot, "fastapi", getFastApiBinaryName())
+  const nextjsRoot = path.join(resourcesRoot, "nextjs")
+  const missing = []
+
+  if (!fs.existsSync(fastapiPath)) {
+    missing.push({ label: "FastAPI binary", path: fastapiPath })
+  }
+  if (!findNextJsStandaloneServer(nextjsRoot)) {
+    const directNextServer = path.join(nextjsRoot, "server.js")
+    const nestedNextServer = path.join(nextjsRoot, "servers", "nextjs", "server.js")
+    missing.push({
+      label: "Next.js standalone server",
+      path: `${directNextServer} or ${nestedNextServer}`,
+    })
+  }
+
+  return missing
+}
+
+function assertSourceBundleResourcesReady() {
+  const resourcesRoot = path.join(__dirname, "resources")
+  const missing = collectMissingBundleResources(resourcesRoot)
+  if (missing.length === 0) {
+    return
+  }
+
+  throw new Error(
+    [
+      "Required Electron bundle resources are missing before packaging.",
+      "Run `npm run build:all:mac:signed` for a full signed DMG build, or run `npm run build:nextjs && npm run build:fastapi` before package-only scripts.",
+      "Missing:",
+      formatMissingBundleResources(missing),
+    ].join("\n")
+  )
+}
+
+function assertPackagedBundleResourcesReady(resourcesRoot) {
+  const missing = collectMissingBundleResources(resourcesRoot)
+  if (missing.length === 0) {
+    return
+  }
+
+  throw new Error(
+    [
+      "Packaged app is missing required runtime resources.",
+      "This would produce a signed app that cannot start its bundled servers.",
+      "Missing:",
+      formatMissingBundleResources(missing),
+    ].join("\n")
+  )
+}
+
 // AfterPack hook: set executable permissions and repair packaged runtime bundles on macOS.
 const afterPack = async (context) => {
   if (context.electronPlatformName === "darwin") {
@@ -523,7 +730,9 @@ const afterPack = async (context) => {
       appPath,
       appBundleName
     )
-    const fastapiPath = path.join(resourcesRoot, "fastapi", "fastapi")
+    assertPackagedBundleResourcesReady(resourcesRoot)
+
+    const fastapiPath = path.join(resourcesRoot, "fastapi", getFastApiBinaryName("darwin"))
     const exportPyDir = path.join(resourcesRoot, "export", "py")
     const converterCandidates = [
       `convert-${process.platform}-${process.arch}`,
@@ -564,17 +773,88 @@ const afterPack = async (context) => {
       console.log("Export py directory contents:", fs.readdirSync(exportPyDir))
     }
 
+    pruneUnsupportedPackagedPrebuilds(
+      resolvePackagedAppRoot(appPath, appBundleName),
+      context.arch
+    )
     normalizeBundledMacChromiumForPackaging(resourcesRoot)
   }
 }
 
-function resolvePackagedResourcesRoot(appPath, appBundleName) {
+function resolvePackagedAppRoot(appPath, appBundleName) {
   const contentsResourcesRoot = path.join(appPath, appBundleName, "Contents", "Resources")
   const candidates = [
-    path.join(contentsResourcesRoot, "app.asar.unpacked", "resources"),
-    path.join(contentsResourcesRoot, "app", "resources"),
+    path.join(contentsResourcesRoot, "app.asar.unpacked"),
+    path.join(contentsResourcesRoot, "app"),
   ]
   return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0]
+}
+
+function resolvePackagedResourcesRoot(appPath, appBundleName) {
+  return path.join(resolvePackagedAppRoot(appPath, appBundleName), "resources")
+}
+
+function pruneUnsupportedPackagedPrebuilds(appRoot, arch) {
+  const nodeModulesRoot = path.join(appRoot, "node_modules")
+  if (!fs.existsSync(nodeModulesRoot)) {
+    return
+  }
+
+  const supportedPrebuilds = getSupportedDarwinPrebuilds(arch)
+  let removed = 0
+
+  for (const prebuildsRoot of findDirectoriesNamed(nodeModulesRoot, "prebuilds")) {
+    for (const entry of fs.readdirSync(prebuildsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory() || supportedPrebuilds.has(entry.name)) {
+        continue
+      }
+
+      const candidatePath = path.join(prebuildsRoot, entry.name)
+      if (!/^[a-z0-9]+-[a-z0-9-]+$/i.test(entry.name)) {
+        continue
+      }
+
+      fs.rmSync(candidatePath, { recursive: true, force: true })
+      removed += 1
+    }
+  }
+
+  if (removed > 0) {
+    console.log(
+      `Pruned ${removed} unsupported native prebuild director${removed === 1 ? "y" : "ies"} from packaged macOS app.`
+    )
+  }
+}
+
+function getSupportedDarwinPrebuilds(arch) {
+  const archName = builder.Arch[arch] || process.arch
+  if (archName === "universal") {
+    return new Set(["darwin-arm64", "darwin-x64"])
+  }
+  return new Set([`darwin-${archName}`])
+}
+
+function findDirectoriesNamed(root, name) {
+  const matches = []
+  const stack = [root]
+
+  while (stack.length > 0) {
+    const current = stack.pop()
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
+        continue
+      }
+
+      const fullPath = path.join(current, entry.name)
+      if (entry.name === name) {
+        matches.push(fullPath)
+        continue
+      }
+      stack.push(fullPath)
+    }
+  }
+
+  return matches
 }
 
 const config = {
@@ -594,8 +874,13 @@ const config = {
   files: [
     "resources",
     "app_dist",
-    "node_modules",
     "NOTICE"
+  ],
+  extraResources: [
+    {
+      from: path.join(__dirname, "..", "scripts", "user-config-env.cjs"),
+      to: "user-config-env.cjs",
+    },
   ],
   afterPack,
   mac: {
@@ -611,6 +896,7 @@ const config = {
         ? null
         : macDistributionIdentity,
     notarize: isMasBuild || !shouldNotarizeDirectMacBuild ? false : true,
+    sign: isMasBuild ? undefined : signDirectMacApp,
     icon: "build/icon.icns",
     bundleShortVersion: appStoreBundleShortVersion,
     bundleVersion: appStoreBundleVersion,
@@ -640,6 +926,7 @@ const config = {
     artifactName: "Presenton-${version}.${ext}",
     target: ["AppImage", "deb"],
     icon: "build/icons",
+    category: "Office",
   },
   deb: {
     afterInstall: "build/after-install.tpl",
@@ -664,7 +951,7 @@ const config = {
     uninstallDisplayName: "Presenton",
   },
   dmg: {
-    sign: false,
+    sign: shouldSignDirectMacDmg,
     size: "2300m",
   },
   appx: {
@@ -683,6 +970,8 @@ const targets =
     ? builder.Platform.MAC.createTarget([effectiveMacTarget])
     : undefined
 
+assertSourceBundleResourcesReady()
+
 if (macTarget === "mas" && process.env.PRESENTON_SKIP_CODESIGN_PREFLIGHT !== "1") {
   assertCodesignCanUseIdentity(masAppSigningIdentity)
 }
@@ -695,6 +984,7 @@ if (isDirectMacBuild && process.platform === "darwin") {
     identity: macDistributionIdentity || "auto",
     hardenedRuntime: true,
     notarize: shouldNotarizeDirectMacBuild,
+    dmgSign: shouldSignDirectMacDmg,
     signingRequired: requireDirectMacSigning,
   })
 }

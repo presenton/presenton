@@ -1,40 +1,55 @@
-import React, { useState, useRef } from "react";
-import { UploadIcon, ChevronRight, Plus, FileText, X, Coins, Edit3, Info } from "lucide-react";
+import React, { useRef } from "react";
+import { UploadIcon, ChevronRight, Plus, FileText, X } from "lucide-react";
 import { ProcessedSlide } from "../types";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface FileUploadSectionProps {
   selectedFile: File | null;
   handleFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   removeFile: () => void;
   CheckFonts: () => void;
+  onPptxFileSelect?: (file: File) => void | Promise<void>;
+  processingLabel?: string;
 
   isProcessingPptx: boolean;
   slides: ProcessedSlide[];
   completedSlides: number;
 }
 
-// Credit costs constants
-const COST_PER_SLIDE = 3;
-const COST_EDIT = 1;
-
 export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
   selectedFile,
   handleFileSelect,
   removeFile,
   CheckFonts,
+  onPptxFileSelect,
+  processingLabel = "Checking Fonts...",
 
   isProcessingPptx,
   slides,
   completedSlides,
 }) => {
   const isProcessing = isProcessingPptx || slides.some((s) => s.processing);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleCheckFonts = () => {
-
+    if (!selectedFile && onPptxFileSelect) {
+      fileInputRef.current?.click();
+      return;
+    }
     CheckFonts();
-
   }
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (onPptxFileSelect) {
+      event.target.value = "";
+      if (file) {
+        void onPptxFileSelect(file);
+      }
+      return;
+    }
+
+    handleFileSelect(event);
+  };
 
   return (
     <div className="md:h-[calc(100vh-310px)] h-[calc(100vh-450px)] relative overflow-hidden">
@@ -69,10 +84,11 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
               <div className="border border-[#B8B8C1] border-dashed rounded-[12px ] p-1.5 h-full relative">
                 {!selectedFile ? <>
                   <input
+                    ref={fileInputRef}
                     id="file-upload"
                     type="file"
                     accept=".pptx"
-                    onChange={handleFileSelect}
+                    onChange={handleInputChange}
                     className="opacity-0 w-full h-full cursor-pointer absolute top-0 left-0 z-10"
                   />
                   <div className='absolute inset-0 flex flex-col items-center justify-center'>
@@ -168,7 +184,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
                         disabled={isProcessing}
                       >
                         {isProcessingPptx
-                          ? "Checking Fonts..."
+                          ? processingLabel
                           : !selectedFile
                             ? "Select a PPTX file"
                             : "Check Fonts"}
@@ -204,16 +220,6 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
             <p className="md:text-sm text-[10px] font-normal text-[#3A3A3A] ">5min Generation</p>
           </li>
         </ul>
-
-        <div className="mt-4 px-4 py-3 rounded-lg border border-[#EBE9FE]  flex items-start gap-2 shadow-md">
-          <svg className="mt-0.5 shrink-0" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 20 20" fill="none">
-            <circle cx="10" cy="10" r="10" fill="#EBE9FE" />
-            <path d="M10 6V10M10 14H10.0088" stroke="#5B49A1" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <p className="text-sm md:text-base font-medium text-[#20165C] tracking-[-0.13px]">
-            <span className="font-bold text-[#5B49A1]">Note:</span> Each slide is sent to your configured text model as a <span className="font-semibold">screenshot plus HTML reference</span>. Only <span className="font-semibold">vision-capable</span> models (image input) can use the layout faithfully. Text-only models may error or produce weak layouts; pick a vision model in Settings for your provider.
-          </p>
-        </div>
 
       </div>
     </div>

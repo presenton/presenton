@@ -3,6 +3,7 @@ import fsPromises from "fs/promises";
 import path from "path";
 import { Readable } from "stream";
 import { NextRequest, NextResponse } from "next/server";
+import { authStatusForRequest } from "@/lib/server-auth-role";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -18,19 +19,35 @@ function getExportsDirectory(): string {
   return path.join(appDataDirectory, "exports");
 }
 
-function getSafeExportName(request: NextRequest): string | null {
+function getSafeExportName(
+  request: NextRequest,
+  userId: string | null,
+  isAdmin: boolean,
+): string | null {
   const decodedName = request.nextUrl.searchParams.get("name");
 
   if (
     !decodedName ||
-    decodedName.includes("/") ||
     decodedName.includes("\\") ||
-    decodedName !== path.basename(decodedName)
+    path.isAbsolute(decodedName)
   ) {
     return null;
   }
 
-  return decodedName;
+  const normalized = path.normalize(decodedName);
+  if (
+    normalized === ".." ||
+    normalized.startsWith(`..${path.sep}`)
+  ) {
+    return null;
+  }
+  if (!userId) return normalized;
+
+  const parts = normalized.split(path.sep);
+  if (parts[0] === "users") {
+    return parts.length >= 3 && parts[1] === userId ? normalized : null;
+  }
+  return isAdmin && parts.length === 1 ? normalized : null;
 }
 
 function contentDisposition(filename: string): string {
@@ -39,7 +56,15 @@ function contentDisposition(filename: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  const filename = getSafeExportName(request);
+  const auth = await authStatusForRequest(request);
+  if (!auth.authenticated) {
+    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  }
+  const filename = getSafeExportName(
+    request,
+    auth.user_id,
+    auth.role === "admin",
+  );
   if (!filename) {
     return NextResponse.json({ error: "Invalid export file name" }, { status: 400 });
   }
@@ -57,13 +82,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const ext = path.extname(filename).toLowerCase();
+    const ext = path.extname(resolvedFilePath).toLowerCase();
     const stats = await fsPromises.stat(resolvedFilePath);
     const stream = Readable.toWeb(fs.createReadStream(resolvedFilePath));
     return new NextResponse(stream as unknown as BodyInit, {
       headers: {
         "Content-Type": CONTENT_TYPES[ext] ?? "application/octet-stream",
-        "Content-Disposition": contentDisposition(filename),
+        "Content-Disposition": contentDisposition(path.basename(filename)),
         "Content-Length": String(stats.size),
         "Cache-Control": "no-store",
       },

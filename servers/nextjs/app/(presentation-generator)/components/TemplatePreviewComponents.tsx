@@ -1,41 +1,58 @@
 "use client";
-import React, { memo, useMemo } from "react";
-import { Loader2 } from "lucide-react";
-import { TemplateWithData } from "@/app/presentation-templates/utils";
-import { CompiledLayout } from "@/app/hooks/compileLayout";
+/* eslint-disable @next/next/no-img-element */
+import React, { memo } from "react";
+import { cn } from "@/lib/utils";
 
-
-
-
-export function TemplatePreviewStage({ children }: { children: React.ReactNode }) {
-    return (
-        <div className="relative overflow-hidden px-5 pb-5 pt-5 h-[230px]">
-            <img
-                src="/card_bg.svg"
-                alt=""
-                className="absolute top-0 left-0 w-full h-full object-cover"
-            />
-            {children}
-        </div>
-    );
+export function TemplatePreviewStage({
+  children,
+  selectionPage = false,
+}: {
+  children: React.ReactNode;
+  selectionPage?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden bg-[#F8FBFB]",
+        selectionPage ? "h-[249px] px-[34px] py-5" : "p-5"
+      )}
+    >
+      <img
+        src="/card_bg.svg"
+        alt=""
+        className="absolute left-0 top-0 h-full w-full object-cover"
+      />
+      {children}
+    </div>
+  );
 }
 
-export const LayoutsBadge = memo(function LayoutsBadge({ count }: { count: number }) {
+export const LayoutsBadge = memo(function LayoutsBadge({
+  count,
+  selectionPage = false,
+}: {
+  count: number;
+  selectionPage?: boolean;
+}) {
     return (
-        <span className="text-xs font-syne absolute top-3.5 left-4 z-40 inline-flex items-center rounded-full bg-[#333333] px-3 py-1 font-semibold text-white">
-            Layouts-{count}
-        </span>
+      <span
+        className={cn(
+          "absolute z-40 inline-flex items-center rounded-full font-syne text-xs text-white",
+          selectionPage
+            ? "left-2 top-2 bg-[rgba(58,58,58,0.96)] px-2.5 py-1 font-medium"
+            : "left-4 top-3.5 bg-[#333333] px-3 py-1 font-semibold"
+        )}
+      >
+        Layouts-{count}
+      </span>
     );
 });
 
 export const ScaledSlidePreview = memo(function ScaledSlidePreview({
     children,
-    id,
-    index,
     isOutline = false,
 }: {
     children: React.ReactNode;
-    id: string;
     index: number;
     isOutline?: boolean;
 }) {
@@ -45,7 +62,6 @@ export const ScaledSlidePreview = memo(function ScaledSlidePreview({
     const SLIDE_NATIVE_HEIGHT = 720;
     return (
         <div
-            key={`${id}-preview-${index}`}
             className="relative"
             style={{ height: `${SLIDE_HEIGHT}px`, overflow: "hidden" }}
         >
@@ -60,66 +76,6 @@ export const ScaledSlidePreview = memo(function ScaledSlidePreview({
             >
                 {children}
             </div>
-        </div>
-    );
-});
-
-export const InbuiltTemplatePreview = memo(function InbuiltTemplatePreview({
-    layouts,
-    templateId,
-    isOutline = false,
-}: {
-    layouts: TemplateWithData[];
-    templateId: string;
-    isOutline?: boolean;
-}) {
-    const previewLayouts = useMemo(() => layouts.slice(0, 2), [layouts]);
-    return (
-        <div className="relative z-10 flex flex-col gap-3 overflow-hidden">
-            {previewLayouts.map((layout, index) => {
-                const LayoutComponent = layout.component;
-                return (
-                    <ScaledSlidePreview key={`${templateId}-preview-${index}`} id={templateId} index={index} isOutline={isOutline}>
-                        <LayoutComponent data={layout.sampleData} />
-                    </ScaledSlidePreview>
-                );
-            })}
-        </div>
-    );
-});
-
-export const CustomTemplatePreview = memo(function CustomTemplatePreview({
-    previewLayouts,
-    loading,
-    templateId,
-    isOutline = false,
-}: {
-    previewLayouts: CompiledLayout[];
-    loading: boolean;
-    templateId: string;
-    isOutline?: boolean;
-}) {
-    return (
-        <div className="relative z-10 flex flex-col gap-3">
-            {loading ? (
-                [...Array(2)].map((_, index) => (
-                    <div
-                        key={`${templateId}-loading-${index}`}
-                        className="relative w-full aspect-video flex items-center justify-center"
-                    >
-                        <Loader2 className="h-4 w-4 animate-spin text-slate-300" />
-                    </div>
-                ))
-            ) : (
-                previewLayouts.slice(0, 2).map((layout, index) => {
-                    const LayoutComponent = layout.component;
-                    return (
-                        <ScaledSlidePreview key={`${templateId}-preview-${index}`} id={templateId} index={index} isOutline={isOutline}>
-                            <LayoutComponent data={layout.sampleData} />
-                        </ScaledSlidePreview>
-                    );
-                })
-            )}
         </div>
     );
 });

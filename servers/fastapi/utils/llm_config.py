@@ -78,6 +78,10 @@ from utils.set_env import (
 )
 
 
+CHATGPT_AUTH_REQUIRED_HEADERS = {"X-Presenton-Auth-Action": "codex-reauth"}
+CHATGPT_AUTH_REQUIRED_PREFIX = "CHATGPT_AUTH_REQUIRED:"
+
+
 def enable_web_grounding() -> bool:
     return parse_bool_or_none(get_web_grounding_env()) or False
 
@@ -90,11 +94,12 @@ def _get_codex_access_token() -> str:
     access_token = get_codex_access_token_env()
     if not access_token:
         raise HTTPException(
-            status_code=400,
+            status_code=401,
             detail=(
-                "Codex OAuth access token is not set. Please authenticate via "
-                "/api/v1/ppt/codex/auth/initiate"
+                f"{CHATGPT_AUTH_REQUIRED_PREFIX} ChatGPT authentication is required. "
+                "Please sign in again from Settings."
             ),
+            headers=CHATGPT_AUTH_REQUIRED_HEADERS,
         )
 
     expires_str = get_codex_token_expires_env()
@@ -104,22 +109,42 @@ def _get_codex_access_token() -> str:
             now_ms = int(time.time() * 1000)
             if now_ms >= expires_ms - 60_000:
                 refresh_token = get_codex_refresh_token_env()
-                if refresh_token:
-                    from utils.oauth.openai_codex import (
-                        TokenSuccess,
-                        get_account_id,
-                        refresh_access_token,
+                if not refresh_token:
+                    raise HTTPException(
+                        status_code=401,
+                        detail=(
+                            f"{CHATGPT_AUTH_REQUIRED_PREFIX} Your ChatGPT session expired. "
+                            "Please sign in again from Settings."
+                        ),
+                        headers=CHATGPT_AUTH_REQUIRED_HEADERS,
                     )
 
-                    result = refresh_access_token(refresh_token)
-                    if isinstance(result, TokenSuccess):
-                        set_codex_access_token_env(result.access)
-                        set_codex_refresh_token_env(result.refresh)
-                        set_codex_token_expires_env(str(result.expires))
-                        account_id = get_account_id(result.access)
-                        if account_id:
-                            set_codex_account_id_env(account_id)
-                        access_token = result.access
+                from utils.oauth.openai_codex import (
+                    TokenSuccess,
+                    get_account_id,
+                    refresh_access_token,
+                )
+                from utils.user_config import save_codex_tokens_to_user_config
+
+                result = refresh_access_token(refresh_token)
+                if not isinstance(result, TokenSuccess):
+                    raise HTTPException(
+                        status_code=401,
+                        detail=(
+                            f"{CHATGPT_AUTH_REQUIRED_PREFIX} Your ChatGPT session expired. "
+                            "Please sign in again from Settings."
+                        ),
+                        headers=CHATGPT_AUTH_REQUIRED_HEADERS,
+                    )
+
+                set_codex_access_token_env(result.access)
+                set_codex_refresh_token_env(result.refresh)
+                set_codex_token_expires_env(str(result.expires))
+                account_id = get_account_id(result.access)
+                if account_id:
+                    set_codex_account_id_env(account_id)
+                save_codex_tokens_to_user_config()
+                access_token = result.access
         except (TypeError, ValueError):
             pass
 

@@ -5,6 +5,11 @@ import { setOutlines } from "@/store/slices/presentationGeneration";
 import { jsonrepair } from "jsonrepair";
 import { RootState } from "@/store/store";
 import { getApiUrl } from "@/utils/api";
+import { limitOutlines } from "@/utils/presentationLimits";
+import {
+  isChatGptAuthRequiredMessage,
+  requestChatGptReauth,
+} from "@/utils/chatgptAuth";
 
 const MAX_STREAM_RETRIES = 3;
 const STREAM_RETRY_DELAY_MS = 1_000;
@@ -133,7 +138,7 @@ export const useOutlineStreaming = (
 
               if (partialData.slides) {
                 const nextSlides: { content: string }[] =
-                  partialData.slides || [];
+                  limitOutlines(partialData.slides || []);
                 try {
                   const prev = prevSlidesRef.current || [];
                   let changedIndex: number | null = null;
@@ -171,7 +176,7 @@ export const useOutlineStreaming = (
           case "complete":
             try {
               const outlinesData: { content: string }[] =
-                data.presentation.outlines.slides;
+                limitOutlines(data.presentation.outlines.slides);
               dispatch(setOutlines(outlinesData));
               setIsStreaming(false);
               setIsLoading(false);
@@ -203,6 +208,15 @@ export const useOutlineStreaming = (
             break;
 
           case "error":
+            if (isChatGptAuthRequiredMessage(data.detail)) {
+              resetStreamingState();
+              closeEventSource();
+              requestChatGptReauth({
+                message: data.detail,
+                source: "outline-stream",
+              });
+              break;
+            }
             if (!scheduleRetry(data.detail || "server returned stream error")) {
               resetStreamingState();
               closeEventSource();

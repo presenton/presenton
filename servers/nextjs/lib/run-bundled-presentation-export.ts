@@ -184,7 +184,7 @@ async function runBundledPresentationExportLocked(params: {
 
   const nextjsUrl =
     process.env.NEXT_PUBLIC_URL?.trim() || "http://127.0.0.1";
-  const q = new URLSearchParams({ id: presentationId });
+  const q = new URLSearchParams({ id: presentationId, format });
   const sessionToken = extractSessionTokenFromCookieHeader(cookieHeader);
   if (sessionToken) {
     q.set("exportSession", sessionToken);

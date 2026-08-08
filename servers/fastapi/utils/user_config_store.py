@@ -22,6 +22,21 @@ def _lock_path(config_path: str) -> str:
     return f"{config_path}.lock"
 
 
+def _harden_existing_config_permissions(config_path: str) -> None:
+    for file_path in (config_path, _backup_path(config_path)):
+        try:
+            os.chmod(file_path, 0o600)
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            # Permission hardening must never make a readable credential file
+            # appear empty to callers and trigger destructive re-initialization.
+            print(
+                f"[Presenton] Failed to secure "
+                f"{os.path.basename(file_path)} permissions: {error}"
+            )
+
+
 def _is_retryable_os_error(error: BaseException) -> bool:
     return isinstance(error, OSError) and error.errno in {
         errno.EACCES,
@@ -149,6 +164,8 @@ def _copy_backup_if_possible(config_path: str, primary_valid: bool) -> None:
                 "initialize user config backup",
                 lambda: shutil.copy2(config_path, config_backup_path),
             )
+        if os.path.exists(config_backup_path):
+            os.chmod(config_backup_path, 0o600)
     except Exception as error:
         print(f"[Presenton] Failed to update user config backup: {error}")
 
@@ -162,11 +179,17 @@ def _write_atomic_json(config_path: str, config: dict, primary_valid: bool) -> N
         f"{uuid.uuid4().hex}.tmp"
     )
     try:
-        with open(temp_path, "w", encoding="utf-8") as file:
+        descriptor = os.open(
+            temp_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        with os.fdopen(descriptor, "w", encoding="utf-8") as file:
             json.dump(config, file, separators=(",", ":"))
             file.flush()
             os.fsync(file.fileno())
         _retry("replace user config", lambda: os.replace(temp_path, config_path))
+        os.chmod(config_path, 0o600)
         _copy_backup_if_possible(config_path, False)
     except Exception:
         try:
@@ -179,6 +202,7 @@ def _write_atomic_json(config_path: str, config: dict, primary_valid: bool) -> N
 def read_user_config_file(config_path: str) -> dict:
     try:
         _ensure_parent_directory(config_path)
+        _harden_existing_config_permissions(config_path)
         config, _ = _read_snapshot(config_path)
         return dict(config)
     except Exception:

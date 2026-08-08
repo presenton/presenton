@@ -17,7 +17,7 @@ function cpDir(src, dest) {
   fs.cpSync(src, dest, { recursive: true });
 }
 
-console.log("Running Next.js production build (BUILD_TARGET=electron)…");
+console.log("Running shared Next.js production build for Electron…");
 
 rm(outDir);
 rm(nextBuildDir);
@@ -25,7 +25,7 @@ rm(nextBuildDir);
 const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
 const build = spawnSync(npmCmd, ["run", "build"], {
   cwd: nextjsDir,
-  env: { ...process.env, BUILD_TARGET: "electron" },
+  env: process.env,
   stdio: "inherit",
   // Windows: cmd is required to run npm.cmd; without shell, spawnSync can throw EINVAL.
   shell: process.platform === "win32",

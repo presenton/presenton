@@ -2,7 +2,28 @@ import os
 from typing import Optional
 from urllib.parse import urlparse, unquote
 
-from utils.get_env import get_app_data_directory_env, get_fastapi_public_base_url
+from utils.get_env import (
+    get_app_data_directory_env,
+    get_fastapi_public_base_url,
+    get_temp_directory_env,
+    is_disable_auth_enabled,
+)
+from utils.path_helpers import get_resource_path
+from api.v1.auth.assets import (
+    SHARED_APP_DATA_ROOTS,
+    is_app_data_path_authorized,
+    normalized_app_data_parts,
+)
+from api.v1.auth.context import get_current_owner_id, get_current_owner_is_admin
+
+
+def _owned_directory(root_name: str) -> str:
+    directory = os.path.join(get_app_data_directory_env(), root_name)
+    owner_id = get_current_owner_id()
+    if owner_id is not None:
+        directory = os.path.join(directory, "users", str(owner_id))
+    os.makedirs(directory, exist_ok=True)
+    return directory
 
 
 def absolute_fastapi_asset_url(path: str) -> str:
@@ -87,10 +108,9 @@ def resolve_app_path_to_filesystem(path_or_url: str) -> Optional[str]:
 
     Returns the filesystem path if the file exists, else None.
     """
-    if not path_or_url:
+    if not isinstance(path_or_url, str) or not path_or_url.strip():
         return None
-    # Extract path from HTTP URL if needed
-    path = path_or_url
+    path = path_or_url.strip()
     if path_or_url.startswith("http") or path_or_url.startswith("file:"):
         try:
             parsed = urlparse(path_or_url)
@@ -99,40 +119,77 @@ def resolve_app_path_to_filesystem(path_or_url: str) -> Optional[str]:
                 path = path[1:]
         except Exception:
             return None
-    # Handle /app_data/images/
-    if path.startswith("/app_data/images/"):
-        relative = path[len("/app_data/images/"):]
-        app_data = get_app_data_directory_env()
-        if app_data:
-            actual = os.path.join(app_data, "images", relative)
-            if os.path.isfile(actual):
-                return actual
-        # Fallback: get_images_directory() + relative
-        actual = os.path.join(get_images_directory(), relative)
-        return actual if os.path.isfile(actual) else None
-    # Handle /app_data/ (other subdirs)
+
     if path.startswith("/app_data/"):
-        relative = path[len("/app_data/"):]
         app_data = get_app_data_directory_env()
-        if app_data:
-            actual = os.path.join(app_data, relative)
-            return actual if os.path.isfile(actual) else None
-    # Handle absolute filesystem path (e.g. from HTTP URL path on Mac)
-    if path.startswith("/Users/") or path.startswith("/home/") or path.startswith("/var/"):
-        return path if os.path.isfile(path) else None
-    if "Application Support" in path or ("Library" in path and "images" in path):
-        return path if os.path.isfile(path) else None
-    # Handle /static/
+        if not app_data or not _app_data_url_allowed(path):
+            return None
+        relative = path[len("/app_data/"):]
+        return _existing_file_within(os.path.join(app_data, relative), app_data)
+
     if path.startswith("/static/"):
         relative = path[len("/static/"):]
-        actual = os.path.join("static", relative)
-        return actual if os.path.isfile(actual) else None
-    # Absolute path as-is
+        static_root = get_resource_path("static")
+        return _existing_file_within(os.path.join(static_root, relative), static_root)
+
     if os.path.isabs(path):
-        return path if os.path.isfile(path) else None
-    # Relative to images directory
-    actual = os.path.join(get_images_directory(), path)
-    return actual if os.path.isfile(actual) else None
+        return _resolve_allowed_absolute_file(path)
+
+    return _existing_file_within(
+        os.path.join(get_images_directory(), path),
+        get_images_directory(),
+    )
+
+
+def _existing_file_within(candidate: str, root: str) -> Optional[str]:
+    try:
+        resolved_candidate = os.path.realpath(candidate)
+        resolved_root = os.path.realpath(root)
+        if os.path.commonpath([resolved_candidate, resolved_root]) != resolved_root:
+            return None
+    except (OSError, ValueError):
+        return None
+    return resolved_candidate if os.path.isfile(resolved_candidate) else None
+
+
+def _app_data_url_allowed(path: str) -> bool:
+    owner_id = get_current_owner_id()
+    if owner_id is None:
+        parts = normalized_app_data_parts(path)
+        return bool(
+            parts
+            and (
+                is_disable_auth_enabled()
+                or parts[0] in SHARED_APP_DATA_ROOTS
+            )
+        )
+    return is_app_data_path_authorized(
+        path,
+        user_id=owner_id,
+        is_admin=get_current_owner_is_admin(),
+    )
+
+
+def _resolve_allowed_absolute_file(path: str) -> Optional[str]:
+    app_data = get_app_data_directory_env()
+    if app_data:
+        candidate = _existing_file_within(path, app_data)
+        if candidate:
+            relative = os.path.relpath(candidate, os.path.realpath(app_data))
+            app_url = "/app_data/" + relative.replace(os.sep, "/")
+            return candidate if _app_data_url_allowed(app_url) else None
+
+    temp_root = get_temp_directory_env() or "/tmp/presenton"
+    owner_id = get_current_owner_id()
+    allowed_temp_root = (
+        os.path.join(temp_root, str(owner_id)) if owner_id is not None else temp_root
+    )
+    candidate = _existing_file_within(path, allowed_temp_root)
+    if candidate:
+        return candidate
+
+    static_root = get_resource_path("static")
+    return _existing_file_within(path, static_root)
 
 
 def resolve_image_path_to_filesystem(path_or_url: str) -> Optional[str]:
@@ -140,17 +197,11 @@ def resolve_image_path_to_filesystem(path_or_url: str) -> Optional[str]:
 
 
 def get_images_directory():
-    images_directory = os.path.join(get_app_data_directory_env(), "images")
-    os.makedirs(images_directory, exist_ok=True)
-    return images_directory
+    return _owned_directory("images")
 
 
 def get_exports_directory():
-    export_directory = os.path.join(get_app_data_directory_env(), "exports")
-    os.makedirs(export_directory, exist_ok=True)
-    return export_directory
+    return _owned_directory("exports")
 
 def get_uploads_directory():
-    uploads_directory = os.path.join(get_app_data_directory_env(), "uploads")
-    os.makedirs(uploads_directory, exist_ok=True)
-    return uploads_directory
+    return _owned_directory("uploads")

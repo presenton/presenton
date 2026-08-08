@@ -6,11 +6,11 @@ import aiohttp
 from fastapi import HTTPException
 from sqlalchemy import select
 
+from api.v1.auth.internal import authenticated_internal_request_headers
 from models.sql.presentation_layout_code import PresentationLayoutCodeModel
 from models.sql.template import TemplateModel
 from services.database import async_session_maker
 from templates.presentation_layout import PresentationLayoutModel
-from utils.internal_http import internal_request_headers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -94,13 +94,14 @@ async def _compile_custom_layouts_on_nextjs(
             for layout in layouts_db
         ],
     }
-
-    headers = internal_request_headers()
+    headers = await authenticated_internal_request_headers()
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                _CUSTOM_COMPILE_URL, json=body, headers=headers
+                _CUSTOM_COMPILE_URL,
+                json=body,
+                headers=headers,
             ) as response:
                 if response.status == 200:
                     payload = await response.json()

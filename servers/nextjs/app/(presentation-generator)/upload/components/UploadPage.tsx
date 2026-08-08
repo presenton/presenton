@@ -30,6 +30,10 @@ import { RootState } from "@/store/store";
 import { ImagesApi } from "../../services/api/images";
 import CurrentConfig from "./CurrentConfig";
 import { LLMConfig } from "@/types/llm_config";
+import {
+  clampSlideCountValue,
+  parseLimitedSlideCount,
+} from "@/utils/presentationLimits";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 const FILE_TYPE_WORD = new Set([".doc", ".docx", ".docm", ".odt", ".rtf"]);
@@ -113,6 +117,21 @@ const getSelectedImageQuality = (config?: LLMConfig): string => {
   return "";
 };
 
+const getDocumentPaths = (files: unknown): string[] => {
+  if (!Array.isArray(files)) {
+    return [];
+  }
+
+  return files
+    .flat()
+    .map((file) =>
+      file && typeof file === "object" && "file_path" in file
+        ? (file as { file_path?: unknown }).file_path
+        : null
+    )
+    .filter((filePath): filePath is string => typeof filePath === "string");
+};
+
 const UploadPage = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -154,8 +173,7 @@ const UploadPage = () => {
     const trimmedInstructions = (config.instructions || "").trim();
     const attachmentCategories = Array.from(new Set(files.map(getFileCategory))).sort();
     const imageGenerationEnabled = !llmConfig?.DISABLE_IMAGE_GENERATION;
-    const parsedSlides =
-      config.slides && /^\d+$/.test(config.slides) ? Number(config.slides) : null;
+    const parsedSlides = parseLimitedSlideCount(config.slides);
 
     return {
       pathname,
@@ -192,7 +210,11 @@ const UploadPage = () => {
   };
 
   const handleConfigChange = (key: keyof PresentationConfig, value: unknown) => {
-    setConfig((prev) => ({ ...prev, [key]: value } as PresentationConfig));
+    const nextValue =
+      key === "slides" && typeof value === "string"
+        ? clampSlideCountValue(value)
+        : value;
+    setConfig((prev) => ({ ...prev, [key]: nextValue } as PresentationConfig));
   };
 
   const ensureStockImageProviderReady = async (): Promise<boolean> => {
@@ -310,19 +332,52 @@ const UploadPage = () => {
       );
     }
     const responses = await Promise.all(promises);
+    const documentPaths = getDocumentPaths(responses);
+
+    setLoadingState({
+      isLoading: true,
+      message: "Generating presentation outline...",
+      showProgress: true,
+      duration: 40,
+      extra_info: "",
+    });
+
+    const createResponse = await PresentationGenerationApi.createPresentation({
+      content: config?.prompt ?? "",
+      version: "v2-standard",
+      n_slides: parseLimitedSlideCount(config?.slides),
+      file_paths: documentPaths,
+      language: selectedLanguage,
+      tone: config?.tone,
+      verbosity: config?.verbosity,
+      instructions: config?.instructions || null,
+      include_table_of_contents: !!config?.includeTableOfContents,
+      include_title_slide: !!config?.includeTitleSlide,
+      web_search: !!config?.webSearch,
+    });
+
     dispatch(setPptGenUploadState({
       config,
       files: responses,
     }));
-    dispatch(clearOutlines())
+    dispatch(clearOutlines());
+    dispatch(setPresentationId(createResponse.id));
     trackEvent(MixpanelEvent.Upload_Documents_Processed, {
       ...getUploadSnapshotProps(),
       uploaded_documents_count: documents.length,
       decompose_job_count: responses.length,
-      destination: "/documents-preview",
+      extracted_document_count: documentPaths.length,
+      destination: "/outline",
     });
-    trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/documents-preview" });
-    router.push("/documents-preview");
+    trackEvent(MixpanelEvent.Upload_Outline_Generation_Requested, {
+      ...getUploadSnapshotProps(),
+      presentation_id: createResponse.id,
+      uploaded_documents_count: documents.length,
+      extracted_document_count: documentPaths.length,
+      destination: "/outline",
+    });
+    trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
+    router.push("/outline");
   };
 
   /**
@@ -341,7 +396,8 @@ const UploadPage = () => {
     // Start the outline job; template selection happens on the outline page.
     const createResponse = await PresentationGenerationApi.createPresentation({
       content: config?.prompt ?? "",
-      n_slides: config?.slides ? parseInt(config.slides, 10) : null,
+
+      n_slides: parseLimitedSlideCount(config?.slides),
       file_paths: [],
       language: selectedLanguage,
       tone: config?.tone,
@@ -385,7 +441,7 @@ const UploadPage = () => {
   };
 
   return (
-    <Wrapper className="pb-10 lg:max-w-[65%] xl:max-w-[60%]">
+    <Wrapper className="pb-10 lg:max-w-[65%] xl:max-w-[60%] min-[1800px]:max-w-[1180px] min-[2200px]:max-w-[1520px]">
       <OverlayLoader
         show={loadingState.isLoading}
         text={loadingState.message}
@@ -394,7 +450,7 @@ const UploadPage = () => {
         extra_info={loadingState.extra_info}
       />
       <div className="rounded-2xl " >
-        <div className="flex flex-col gap-4 md:items-center md:flex-row justify-between px-4 ">
+        <div className="flex flex-col gap-4 px-4 md:flex-row md:items-center md:justify-between min-[1800px]:gap-5 min-[1800px]:px-5 min-[2200px]:gap-6 min-[2200px]:px-6">
           <CurrentConfig webSearchEnabled={config.webSearch} />
           <ConfigurationSelects
             config={config}
@@ -402,7 +458,7 @@ const UploadPage = () => {
           />
         </div>
 
-        <div className="p-4 ">
+        <div className="p-4 min-[1800px]:p-5 min-[2200px]:p-6">
 
           <div className="relative">
             <PromptInput
@@ -412,24 +468,24 @@ const UploadPage = () => {
             />
           </div>
         </div>
-        <div className="p-4 ">
-          <h3 className="text-sm font-medium text-[#333333] mb-2">Attachments (optional)</h3>
+        <div className="p-4 min-[1800px]:p-5 min-[2200px]:p-6">
+          <h3 className="mb-2 text-sm font-medium text-[#333333] min-[1800px]:text-base min-[2200px]:text-lg">Attachments (optional)</h3>
           <SupportingDoc
             files={[...files]}
             onFilesChange={setFiles}
           />
         </div>
 
-        <div className="p-4">
+        <div className="p-4 min-[1800px]:p-5 min-[2200px]:p-6">
           <Button
             onClick={handleGeneratePresentation}
             style={{
               background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)"
             }}
-            className="w-fit mr-0 ml-auto rounded-[28px] flex items-center justify-center py-5 px-4  text-[#101323] font-syne font-semibold text-xs  "
+            className="ml-auto mr-0 flex w-fit items-center justify-center rounded-[28px] px-4 py-5 font-syne text-xs font-semibold text-[#101323] min-[1800px]:px-5 min-[1800px]:py-5 min-[1800px]:text-sm min-[2200px]:px-6 min-[2200px]:py-6 min-[2200px]:text-base"
           >
             <span>Get Started</span>
-            <ChevronRight className="!w-5 !h-5 " />
+            <ChevronRight className="!h-5 !w-5 min-[1800px]:!h-6 min-[1800px]:!w-6" />
           </Button>
         </div>
       </div>

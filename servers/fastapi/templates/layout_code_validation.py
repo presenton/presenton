@@ -6,6 +6,8 @@ from typing import Any
 import aiohttp
 from pydantic import BaseModel
 
+from api.v1.auth.internal import authenticated_internal_request_headers
+
 
 class ValidatedLayoutCode(BaseModel):
     layout_code: str
@@ -88,6 +90,10 @@ def _coerce_validation_error(payload: Any, fallback: str) -> LayoutCodeValidatio
 async def validate_layout_code(layout_code: str) -> ValidatedLayoutCode:
     last_service_error: str | None = None
     timeout = aiohttp.ClientTimeout(total=20)
+    headers = {
+        "Content-Type": "application/json",
+        **await authenticated_internal_request_headers(),
+    }
 
     for url in _validation_url_candidates():
         try:
@@ -95,7 +101,7 @@ async def validate_layout_code(layout_code: str) -> ValidatedLayoutCode:
                 async with session.post(
                     url,
                     json={"layout_code": layout_code},
-                    headers={"Content-Type": "application/json"},
+                    headers=headers,
                 ) as response:
                     payload = await response.json(content_type=None)
 

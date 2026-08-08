@@ -47,7 +47,8 @@ const Loading = () => {
         <h2 className="pb-3.5 font-syne text-base font-medium text-[#333333]">
           Actions
         </h2>
-        <div className="animate-pulse">
+        <div className="flex flex-wrap gap-4 animate-pulse">
+          <ActionShimmer />
           <ActionShimmer />
         </div>
       </section>

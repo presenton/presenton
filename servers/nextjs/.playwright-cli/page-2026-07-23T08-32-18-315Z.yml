@@ -1,0 +1,89 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - link:
+            - /url: /dashboard
+          - navigation:
+            - generic:
+              - link:
+                - /url: /dashboard
+                - generic: Dashboard
+              - link:
+                - /url: /templates
+                - generic: Templates
+        - generic:
+          - link:
+            - /url: https://docs.presenton.ai/help
+            - generic: Help
+      - generic:
+        - generic:
+          - main:
+            - generic:
+              - paragraph: "FILTER BY:"
+              - generic:
+                - paragraph: Select Provider
+                - generic:
+                  - button:
+                    - paragraph: Text Provider
+                  - button:
+                    - paragraph: Image Provider
+                  - button:
+                    - paragraph: Web Search Provider
+              - generic:
+                - paragraph: Other
+                - generic:
+                  - button:
+                    - paragraph: Usage Analytics
+                  - button:
+                    - paragraph: Admin
+                  - button:
+                    - paragraph: Sign out
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=3]: Settings
+                  - paragraph: OpenAI (gpt-4o-mini) · Image generation disabled · Web search disabled
+              - main:
+                - generic:
+                  - paragraph: Instance administration
+                  - heading [level=1]: Admin
+                  - paragraph: Manage login accounts and admin-owned API/MCP access keys. User workspaces remain private.
+                  - generic:
+                    - tablist:
+                      - tab: Users
+                      - tab [selected]: API keys
+                    - tabpanel:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - heading [level=2]: API and MCP keys
+                              - paragraph: Keys are hidden by default. Generate as many as you need.
+                          - button: Generate key
+                        - generic:
+                          - generic:
+                            - generic:
+                              - code: ••••••••••••••••ccd7
+                              - paragraph: Created 7/23/2026
+                            - button
+                            - button
+                            - button
+                          - generic:
+                            - generic:
+                              - code: ••••••••••••••••10c7
+                              - paragraph: Created 7/23/2026
+                            - button
+                            - button
+                            - button
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f12e121] [cursor=pointer]
+  - alert
+  - dialog [ref=f12e303]:
+    - generic [ref=f12e304]:
+      - heading "Revoke API key?" [level=2] [ref=f12e308]
+      - paragraph [ref=f12e309]: Any application using this key will lose API and MCP access immediately. This action cannot be undone.
+    - generic [ref=f12e310]:
+      - button "Cancel" [active] [ref=f12e311] [cursor=pointer]
+      - button "Revoke key" [ref=f12e312] [cursor=pointer]

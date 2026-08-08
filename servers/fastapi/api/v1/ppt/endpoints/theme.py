@@ -11,9 +11,15 @@ from models.sql.image_asset import ImageAsset
 from models.sql.key_value import KeyValueSqlModel
 from services.database import get_async_session
 from utils.asset_directory_utils import normalize_slide_asset_url
+from api.v1.auth.context import get_current_owner_id
 
 THEMES_ROUTER = APIRouter(prefix="/themes", tags=["Themes"])
 THEMES_STORAGE_KEY = "presentation_custom_themes"
+
+
+def _themes_storage_key() -> str:
+    owner_id = get_current_owner_id()
+    return f"{THEMES_STORAGE_KEY}:{owner_id}" if owner_id else THEMES_STORAGE_KEY
 
 
 class ThemeRequest(BaseModel):
@@ -68,7 +74,9 @@ def _normalize_theme(theme: dict[str, Any]) -> ThemeResponse:
 
 async def _get_themes_row(sql_session: AsyncSession) -> Optional[KeyValueSqlModel]:
     return await sql_session.scalar(
-        select(KeyValueSqlModel).where(KeyValueSqlModel.key == THEMES_STORAGE_KEY)
+        select(KeyValueSqlModel).where(
+            KeyValueSqlModel.key == _themes_storage_key()
+        )
     )
 
 
@@ -135,7 +143,7 @@ async def create_theme(
         row.value = {"themes": themes}
         sql_session.add(row)
     else:
-        sql_session.add(KeyValueSqlModel(key=THEMES_STORAGE_KEY, value={"themes": themes}))
+        sql_session.add(KeyValueSqlModel(key=_themes_storage_key(), value={"themes": themes}))
 
     await sql_session.commit()
     return _normalize_theme(theme)

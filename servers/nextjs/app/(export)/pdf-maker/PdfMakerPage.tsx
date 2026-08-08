@@ -15,7 +15,12 @@ import { ApiResponseHandler } from "@/app/(presentation-generator)/services/api/
 import { useFontLoader } from "@/app/(presentation-generator)/hooks/useFontLoad";
 import { Theme } from "@/app/(presentation-generator)/services/api/types";
 import SlideScale from "@/app/(presentation-generator)/components/PresentationRender";
+import {
+  shouldRenderTemplateV2HtmlPreview,
+  TemplateV2HtmlSlidePreview,
+} from "@/app/(presentation-generator)/components/TemplateV2HtmlSlidePreview";
 import { normalizeBackendAssetUrls } from "@/utils/api";
+import { ensureTailwindBrowserScript } from "@/lib/tailwind-browser";
 
 const PDF_PRINT_STYLE = `
   html,
@@ -112,15 +117,7 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
 
   useEffect(() => {
     if (presentationData?.slides?.[0]?.layout?.includes("custom")) {
-      const existingScript = document.querySelector(
-        'script[src*="tailwindcss.com"]'
-      );
-      if (!existingScript) {
-        const script = document.createElement("script");
-        script.src = "https://cdn.tailwindcss.com";
-        script.async = true;
-        document.head.appendChild(script);
-      }
+      ensureTailwindBrowserScript();
     }
   }, [presentationData]);
   useEffect(() => {
@@ -260,27 +257,43 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
               </div>
             ) : (
               <div className="slides-export-stack font-inter">
-                {slides.map((slide: any, index: number) => (
-                  <div
-                    key={`${slide.type}-${index}-${slide.index}`}
-                    id={`slide-${slide.index}`}
-                    className="main-slide relative flex items-center justify-center"
-                    data-speaker-note={slide.speaker_note ?? ""}
-                  >
+                {slides.map((slide: any, index: number) => {
+                  const useTemplateV2HtmlPreview =
+                    shouldRenderTemplateV2HtmlPreview(
+                      slide,
+                      presentationData?.version
+                    );
+
+                  return (
                     <div
-                      className="slide-export-inner group font-syne"
-                      data-layout={slide.layout}
-                      data-group={slide.layout_group}
+                      key={`${slide.type}-${index}-${slide.index}`}
+                      id={`slide-${slide.index}`}
+                      className="main-slide relative flex items-center justify-center"
+                      data-speaker-note={slide.speaker_note ?? ""}
                     >
-                      <SlideScale
-                        slide={slide}
-                        theme={presentationData?.theme ?? null}
-                        isEditMode={false}
-                        fixedSize
-                      />
+                      <div
+                        className="slide-export-inner group font-syne"
+                        data-layout={slide.layout}
+                        data-group={slide.layout_group}
+                      >
+                        {useTemplateV2HtmlPreview ? (
+                          <TemplateV2HtmlSlidePreview
+                            slide={slide}
+                            fonts={presentationData?.fonts}
+                            fixedSize
+                          />
+                        ) : (
+                          <SlideScale
+                            slide={slide}
+                            theme={presentationData?.theme ?? null}
+                            isEditMode={false}
+                            fixedSize
+                          />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

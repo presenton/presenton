@@ -9,6 +9,7 @@ interface StockSearchOptions {
   strictApiKey?: boolean;
 }
 
+const REDACTED_SECRET_PLACEHOLDER = "__configured__";
 
 export class ImagesApi {
  
@@ -30,12 +31,36 @@ export class ImagesApi {
 
   static async getUploadedImages(): Promise<ImageAssetResponse[]> {
     try {
-    const response = await fetch(getApiUrl(`/api/v1/ppt/images/uploaded`));
+    const response = await fetch(getApiUrl(`/api/v1/ppt/images/uploaded`), {
+      cache: "no-cache",
+    });
    return await ApiResponseHandler.handleResponse(response, "Failed to get uploaded images") as ImageAssetResponse[];
   } catch (error:any) {
     console.log("Get uploaded images error:", error);
     throw error;
   }
+  }
+
+  static async getGeneratedImages(): Promise<ImageAssetResponse[]> {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/images/generated`), {
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(
+      response,
+      "Failed to get generated images",
+    ) as ImageAssetResponse[];
+  }
+
+  static async generateImage(prompt: string): Promise<string> {
+    const params = new URLSearchParams({ prompt });
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/images/generate?${params.toString()}`),
+      { cache: "no-cache" },
+    );
+    return await ApiResponseHandler.handleResponse(
+      response,
+      "Failed to generate image",
+    ) as string;
   }
 
   static async deleteImage(image_id: string): Promise<{success: boolean, message?: string}> {
@@ -70,7 +95,7 @@ export class ImagesApi {
 
       const headers: Record<string, string> = {};
       const trimmedApiKey = (options.apiKey || "").trim();
-      if (trimmedApiKey) {
+      if (trimmedApiKey && trimmedApiKey !== REDACTED_SECRET_PLACEHOLDER) {
         headers["X-Provider-Api-Key"] = trimmedApiKey;
       }
 
@@ -85,5 +110,3 @@ export class ImagesApi {
     }
   }
 }
-
-

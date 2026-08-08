@@ -6,7 +6,7 @@ from models.presentation_layout import PresentationLayoutModel
 from models.presentation_outline_model import PresentationOutlineModel
 from utils.llm_config import get_llm_config
 from utils.llm_client_error_handler import handle_llm_client_exceptions
-from utils.llm_utils import generate_structured_with_schema_retries
+from utils.llm_utils import DisconnectChecker, generate_structured_with_schema_retries
 from utils.llm_provider import get_model
 from utils.get_dynamic_models import get_presentation_structure_model_with_n_slides
 from utils.schema_utils import prepare_schema_for_validation
@@ -31,7 +31,7 @@ You need to select a layout for each slide based on the mentioned guidelines.
 
 # Selection Rules
 - If content contains table, then select either table layout or graph layout.
-- Don't select layout with image unless content contains image.
+- Don't select layout with image unless content contains image or the user explicitly requests imagery.
 - Don't select table layout if content does not contain table.
 - You are allowed to select same layout for multiple slides.
 
@@ -47,7 +47,13 @@ You need to select a layout for each slide based on the mentioned guidelines.
 - Don't select metrics layout for content containing table with numeric data.
 - For example, if content contains table with 3 columns, then select a layout that supports 2 charts.
 
-{user_instructions}
+{user_intent}
+
+# User Intent Rules
+- Extract visual constraints from User Instructions and Original User Request; User Instructions win conflicts.
+- The supplied slide count is authoritative. Slide numbers are one-based; "all" means every slide.
+- Prefer exact chart types and image placements, reusing layouts if needed.
+- Treat a numeric table on a chart-requested slide as chart data, not a request for a table-only layout.
 
 # Output Rules: 
 - One layout index for each slide.
@@ -88,7 +94,11 @@ You're a professional presentation designer with creative freedom to design enga
 
 {user_instruction_header}
 
-User instruction should be taken into account while creating the presentation structure, except for number of slides.
+Extract visual constraints from User Instructions and Original User Request; User
+Instructions win conflicts. The supplied slide count is authoritative. Slide numbers are
+one-based, and "all" or "every" includes the title slide. Prefer exact chart types and
+image placements over variety, reusing layouts if needed. A numeric table on a
+chart-requested slide is chart data, not a request for a table-only layout.
 
 Select layout index for each of the {n_slides} slides based on what will best serve the presentation's goals.
 
@@ -100,9 +110,15 @@ def get_messages(
     n_slides: int,
     data: str,
     instructions: Optional[str] = None,
+    source_content: Optional[str] = None,
 ) -> list[Message]:
+    intent_sections = []
+    if instructions:
+        intent_sections.append(f"# User Instructions:\n{instructions}")
+    if source_content:
+        intent_sections.append(f"# Original User Request:\n{source_content}")
     system_prompt = GET_MESSAGES_SYSTEM_PROMPT.format(
-        user_instruction_header=f"# User Instruction: {instructions or ''}" if instructions else "",
+        user_instruction_header="\n\n".join(intent_sections),
         n_slides=n_slides,
     )
 
@@ -123,9 +139,15 @@ def get_messages_for_slides_markdown(
     n_slides: int,
     data: str,
     instructions: Optional[str] = None,
+    source_content: Optional[str] = None,
 ) -> list[Message]:
+    intent_sections = []
+    if instructions:
+        intent_sections.append(f"# User Instructions:\n{instructions}")
+    if source_content:
+        intent_sections.append(f"# Original User Request:\n{source_content}")
     system_prompt = STRUCTURE_FROM_SLIDES_MARKDOWN_SYSTEM_PROMPT.format(
-        user_instructions=instructions or "",
+        user_intent="\n\n".join(intent_sections),
         presentation_layout=presentation_layout.to_string(with_schema=True),
     )
 
@@ -137,6 +159,8 @@ async def generate_presentation_structure(
     presentation_layout: PresentationLayoutModel,
     instructions: Optional[str] = None,
     using_slides_markdown: bool = False,
+    source_content: Optional[str] = None,
+    disconnect_checker: Optional[DisconnectChecker] = None,
 ) -> PresentationStructureModel:
     client = get_client(config=get_llm_config())
     model = get_model()
@@ -151,6 +175,7 @@ async def generate_presentation_structure(
                 len(presentation_outline.slides),
                 presentation_outline.to_string(),
                 instructions,
+                source_content,
             )
             if using_slides_markdown
             else get_messages(
@@ -158,16 +183,17 @@ async def generate_presentation_structure(
                 len(presentation_outline.slides),
                 presentation_outline.to_string(),
                 instructions,
+                source_content,
             )
         )
         structure_schema = prepare_schema_for_validation(
             response_model.model_json_schema(),
-            strict=True,
+            strict=False,
         )
         response_format = JSONSchemaResponse(
             name="response",
             json_schema=structure_schema,
-            strict=True,
+            strict=False,
         )
 
         content = await generate_structured_with_schema_retries(
@@ -176,8 +202,9 @@ async def generate_presentation_structure(
             messages=messages,
             response_format=response_format,
             json_schema=structure_schema,
-            strict=True,
+            strict=False,
             validate_schema=True,
+            disconnect_checker=disconnect_checker,
         )
         return PresentationStructureModel(**content)
     except Exception as e:

@@ -25,7 +25,11 @@ export async function GET(request: Request) {
 
   try {
     if (group.startsWith("custom-")) {
-      const customPayload = await buildCustomTemplateLayoutPayloadFromApi(group);
+      const cookie = request.headers.get("cookie") || "";
+      const customPayload = await buildCustomTemplateLayoutPayloadFromApi(
+        group,
+        cookie ? { cookie } : {},
+      );
       if (!customPayload) {
         return NextResponse.json(
           { error: `Unknown template group: ${group}` },

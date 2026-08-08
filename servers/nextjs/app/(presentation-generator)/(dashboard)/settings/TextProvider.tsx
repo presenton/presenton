@@ -158,6 +158,17 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
   const currentTogetherUrl = (llmConfig.TOGETHER_BASE_URL || "").trim();
   const currentOllamaUrl = llmConfig.OLLAMA_URL || "";
   const modelLabel = selectedProviderMeta?.label || selectedProvider;
+  const modelOptions = useMemo(() => {
+    if (!currentModel) return availableModels;
+
+    return [
+      {
+        value: currentModel,
+        label: currentModel,
+      },
+      ...availableModels.filter((model) => model.value !== currentModel),
+    ];
+  }, [availableModels, currentModel]);
   const providerApiKeyLabel =
     selectedProvider === "custom"
       ? "Custom LLM API Key"
@@ -199,9 +210,6 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
 
     setAvailableModels([]);
     setModelsChecked(false);
-    if (currentModelField) {
-      onInputChange("", currentModelField);
-    }
   }, [
     selectedProvider,
     currentApiKey,
@@ -252,6 +260,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
   };
 
   const fetchAvailableModels = async () => {
+    if (modelsLoading) return;
     if (isManualModelProvider) return;
     if (selectedProvider === "openai" && !currentApiKey) return;
     if (selectedProvider === "deepseek" && !currentApiKey) return;
@@ -397,6 +406,13 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       }
     } finally {
       setModelsLoading(false);
+    }
+  };
+
+  const handleModelSelectOpenChange = (isOpen: boolean) => {
+    setOpenModelSelect(isOpen);
+    if (isOpen) {
+      fetchAvailableModels();
     }
   };
 
@@ -760,6 +776,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
               {!isManualModelProvider &&
                 selectedProvider !== "codex" &&
                 selectedProvider !== "ollama" &&
+                !currentModel &&
                 (!modelsChecked ||
                   availableModels.length === 0) && (
                   <button
@@ -799,8 +816,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
           {!isManualModelProvider &&
           selectedProvider !== "codex" &&
           selectedProvider !== "ollama" &&
-          modelsChecked &&
-          availableModels.length > 0 ? (
+          (currentModel || (modelsChecked && modelOptions.length > 0)) ? (
             <div className="w-[262px]">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -811,7 +827,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                 <div className="w-full">
                   <Popover
                     open={openModelSelect}
-                    onOpenChange={setOpenModelSelect}
+                    onOpenChange={handleModelSelectOpenChange}
                   >
                     <PopoverTrigger asChild>
                       <Button
@@ -823,7 +839,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                         <span className="text-sm truncate font-medium text-gray-900">
                           {(() => {
                             if (!currentModel) return "Select a model";
-                            const selectedModel = availableModels.find(
+                            const selectedModel = modelOptions.find(
                               (model) => model.value === currentModel
                             );
                             if (!selectedModel) return currentModel;
@@ -850,7 +866,13 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                         <CommandList>
                           <CommandEmpty>No model found.</CommandEmpty>
                           <CommandGroup>
-                            {availableModels.map((model) => (
+                            {modelsLoading ? (
+                              <div className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600">
+                                <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                                Fetching models...
+                              </div>
+                            ) : null}
+                            {modelOptions.map((model) => (
                               <CommandItem
                                 key={model.value}
                                 value={model.value}

@@ -57,11 +57,6 @@ export const HIGHLIGHTS_ITEMS = [
     },
 ]
 
-// External scripts
-export const TAILWIND_CDN_URL = "https://cdn.tailwindcss.com";
-
-
-
 export const FAQS = [
     {
         question: "What is Custom Template Creation?",

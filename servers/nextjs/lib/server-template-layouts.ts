@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 
 import { compileTemplateSchema } from "@/lib/compile-template-schema";
-import { getFastApiAuthHeaders, getFastApiBaseUrl } from "@/lib/fastapi-internal";
+import { getFastApiBaseUrl } from "@/lib/fastapi-internal";
 
 export type BuiltinLayoutSlide = {
   id: string;
@@ -28,7 +28,10 @@ function normalizeIconWeight(value: unknown): string {
   return ALLOWED_ICON_WEIGHTS.has(normalized) ? normalized : DEFAULT_ICON_WEIGHT;
 }
 
-function getIconWeightFromSettings(settings: Record<string, unknown>): string {
+function getIconTypeFromSettings(settings: Record<string, unknown>): string {
+  if ("icon_type" in settings) {
+    return normalizeIconWeight(settings.icon_type);
+  }
   return normalizeIconWeight(settings.icon_weight);
 }
 
@@ -45,6 +48,7 @@ function getIconWeightFromSettings(settings: Record<string, unknown>): string {
 export async function buildBuiltinTemplateLayoutPayload(group: string): Promise<{
   name: string;
   ordered: boolean;
+  icon_type: string;
   icon_weight: string;
   slides: BuiltinLayoutSlide[];
 } | null> {
@@ -62,14 +66,14 @@ export async function buildBuiltinTemplateLayoutPayload(group: string): Promise<
   }
 
   let ordered = false;
-  let icon_weight = DEFAULT_ICON_WEIGHT;
+  let icon_type = DEFAULT_ICON_WEIGHT;
   try {
     const raw = await fs.readFile(path.join(dir, "settings.json"), "utf8");
     const s = JSON.parse(raw) as Record<string, unknown> & { ordered?: boolean };
     if (typeof s.ordered === "boolean") {
       ordered = s.ordered;
     }
-    icon_weight = getIconWeightFromSettings(s);
+    icon_type = getIconTypeFromSettings(s);
   } catch {
     // settings.json optional
   }
@@ -110,7 +114,7 @@ export async function buildBuiltinTemplateLayoutPayload(group: string): Promise<
     return null;
   }
 
-  return { name: group, ordered, icon_weight, slides };
+  return { name: group, ordered, icon_type, icon_weight: icon_type, slides };
 }
 
 export type CustomLayoutCompileInput = {
@@ -128,6 +132,7 @@ export function buildCustomTemplateLayoutPayload(
 ): {
   name: string;
   ordered: boolean;
+  icon_type: string;
   icon_weight: string;
   slides: BuiltinLayoutSlide[];
 } | null {
@@ -162,6 +167,7 @@ export function buildCustomTemplateLayoutPayload(
   return {
     name: group,
     ordered: false,
+    icon_type: DEFAULT_ICON_WEIGHT,
     icon_weight: DEFAULT_ICON_WEIGHT,
     slides,
   };
@@ -180,9 +186,11 @@ type FastApiTemplateLayoutsResponse = {
  */
 export async function buildCustomTemplateLayoutPayloadFromApi(
   group: string,
+  authHeaders: Record<string, string> = {},
 ): Promise<{
   name: string;
   ordered: boolean;
+  icon_type: string;
   icon_weight: string;
   slides: BuiltinLayoutSlide[];
 } | null> {
@@ -192,7 +200,7 @@ export async function buildCustomTemplateLayoutPayloadFromApi(
 
   const url = `${getFastApiBaseUrl()}/api/v1/ppt/template/${encodeURIComponent(group)}/layouts`;
   const response = await fetch(url, {
-    headers: getFastApiAuthHeaders(),
+    headers: authHeaders,
     cache: "no-store",
   });
 

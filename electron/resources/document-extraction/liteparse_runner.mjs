@@ -3,13 +3,8 @@
  * CLI bridge for Python: by default, raw extracted text on stdout (--python-bridge plain);
  * or one JSON line (--python-bridge json) for backward compatibility.
  *
- * OCR follows LlamaIndex LiteParse guidance (built-in Tesseract by default):
- * https://developers.llamaindex.ai/liteparse/guides/ocr/
- *
- * - ISO 639-3 for Tesseract (eng, fra, deu, jpn, …); multi-lang as "deu+eng" or "deu,eng".
- * - Parallel workers ≈ CPU cores − 1 (override --num-workers).
- * - Optional HTTP OCR: --ocr-server-url or LITEPARSE_OCR_SERVER_URL.
- * - Optional local models: --tessdata-path or LITEPARSE_TESSDATA_PATH (else TESSDATA_PREFIX / CDN).
+ * OCR follows LlamaIndex LiteParse guidance. Use ISO 639-3 language codes for
+ * Tesseract, such as "eng", "fra", or "deu+eng".
  */
 
 import fs from "node:fs";
@@ -38,18 +33,15 @@ function toNumber(value, fallback, min, max) {
   return Math.min(Math.max(parsed, min), max);
 }
 
-/** Tesseract accepts "deu+eng"; allow comma-separated CLI/env for convenience. */
 function normalizeOcrLanguage(raw) {
   const s = String(raw ?? "").trim();
   if (!s) return "eng";
-  if (s.includes(",")) {
-    return s
-      .split(",")
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .join("+");
-  }
-  return s;
+  if (!s.includes(",")) return s;
+  return s
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("+");
 }
 
 function emit(result, exitCode = 0) {
@@ -57,7 +49,6 @@ function emit(result, exitCode = 0) {
   process.exit(exitCode);
 }
 
-/** "plain" = success: UTF-8 text on stdout only. "json" = one JSON line (legacy, huge payloads can break). */
 const pyBridgeArg = readArg("--python-bridge");
 const pyBridge =
   pyBridgeArg == null || pyBridgeArg === ""
@@ -132,13 +123,14 @@ try {
   }
 
   const parser = new LiteParse(config);
-
   const result = await parser.parse(resolvedPath, true);
   const text = result?.text ?? "";
+
   if (pyBridge === "plain") {
     process.stdout.write(text);
     process.exit(0);
   }
+
   emit({
     ok: true,
     filePath: resolvedPath,

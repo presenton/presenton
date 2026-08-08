@@ -13,6 +13,7 @@ export interface TemplateSetting {
     description: string;
     ordered: boolean;
     default?: boolean;
+    icon_type?: string;
     icon_weight?: string;
 }
 

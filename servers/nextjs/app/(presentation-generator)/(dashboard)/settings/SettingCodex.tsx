@@ -31,6 +31,12 @@ import {
 import { useRouter } from "next/navigation";
 import { syncStoreAfterCodexSignOut } from "@/utils/storeHelpers";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
+import { sanitizeAnalyticsError } from "@/utils/analytics";
+import {
+    isChatGptAuthRequiredResponse,
+    normalizeChatGptAuthMessage,
+    requestChatGptReauth,
+} from "@/utils/chatgptAuth";
 
 interface CodexConfigProps {
     codexModel: string;
@@ -116,6 +122,7 @@ export default function CodexConfig({
     const handleSignIn = async () => {
         try {
             onInputChange('codex', 'LLM');
+            trackEvent(MixpanelEvent.Codex_SignIn_API_Call);
             const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/initiate"), {
                 method: "POST",
             });
@@ -137,6 +144,9 @@ export default function CodexConfig({
 
                     if (pollData.status === "success") {
                         stopPolling();
+                        trackEvent(MixpanelEvent.Codex_SignIn_Completed, {
+                            method: "browser_poll",
+                        });
                         setAuthStatus("authenticated");
                         applyProfile(pollData);
                         setSessionId(null);
@@ -149,6 +159,9 @@ export default function CodexConfig({
                         );
                     } else if (pollData.status === "failed") {
                         stopPolling();
+                        trackEvent(MixpanelEvent.Codex_SignIn_Failed, {
+                            method: "browser_poll",
+                        });
                         setAuthStatus("unauthenticated");
                         applyProfile({});
                         notify.error(
@@ -161,6 +174,10 @@ export default function CodexConfig({
                 }
             }, 2000);
         } catch (err) {
+            trackEvent(MixpanelEvent.Codex_SignIn_Failed, {
+                method: "initiate",
+                error_message: sanitizeAnalyticsError(err, "Failed to initiate auth"),
+            });
             notify.error(
                 "Sign-in failed",
                 "Could not start the sign-in flow. Please try again."
@@ -185,6 +202,9 @@ export default function CodexConfig({
             }
             const data = await res.json();
             stopPolling();
+            trackEvent(MixpanelEvent.Codex_SignIn_Completed, {
+                method: "manual_exchange",
+            });
             setAuthStatus("authenticated");
             applyProfile(data);
             setSessionId(null);
@@ -197,6 +217,10 @@ export default function CodexConfig({
                 "Your ChatGPT account is connected and ready to use."
             );
         } catch (err: any) {
+            trackEvent(MixpanelEvent.Codex_SignIn_Failed, {
+                method: "manual_exchange",
+                error_message: sanitizeAnalyticsError(err, "Exchange failed"),
+            });
             notify.error(
                 "Sign-in failed",
                 err.message || "The verification code could not be accepted. Please try again."
@@ -208,6 +232,7 @@ export default function CodexConfig({
 
     const handleCancelPolling = () => {
         stopPolling();
+        trackEvent(MixpanelEvent.Codex_SignIn_Cancelled);
         setSessionId(null);
         setManualCode("");
         setAuthStatus("unauthenticated");
@@ -251,7 +276,27 @@ export default function CodexConfig({
             const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/refresh"), {
                 method: "POST",
             });
-            if (!res.ok) throw new Error("Refresh failed");
+            if (!res.ok) {
+                let errorData: { detail?: unknown; message?: string; error?: string } | null = null;
+                let message = "Your ChatGPT session could not be renewed. Please sign in again.";
+                try {
+                    const parsedError: { detail?: unknown; message?: string; error?: string } = await res.json();
+                    errorData = parsedError;
+                    message =
+                        (typeof parsedError.detail === "string" && parsedError.detail) ||
+                        parsedError.message ||
+                        parsedError.error ||
+                        message;
+                } catch {}
+                if (isChatGptAuthRequiredResponse(res, errorData, message)) {
+                    requestChatGptReauth({
+                        message: normalizeChatGptAuthMessage(message),
+                        source: "codex-refresh",
+                    });
+                    return;
+                }
+                throw new Error(message);
+            }
             const data = await res.json();
             applyProfile(data);
             notify.success(

@@ -2,6 +2,7 @@ import asyncio
 import os
 from pathlib import Path
 import re
+import struct
 import tempfile
 import urllib
 import zipfile
@@ -32,6 +33,7 @@ _SFNT_FORMATS = {
     "wOFF": "WOFF",
     "wOF2": "WOFF2",
 }
+_SFNT_SIGNATURE_BYTES = (b"OTTO", b"ttcf", b"\x00\x01\x00\x00", b"true")
 
 
 class FontDetail(BaseModel):
@@ -71,6 +73,9 @@ class FontDetail(BaseModel):
     format: Optional[str] = None
 
 
+FontAvailability = Tuple[str, Optional[str], List[str]]
+
+
 _STYLE_TOKENS = {
     "italic",
     "italics",
@@ -100,15 +105,6 @@ _STYLE_TOKENS = {
     "extrablack",
     "ultrablack",
     "heavy",
-    "narrow",
-    "condensed",
-    "semicondensed",
-    "extracondensed",
-    "ultracondensed",
-    "expanded",
-    "semiexpanded",
-    "extraexpanded",
-    "ultraexpanded",
 }
 _STYLE_MODIFIERS = {"semi", "demi", "extra", "ultra"}
 
@@ -859,7 +855,7 @@ def extract_used_fonts_from_pptx(pptx_path: str) -> Set[str]:
 
 async def get_available_and_unavailable_fonts_for_pptx(
     pptx_path: str, temp_dir: str
-) -> Tuple[List[Tuple[str, Optional[str]]], List[Tuple[str, Optional[str]]]]:
+) -> Tuple[List[FontAvailability], List[FontAvailability]]:
     """
     Return lists of available/unavailable fonts for a PPTX file.
 
@@ -869,7 +865,7 @@ async def get_available_and_unavailable_fonts_for_pptx(
 
     Returns:
         Tuple of (available_fonts, unavailable_fonts) where each entry is a list
-        of (font_name, url or None).
+        of (font_name, url or None, variants).
     """
     raw_fonts, emb_font_details, _ = await asyncio.to_thread(
         extract_raw_fonts_and_embedded_details,
@@ -883,28 +879,35 @@ async def get_available_and_unavailable_fonts_for_pptx(
     if not raw_fonts:
         return [], []
 
-    found_fonts_with_url: Dict[str, str] = {}
+    requested_variant_keys: Dict[Tuple[str, str], str] = {}
+    for font_name in raw_fonts:
+        normalized_name = normalize_font_family_name(font_name)
+        if not normalized_name:
+            continue
+        for variant in normalize_font_variants(font_variants_by_name.get(font_name)):
+            requested_variant_keys.setdefault((normalized_name, variant), font_name)
+
+    found_fonts_with_url: Dict[Tuple[str, str], Tuple[str, str]] = {}
     for font_name in raw_fonts:
         match_index = get_index_of_matching_font_detail_or_none(
             font_name, emb_font_details
         )
         if match_index is None:
             continue
-        found_fonts_with_url[font_name] = (
-            "https://example.com/just-a-placeholder-url.ttf"
-        )
-
-    matched_fonts = set(found_fonts_with_url.keys())
-    fonts_to_check = sorted(raw_fonts - matched_fonts)
-
-    normalized_variants: Dict[str, Set[str]] = {}
-    for font_name, variants in font_variants_by_name.items():
         normalized_name = normalize_font_family_name(font_name)
-        if normalized_name:
-            normalized_variants.setdefault(normalized_name, set()).update(variants)
+        if not normalized_name:
+            continue
+        for variant in normalize_font_variants(font_variants_by_name.get(font_name)):
+            found_fonts_with_url[(normalized_name, variant)] = (
+                font_name,
+                "https://example.com/just-a-placeholder-url.ttf",
+            )
 
-    fonts_to_check = [normalize_font_family_name(font) for font in fonts_to_check]
-    fonts_to_check = list(set(fonts_to_check))
+    fonts_to_check: Dict[str, Set[str]] = {}
+    for normalized_name, variant in requested_variant_keys:
+        if (normalized_name, variant) in found_fonts_with_url:
+            continue
+        fonts_to_check.setdefault(normalized_name, set()).add(variant)
 
     availability_results: List[bool] = []
     if fonts_to_check:
@@ -912,27 +915,32 @@ async def get_available_and_unavailable_fonts_for_pptx(
             *[
                 check_google_font_availability(
                     font,
-                    variants=normalize_font_variants(normalized_variants.get(font)),
+                    variants=normalize_font_variants(variants),
                 )
-                for font in fonts_to_check
+                for font, variants in sorted(fonts_to_check.items())
             ]
         )
 
-    available_fonts: List[Tuple[str, Optional[str]]] = []
-    unavailable_fonts: List[Tuple[str, Optional[str]]] = []
+    available_fonts: List[FontAvailability] = []
+    unavailable_fonts: List[FontAvailability] = []
 
-    for font_name, font_url in found_fonts_with_url.items():
-        available_fonts.append((font_name, font_url))
+    for (_normalized_name, variant), (font_name, font_url) in sorted(
+        found_fonts_with_url.items()
+    ):
+        available_fonts.append((font_name, font_url, [variant]))
 
-    for font, is_available in zip(fonts_to_check, availability_results):
+    for (font, variants), is_available in zip(
+        sorted(fonts_to_check.items()), availability_results
+    ):
+        normalized_font_variants = normalize_font_variants(variants)
         if is_available:
             google_fonts_url = build_google_fonts_stylesheet_url(
                 font,
-                variants=normalize_font_variants(normalized_variants.get(font)),
+                variants=normalized_font_variants,
             )
-            available_fonts.append((font, google_fonts_url))
+            available_fonts.append((font, google_fonts_url, normalized_font_variants))
         else:
-            unavailable_fonts.append((font, None))
+            unavailable_fonts.append((font, None, normalized_font_variants))
 
     return available_fonts, unavailable_fonts
 
@@ -1189,41 +1197,32 @@ def extract_font_from_eot(eot_path: Path) -> bytes:
     with open(eot_path, "rb") as f:
         data = f.read()
 
-    # EOT file structure:
-    # - Header (variable length)
-    # - Font family name (Unicode, null-terminated)
-    # - Font style name (Unicode, null-terminated)
-    # - Font version (Unicode, null-terminated)
-    # - Font full name (Unicode, null-terminated)
-    # - RootString (Unicode, null-terminated)
-    # - Signature (4 bytes: "BSGP")
-    # - Embedded font data (TTF/OTF) starts with "OTTO" or "ttcf"
+    if len(data) >= 8:
+        eot_size, font_data_size = struct.unpack_from("<II", data, 0)
+        font_start = eot_size - font_data_size
+        font_end = font_start + font_data_size
+        if (
+            font_data_size > 0
+            and 0 <= font_start < len(data)
+            and font_end <= len(data)
+        ):
+            embedded_font = data[font_start:font_end]
+            if embedded_font.startswith(_SFNT_SIGNATURE_BYTES):
+                return embedded_font
 
-    # Find the OpenType font signature - this marks the start of the embedded font
-    # "OTTO" = OpenType with CFF (PostScript outlines)
-    # "ttcf" = TrueType Collection
-    # "\x00\x01\x00\x00" = TrueType with TrueType outlines
-    otto_pos = data.find(b"OTTO")
-    ttcf_pos = data.find(b"ttcf")
-    ttf_pos = data.find(b"\x00\x01\x00\x00")
+    candidate_positions: Set[int] = set()
+    for signature in _SFNT_SIGNATURE_BYTES:
+        position = data.find(signature)
+        while position != -1:
+            candidate_positions.add(position)
+            position = data.find(signature, position + 1)
 
-    font_start = -1
-    if otto_pos != -1:
-        font_start = otto_pos
-    elif ttcf_pos != -1:
-        font_start = ttcf_pos
-    elif ttf_pos != -1:
-        font_start = ttf_pos
-
-    if font_start == -1:
+    if not candidate_positions:
         raise ValueError(
             "Could not find embedded font signature (OTTO/ttcf/TTF) in EOT file"
         )
 
-    # Extract the embedded font from the found position to the end of file
-    embedded_font = data[font_start:]
-
-    return embedded_font
+    return data[min(candidate_positions) :]
 
 
 def get_font_details(path: str) -> FontDetail:

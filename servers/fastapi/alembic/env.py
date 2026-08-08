@@ -12,10 +12,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Import every SQL model so they register with SQLModel.metadata before
 # autogenerate or migration execution reads it.
+from models.sql.async_task import AsyncTaskModel  # noqa: F401, E402
 from models.sql.async_presentation_generation_status import (  # noqa: F401, E402
     AsyncPresentationGenerationTaskModel,
 )
 from models.sql.chat_history_message import ChatHistoryMessageModel  # noqa: F401, E402
+from models.sql.font_upload import FontUpload  # noqa: F401, E402
 from models.sql.image_asset import ImageAsset  # noqa: F401, E402
 from models.sql.key_value import KeyValueSqlModel  # noqa: F401, E402
 from models.sql.ollama_pull_status import OllamaPullStatus  # noqa: F401, E402
@@ -26,7 +28,11 @@ from models.sql.presentation_layout_code import (  # noqa: F401, E402
 from models.sql.slide import SlideModel  # noqa: F401, E402
 from models.sql.template import TemplateModel  # noqa: F401, E402
 from models.sql.template_create_info import TemplateCreateInfoModel  # noqa: F401, E402
+from models.sql.template_v2 import TemplateV2  # noqa: F401, E402
 from models.sql.webhook_subscription import WebhookSubscription  # noqa: F401, E402
+from models.sql.user import User  # noqa: F401, E402
+from models.sql.access_token import AccessToken  # noqa: F401, E402
+from models.sql.provider_settings import ProviderSettings  # noqa: F401, E402
 
 alembic_config = context.config
 

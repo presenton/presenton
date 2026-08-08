@@ -1,5 +1,6 @@
 services:
   production:
+    platform: ${PRESENTON_DOCKER_PLATFORM:-linux/amd64}
     # image: ghcr.io/presenton/presenton:latest
     build:
       context: .
@@ -12,9 +13,9 @@ services:
     volumes:
       - ./app_data:/app_data
       - ./servers/fastapi/templates:/app/servers/fastapi/templates:ro
-      - ./servers/fastapi/utils/internal_http.py:/app/servers/fastapi/utils/internal_http.py:ro
     environment:
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - PRESENTON_HOST_HTTP_PORT=${PRESENTON_HOST_HTTP_PORT:-5001}
       - MIGRATE_DATABASE_ON_STARTUP=true
       - CAN_CHANGE_KEYS=${CAN_CHANGE_KEYS:-}
       - LLM=${LLM:-}
@@ -71,6 +72,7 @@ services:
       - LMSTUDIO_MODEL=${LMSTUDIO_MODEL:-}
       - CODEX_MODEL=${CODEX_MODEL:-}
       - DISABLE_IMAGE_GENERATION=${DISABLE_IMAGE_GENERATION:-}
+      - ENABLE_PARALLEL_IMAGE_GENERATION=${ENABLE_PARALLEL_IMAGE_GENERATION:-true}
       - IMAGE_PROVIDER=${IMAGE_PROVIDER:-}
       - PEXELS_API_KEY=${PEXELS_API_KEY:-}
       - PIXABAY_API_KEY=${PIXABAY_API_KEY:-}
@@ -113,6 +115,7 @@ services:
       - RESET_AUTH=${RESET_AUTH:-}
 
   production-gpu:
+    platform: ${PRESENTON_DOCKER_PLATFORM:-linux/amd64}
     # image: ghcr.io/presenton/presenton:latest
     build:
       context: .
@@ -133,6 +136,7 @@ services:
       - ./app_data:/app_data
     environment:
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - PRESENTON_HOST_HTTP_PORT=${PRESENTON_HOST_HTTP_PORT:-5000}
       - MIGRATE_DATABASE_ON_STARTUP=true
       - CAN_CHANGE_KEYS=${CAN_CHANGE_KEYS:-}
       - LLM=${LLM:-}
@@ -189,6 +193,7 @@ services:
       - LMSTUDIO_MODEL=${LMSTUDIO_MODEL:-}
       - CODEX_MODEL=${CODEX_MODEL:-}
       - DISABLE_IMAGE_GENERATION=${DISABLE_IMAGE_GENERATION:-}
+      - ENABLE_PARALLEL_IMAGE_GENERATION=${ENABLE_PARALLEL_IMAGE_GENERATION:-true}
       - IMAGE_PROVIDER=${IMAGE_PROVIDER:-}
       - PEXELS_API_KEY=${PEXELS_API_KEY:-}
       - PIXABAY_API_KEY=${PIXABAY_API_KEY:-}
@@ -231,6 +236,7 @@ services:
       - RESET_AUTH=${RESET_AUTH:-}
 
   development:
+    platform: ${PRESENTON_DOCKER_PLATFORM:-linux/amd64}
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -246,6 +252,7 @@ services:
     environment:
       # Bundled PPTX/PDF export (Puppeteer); matches CI and production image.
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - PRESENTON_HOST_HTTP_PORT=${PRESENTON_HOST_HTTP_PORT:-5001}
       # Ollama is not baked into the image; set START_OLLAMA=true for runtime install, or use OLLAMA_URL.
       - START_OLLAMA=${START_OLLAMA:-false}
       - MIGRATE_DATABASE_ON_STARTUP=true
@@ -303,6 +310,7 @@ services:
       - LMSTUDIO_MODEL=${LMSTUDIO_MODEL:-}
       - CODEX_MODEL=${CODEX_MODEL:-}
       - DISABLE_IMAGE_GENERATION=${DISABLE_IMAGE_GENERATION:-}
+      - ENABLE_PARALLEL_IMAGE_GENERATION=${ENABLE_PARALLEL_IMAGE_GENERATION:-true}
       - IMAGE_PROVIDER=${IMAGE_PROVIDER:-}
       - PEXELS_API_KEY=${PEXELS_API_KEY:-}
       - PIXABAY_API_KEY=${PIXABAY_API_KEY:-}
@@ -345,6 +353,7 @@ services:
       - RESET_AUTH=${RESET_AUTH:-}
 
   development-gpu:
+    platform: ${PRESENTON_DOCKER_PLATFORM:-linux/amd64}
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -366,6 +375,7 @@ services:
       - ./app_data:/app_data
     environment:
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - PRESENTON_HOST_HTTP_PORT=${PRESENTON_HOST_HTTP_PORT:-5000}
       - START_OLLAMA=${START_OLLAMA:-false}
       - MIGRATE_DATABASE_ON_STARTUP=true
       - CAN_CHANGE_KEYS=${CAN_CHANGE_KEYS:-}
@@ -422,6 +432,7 @@ services:
       - LMSTUDIO_MODEL=${LMSTUDIO_MODEL:-}
       - CODEX_MODEL=${CODEX_MODEL:-}
       - DISABLE_IMAGE_GENERATION=${DISABLE_IMAGE_GENERATION:-}
+      - ENABLE_PARALLEL_IMAGE_GENERATION=${ENABLE_PARALLEL_IMAGE_GENERATION:-true}
       - IMAGE_PROVIDER=${IMAGE_PROVIDER:-}
       - PEXELS_API_KEY=${PEXELS_API_KEY:-}
       - PIXABAY_API_KEY=${PIXABAY_API_KEY:-}

@@ -155,6 +155,38 @@ thead {
   }
 }
 
+@keyframes activity-dot-flow {
+  0%,
+  60%,
+  100% {
+    opacity: 0.38;
+    transform: translateY(1px) scale(0.82);
+  }
+
+  30% {
+    opacity: 0.95;
+    transform: translateY(-2px) scale(1);
+  }
+}
+
+.activity-flow-dots > span {
+  animation: activity-dot-flow 0.9s ease-in-out infinite;
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+
+.activity-flow-dots > span:nth-child(1) {
+  animation-delay: -0.3s;
+}
+
+.activity-flow-dots > span:nth-child(2) {
+  animation-delay: -0.15s;
+}
+
+.activity-flow-dots > span:nth-child(3) {
+  animation-delay: 0s;
+}
+
 .hide-scrollbar::-webkit-scrollbar {
   @apply hidden;
 }
@@ -338,6 +370,13 @@ thead {
 
 .chat-markdown {
   @apply prose prose-slate max-w-none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chat-markdown :where(*) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .chat-markdown :where(p, ul, ol, pre, blockquote) {
@@ -364,7 +403,12 @@ thead {
 }
 
 .chat-markdown :where(pre) {
-  @apply overflow-x-auto rounded-lg bg-[#F5F5F5] p-3;
+  @apply overflow-x-hidden rounded-lg bg-[#F5F5F5] p-3;
+  white-space: pre-wrap;
+}
+
+.chat-markdown :where(pre code) {
+  white-space: inherit;
 }
 
 /* Override Tailwind Typography prose heading sizes for markdown editor */
@@ -621,5 +665,111 @@ thead {
 
   100% {
     transform: translate3d(0, 0, 0) rotate(360deg);
+  }
+}
+
+.configuration-loader {
+  width: 60px;
+  aspect-ratio: 2;
+  --_g-left: no-repeat radial-gradient(
+    circle closest-side,
+    rgb(122 90 248 / 20%) 90%,
+    transparent
+  );
+  --_g-center: no-repeat radial-gradient(
+    circle closest-side,
+    rgb(122 90 248 / 60%) 90%,
+    transparent
+  );
+  --_g-right: no-repeat radial-gradient(
+    circle closest-side,
+    #7a5af8 90%,
+    transparent
+  );
+  background:
+    var(--_g-left) 0% 50%,
+    var(--_g-center) 50% 50%,
+    var(--_g-right) 100% 50%;
+  background-size: calc(100% / 3) 50%;
+  animation: configuration-loader-l3 1s infinite linear;
+}
+
+@keyframes configuration-loader-l3 {
+  20% {
+    background-position:
+      0% 0%,
+      50% 50%,
+      100% 50%;
+  }
+
+  40% {
+    background-position:
+      0% 100%,
+      50% 0%,
+      100% 50%;
+  }
+
+  60% {
+    background-position:
+      0% 50%,
+      50% 100%,
+      100% 0%;
+  }
+
+  80% {
+    background-position:
+      0% 50%,
+      50% 50%,
+      100% 100%;
+  }
+}
+
+.presenton-splash-surface {
+  transform-origin: center center;
+}
+
+.presenton-splash-wordmark-layer {
+  display: block;
+}
+
+@keyframes presenton-splash-surface-grow {
+  0% {
+    transform: translate3d(-50%, -50%, 0) scale(0.001);
+  }
+
+  100% {
+    transform: translate3d(-50%, -50%, 0) scale(1);
+  }
+}
+
+@keyframes presenton-splash-text-reveal {
+  0% {
+    clip-path: circle(0 at 50% 50%);
+  }
+
+  100% {
+    clip-path: circle(71vmax at 50% 50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-flow-dots > span {
+    animation: none;
+    opacity: 0.7;
+    transform: none;
+  }
+
+  .generating-slides-background {
+    animation: none;
+  }
+
+  .presenton-splash-surface {
+    animation: none !important;
+    transform: translate3d(-50%, -50%, 0) scale(1);
+  }
+
+  .presenton-splash-wordmark-reveal {
+    animation: none !important;
+    clip-path: circle(71vmax at 50% 50%);
   }
 }

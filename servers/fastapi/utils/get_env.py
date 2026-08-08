@@ -263,6 +263,15 @@ def get_disable_image_generation_env():
     return os.getenv("DISABLE_IMAGE_GENERATION")
 
 
+def is_parallel_image_generation_enabled() -> bool:
+    """Whether image provider requests may run concurrently.
+
+    Parallel generation is the existing behavior, so it remains enabled unless
+    ENABLE_PARALLEL_IMAGE_GENERATION is explicitly set to a falsey value.
+    """
+    return _is_truthy(os.getenv("ENABLE_PARALLEL_IMAGE_GENERATION", "true"))
+
+
 def get_image_provider_env():
     return os.getenv("IMAGE_PROVIDER")
 

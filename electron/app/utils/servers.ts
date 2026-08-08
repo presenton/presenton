@@ -178,7 +178,7 @@ export async function startNextJsServer(
     // Windows: npm is npm.cmd; spawn() needs a shell or ENOENT.
     nextjsProcess = spawn(
       process.platform === "win32" ? "npm.cmd" : "npm",
-      ["run", "dev", "--", "-p", port.toString()],
+      ["run", "dev", "--", "-H", "127.0.0.1", "-p", port.toString()],
       {
         cwd: directory,
         stdio: ["ignore", "pipe", "pipe"],

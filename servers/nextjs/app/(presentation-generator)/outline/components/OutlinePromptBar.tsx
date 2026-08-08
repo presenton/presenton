@@ -1,13 +1,12 @@
 "use client";
 
 import React from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import { ConfigurationSelects } from "../../upload/components/ConfigurationSelects";
-import CurrentConfig from "../../upload/components/CurrentConfig";
 import { PresentationConfig } from "../../upload/type";
 
 interface OutlinePromptBarProps {
@@ -31,26 +30,24 @@ const OutlinePromptBar: React.FC<OutlinePromptBarProps> = ({
 
   return (
     <section className="w-full font-syne">
-      <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <span className="text-sm font-semibold text-[#191919]">Prompt</span>
+      <div className="mb-[10px] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold tracking-[-0.12px] text-[#191919]">
+            Prompt
+          </span>
           <ConfigurationSelects
             config={config}
             onConfigChange={onConfigChange}
+            compact
           />
-        </div>
-        <div className="flex justify-start xl:justify-end">
-          <CurrentConfig webSearchEnabled={config.webSearch} />
         </div>
       </div>
 
-      <div
-        className="relative rounded-[14px] border border-[#E4E5E8] bg-white shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
-      >
+      <div className="relative h-[69px] overflow-hidden rounded-[12px] border border-[#DBDBDB]/60 bg-white shadow-[0_4px_7px_rgba(0,0,0,0.05)]">
         <Textarea
           value={config.prompt}
           disabled={disabled}
-          rows={2}
+          rows={1}
           onChange={(event) => onConfigChange("prompt", event.target.value)}
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -62,7 +59,7 @@ const OutlinePromptBar: React.FC<OutlinePromptBarProps> = ({
             }
           }}
           placeholder="Describe the presentation you want to generate"
-          className="min-h-[88px] resize-none border-0 bg-transparent py-5 pl-6 pr-16 text-base font-medium leading-6 text-[#191919] shadow-none outline-none placeholder:text-[#8C8C8C] focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed sm:pr-44"
+          className="h-[69px] min-h-[69px] resize-none border-0 bg-transparent px-6 py-[23px] pr-16 text-base font-normal leading-[22px] text-[#191919] shadow-none outline-none placeholder:text-[#8C8C8C] focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed"
         />
         <button
           type="button"
@@ -71,24 +68,17 @@ const OutlinePromptBar: React.FC<OutlinePromptBarProps> = ({
           aria-label="Regenerate outline"
           title="Regenerate outline"
           className={cn(
-            "absolute right-5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center gap-2 rounded-full px-0 text-xs font-semibold text-[#191919] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A00FF]/25 sm:w-auto sm:px-4",
+            "absolute right-6 top-1/2 flex h-[21px] w-[26px] -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#191919] transition hover:bg-[#F7F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A00FF]/25",
             isRegenerateDisabled && "cursor-not-allowed opacity-70"
           )}
-          style={{
-            background:
-              "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
-          }}
         >
           {isBusy ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="hidden sm:inline">Regenerating</span>
-            </>
+            <Loader2 className="h-[18px] w-[18px] animate-spin text-[#7A5AF8]" />
           ) : (
-            <>
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Regenerate</span>
-            </>
+            <RotateCcw
+              aria-hidden="true"
+              className="h-[18px] w-[18px]"
+            />
           )}
         </button>
       </div>

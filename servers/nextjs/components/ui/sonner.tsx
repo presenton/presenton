@@ -4,7 +4,16 @@ import type React from "react"
 import { BadgeCheck, Loader2, ShieldAlert, TriangleAlert } from "lucide-react"
 import { Toaster as Sonner, toast as sonnerToast, type ExternalToast } from "sonner"
 
-type NotifyOptions = Pick<ExternalToast, "duration" | "id">
+type NotifyOptions = Pick<
+  ExternalToast,
+  | "duration"
+  | "id"
+  | "action"
+  | "cancel"
+  | "onDismiss"
+  | "onAutoClose"
+  | "className"
+>
 
 function toastOptions(
   description?: string,
@@ -71,6 +80,10 @@ const Toaster = ({ icons, ...props }: ToasterProps) => {
           [data-sonner-toaster] {
             --width: min(100dvw - 2rem, 24rem) !important;
           }
+        }
+
+        [data-sonner-toaster]:has(.template-v2-model-warning-toast) {
+          --width: min(100dvw - 2rem, 48rem) !important;
         }
 
         /* Neutral "card" toast container — design tokens */
@@ -209,6 +222,60 @@ const Toaster = ({ icons, ...props }: ToasterProps) => {
 
         [data-sonner-toast][data-styled="true"] [data-button]:hover {
           background: rgb(248 250 252) !important; /* slate-50 */
+        }
+
+        [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast {
+          align-items: center !important;
+          gap: 14px !important;
+          padding: 14px 16px !important;
+          width: min(100dvw - 2rem, 48rem) !important;
+          max-width: min(100dvw - 2rem, 48rem) !important;
+        }
+
+        [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast [data-icon] {
+          align-self: flex-start !important;
+          margin-top: 2px !important;
+        }
+
+        [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast [data-content] {
+          flex: 1 1 auto !important;
+          max-width: none !important;
+          min-width: 0 !important;
+        }
+
+        [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast [data-title] {
+          font-size: 0.9375rem !important;
+          line-height: 1.3 !important;
+        }
+
+        [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast [data-description] {
+          max-width: 34rem !important;
+          line-height: 1.45 !important;
+        }
+
+        [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast [data-button] {
+          margin-left: auto !important;
+          white-space: nowrap !important;
+        }
+
+        [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast [data-close-button] {
+          margin-left: 0 !important;
+          white-space: nowrap !important;
+        }
+
+        @media (max-width: 640px) {
+          [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast {
+            flex-wrap: wrap !important;
+            align-items: flex-start !important;
+          }
+
+          [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast [data-content] {
+            flex-basis: calc(100% - 38px) !important;
+          }
+
+          [data-sonner-toast][data-styled="true"].template-v2-model-warning-toast [data-button] {
+            margin-left: 38px !important;
+          }
         }
 
         /* Dark mode — same radius, border weight, shadow; frosted dark surface */
