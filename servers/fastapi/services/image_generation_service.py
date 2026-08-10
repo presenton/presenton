@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import os
+import re
 import secrets
 from weakref import WeakKeyDictionary
 
@@ -43,11 +44,31 @@ from utils.image_generation_error import normalize_image_generation_error
 import uuid
 
 
+# Candidates fetched per slide before picking the best match (was: blind top-1).
+STOCK_IMAGE_CANDIDATE_POOL_SIZE = 6
+
 COMFYUI_MAX_SEED = 0xFFFFFFFFFFFFFFFF
 COMFYUI_SEED_SOURCE_VALUE_KEYS = {"value", "int", "integer", "number"}
 _IMAGE_GENERATION_LOCKS: WeakKeyDictionary[
     asyncio.AbstractEventLoop, asyncio.Lock
 ] = WeakKeyDictionary()
+
+
+def _rank_stock_candidates_by_relevance(
+    prompt: str, candidates: list[tuple[str, str]]
+) -> list[str]:
+    """Sorts candidates by word overlap between prompt and description (Pexels `alt` /
+    Pixabay `tags`); ties keep the provider's original order."""
+    prompt_words = set(re.findall(r"[a-z0-9]+", prompt.lower()))
+    if not prompt_words or len(candidates) <= 1:
+        return [url for url, _ in candidates]
+
+    def score(pair: tuple[str, str]) -> int:
+        description_words = set(re.findall(r"[a-z0-9]+", pair[1].lower()))
+        return len(prompt_words & description_words)
+
+    ranked = sorted(enumerate(candidates), key=lambda item: (-score(item[1]), item[0]))
+    return [url for _, (url, _description) in ranked]
 
 
 def _get_image_generation_lock() -> asyncio.Lock:
@@ -147,7 +168,13 @@ class ImageGenerationService:
 
     async def _call_image_provider(self, image_prompt: str) -> str:
         if self.is_stock_provider_selected():
-            return await self.image_gen_func(image_prompt)
+            # Best of a pool, not just the top hit — see _rank_stock_candidates_by_relevance.
+            results = await self.image_gen_func(
+                image_prompt, limit=STOCK_IMAGE_CANDIDATE_POOL_SIZE
+            )
+            if isinstance(results, list):
+                return results[0] if results else ""
+            return results
         return await self.image_gen_func(image_prompt, self.output_directory)
 
     async def generate_image_openai(
@@ -365,11 +392,12 @@ class ImageGenerationService:
 
             data = await response.json()
             photos = data.get("photos", [])
-            image_urls = [
-                photo.get("src", {}).get("large")
+            candidates = [
+                (photo.get("src", {}).get("large"), photo.get("alt") or "")
                 for photo in photos
                 if photo.get("src", {}).get("large")
             ]
+            image_urls = _rank_stock_candidates_by_relevance(prompt, candidates)
 
             if limit <= 1:
                 return image_urls[0] if image_urls else ""
@@ -419,9 +447,12 @@ class ImageGenerationService:
 
             data = await response.json()
             hits = data.get("hits", [])
-            image_urls = [
-                hit.get("largeImageURL") for hit in hits if hit.get("largeImageURL")
+            candidates = [
+                (hit.get("largeImageURL"), hit.get("tags") or "")
+                for hit in hits
+                if hit.get("largeImageURL")
             ]
+            image_urls = _rank_stock_candidates_by_relevance(prompt, candidates)
 
             if limit <= 1:
                 return image_urls[0] if image_urls else ""
