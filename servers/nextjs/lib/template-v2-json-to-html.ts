@@ -249,6 +249,7 @@ function renderSlideRoot(
   height: number,
   background: string
 ): string {
+  resolveOverflowLayout(records);
   const content = records.map((item) => renderItem(item, "absolute")).join("");
 
   return `<div class="relative overflow-hidden" data-template-v2-html-slide="true" style="box-sizing:border-box;position:relative;width:${cssNumber(
@@ -504,24 +505,108 @@ function renderText(item: JsonRecord, mode: RenderMode): string {
   const horizontal = readString(alignment.horizontal);
   const vertical = readString(alignment.vertical);
   const runs = normalizedRunsForHtml(item, font);
+  const scale = titleFitScale(item, font, runs);
+  const scaledFont = scale === 1 ? font : { ...font, size: (readNumber(font.size) ?? 0) * scale };
   const runHtml = runs
     .map((run) => {
       const runFont = { ...font, ...readRecord(run.font) };
+      if (scale !== 1) {
+        runFont.size = (readNumber(runFont.size) ?? readNumber(font.size) ?? 0) * scale;
+      }
       return `<span style="${fontStyle(runFont)}">${escapeHtml(
         readStringValue(run.text)
       )}</span>`;
     })
     .join("");
 
-  return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(font, {
+  return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(scaledFont, {
     includeLineHeight: false,
     includeTextDecoration: false,
   })}${textShadowStyle(item)}display:flex;align-items:${verticalAlign(
     vertical
   )};justify-content:${horizontalAlign(horizontal)};${lineHeightStyle(
-    font,
+    scaledFont,
     1.1
   )}${textOverflowStyle()}text-align:${textAlign(horizontal)};"><span style="display:block;width:100%">${runHtml}</span></div>`;
+}
+
+// Shrinks headline font if estimated line count won't fit the box height (no real text
+// measurement available server-side, so this is a glyph-width estimate). Floor: 60%.
+function titleFitScale(item: JsonRecord, font: JsonRecord, runs: JsonRecord[]): number {
+  const size = readNumber(font.size);
+  if (size == null || size < DISPLAY_HEADING_MIN_SIZE) return 1;
+
+  const box = readBox(item);
+  if (!box.width || !box.height) return 1;
+
+  const lineHeight = effectiveLineHeight(font, 1.1);
+  if (lineHeight == null) return 1;
+
+  const text = runs.map((run) => readStringValue(run.text)).join("");
+  if (!text) return 1;
+
+  let scale = 1;
+  for (let i = 0; i < 8; i++) {
+    const currentSize = size * scale;
+    const avgCharWidth = currentSize * 0.56;
+    const charsPerLine = Math.max(1, Math.floor(box.width / avgCharWidth));
+    const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
+    const neededHeight = lines * currentSize * lineHeight;
+    if (neededHeight <= box.height || scale <= 0.6) break;
+    scale = Math.max(0.6, scale - 0.08);
+  }
+  return scale;
+}
+
+// Заголовок и элементы под ним (разделитель, подзаголовок, карточка) — независимые
+// прямоугольники со своими x/y от LLM, без общего flow-layout. titleFitScale уже
+// ужимает шрифт, чтобы влезть в СВОЮ рамку, но если рамка была выбрана в расчёте на
+// меньше строк, чем реально нужно, заголовок всё равно вылезает за неё и перекрывает
+// то, что стоит ниже (см. слайд с заголовком в 3 строки поверх декоративной полоски).
+// Сдвигаем всё, что стоит в том же столбце ниже заголовка, на величину переполнения.
+function resolveOverflowLayout(records: JsonRecord[]): void {
+  for (const item of records) {
+    if (readString(item.type) !== "text") continue;
+    const font = readRecord(item.font);
+    const size = readNumber(font.size);
+    if (size == null) continue;
+
+    const box = readBox(item);
+    if (!box.width || !box.height) continue;
+
+    const runs = normalizedRunsForHtml(item, font);
+    const text = runs.map((run) => readStringValue(run.text)).join("");
+    if (!text) continue;
+
+    // Заголовочный масштаб (>=36px) сам ужимается через titleFitScale — обычный
+    // текст абзаца не уменьшаем, просто меряем, сколько места ему реально нужно.
+    const scale = size >= DISPLAY_HEADING_MIN_SIZE ? titleFitScale(item, font, runs) : 1;
+    const currentSize = size * scale;
+    const lineHeight = effectiveLineHeight({ ...font, size: currentSize }, 1.1) ?? 1.1;
+    const avgCharWidth = currentSize * 0.56;
+    const charsPerLine = Math.max(1, Math.floor(box.width / avgCharWidth));
+    const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
+    const neededHeight = lines * currentSize * lineHeight;
+
+    const overflow = neededHeight - box.height;
+    if (overflow <= 0) continue;
+
+    const bottom = box.y + box.height;
+    const left = box.x;
+    const right = box.x + box.width;
+
+    for (const other of records) {
+      if (other === item) continue;
+      const otherBox = readBox(other);
+      if (otherBox.y == null || otherBox.y < bottom - 1) continue;
+      const otherLeft = otherBox.x ?? 0;
+      const otherRight = otherLeft + (otherBox.width ?? 0);
+      if (otherRight <= left || otherLeft >= right) continue; // другой столбец — не трогаем
+
+      const position = readRecord(other.position);
+      other.position = { ...position, y: (readNumber(position.y) ?? otherBox.y) + overflow };
+    }
+  }
 }
 
 function renderMath(item: JsonRecord, mode: RenderMode): string {
@@ -825,12 +910,16 @@ function gridRowTemplate(
   rowGap: number
 ) {
   if (!rows) return "";
+
+  // Don't reserve empty rows when the model returned fewer items than `rows` expects.
+  const effectiveRows = renderedRows < rows ? renderedRows : Math.max(rows, renderedRows);
+
   if (explicitHeight == null) {
-    return `grid-template-rows:repeat(${Math.max(rows, renderedRows)},minmax(0,1fr));`;
+    return `grid-template-rows:repeat(${effectiveRows},minmax(0,1fr));`;
   }
 
   const rowHeight = Math.max(1, (explicitHeight - rowGap * (rows - 1)) / rows);
-  return `grid-template-rows:repeat(${Math.max(rows, renderedRows)},${cssNumber(rowHeight)}px);`;
+  return `grid-template-rows:repeat(${effectiveRows},${cssNumber(rowHeight)}px);`;
 }
 
 function readLayoutChildren(item: JsonRecord): unknown[] {
@@ -2232,10 +2321,22 @@ function textDecorationStyle(font: JsonRecord): string {
   return "";
 }
 
-function lineHeightStyle(font: JsonRecord, fallback?: number): string {
-  const lineHeight = readNumber(font.lineHeight ?? font.line_height) ?? fallback;
-  if (lineHeight == null) return "";
+// Tight line-height (e.g. 0.8) on headlines overlaps glyphs once text wraps to 2+ lines.
+const DISPLAY_HEADING_MIN_SIZE = 36;
 
+function effectiveLineHeight(font: JsonRecord, fallback?: number): number | null {
+  const lineHeight = readNumber(font.lineHeight ?? font.line_height) ?? fallback ?? null;
+  if (lineHeight == null) return null;
+  const size = readNumber(font.size);
+  if (size != null && size >= DISPLAY_HEADING_MIN_SIZE && lineHeight < 1.0) {
+    return 1.0;
+  }
+  return lineHeight;
+}
+
+function lineHeightStyle(font: JsonRecord, fallback?: number): string {
+  const lineHeight = effectiveLineHeight(font, fallback);
+  if (lineHeight == null) return "";
   return `line-height:${cssNumber(lineHeight)};`;
 }
 
