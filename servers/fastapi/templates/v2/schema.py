@@ -196,8 +196,11 @@ def _content_schema_for_element(element: dict[str, Any]) -> dict[str, Any]:
         )
 
     if element_type == "image":
-        key = "icon_query" if element.get("is_icon") is True else "image_prompt"
-        return _object_schema({key: {"type": "string"}})
+        is_icon = element.get("is_icon") is True
+        key = "icon_query" if is_icon else "image_prompt"
+        return _object_schema(
+            {key: {"type": "string", "description": _component_image_prompt_description(element)}}
+        )
 
     if element_type == "text-list":
         return _compact(
@@ -1027,4 +1030,10 @@ def _component_image_prompt_key(element: dict[str, Any]) -> str:
 def _component_image_prompt_description(element: dict[str, Any]) -> str:
     if element.get("is_icon") is True:
         return "Search query for the replacement icon."
-    return "Prompt for the replacement image."
+    # Pexels/Pixabay search barely matches non-English text — query must stay English.
+    return (
+        "Stock photo search query, ALWAYS IN ENGLISH regardless of the slide's "
+        "language. Describe a concrete, visual scene (subject, setting, action) — not "
+        "an abstract concept — e.g. 'engineer inspecting car engine block' rather than "
+        "'efficiency'."
+    )
