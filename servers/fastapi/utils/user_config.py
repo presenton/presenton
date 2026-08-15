@@ -4,6 +4,9 @@ from utils.get_env import (
     get_anthropic_model_env,
     get_comfyui_url_env,
     get_comfyui_workflow_env,
+    get_disable_video_narration_env,
+    get_comfyui_tts_url_env,
+    get_comfyui_tts_workflow_env,
     get_custom_llm_api_key_env,
     get_custom_llm_url_env,
     get_custom_model_env,
@@ -91,6 +94,9 @@ from utils.set_env import (
     set_anthropic_model_env,
     set_comfyui_url_env,
     set_comfyui_workflow_env,
+    set_disable_video_narration_env,
+    set_comfyui_tts_url_env,
+    set_comfyui_tts_workflow_env,
     set_custom_llm_api_key_env,
     set_custom_llm_url_env,
     set_custom_model_env,
@@ -264,6 +270,14 @@ def get_user_config():
         PEXELS_API_KEY=existing_config.PEXELS_API_KEY or get_pexels_api_key_env(),
         COMFYUI_URL=existing_config.COMFYUI_URL or get_comfyui_url_env(),
         COMFYUI_WORKFLOW=existing_config.COMFYUI_WORKFLOW or get_comfyui_workflow_env(),
+        DISABLE_VIDEO_NARRATION=(
+            existing_config.DISABLE_VIDEO_NARRATION
+            if existing_config.DISABLE_VIDEO_NARRATION is not None
+            else (parse_bool_or_none(get_disable_video_narration_env()) or False)
+        ),
+        COMFYUI_TTS_URL=existing_config.COMFYUI_TTS_URL or get_comfyui_tts_url_env(),
+        COMFYUI_TTS_WORKFLOW=existing_config.COMFYUI_TTS_WORKFLOW
+        or get_comfyui_tts_workflow_env(),
         DALL_E_3_QUALITY=existing_config.DALL_E_3_QUALITY or get_dall_e_3_quality_env(),
         GPT_IMAGE_1_5_QUALITY=existing_config.GPT_IMAGE_1_5_QUALITY
         or get_gpt_image_1_5_quality_env(),
@@ -431,6 +445,12 @@ def update_env_with_user_config():
         set_comfyui_url_env(user_config.COMFYUI_URL)
     if user_config.COMFYUI_WORKFLOW:
         set_comfyui_workflow_env(user_config.COMFYUI_WORKFLOW)
+    if user_config.DISABLE_VIDEO_NARRATION is not None:
+        set_disable_video_narration_env(str(user_config.DISABLE_VIDEO_NARRATION))
+    if user_config.COMFYUI_TTS_URL:
+        set_comfyui_tts_url_env(user_config.COMFYUI_TTS_URL)
+    if user_config.COMFYUI_TTS_WORKFLOW:
+        set_comfyui_tts_workflow_env(user_config.COMFYUI_TTS_WORKFLOW)
     if user_config.DALL_E_3_QUALITY:
         set_dall_e_3_quality_env(user_config.DALL_E_3_QUALITY)
     if user_config.GPT_IMAGE_1_5_QUALITY:

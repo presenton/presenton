@@ -95,6 +95,11 @@ class UserConfig(BaseModel):
     COMFYUI_URL: Optional[str] = None
     COMFYUI_WORKFLOW: Optional[str] = None
 
+    # Video Narration (ComfyUI TTS)
+    DISABLE_VIDEO_NARRATION: Optional[bool] = None
+    COMFYUI_TTS_URL: Optional[str] = None
+    COMFYUI_TTS_WORKFLOW: Optional[str] = None
+
     # Open WebUI Image Provider
     OPEN_WEBUI_IMAGE_URL: Optional[str] = None
     OPEN_WEBUI_IMAGE_API_KEY: Optional[str] = None

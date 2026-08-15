@@ -16,6 +16,7 @@ import SettingSideBar, { SettingsSection } from "./SettingSideBar";
 import TextProvider from "./TextProvider";
 import ImageProvider from "./ImageProvider";
 import WebSearchProvider from "./WebSearchProvider";
+import VideoNarrationProvider from "./VideoNarrationProvider";
 import PrivacySettings from "./PrivacySettings";
 import {
   IMAGE_PROVIDERS,
@@ -287,6 +288,9 @@ const SettingsPage = () => {
   const webSearchSummary = llmConfig.WEB_GROUNDING
     ? `Web: ${WEB_SEARCH_PROVIDERS[webSearchProviderKey]?.label || "No provider"}`
     : "Web search disabled";
+  const narrationSummary = llmConfig.DISABLE_VIDEO_NARRATION
+    ? "Narration disabled"
+    : "Narration: ComfyUI";
 
 
   useEffect(() => {
@@ -379,7 +383,7 @@ const SettingsPage = () => {
                 Settings
               </h3>
               <p className="text-[10px] px-2.5 py-0.5 rounded-[50px] text-[#7A5AF8] border border-[#EDEEEF]  font-medium ">
-                {textSummary} · {imageSummary} · {webSearchSummary}
+                {textSummary} · {imageSummary} · {webSearchSummary} · {narrationSummary}
               </p>
             </div>
           </div>
@@ -390,6 +394,7 @@ const SettingsPage = () => {
           />}
           {selectedProvider === 'image-provider' && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === 'web-search-provider' && <WebSearchProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
+          {selectedProvider === 'video-narration' && <VideoNarrationProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
           {selectedProvider === 'privacy' && <PrivacySettings />}
           {selectedProvider === "admin" && <AdminPanel embedded />}
           {selectedProvider === "session" && (

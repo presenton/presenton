@@ -205,3 +205,11 @@ def get_exports_directory():
 
 def get_uploads_directory():
     return _owned_directory("uploads")
+
+
+def get_narration_directory():
+    return _owned_directory("narration")
+
+
+def get_videos_directory():
+    return _owned_directory("videos")
