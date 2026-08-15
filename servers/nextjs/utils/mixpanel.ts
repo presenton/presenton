@@ -23,6 +23,8 @@ export enum MixpanelEvent {
   Onboarding_Image_Quality_Selected = 'Onboarding Image Quality Selected',
   Onboarding_Web_Search_Toggled = 'Onboarding Web Search Toggled',
   Onboarding_Web_Search_Provider_Selected = 'Onboarding Web Search Provider Selected',
+  Onboarding_Video_Narration_Toggled = 'Onboarding Video Narration Toggled',
+  Onboarding_Video_Narration_Provider_Selected = 'Onboarding Video Narration Provider Selected',
 
   Codex_SignIn_API_Call = 'Codex Sign In API Call',
   Codex_SignIn_Completed = 'Codex Sign In Completed',
