@@ -11,11 +11,9 @@ Required environment variables:
 - COMFYUI_TTS_URL: ComfyUI server URL (falls back to COMFYUI_URL if unset,
   since a single ComfyUI instance commonly serves both image and TTS graphs)
 - COMFYUI_TTS_WORKFLOW: Workflow JSON (API format) exported from ComfyUI.
-  The workflow must contain a node titled "Input Text" whose text/string
-  input will receive the slide's speaker note. A reference-voice / voice
-  clone input, if the workflow has one, is left untouched here -- set it
-  once in the workflow JSON itself (or via a node titled "Input Text" if
-  your workflow route both, see _inject_text_into_workflow).
+  The workflow must contain a node titled "Input Prompt" whose text/string
+  input will receive the slide's speaker note -- the same convention the
+  existing ComfyUI image-generation workflow uses.
 """
 
 import asyncio
@@ -143,13 +141,13 @@ class NarrationService:
         input_text_nodes = [
             node_id
             for node_id, node_data in node_index.items()
-            if norm(node_data.get("_meta", {}).get("title")) == "input text"
+            if norm(node_data.get("_meta", {}).get("title")) == "input prompt"
         ]
 
         if not input_text_nodes:
             raise NarrationGenerationError(
-                "Could not find node with title 'Input Text' in the TTS workflow. "
-                "Rename your text/prompt node to 'Input Text'."
+                "Could not find node with title 'Input Prompt' in the TTS workflow. "
+                "Rename your text/prompt node to 'Input Prompt'."
             )
 
         for nid in input_text_nodes:
@@ -157,7 +155,7 @@ class NarrationService:
                 return workflow
 
         raise NarrationGenerationError(
-            "Found 'Input Text' node, but no writable text string field was "
+            "Found 'Input Prompt' node, but no writable text string field was "
             "found directly or through linked nodes."
         )
 

@@ -169,7 +169,7 @@ const VideoNarrationProvider = ({
                     />
                     <p className="mt-2 text-sm text-gray-500">
                       The text node that receives each slide&apos;s speaker
-                      note must be titled &quot;Input Text&quot;.
+                      note must be titled &quot;Input Prompt&quot;.
                     </p>
                   </div>
 
