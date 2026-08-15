@@ -97,6 +97,7 @@ class UserConfig(BaseModel):
 
     # Video Narration (ComfyUI TTS)
     DISABLE_VIDEO_NARRATION: Optional[bool] = None
+    VIDEO_NARRATION_PROVIDER: Optional[str] = None
     COMFYUI_TTS_URL: Optional[str] = None
     COMFYUI_TTS_WORKFLOW: Optional[str] = None
 

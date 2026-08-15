@@ -93,6 +93,7 @@ export interface LLMConfig {
 
   // Video Narration (ComfyUI TTS) — slide notes -> speech -> synced video
   DISABLE_VIDEO_NARRATION?: boolean;
+  VIDEO_NARRATION_PROVIDER?: string;
   COMFYUI_TTS_URL?: string;
   COMFYUI_TTS_WORKFLOW?: string;
 

@@ -280,6 +280,10 @@ def set_disable_video_narration_env(value):
     os.environ["DISABLE_VIDEO_NARRATION"] = value
 
 
+def set_video_narration_provider_env(value):
+    os.environ["VIDEO_NARRATION_PROVIDER"] = value
+
+
 def set_comfyui_tts_url_env(value):
     os.environ["COMFYUI_TTS_URL"] = value
 

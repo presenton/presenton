@@ -36,7 +36,10 @@ from services.narration_service import NARRATION_SERVICE, NarrationGenerationErr
 from utils.asset_directory_utils import get_videos_directory
 from utils.export_utils import export_presentation
 from utils.filename_utils import safe_export_basename
-from utils.video_narration_provider import is_video_narration_disabled
+from utils.video_narration_provider import (
+    is_comfyui_narration_selected,
+    is_video_narration_disabled,
+)
 from utils.get_env import (
     get_ffmpeg_binary_env,
     get_ffprobe_binary_env,
@@ -205,7 +208,7 @@ class VideoExportService:
         results: list[Optional[str]] = [None] * len(slides)
         completed = 0
         lock = asyncio.Lock()
-        narration_disabled = is_video_narration_disabled()
+        narration_disabled = is_video_narration_disabled() or not is_comfyui_narration_selected()
 
         async def worker(index: int, slide: SlideModel) -> None:
             nonlocal completed

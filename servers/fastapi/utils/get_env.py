@@ -343,6 +343,10 @@ def get_disable_video_narration_env():
     return os.getenv("DISABLE_VIDEO_NARRATION")
 
 
+def get_video_narration_provider_env():
+    return os.getenv("VIDEO_NARRATION_PROVIDER")
+
+
 def get_ffmpeg_binary_env():
     return os.getenv("FFMPEG_BINARY", "ffmpeg")
 
