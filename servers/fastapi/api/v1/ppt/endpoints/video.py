@@ -1,25 +1,33 @@
 import logging
+import os
 import traceback
 import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Request
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.v1.auth.config import SESSION_COOKIE_NAME
 from api.v1.auth.internal import authenticated_internal_request_headers
 from enums.async_task_status import AsyncTaskStatus
-from models.presentation_and_path import PresentationAndPath
 from models.sql.async_task import AsyncTaskModel
 from models.sql.presentation import PresentationModel
 from services.database import async_session_maker, get_async_session
 from services.video_export_service import VIDEO_EXPORT_SERVICE, VideoExportError
+from utils.asset_directory_utils import get_videos_root_directory
 
 LOGGER = logging.getLogger(__name__)
 
 VIDEO_ROUTER = APIRouter(prefix="/presentation", tags=["Presentation Video"])
 
 ASYNC_TASK_TYPE_PRESENTATION_EXPORT_VIDEO = "presentation.export_video"
+
+
+class VideoExportResult(BaseModel):
+    presentation_id: uuid.UUID
+    path: str
+    relative_path: str | None = None
 
 
 def _build_export_cookie_header_from_request(request: Request) -> str | None:
@@ -32,7 +40,25 @@ def _build_export_cookie_header_from_request(request: Request) -> str | None:
     return None
 
 
-@VIDEO_ROUTER.post("/{id}/export-video", response_model=PresentationAndPath)
+def _relative_video_path(video_path: str) -> str | None:
+    """
+    Path of an exported video relative to the unscoped videos root (e.g.
+    "users/<owner_id>/My-Deck-a1b2c3d4.mp4"), for the frontend to build a
+    download URL with. get_videos_directory() (used to actually save the
+    file) is per-owner-scoped via _owned_directory(), so the absolute path
+    alone isn't enough for the Next.js file route to locate it relative to
+    its own unscoped view of the videos directory.
+    """
+    try:
+        relative = os.path.relpath(video_path, get_videos_root_directory())
+    except ValueError:
+        return None
+    if relative == os.pardir or relative.startswith(f"{os.pardir}{os.sep}"):
+        return None
+    return relative
+
+
+@VIDEO_ROUTER.post("/{id}/export-video", response_model=VideoExportResult)
 async def export_presentation_video_sync(
     request_http: Request,
     id: uuid.UUID = Path(description="ID of the presentation to export as video"),
@@ -54,7 +80,11 @@ async def export_presentation_video_sync(
             sql_session=sql_session,
             cookie_header=cookie_header,
         )
-        return PresentationAndPath(presentation_id=id, path=video_path)
+        return VideoExportResult(
+            presentation_id=id,
+            path=video_path,
+            relative_path=_relative_video_path(video_path),
+        )
     except HTTPException:
         raise
     except VideoExportError as exc:
@@ -94,7 +124,10 @@ async def _run_export_video_task(
             )
             async_status.status = AsyncTaskStatus.COMPLETED
             async_status.message = "Video export complete"
-            async_status.data = {"path": video_path}
+            async_status.data = {
+                "path": video_path,
+                "relative_path": _relative_video_path(video_path),
+            }
         except Exception as exc:
             traceback.print_exc()
             async_status.status = AsyncTaskStatus.ERROR

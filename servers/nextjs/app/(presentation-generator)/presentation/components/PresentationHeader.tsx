@@ -393,7 +393,9 @@ const PresentationHeader = ({
       }
 
       const videoPath: string | undefined = finalTask?.data?.path;
-      if (!videoPath) {
+      const relativeVideoPath: string | undefined =
+        finalTask?.data?.relative_path;
+      if (!videoPath && !relativeVideoPath) {
         throw new Error("No video path returned from export");
       }
 
@@ -401,10 +403,14 @@ const PresentationHeader = ({
         presentationData?.title,
         "mp4"
       );
-      const videoName = videoPath.split("/").pop() || "";
+      // Prefer the path relative to the (unscoped) videos root, since the
+      // file actually lives under a per-owner "users/<id>/" subdirectory --
+      // falling back to the bare filename only for older task payloads.
+      const videoUrlName =
+        relativeVideoPath || videoPath?.split("/").pop() || "";
       downloadLink(
         `/api/export-presentation-video/file?name=${encodeURIComponent(
-          videoName
+          videoUrlName
         )}`,
         safeVideoFileName
       );

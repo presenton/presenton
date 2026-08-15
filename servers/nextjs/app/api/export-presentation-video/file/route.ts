@@ -17,21 +17,42 @@ function getVideosDirectory(): string {
   return path.join(appDataDirectory, "videos");
 }
 
-function getSafeVideoName(request: NextRequest): string | null {
+// Mirrors getSafeExportName() in app/api/export-presentation/file/route.ts --
+// videos are saved the same owner-scoped way as PDF/PPTX exports (both go
+// through _owned_directory() on the backend, which nests everything under
+// "users/<owner_id>/"), so the same ownership check applies here: a
+// non-admin caller may only reach files under their own "users/<id>/"
+// subdirectory; an admin (or a legacy/no-owner-context deployment) may
+// reach a flat top-level filename.
+function getSafeVideoName(
+  request: NextRequest,
+  userId: string | null,
+  isAdmin: boolean,
+): string | null {
   const decodedName = request.nextUrl.searchParams.get("name");
 
-  if (!decodedName || decodedName.includes("\\") || path.isAbsolute(decodedName)) {
+  if (
+    !decodedName ||
+    decodedName.includes("\\") ||
+    path.isAbsolute(decodedName)
+  ) {
     return null;
   }
 
   const normalized = path.normalize(decodedName);
-  if (normalized === ".." || normalized.startsWith(`..${path.sep}`)) {
+  if (
+    normalized === ".." ||
+    normalized.startsWith(`..${path.sep}`)
+  ) {
     return null;
   }
-  // Videos aren't scoped to per-user subdirectories the way PDF/PPTX
-  // exports are -- keep this simple and rely on the random UUID suffix
-  // in the filename (see video_export_service.py) as the access control.
-  return normalized;
+  if (!userId) return normalized;
+
+  const parts = normalized.split(path.sep);
+  if (parts[0] === "users") {
+    return parts.length >= 3 && parts[1] === userId ? normalized : null;
+  }
+  return isAdmin && parts.length === 1 ? normalized : null;
 }
 
 function contentDisposition(filename: string): string {
@@ -45,7 +66,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
   }
 
-  const filename = getSafeVideoName(request);
+  const filename = getSafeVideoName(
+    request,
+    auth.user_id,
+    auth.role === "admin",
+  );
   if (!filename) {
     return NextResponse.json({ error: "Invalid video file name" }, { status: 400 });
   }
