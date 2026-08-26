@@ -600,22 +600,21 @@ function rawVectorFrame(
   if (readString(element.type) !== "vector") return null;
   const points = readArray(element, "points")
     .map(asRecord)
-    .filter((point): point is UnknownRecord => point != null);
-  const xs = points
-    .map((point) => readNumber(point, "x"))
-    .filter((value): value is number => value != null);
-  const ys = points
-    .map((point) => readNumber(point, "y"))
-    .filter((value): value is number => value != null);
-  if (xs.length === 0 || ys.length === 0) return null;
+    .map((point) => {
+      const x = readNumber(point ?? {}, "x");
+      const y = readNumber(point ?? {}, "y");
+      return x != null && y != null ? { x, y } : null;
+    })
+    .filter((point): point is { x: number; y: number } => point != null);
+  if (points.length === 0) return null;
 
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
+  const minX = Math.min(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
   return {
     x: offsetX + minX,
     y: offsetY + minY,
-    width: Math.max(1, Math.max(...xs) - minX),
-    height: Math.max(1, Math.max(...ys) - minY),
+    width: Math.max(1, Math.max(...points.map((point) => point.x)) - minX),
+    height: Math.max(1, Math.max(...points.map((point) => point.y)) - minY),
   };
 }
 
@@ -683,6 +682,21 @@ function localizeRawElementToFrame(
       },
     }
     : { ...element };
+
+  if (readString(localized.type) === "vector") {
+    localized.points = readArray(localized, "points").map((point) => {
+      const rawPoint = asRecord(point);
+      if (!rawPoint) return point;
+      const x = readNumber(rawPoint, "x");
+      const y = readNumber(rawPoint, "y");
+      if (x == null || y == null) return point;
+      return {
+        ...rawPoint,
+        x: x - frame.x,
+        y: y - frame.y,
+      };
+    });
+  }
 
   if (!position) {
     const children = readArray(localized, "children");
