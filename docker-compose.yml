@@ -268,6 +268,7 @@ services:
       - .:/app
       - presenton_root_node_modules:/app/node_modules
       - presenton_document_extraction_liteparse:/app/document-extraction-liteparse
+      - presenton_presentation_export:/app/presentation-export
       - ./app_data:/app_data
     environment:
       # Bundled PPTX/PDF export (Puppeteer); matches CI and production image.
@@ -402,6 +403,7 @@ services:
       - .:/app
       - presenton_root_node_modules:/app/node_modules
       - presenton_document_extraction_liteparse:/app/document-extraction-liteparse
+      - presenton_presentation_export:/app/presentation-export
       - ./app_data:/app_data
     environment:
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
@@ -517,3 +519,4 @@ services:
 volumes:
   presenton_root_node_modules:
   presenton_document_extraction_liteparse:
+  presenton_presentation_export:

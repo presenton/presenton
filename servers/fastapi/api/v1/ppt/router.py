@@ -4,6 +4,7 @@ from api.v1.ppt.endpoints.anthropic import ANTHROPIC_ROUTER
 from api.v1.ppt.endpoints.chat import CHAT_ROUTER
 from api.v1.ppt.endpoints.community import COMMUNITY_ROUTER
 from api.v1.ppt.endpoints.codex_auth import CODEX_AUTH_ROUTER
+from api.v1.ppt.endpoints.generation import GENERATION_ROUTER
 from api.v1.ppt.endpoints.google import GOOGLE_ROUTER
 from api.v1.ppt.endpoints.openai import OPENAI_ROUTER
 from api.v1.ppt.endpoints.openrouter import OPENROUTER_ROUTER
@@ -33,6 +34,7 @@ API_V1_PPT_ROUTER.include_router(OPENAI_ROUTER)
 API_V1_PPT_ROUTER.include_router(OPENROUTER_ROUTER)
 API_V1_PPT_ROUTER.include_router(ANTHROPIC_ROUTER)
 API_V1_PPT_ROUTER.include_router(GOOGLE_ROUTER)
+API_V1_PPT_ROUTER.include_router(GENERATION_ROUTER)
 API_V1_PPT_ROUTER.include_router(CODEX_AUTH_ROUTER)
 API_V1_PPT_ROUTER.include_router(PRESENTATION_ROUTER)
 API_V1_PPT_ROUTER.include_router(THEMES_ROUTER)

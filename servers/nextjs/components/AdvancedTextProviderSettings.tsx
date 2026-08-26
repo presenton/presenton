@@ -1,7 +1,14 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronUp, Loader2, Trash2 } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 
 import {
   Command,
@@ -24,7 +31,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { notify } from "@/components/ui/sonner";
-import { Switch } from "@/components/ui/switch";
 import { LLMConfig } from "@/types/llm_config";
 import { getApiErrorMessage, getApiUrl } from "@/utils/api";
 
@@ -57,6 +63,34 @@ const REASONING_EFFORT_OPTIONS: SelectOption[] = [
   { value: "xhigh", label: "Extra high" },
   { value: "max", label: "Maximum" },
 ];
+
+const REASONING_MODE_OPTIONS: SelectOption[] = [
+  { value: "model_default", label: "Model default" },
+  { value: "enabled", label: "On" },
+  { value: "disabled", label: "Off" },
+];
+
+const FALLBACK_DEFAULT_MAX_OUTPUT_TOKENS = 8_192;
+const FALLBACK_MODEL_MAX_OUTPUT_TOKENS = 32_768;
+
+const MODEL_FIELDS: Partial<Record<string, keyof LLMConfig>> = {
+  anthropic: "ANTHROPIC_MODEL",
+  azure: "AZURE_OPENAI_MODEL",
+  bedrock: "BEDROCK_MODEL",
+  cerebras: "CEREBRAS_MODEL",
+  codex: "CODEX_MODEL",
+  custom: "CUSTOM_MODEL",
+  deepseek: "DEEPSEEK_MODEL",
+  fireworks: "FIREWORKS_MODEL",
+  google: "GOOGLE_MODEL",
+  litellm: "LITELLM_MODEL",
+  lmstudio: "LMSTUDIO_MODEL",
+  ollama: "OLLAMA_MODEL",
+  openai: "OPENAI_MODEL",
+  openrouter: "OPENROUTER_MODEL",
+  together: "TOGETHER_MODEL",
+  vertex: "VERTEX_MODEL",
+};
 
 const inputClass =
   "flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-[#D9DCE3] bg-white px-4 text-left text-sm text-[#191919] outline-none transition-colors hover:border-[#C8CBD3] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15";
@@ -134,18 +168,31 @@ const deduplicateProviders = (providers: ProviderOption[]) => {
 export default function AdvancedTextProviderSettings({ config, onChange }: Props) {
   const providerListId = useId();
   const modelMaximumId = useId();
-  const reasoningToggleId = useId();
   const [providers, setProviders] = useState<ProviderOption[]>([]);
   const [providersLoading, setProvidersLoading] = useState(false);
   const [providerToAdd, setProviderToAdd] = useState("");
   const [providerPickerOpen, setProviderPickerOpen] = useState(false);
+  const [tokenDefaults, setTokenDefaults] = useState({
+    defaultMaxOutputTokens: FALLBACK_DEFAULT_MAX_OUTPUT_TOKENS,
+    modelMaxOutputTokens: FALLBACK_MODEL_MAX_OUTPUT_TOKENS,
+  });
   const hasManualMaxOutputTokens =
     typeof config.LLM_MAX_OUTPUT_TOKENS === "number" &&
     config.LLM_MAX_OUTPUT_TOKENS > 0;
   const useModelMaximum =
     config.LLM_GENERATION_PROFILE === "model_max" &&
     !hasManualMaxOutputTokens;
-  const reasoningEnabled = config.LLM_REASONING_MODE !== "disabled";
+  const reasoningMode =
+    config.LLM_REASONING_MODE === "enabled" ||
+    config.LLM_REASONING_MODE === "disabled"
+      ? config.LLM_REASONING_MODE
+      : "model_default";
+  const reasoningAvailable = reasoningMode !== "disabled";
+  const modelField = config.LLM ? MODEL_FIELDS[config.LLM] : undefined;
+  const selectedModel = modelField ? String(config[modelField] || "") : "";
+  const displayedMaxOutputTokens = useModelMaximum
+    ? tokenDefaults.modelMaxOutputTokens
+    : config.LLM_MAX_OUTPUT_TOKENS ?? tokenDefaults.defaultMaxOutputTokens;
   const order = useMemo(
     () => config.OPENROUTER_PROVIDER_ORDER || [],
     [config.OPENROUTER_PROVIDER_ORDER]
@@ -160,8 +207,37 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
     [order, providers]
   );
 
+  useEffect(() => {
+    if (!config.LLM || config.LLM === "presenton") return;
+
+    const controller = new AbortController();
+    fetch(getApiUrl("/api/v1/ppt/generation/defaults"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: config.LLM, model: selectedModel }),
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (
+          typeof payload?.default_max_output_tokens === "number" &&
+          typeof payload?.model_max_output_tokens === "number"
+        ) {
+          setTokenDefaults({
+            defaultMaxOutputTokens: payload.default_max_output_tokens,
+            modelMaxOutputTokens: payload.model_max_output_tokens,
+          });
+        }
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      });
+
+    return () => controller.abort();
+  }, [config.LLM, selectedModel]);
+
   const setReasoningMode = (value: string) => {
-    onChange(value, "LLM_REASONING_MODE");
+    onChange(value === "model_default" ? "" : value, "LLM_REASONING_MODE");
     if (value === "disabled") {
       onChange("", "LLM_REASONING_EFFORT");
       onChange("", "LLM_REASONING_BUDGET_TOKENS");
@@ -233,6 +309,26 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
     onChange(next, "OPENROUTER_PROVIDER_ORDER");
   };
 
+  const resetToDefaults = () => {
+    onChange("", "LLM_GENERATION_PROFILE");
+    onChange(
+      tokenDefaults.defaultMaxOutputTokens,
+      "LLM_MAX_OUTPUT_TOKENS"
+    );
+    onChange("", "LLM_REASONING_MODE");
+    onChange("", "LLM_REASONING_EFFORT");
+    onChange("", "LLM_REASONING_BUDGET_TOKENS");
+    onChange("", "DISABLE_THINKING");
+    onChange("", "EXTENDED_REASONING");
+    onChange([], "OPENROUTER_PROVIDER_ORDER");
+    onChange("", "OPENROUTER_ALLOW_FALLBACKS");
+    onChange("", "OPENROUTER_REQUIRE_PARAMETERS");
+    onChange("", "OPENROUTER_DATA_COLLECTION");
+    onChange("", "OPENROUTER_ZDR");
+    setProviderToAdd("");
+    setProviderPickerOpen(false);
+  };
+
   if (!config.LLM || config.LLM === "presenton") {
     return null;
   }
@@ -256,6 +352,16 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
       </summary>
 
       <div className="mt-4 space-y-4">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={resetToDefaults}
+            className="inline-flex items-center gap-2 rounded-[48px] border border-[#EDEEEF] bg-white px-4 py-2.5 text-xs font-semibold text-[#5146E5] transition hover:bg-[#F4F3FF]"
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            Reset to defaults
+          </button>
+        </div>
         <section className="space-y-6 rounded-[12px] border border-[#EDEEEF] bg-white p-6">
           <div>
             <h4 className="text-sm font-semibold text-[#191919]">
@@ -276,11 +382,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                 min={1}
                 step={1}
                 disabled={useModelMaximum}
-                value={
-                  useModelMaximum
-                    ? ""
-                    : config.LLM_MAX_OUTPUT_TOKENS ?? ""
-                }
+                value={displayedMaxOutputTokens}
                 onChange={(event) => {
                   onChange("", "LLM_GENERATION_PROFILE");
                   onChange(
@@ -319,41 +421,24 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
               <p className="mt-1.5 text-xs leading-5 text-[#6B6C70]">
                 Leave blank to use the default, enter a manual limit, or select
                 model maximum to use the selected model&apos;s advertised limit.
+                The selected limit applies to every generation attempt,
+                including retries.
+                {!hasManualMaxOutputTokens && !useModelMaximum && (
+                  <> The effective default is shown in the field.</>
+                )}
               </p>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
-              <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg border border-[#D9DCE3] bg-white px-4 py-3">
-                <div className="min-w-0">
-                  <label
-                    htmlFor={reasoningToggleId}
-                    className="block cursor-pointer text-sm font-medium text-[#303036]"
-                  >
-                    Reasoning mode
-                  </label>
-                  <p className="mt-1 text-xs leading-5 text-[#6B6C70]">
-                    Turn reasoning on for supported models or off for faster
-                    responses.
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-xs font-semibold text-[#52525B]">
-                    {reasoningEnabled ? "On" : "Off"}
-                  </span>
-                  <Switch
-                    id={reasoningToggleId}
-                    checked={reasoningEnabled}
-                    aria-label={`Turn reasoning ${reasoningEnabled ? "off" : "on"}`}
-                    onCheckedChange={() =>
-                      setReasoningMode(
-                        reasoningEnabled ? "disabled" : "enabled"
-                      )
-                    }
-                  />
-                </div>
-              </div>
+              <SettingSelect
+                label="Reasoning mode"
+                description="Use the backend model default, force reasoning on, or turn it off for faster responses."
+                value={reasoningMode}
+                options={REASONING_MODE_OPTIONS}
+                onValueChange={setReasoningMode}
+              />
 
-              {reasoningEnabled && (
+              {reasoningAvailable && (
                 <SettingSelect
                   label="Reasoning effort"
                   description="Higher effort may improve difficult generations, but can increase latency and token usage."

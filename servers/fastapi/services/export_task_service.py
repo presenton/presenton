@@ -575,6 +575,52 @@ class ExportTaskService:
 
         return JsonToImageTaskResult(path=output_path)
 
+    async def render_jsons_to_images(
+        self,
+        data: list[dict[str, Any]],
+        width: int,
+        height: int,
+        fonts: Mapping[str, Any] | None = None,
+    ) -> HtmlToImagesTaskResult:
+        if not data:
+            raise HTTPException(
+                status_code=400,
+                detail="At least one JSON slide is required",
+            )
+        if width <= 0 or height <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="JSON-to-images dimensions must be positive",
+            )
+
+        task_payload: dict[str, Any] = {
+            "type": "json-to-images",
+            "jsons": [_localize_json_image_assets(slide) for slide in data],
+            "width": width,
+            "height": height,
+        }
+        if fonts:
+            task_payload["fonts"] = dict(fonts)
+
+        response_data = await self._run_task(
+            task_payload,
+            "JSON-to-images export task did not produce response files",
+        )
+        raw_paths = response_data.get("file_paths")
+        if not isinstance(raw_paths, list) or len(raw_paths) != len(data):
+            raise HTTPException(
+                status_code=500,
+                detail="JSON-to-images export task produced invalid output",
+            )
+
+        output_paths = [
+            self._resolve_output_path({"file_path": raw_path}) for raw_path in raw_paths
+        ]
+        for output_path in output_paths:
+            self._ensure_output_readable(output_path)
+
+        return HtmlToImagesTaskResult(paths=output_paths)
+
     async def render_htmls_to_images(
         self,
         htmls: list[str],
@@ -654,6 +700,11 @@ class ExportTaskService:
             output_path = self._resolve_output_path(response_data)
             with open(output_path, "r", encoding="utf-8") as output_file:
                 output_data = json.load(output_file)
+            output_data = self._absolutize_conversion_asset_urls(
+                output_path,
+                output_data,
+                "pptx-to-json",
+            )
             output_data = self._scope_conversion_artifacts(
                 output_path,
                 output_data,
@@ -671,6 +722,50 @@ class ExportTaskService:
                 status_code=500,
                 detail="PPTX-to-JSON export produced invalid output",
             ) from exc
+
+    @staticmethod
+    def _absolutize_conversion_asset_urls(
+        output_path: str,
+        output_data: Any,
+        root_name: Literal["pptx-to-html", "pptx-to-json"],
+    ) -> Any:
+        """Turn converter-relative asset paths into backend-served URLs."""
+        artifact_dir = os.path.realpath(os.path.dirname(output_path))
+        session_id = os.path.basename(artifact_dir)
+        app_data = get_app_data_directory_env()
+        if not app_data:
+            raise HTTPException(
+                status_code=500,
+                detail="APP_DATA_DIRECTORY is required for conversion artifacts",
+            )
+
+        expected_root = os.path.realpath(os.path.join(app_data, root_name))
+        if os.path.dirname(artifact_dir) != expected_root or session_id == "users":
+            return output_data
+
+        source_url = f"/app_data/{root_name}/{session_id}"
+
+        def rewrite(value: Any) -> Any:
+            if isinstance(value, str):
+                normalized = value.replace("\\", "/")
+                path_value = normalized.split("#", 1)[0].split("?", 1)[0]
+                if not path_value.startswith(("images/", "fonts/")):
+                    return value
+
+                resolved = os.path.realpath(os.path.join(artifact_dir, path_value))
+                try:
+                    if os.path.commonpath([resolved, artifact_dir]) != artifact_dir:
+                        return value
+                except ValueError:
+                    return value
+                return f"{source_url}/{normalized}"
+            if isinstance(value, list):
+                return [rewrite(item) for item in value]
+            if isinstance(value, dict):
+                return {key: rewrite(item) for key, item in value.items()}
+            return value
+
+        return rewrite(output_data)
 
     @staticmethod
     def _move_export_to_owner(output_path: str) -> str:

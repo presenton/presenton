@@ -142,6 +142,7 @@ class _PreviewLogger:
 
 PREVIEW_WIDTH = 1280
 PREVIEW_HEIGHT = 720
+EMU_PER_PIXEL = 9525
 TAILWIND_BROWSER_SCRIPT_PATH = "/static/vendor/tailwindcss-browser-4.3.3.js"
 CHART_JS_SCRIPT_PATH = "/static/vendor/chart-4.5.1.umd.min.js"
 CHART_DATALABELS_SCRIPT_PATH = (
@@ -174,6 +175,23 @@ def _preview_dimensions_from_document(width: float, height: float) -> Tuple[int,
         return PREVIEW_WIDTH, PREVIEW_HEIGHT
 
     return resolved_width, resolved_height
+
+
+def _preview_dimensions_from_pptx(pptx_path: str) -> Tuple[int, int]:
+    """Read the canvas size used by export-core from the PPTX package."""
+    try:
+        with zipfile.ZipFile(pptx_path, "r") as archive:
+            presentation_xml = archive.read("ppt/presentation.xml")
+        root = ET.fromstring(presentation_xml)
+        slide_size = root.find("p:sldSz", PPT_NS)
+        if slide_size is None:
+            return PREVIEW_WIDTH, PREVIEW_HEIGHT
+        return _preview_dimensions_from_document(
+            int(slide_size.attrib["cx"]) / EMU_PER_PIXEL,
+            int(slide_size.attrib["cy"]) / EMU_PER_PIXEL,
+        )
+    except (KeyError, OSError, ValueError, zipfile.BadZipFile, ET.ParseError):
+        return PREVIEW_WIDTH, PREVIEW_HEIGHT
 
 
 def _css_string(value: str) -> str:
@@ -743,112 +761,46 @@ async def render_pptx_slides_to_images(
             _font_face_css_for_local_fonts,
             font_paths_for_install,
         )
-        logger.info("Prepared custom font CSS for HTML preview rendering")
+        logger.info("Prepared custom font CSS for JSON preview rendering")
 
-    pptx_document = await EXPORT_TASK_SERVICE.convert_pptx_to_html(
-        modified_pptx_path, get_fonts=True
-    )
-    if not pptx_document.slides:
-        raise HTTPException(status_code=500, detail="PPTX-to-HTML returned no slides")
+    pptx_document = await EXPORT_TASK_SERVICE.convert_pptx_to_json(modified_pptx_path)
+    if not pptx_document.layouts:
+        raise HTTPException(status_code=500, detail="PPTX-to-JSON returned no slides")
 
-    slide_htmls = pptx_document.slides
+    slide_layouts = pptx_document.layouts
     if max_slides:
-        slide_htmls = slide_htmls[:max_slides]
+        slide_layouts = slide_layouts[:max_slides]
 
-    # The enterprise converter normalizes decks to a 1280px target width and
-    # derives height from the source slide size. Keep that aspect ratio here.
-    width, height = _preview_dimensions_from_document(
-        pptx_document.width,
-        pptx_document.height,
+    width, height = await asyncio.to_thread(
+        _preview_dimensions_from_pptx,
+        modified_pptx_path,
     )
     logger.info(
-        f"Rendering {len(slide_htmls)} slide previews from PPTX-to-HTML at {width}x{height}"
+        f"Rendering {len(slide_layouts)} slide previews from PPTX-to-JSON at {width}x{height}"
     )
 
-    localized_slide_htmls = []
-    asset_directories = [
-        directory
-        for directory in (
-            getattr(pptx_document, "images_dir", None),
-            getattr(pptx_document, "fonts_dir", None),
-        )
-        if isinstance(directory, str) and os.path.isabs(directory)
-    ]
-    relative_asset_root = (
-        os.path.commonpath([os.path.dirname(path) for path in asset_directories])
-        if asset_directories
-        else None
-    )
-    trusted_local_font_files = {
-        os.path.realpath(path)
-        for path in font_paths_for_install
-        if os.path.isfile(path)
-    }
-    font_css = "\n".join(
-        css
-        for css in (
-            pptx_document.font_css,
-            _font_face_css_for_declared_fonts(pptx_document.font_css),
-            local_font_css,
-        )
-        if css
-    )
-    localized_font_css = _localize_preview_asset_urls(
-        font_css,
-        relative_asset_root=relative_asset_root,
-        trusted_local_files=trusted_local_font_files,
-    )
-    localized_font_css = "\n".join(
-        css
-        for css in (
-            localized_font_css,
-            _font_css_family_aliases(localized_font_css),
-        )
-        if css
-    )
-    explicit_font_links = _font_stylesheet_links_for_urls(font_stylesheet_urls or [])
-    for slide_html in slide_htmls:
-        localized_slide_html = _localize_preview_asset_urls(
-            slide_html,
-            relative_asset_root=relative_asset_root,
-            trusted_local_files=trusted_local_font_files,
-        )
-        inferred_font_links = _font_stylesheet_links_for_slide_html(
-            localized_slide_html, localized_font_css
-        )
-        font_links = "\n".join(
-            link for link in (explicit_font_links, inferred_font_links) if link
-        )
-        slide_fallback_css = _tailwind_fallback_css_for_slide_html(
-            localized_slide_html
-        )
-        localized_slide_htmls.append(
-            _build_slide_preview_html(
-                localized_slide_html,
-                "\n".join(
-                    css for css in (slide_fallback_css, localized_font_css) if css
-                ),
-                font_links=font_links,
-                width=width,
-                height=height,
-            )
-        )
+    fonts: Dict[str, object] = {}
+    if local_font_css:
+        fonts["css"] = local_font_css
+    if font_stylesheet_urls:
+        fonts["fonts"] = font_stylesheet_urls
 
-    rendered = await EXPORT_TASK_SERVICE.render_htmls_to_images(
-        htmls=localized_slide_htmls,
+    rendered = await EXPORT_TASK_SERVICE.render_jsons_to_images(
+        data=slide_layouts,
         width=width,
         height=height,
+        fonts=fonts or None,
     )
-    if len(rendered.paths) != len(localized_slide_htmls):
+    if len(rendered.paths) != len(slide_layouts):
         raise HTTPException(
             status_code=500,
             detail=(
                 "PPTX preview renderer returned an unexpected slide count: "
-                f"expected {len(localized_slide_htmls)}, got {len(rendered.paths)}"
+                f"expected {len(slide_layouts)}, got {len(rendered.paths)}"
             ),
         )
     logger.info(
-        f"Rendered {len(rendered.paths)} HTML slide previews in one Chromium task"
+        f"Rendered {len(rendered.paths)} JSON slide previews in one Chromium task"
     )
     return rendered.paths
 
@@ -1755,7 +1707,7 @@ async def create_slide_previews(
         logger=logger,
         font_stylesheet_urls=font_stylesheet_urls,
     )
-    logger.info("Generated slide previews from PPTX-to-HTML with Chromium")
+    logger.info("Generated slide previews from PPTX-to-JSON with Chromium")
 
     if not screenshot_paths:
         raise HTTPException(status_code=500, detail="Failed to generate slide images")

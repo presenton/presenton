@@ -168,9 +168,17 @@ function validateExistingRuntime(expectedVersion) {
   }
 }
 
+function clearDirectoryContents(directory) {
+  fs.mkdirSync(directory, { recursive: true });
+  for (const entry of fs.readdirSync(directory)) {
+    fs.rmSync(path.join(directory, entry), { recursive: true, force: true });
+  }
+}
+
 function installRuntime(version, archivePath) {
-  fs.rmSync(targetRoot, { recursive: true, force: true });
-  fs.mkdirSync(targetRoot, { recursive: true });
+  // Keep the root directory because Docker may mount a named volume here.
+  // Removing a mount point fails with EBUSY; clearing its contents is portable.
+  clearDirectoryContents(targetRoot);
   fs.copyFileSync(sourceRunner, targetRunner);
   fs.writeFileSync(
     path.join(targetRoot, "package.json"),
@@ -244,7 +252,11 @@ async function main() {
   console.log(`[presentation-export] Installed export-core ${installed.packageVersion}`);
 }
 
-main().catch((error) => {
-  console.error(`[presentation-export] ${error.message}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`[presentation-export] ${error.message}`);
+    process.exit(1);
+  });
+}
+
+module.exports = { clearDirectoryContents };

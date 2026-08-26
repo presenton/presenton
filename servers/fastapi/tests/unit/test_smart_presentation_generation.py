@@ -317,6 +317,7 @@ def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
         + "<!-- SLIDE_END -->"
     )
     calls = 0
+    output_token_limits = []
     streamed_indices = []
     retry_indices = []
     metrics = SimpleNamespace(finish_reason=None)
@@ -331,6 +332,7 @@ def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
     ):
         nonlocal calls
         calls += 1
+        output_token_limits.append(_kwargs.get("max_output_tokens"))
         if calls == 1:
             await on_chunk(first_response)
             return first_response, metrics
@@ -356,7 +358,9 @@ def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
     )
     monkeypatch.setattr(
         "utils.llm_calls.generate_smart_presentation.get_llm_config",
-        lambda **_kwargs: object(),
+        lambda **_kwargs: SimpleNamespace(
+            generation=SimpleNamespace(max_output_tokens=4_000)
+        ),
     )
     monkeypatch.setattr(
         "utils.llm_calls.generate_smart_presentation.get_model",
@@ -387,6 +391,7 @@ def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
     )
 
     assert calls == 3
+    assert output_token_limits == [4_000, 4_000, 4_000]
     assert streamed_indices == [0, 1]
     assert retry_indices == [1, 1]
     assert deck["title"] == "Resumed deck"
@@ -820,4 +825,4 @@ def test_smart_deck_requires_exact_slide_count_and_omits_speaker_notes():
 def test_default_smart_slide_count_is_bounded():
     assert resolve_smart_slide_count(0) == 8
     assert resolve_smart_slide_count(None) == 8
-    assert resolve_smart_slide_count(200) == 20
+    assert resolve_smart_slide_count(200) == 50

@@ -270,6 +270,60 @@ def test_render_json_to_image_embeds_protected_local_assets(monkeypatch, tmp_pat
     assert data[0]["children"][0]["data"] == local_url
 
 
+def test_render_jsons_to_images_sends_localized_batch_payload(monkeypatch, tmp_path):
+    app_data = tmp_path / "app-data"
+    asset_path = app_data / "pptx-to-json" / "session" / "images" / "photo.svg"
+    asset_path.parent.mkdir(parents=True)
+    asset_path.write_text("<svg></svg>", encoding="utf-8")
+    output_paths = [tmp_path / "preview-1.png", tmp_path / "preview-2.png"]
+    for output_path in output_paths:
+        output_path.write_bytes(b"png")
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(app_data))
+    monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("DISABLE_AUTH", "true")
+    service = ExportTaskService(timeout_seconds=10)
+    captured = {}
+
+    async def fake_run_task(task_payload, response_error_detail):
+        captured["task_payload"] = task_payload
+        captured["response_error_detail"] = response_error_detail
+        return {"file_paths": [str(path) for path in output_paths]}
+
+    service._run_task = fake_run_task
+    layouts = [
+        {
+            "elements": [
+                {
+                    "type": "image",
+                    "data": "/app_data/pptx-to-json/session/images/photo.svg",
+                }
+            ]
+        },
+        {"elements": [{"type": "text", "text": "Two"}]},
+    ]
+
+    result = asyncio.run(
+        service.render_jsons_to_images(
+            layouts,
+            960,
+            540,
+            fonts={"css": "@font-face {}"},
+        )
+    )
+
+    assert result.paths == [str(path) for path in output_paths]
+    payload = captured["task_payload"]
+    assert payload["type"] == "json-to-images"
+    assert payload["width"] == 960
+    assert payload["height"] == 540
+    assert payload["fonts"] == {"css": "@font-face {}"}
+    assert payload["jsons"][0]["elements"][0]["data"].startswith(
+        "data:image/svg+xml;base64,"
+    )
+    assert layouts[0]["elements"][0]["data"].startswith("/app_data/")
+    assert "JSON-to-images" in captured["response_error_detail"]
+
+
 def test_render_htmls_to_images_sends_batch_task_payload(monkeypatch, tmp_path):
     monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
     output_paths = [tmp_path / "preview-1.png", tmp_path / "preview-2.png"]

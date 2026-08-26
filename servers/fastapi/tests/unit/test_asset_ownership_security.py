@@ -129,6 +129,40 @@ def test_conversion_artifacts_are_moved_into_the_owner_namespace(
     )
 
 
+def test_conversion_relative_assets_are_absolutized_before_owner_scoping(
+    monkeypatch, tmp_path
+):
+    app_data = tmp_path / "app_data"
+    source_dir = app_data / "pptx-to-json" / "session-1"
+    output_path = source_dir / "presentation.json"
+    image_path = source_dir / "images" / "slide.png"
+    image_path.parent.mkdir(parents=True)
+    output_path.write_text("{}", encoding="utf-8")
+    image_path.write_bytes(b"image")
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(app_data))
+
+    rewritten = ExportTaskService._absolutize_conversion_asset_urls(
+        str(output_path),
+        {
+            "layouts": [
+                {
+                    "elements": [
+                        {"type": "image", "data": "images/slide.png"},
+                        {"type": "image", "data": "images/../../secret.png"},
+                    ]
+                }
+            ]
+        },
+        "pptx-to-json",
+    )
+
+    elements = rewritten["layouts"][0]["elements"]
+    assert elements[0]["data"] == (
+        "/app_data/pptx-to-json/session-1/images/slide.png"
+    )
+    assert elements[1]["data"] == "images/../../secret.png"
+
+
 def test_conversion_artifacts_cannot_move_an_unrelated_app_data_directory(
     monkeypatch, tmp_path
 ):
