@@ -30,6 +30,12 @@ export type ChatLayoutPreview = {
   slideIndex?: number | null;
 };
 
+export type ChatContextTag = {
+  id: string;
+  label: string;
+  title?: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "error";
@@ -38,6 +44,8 @@ export type ChatMessage = {
   activity?: AssistantActivity[];
   layoutPreview?: ChatLayoutPreview;
   editPreview?: ChatEditPreview;
+  /** Ephemeral UI-only context captured when the prompt is submitted. */
+  contextTags?: ChatContextTag[];
 };
 
 export type SubmitMessageOptions = {

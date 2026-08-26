@@ -3,6 +3,32 @@
   "name": "General",
   "description": "General template best for simple presentations, great spacing and clean layout.",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#3B82F6",
+      "background": "#9333EA",
+      "card": "#FFFFFF",
+      "stroke": "#E5E7EB",
+      "primary_text": "#111827",
+      "background_text": "#FFFFFF",
+      "graph_0": "#EF4444",
+      "graph_1": "#3B82F6",
+      "graph_2": "#10B981",
+      "graph_3": "#C084FC",
+      "graph_4": "#A855F7",
+      "graph_5": "#111827",
+      "graph_6": "#F8F9FA",
+      "graph_7": "#F3F4F6",
+      "graph_8": "#4B5563",
+      "graph_9": "#E5E7EB"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Poppins",
+        "url": "/vendor/fonts/sans_serif/poppins/Poppins-Regular.ttf"
+      }
+    }
+  },
   "merged_components": [
     {
       "id": "background_canvas",

@@ -3,6 +3,32 @@
   "name": "Momentum",
   "description": "A polished, high-energy business template for strategy, performance, product, and leadership presentations, combining bold typography, fluid accents, strong data storytelling, and versatile editorial layouts.",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#213EBB",
+      "background": "#F6F7FC",
+      "card": "#FFFFFF",
+      "stroke": "#1A3DB3",
+      "primary_text": "#FFFFFF",
+      "background_text": "#000000",
+      "graph_0": "#4F68C4",
+      "graph_1": "#213EBB",
+      "graph_2": "#2745BF",
+      "graph_3": "#7D92D8",
+      "graph_4": "#D1DAF1",
+      "graph_5": "#1A3DB3",
+      "graph_6": "#1E43C6",
+      "graph_7": "#DDE3F5",
+      "graph_8": "#2E3545",
+      "graph_9": "#F6F5F4"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Lato",
+        "url": "static/Lato Regular.ttf"
+      }
+    }
+  },
   "merged_components": [
     {
       "id": "main_title_area",

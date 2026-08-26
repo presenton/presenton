@@ -2,6 +2,32 @@
   "id": "editorial",
   "name": "Editorial",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#155F99",
+      "background": "#1D242D",
+      "card": "#1DA1F2",
+      "stroke": "#FFFFFF",
+      "primary_text": "#FFFFFF",
+      "background_text": "#FFFFFF",
+      "graph_0": "#2075BC",
+      "graph_1": "#155F99",
+      "graph_2": "#9DCAEA",
+      "graph_3": "#448BCA",
+      "graph_4": "#FFFFFF",
+      "graph_5": "#0F92F4",
+      "graph_6": "#1DA1F2",
+      "graph_7": "#1FA8FF",
+      "graph_8": "#44AFFF",
+      "graph_9": "#49A8F4"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "DM Sans Bold",
+        "url": "static/DM Sans Bold.ttf"
+      }
+    }
+  },
   "icon_type": "thin",
   "fonts": {
     "Playfair Display Bold": "static/Playfair Display Bold Italic.ttf",

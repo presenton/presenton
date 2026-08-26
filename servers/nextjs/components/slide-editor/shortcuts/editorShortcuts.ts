@@ -5,6 +5,10 @@ export type EditorShortcutKey =
   | "Click"
   | "Backspace"
   | "Delete"
+  | "ArrowLeft"
+  | "ArrowRight"
+  | "ArrowUp"
+  | "ArrowDown"
   | "C"
   | "G"
   | "J"
@@ -27,6 +31,8 @@ export type EditorShortcut = {
     | "bring-to-front"
     | "send-backward"
     | "send-to-back"
+    | "previous-slide"
+    | "next-slide"
     | "shortcut-help";
   label: string;
   description: string;
@@ -34,10 +40,17 @@ export type EditorShortcut = {
 };
 
 export type EditorShortcutSection = {
-  id: "selection" | "editing" | "arrange" | "help";
+  id: "selection" | "editing" | "arrange" | "navigation" | "help";
   title: string;
   description: string;
   shortcuts: EditorShortcut[];
+};
+
+const ARROW_KEY_LABELS: Partial<Record<EditorShortcutKey, string>> = {
+  ArrowLeft: "←",
+  ArrowRight: "→",
+  ArrowUp: "↑",
+  ArrowDown: "↓",
 };
 
 export const EDITOR_SHORTCUT_SECTIONS: EditorShortcutSection[] = [
@@ -129,6 +142,25 @@ export const EDITOR_SHORTCUT_SECTIONS: EditorShortcutSection[] = [
     ],
   },
   {
+    id: "navigation",
+    title: "Slide navigation",
+    description: "Move between slides without leaving the canvas.",
+    shortcuts: [
+      {
+        id: "previous-slide",
+        label: "Previous slide",
+        description: "Open the slide before the active slide.",
+        chords: [["ArrowLeft"], ["ArrowUp"]],
+      },
+      {
+        id: "next-slide",
+        label: "Next slide",
+        description: "Open the slide after the active slide.",
+        chords: [["ArrowRight"], ["ArrowDown"]],
+      },
+    ],
+  },
+  {
     id: "help",
     title: "Help",
     description: "Quickly return to this reference.",
@@ -153,6 +185,9 @@ export function shortcutKeyLabel(
   key: EditorShortcutKey,
   applePlatform: boolean,
 ) {
+  const arrowLabel = ARROW_KEY_LABELS[key];
+  if (arrowLabel) return arrowLabel;
+
   if (!applePlatform) {
     if (key === "Mod") return "Ctrl";
     return key;

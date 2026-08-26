@@ -377,6 +377,11 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **OPENROUTER_API_KEY**: Required if **LLM** is **openrouter**.
 - **OPENROUTER_MODEL**: Required if **LLM** is **openrouter** (default: `openai/gpt-4o`).
 - **OPENROUTER_BASE_URL**: Optional if **LLM** is **openrouter** (default: `https://openrouter.ai/api/v1`).
+- **OPENROUTER_PROVIDER_ORDER**: Optional comma-separated OpenRouter provider routing order.
+- **OPENROUTER_ALLOW_FALLBACKS**=[true/false]: Optional OpenRouter fallback override.
+- **OPENROUTER_REQUIRE_PARAMETERS**=[true/false]: Only route to providers supporting every request parameter.
+- **OPENROUTER_DATA_COLLECTION**=[allow/deny]: Optional OpenRouter data-collection policy.
+- **OPENROUTER_ZDR**=[true/false]: Optional OpenRouter zero-data-retention requirement.
 - **FIREWORKS_API_KEY**: Required if **LLM** is **fireworks**.
 - **FIREWORKS_MODEL**: Required if **LLM** is **fireworks** (example: `accounts/fireworks/models/llama-v3p1-8b-instruct`).
 - **FIREWORKS_BASE_URL**: Optional if **LLM** is **fireworks** (default: `https://api.fireworks.ai/inference/v1`).
@@ -408,6 +413,13 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **TAVILY_API_KEY**, **EXA_API_KEY**: Credentials for optional hosted search APIs.
 <!-- - **BRAVE_SEARCH_API_KEY**, **SERPER_API_KEY**: Credentials for hidden, untested hosted search APIs. -->
 - **EXTENDED_REASONING**=[true/false]: Enables extended reasoning where supported by the configured stack.
+- **LLM_GENERATION_PROFILE**=[fast/balanced/deep/model_max]: Optional global generation profile (default: `balanced`).
+- **LLM_MAX_OUTPUT_TOKENS**: Optional positive output-token override for every text provider.
+- **LLM_REASONING_MODE**=[auto/enabled/disabled]: Optional global reasoning-mode override.
+- **LLM_REASONING_EFFORT**=[default/none/minimal/low/medium/high/xhigh/max]: Optional reasoning-effort override.
+- **LLM_REASONING_BUDGET_TOKENS**: Optional non-negative reasoning token budget.
+
+All advanced text-provider settings are optional. Use **Reset advanced settings** in Settings or onboarding to remove overrides and inherit application/provider defaults.
 
 #### Ollama
 

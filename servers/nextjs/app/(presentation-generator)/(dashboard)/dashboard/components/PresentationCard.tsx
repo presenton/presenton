@@ -223,7 +223,7 @@ export const PresentationCard = ({
                   </button>
                 )}
                 <button
-                  className="flex items-center justify-between w-full px-2 py-1 hover:bg-gray-100"
+                  className="flex w-full items-center justify-between rounded-[6px] px-2 py-1 text-[#D92D20] transition-colors hover:bg-[#FEF3F2]"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -232,7 +232,7 @@ export const PresentationCard = ({
                   }}
                 >
                   <p>Delete</p>
-                  <Trash className="h-4 w-4 text-red-500" />
+                  <Trash className="h-4 w-4" />
                 </button>
               </PopoverContent>
             </Popover>
@@ -255,35 +255,35 @@ export const PresentationCard = ({
           className="z-[101] w-[calc(100vw-32px)] max-w-[420px] gap-0 overflow-hidden rounded-[24px] border-0 bg-white p-0 font-syne shadow-[0_28px_90px_rgba(15,23,42,0.24)] sm:max-w-[420px]"
         >
           <DialogHeader className="items-center px-7 pb-6 pt-8 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#F4F3FF] ring-8 ring-[#FAF9FF]">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FEE4E2] ring-8 ring-[#FEF3F2]">
               <AlertTriangle
-                className="h-6 w-6 text-[#7A5AF8]"
+                className="h-6 w-6 text-[#D92D20]"
                 strokeWidth={1.8}
                 aria-hidden="true"
               />
             </div>
-            <DialogTitle className="text-[22px] font-semibold leading-7 tracking-[-0.02em] text-[#191919]">
+            <DialogTitle className="text-[22px] font-semibold leading-7 tracking-[-0.02em] text-[#B42318]">
               Delete presentation?
             </DialogTitle>
             <DialogDescription asChild>
               <div className="w-full pt-2 text-sm leading-6 text-[#667085]">
                 <p>This will permanently delete the presentation below.</p>
                 <div
-                  className="mt-4 rounded-[12px] border border-[#EAECF0] bg-[#F9FAFB] px-4 py-3 text-left"
+                  className="mt-4 rounded-[12px] border border-[#FECDCA] bg-[#FFFBFA] px-4 py-3 text-left"
                   title={title || "Untitled presentation"}
                 >
-                  <p className="line-clamp-2 break-words text-sm font-medium leading-5 text-[#344054]">
+                  <p className="line-clamp-2 break-words text-sm font-medium leading-5 text-[#7A271A]">
                     {title || "Untitled presentation"}
                   </p>
                 </div>
-                <p className="mt-3 text-[13px] text-[#98A2B3]">
+                <p className="mt-3 text-[13px] font-medium text-[#D92D20]">
                   This action cannot be undone.
                 </p>
               </div>
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="grid grid-cols-2 gap-3 border-t border-[#EAECF0] bg-[#FCFCFD] p-4 sm:grid sm:space-x-0">
+          <DialogFooter className="grid grid-cols-2 gap-3 border-t border-[#FEE4E2] bg-[#FFFBFA] p-4 sm:grid sm:space-x-0">
             <button
               type="button"
               onClick={() => setShowDeleteDialog(false)}
@@ -296,7 +296,7 @@ export const PresentationCard = ({
               type="button"
               onClick={() => void handleDelete()}
               disabled={isDeleting}
-              className="flex h-11 items-center justify-center gap-2 rounded-[10px] bg-[#191919] px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#303030] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-11 items-center justify-center gap-2 rounded-[10px] bg-[#D92D20] px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#B42318] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D20]/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isDeleting ? (
                 <>

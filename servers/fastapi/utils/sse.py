@@ -13,6 +13,7 @@ async def safe_sse_stream(
     logger: logging.Logger,
     error_detail: str,
     on_error: Callable[[], Awaitable[None]] | None = None,
+    error_metadata: Callable[[Exception], Awaitable[dict[str, object]]] | None = None,
 ) -> AsyncGenerator[str, None]:
     try:
         async for chunk in stream:
@@ -28,4 +29,10 @@ async def safe_sse_stream(
             except Exception:
                 logger.exception("SSE stream error cleanup failed")
         detail = exc.detail if isinstance(exc, HTTPException) else error_detail
-        yield SSEErrorResponse(detail=str(detail)).to_string()
+        metadata: dict[str, object] = {}
+        if error_metadata:
+            try:
+                metadata = await error_metadata(exc)
+            except Exception:
+                logger.exception("SSE stream error metadata lookup failed")
+        yield SSEErrorResponse(detail=str(detail), **metadata).to_string()

@@ -54,6 +54,7 @@ import { cn } from "@/lib/utils";
 import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import { sanitizeAnalyticsError } from "@/utils/analytics";
 import { v4 as uuidv4 } from "uuid";
+import StreamingGenerationMetrics from "./StreamingGenerationMetrics";
 
 const MAX_EXPORT_TITLE_LENGTH = 40;
 
@@ -117,9 +118,12 @@ const PresentationHeader = ({
   const pathname = usePathname();
   const dispatch = useDispatch();
 
-  const { presentationData, isStreaming, enableHtmlSelector } = useSelector(
-    (state: RootState) => state.presentationGeneration
-  );
+  const {
+    presentationData,
+    isStreaming,
+    enableHtmlSelector,
+    generationMetrics,
+  } = useSelector((state: RootState) => state.presentationGeneration);
   const { onUndo, onRedo, canUndo, canRedo } = usePresentationUndoRedo();
 
   useEffect(() => {
@@ -565,7 +569,7 @@ const PresentationHeader = ({
   return (
     <>
       <div className="py-[18px] px-4 sticky top-0 bg-white z-50 shadow-sm font-syne flex justify-between items-center gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <img
             onClick={() => {
               router.push("/dashboard");
@@ -582,7 +586,10 @@ const PresentationHeader = ({
          
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2.5">
+          {generationMode === "smart" && generationMetrics ? (
+            <StreamingGenerationMetrics metrics={generationMetrics} />
+          ) : null}
           {isPresentationSaving && (
             <div className="flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

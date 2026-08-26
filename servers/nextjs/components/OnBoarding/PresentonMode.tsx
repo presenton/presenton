@@ -27,11 +27,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import Image from 'next/image';
 import OllamaConfig from '../OllamaConfig';
 import OnboardingPresentonAccount from './OnboardingPresentonAccount';
+import CreatableModelInput from '@/components/CreatableModelInput';
+import AdvancedTextProviderSettings from '@/components/AdvancedTextProviderSettings';
 
 const MANUAL_MODEL_PROVIDERS = new Set(["vertex", "azure", "bedrock"]);
 const LOCAL_PROVIDERS = ["ollama", "lmstudio"];
 const OTHER_PROVIDERS = Object.values(LLM_PROVIDERS).filter(
-    (provider) => provider.value !== "codex" && !LOCAL_PROVIDERS.includes(provider.value)
+    (provider) =>
+        provider.value !== "codex" &&
+        provider.value !== "presenton" &&
+        !LOCAL_PROVIDERS.includes(provider.value)
 );
 const OTHER_PROVIDER_VALUES = new Set(OTHER_PROVIDERS.map((provider) => provider.value));
 type TextProviderTab = "chatgpt" | "local" | "other";
@@ -71,7 +76,6 @@ const PresentonMode = ({
         !!(userConfigState.llm_config.DEEPSEEK_BASE_URL || '').trim()
     );
     const [availableModels, setAvailableModels] = useState<string[]>([]);
-    const [openModelSelect, setOpenModelSelect] = useState(false);
     const [modelsLoading, setModelsLoading] = useState(false);
     const [modelsChecked, setModelsChecked] = useState(false);
     const [savingConfig, setSavingConfig] = useState(false);
@@ -225,6 +229,20 @@ const PresentonMode = ({
         if (currentDeepseekBaseUrl) setDeepseekAdvancedOpen(true);
     }, [currentDeepseekBaseUrl]);
 
+    useEffect(() => {
+        setAvailableModels([]);
+        setModelsChecked(false);
+    }, [
+        llmConfig.LLM,
+        currentApiKey,
+        llmConfig.CUSTOM_LLM_URL,
+        currentDeepseekBaseUrl,
+        currentLitellmUrl,
+        currentLmStudioUrl,
+        currentFireworksUrl,
+        currentTogetherUrl,
+    ]);
+
     const getSelectedTextModel = (config: LLMConfig): string => {
         switch (config.LLM) {
             case 'openai':
@@ -370,7 +388,7 @@ const PresentonMode = ({
                 setModelsChecked(true);
 
                 if (normalizedModels.length > 0 && currentModelField) {
-                    if (llmConfig[currentModelField] && normalizedModels.includes(llmConfig[currentModelField])) {
+                    if (llmConfig[currentModelField]) {
                         setLlmConfig(prev => ({
                             ...prev,
                             [currentModelField]: llmConfig[currentModelField]
@@ -414,16 +432,22 @@ const PresentonMode = ({
                 );
                 console.error('Failed to fetch models');
                 setAvailableModels([]);
+                // Model discovery may not exist on custom-compatible APIs.
+                // Keep setup usable by revealing the creatable model input.
                 setModelsChecked(true);
-                notify.error("Could not load models", message);
+                notify.error(
+                    "Could not load models",
+                    `${message} You can enter a model ID manually.`
+                );
             }
         } catch (error) {
             console.error('Error fetching models:', error);
+            const message = error instanceof Error
+                ? error.message
+                : "The server could not list models. Check your API key or endpoint and try again.";
             notify.error(
                 llmConfig.LLM === "ollama" ? "Could not connect to Ollama" : "Could not load models",
-                error instanceof Error
-                    ? error.message
-                    : "The server could not list models. Check your API key or endpoint and try again."
+                `${message} You can enter a model ID manually.`
             );
             setAvailableModels([]);
             setModelsChecked(true);
@@ -1331,7 +1355,7 @@ const PresentonMode = ({
                                         {llmConfig.LLM && LLM_PROVIDERS[llmConfig.LLM!]?.getApiKeyUrl && <a href={LLM_PROVIDERS[llmConfig.LLM!]?.getApiKeyUrl || ""} target='_blank' className='text-[#666666] text-xs font-normal flex items-center gap-1'>Get API Key <ArrowUpRight className='w-3.5 h-3.5' /></a>}
                                     </div>
 
-                                    <div className="relative">
+                                    <div className="grid">
                                         <input
                                             type={showApiKey ? 'text' : 'password'}
                                             value={currentApiKey}
@@ -1339,13 +1363,13 @@ const PresentonMode = ({
                                                 ...prev,
                                                 [currentApiKeyField]: e.target.value
                                             }))}
-                                            className="w-full px-2 py-3 outline-none border  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                            className="col-start-1 row-start-1 h-12 w-full rounded-lg border border-gray-300 py-3 pl-3 pr-12 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                                             placeholder={`Enter your ${providerApiKeyLabel}`}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowApiKey((prev) => !prev)}
-                                            className='absolute right-2 top-1/2 -translate-y-1/2 bg-white px-2 py-1 cursor-pointer'
+                                            className='z-10 col-start-1 row-start-1 mr-2 flex h-8 w-8 cursor-pointer items-center justify-center self-center justify-self-end rounded-md bg-transparent p-0 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30'
                                         >
                                             {showApiKey ? <Eye className='w-4 h-4 text-gray-500' /> : <EyeOff className='w-4 h-4 text-gray-500' />}
                                         </button>
@@ -1491,7 +1515,7 @@ const PresentonMode = ({
                         </div>
 
 
-                        {!isManualModelProvider && llmConfig.LLM !== 'chatgpt' && llmConfig.LLM !== 'codex' && llmConfig.LLM !== 'ollama' && (!modelsChecked || availableModels.length === 0) && (
+                        {!isManualModelProvider && llmConfig.LLM !== 'chatgpt' && llmConfig.LLM !== 'codex' && llmConfig.LLM !== 'ollama' && !modelsChecked && (
 
                             <button
                                 onClick={fetchAvailableModels}
@@ -1530,100 +1554,31 @@ const PresentonMode = ({
                 <div className="mt-4 flex w-full max-w-[222px] items-start gap-4">
 
 
-                    {/* Model Selection - only show if models are available */}
-                    {isActiveNonChatProvider && !isManualModelProvider && llmConfig.LLM !== 'ollama' && modelsChecked && availableModels.length > 0 && (
+                    {/* Remote discovery is advisory; manual model IDs are always accepted. */}
+                    {isActiveNonChatProvider && !isManualModelProvider && llmConfig.LLM !== 'ollama' && modelsChecked && (
                         <div className="w-full">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    {`Select ${LLM_PROVIDERS[llmConfig.LLM!]?.label} Model`}
-                                </label>
-                                <div className="w-full">
-                                    <Popover
-                                        open={openModelSelect}
-                                        onOpenChange={(open) => {
-                                            setOpenModelSelect(open);
-                                            if (open && llmConfig.LLM === "ollama") {
-                                                void fetchAvailableModels();
-                                            }
-                                        }}
-                                    >
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                aria-expanded={openModelSelect}
-                                                className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
-                                            >
-                                                <span className="text-sm truncate font-medium text-gray-900">
-                                                    {
-                                                        currentModel
-                                                            ? availableModels.find(model => model === currentModel) || currentModel
-                                                            :
-                                                            "Select a model"
-                                                    }
-                                                </span>
-
-                                                <ChevronUp className="w-4 h-4 text-gray-500" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent
-                                            className="p-0"
-                                            align="start"
-                                            style={{ width: "var(--radix-popover-trigger-width)" }}
-                                        >
-                                            <Command>
-                                                <CommandInput placeholder="Search models..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No model found.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {availableModels.map((model, index) => (
-                                                            <CommandItem
-                                                                key={index}
-                                                                value={model}
-                                                                onSelect={(value) => {
-                                                                    if (currentModelField) {
-                                                                        trackEvent(MixpanelEvent.Onboarding_Text_Model_Selected, {
-                                                                            provider: llmConfig.LLM || "",
-                                                                            model: value,
-                                                                            text_provider_tab: textProviderTab,
-                                                                        });
-                                                                        setLlmConfig(prev => ({
-                                                                            ...prev,
-                                                                            [currentModelField]: value
-                                                                        }));
-                                                                    }
-                                                                    setOpenModelSelect(false);
-                                                                }}
-                                                            >
-                                                                <Check
-                                                                    className={cn(
-                                                                        "mr-2 h-4 w-4",
-                                                                        currentModel === model
-                                                                            ? "opacity-100"
-                                                                            : "opacity-0"
-                                                                    )}
-                                                                />
-                                                                <div className="flex gap-3 items-center">
-                                                                    <div className="flex flex-col space-y-1 flex-1">
-                                                                        <div className="flex items-center justify-between gap-2">
-                                                                            <span className="text-sm font-medium text-gray-900">
-                                                                                {model}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
+                            <CreatableModelInput
+                                value={currentModel}
+                                options={availableModels}
+                                providerLabel={LLM_PROVIDERS[llmConfig.LLM!]?.label || llmConfig.LLM || "Provider"}
+                                onChange={(value) => {
+                                    if (!currentModelField) return;
+                                    setLlmConfig(prev => ({ ...prev, [currentModelField]: value }));
+                                }}
+                            />
                         </div>
                     )}
                 </div>
+                {llmConfig.LLM !== "presenton" && (
+                    <div className="mt-5 w-full">
+                        <AdvancedTextProviderSettings
+                            config={llmConfig}
+                            onChange={(value, field) => {
+                                setLlmConfig(prev => ({ ...prev, [field]: value }));
+                            }}
+                        />
+                    </div>
+                )}
             </div>
             </>}
             {providerStep === 2 && <>

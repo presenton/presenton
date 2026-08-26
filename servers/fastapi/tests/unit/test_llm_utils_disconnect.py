@@ -1,7 +1,6 @@
 import asyncio
 import threading
 import time
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -13,11 +12,37 @@ from utils.llm_utils import generate_structured_with_schema_retries
 class RetryClient:
     def __init__(self):
         self.calls = []
-        self.responses = [None, {"result": "ok"}]
+        self.responses = [None, '{"result": "ok"}']
 
     def generate(self, **kwargs):
         self.calls.append(kwargs)
-        return SimpleNamespace(content=self.responses.pop(0))
+        response = self.responses.pop(0)
+
+        def events():
+            if response is not None:
+                yield ResponseStreamContentChunk(chunk=response)
+
+        return events()
+
+
+class NonStreamingRefusingClient:
+    """Mirrors the Anthropic SDK, which refuses a long non-streaming request."""
+
+    def __init__(self):
+        self.calls = []
+
+    def generate(self, **kwargs):
+        self.calls.append(kwargs)
+        if not kwargs.get("stream"):
+            raise ValueError(
+                "Streaming is required for operations that may take longer "
+                "than 10 minutes."
+            )
+
+        def events():
+            yield ResponseStreamContentChunk(chunk='{"result": "ok"}')
+
+        return events()
 
 
 class StreamingClient:
@@ -41,7 +66,7 @@ class StreamingClient:
         return events()
 
 
-def test_regular_generation_keeps_existing_retry_behavior(monkeypatch):
+def test_background_generation_streams_and_keeps_retry_behavior(monkeypatch):
     monkeypatch.setenv("LLM", "ollama")
     client = RetryClient()
 
@@ -58,7 +83,25 @@ def test_regular_generation_keeps_existing_retry_behavior(monkeypatch):
 
     assert result == {"result": "ok"}
     assert len(client.calls) == 2
-    assert all(call["stream"] is False for call in client.calls)
+    assert all(call["stream"] is True for call in client.calls)
+
+
+def test_background_generation_never_issues_a_nonstreaming_request(monkeypatch):
+    monkeypatch.setenv("LLM", "ollama")
+    client = NonStreamingRefusingClient()
+
+    result = asyncio.run(
+        generate_structured_with_schema_retries(
+            client,
+            "test-model",
+            messages=[],
+            response_format=object(),
+            json_schema={},
+        )
+    )
+
+    assert result == {"result": "ok"}
+    assert len(client.calls) == 1
 
 
 def test_disconnect_cancels_generation_without_retrying(monkeypatch):

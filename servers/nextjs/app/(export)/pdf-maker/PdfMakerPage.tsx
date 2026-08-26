@@ -39,11 +39,16 @@ const PDF_PRINT_STYLE = `
     gap: 0 !important;
   }
 
-  #presentation-slides-wrapper .slides-export-stack {
+  #presentation-slides-wrapper {
     width: 100% !important;
     display: flex !important;
     flex-direction: column !important;
-    align-items: center !important;
+    /*
+     * export-core measures PPTX elements in a 3000px-wide viewport. Keep the
+     * 1280px slide canvas at x=0 so its clipping rectangle and child element
+     * coordinates share the same origin.
+     */
+    align-items: flex-start !important;
     gap: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -140,8 +145,8 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
   const exportCookieFromHash =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.hash.replace(/^#/, "")).get(
-          "exportCookie"
-        ) ?? undefined
+        "exportCookie"
+      ) ?? undefined
       : undefined;
   const effectiveExportCookie = exportCookie ?? exportCookieFromHash;
 
@@ -284,7 +289,7 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
           <style jsx global>{PDF_PRINT_STYLE}</style>
           <div
             id="presentation-slides-wrapper"
-            className="relative m-0 flex w-full flex-col items-center overflow-visible p-0"
+            className="relative m-0 flex w-full flex-col items-start overflow-visible p-0"
           >
             {isLoading ? (
               <div className="relative m-0 flex w-full justify-center p-0">
@@ -298,48 +303,46 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
                 </div>
               </div>
             ) : (
-              <div className="slides-export-stack font-inter">
-                {slides.map((slide: any, index: number) => {
-                  const useTemplateV2HtmlPreview =
-                    shouldRenderTemplateV2HtmlPreview(
-                      slide,
-                      presentationData?.version
-                    );
-
-                  return (
-                    <div
-                      key={`${slide.type}-${index}-${slide.index}`}
-                      id={`slide-${slide.index}`}
-                      className="main-slide relative flex items-center justify-center"
-                      data-speaker-note={slide.speaker_note ?? ""}
-                    >
-                      <div
-                        className="slide-export-inner group font-syne"
-                        data-layout={slide.layout}
-                        data-group={slide.layout_group}
-                      >
-                        {useTemplateV2HtmlPreview ? (
-                          <TemplateV2HtmlSlidePreview
-                            slide={slide}
-                            fonts={presentationData?.fonts}
-                            fixedSize
-                          />
-                        ) : typeof slide?.html_content === "string" &&
-                          slide.html_content.trim() ? (
-                          <SmartHtmlPdfSlide slide={slide} index={index} />
-                        ) : (
-                          <SlideScale
-                            slide={slide}
-                            theme={presentationData?.theme ?? null}
-                            isEditMode={false}
-                            fixedSize
-                          />
-                        )}
-                      </div>
-                    </div>
+              slides.map((slide: any, index: number) => {
+                const useTemplateV2HtmlPreview =
+                  shouldRenderTemplateV2HtmlPreview(
+                    slide,
+                    presentationData?.version
                   );
-                })}
-              </div>
+
+                return (
+                  <div
+                    key={`${slide.type}-${index}-${slide.index}`}
+                    id={`slide-${slide.index}`}
+                    className="main-slide relative flex items-center justify-center"
+                    data-speaker-note={slide.speaker_note ?? ""}
+                  >
+                    <div
+                      className="slide-export-inner group font-syne"
+                      data-layout={slide.layout}
+                      data-group={slide.layout_group}
+                    >
+                      {useTemplateV2HtmlPreview ? (
+                        <TemplateV2HtmlSlidePreview
+                          slide={slide}
+                          fonts={presentationData?.fonts}
+                          fixedSize
+                        />
+                      ) : typeof slide?.html_content === "string" &&
+                        slide.html_content.trim() ? (
+                        <SmartHtmlPdfSlide slide={slide} index={index} />
+                      ) : (
+                        <SlideScale
+                          slide={slide}
+                          theme={presentationData?.theme ?? null}
+                          isEditMode={false}
+                          fixedSize
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </>

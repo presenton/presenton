@@ -39,9 +39,12 @@ import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import OllamaConfig from "@/components/OllamaConfig";
 import OnboardingPresentonAccount from "@/components/OnBoarding/OnboardingPresentonAccount";
 import Image from "next/image";
+import CreatableModelInput from "@/components/CreatableModelInput";
+import AdvancedTextProviderSettings from "@/components/AdvancedTextProviderSettings";
+import { syncStoreAfterPresentonDisconnect } from "@/utils/storeHelpers";
 
 interface OpenAIConfigProps {
-  onInputChange: (value: string | boolean, field: string) => void;
+  onInputChange: (value: string | boolean | number | string[], field: string) => void;
   llmConfig: LLMConfig;
 }
 
@@ -56,7 +59,6 @@ const MANUAL_MODEL_PROVIDERS = new Set(["vertex", "azure", "bedrock"]);
 
 const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
   const [openProviderSelect, setOpenProviderSelect] = useState(false);
-  const [openModelSelect, setOpenModelSelect] = useState(false);
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsChecked, setModelsChecked] = useState(false);
@@ -350,7 +352,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
 
         if (normalizedModels.length > 0 && currentModelField) {
           const modelValues = normalizedModels.map((model) => model.value);
-          if (currentModel && modelValues.includes(currentModel)) {
+          if (currentModel) {
             onInputChange(currentModel, currentModelField);
             return;
           }
@@ -390,16 +392,25 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         );
         console.error("Failed to fetch models");
         setAvailableModels([]);
+        // Discovery is advisory. Reveal the creatable input so custom model
+        // IDs and aliases remain usable when the endpoint is unavailable.
         setModelsChecked(true);
-        notify.error("Could not load models", message);
+        notify.error(
+          "Could not load models",
+          `${message} You can enter a model ID manually.`
+        );
       }
     } catch (error) {
       console.error("Error fetching models:", error);
-      notify.error(
-        selectedProvider === "ollama" ? "Could not connect to Ollama" : "Could not load models",
+      const message =
         error instanceof Error
           ? error.message
-          : "Something went wrong while contacting the provider. Check your network and try again."
+          : "Something went wrong while contacting the provider. Check your network and try again.";
+      notify.error(
+        selectedProvider === "ollama"
+          ? "Could not connect to Ollama"
+          : "Could not load models",
+        `${message} You can enter a model ID manually.`
       );
       setAvailableModels([]);
       setModelsChecked(true);
@@ -408,13 +419,6 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       }
     } finally {
       setModelsLoading(false);
-    }
-  };
-
-  const handleModelSelectOpenChange = (isOpen: boolean) => {
-    setOpenModelSelect(isOpen);
-    if (isOpen) {
-      fetchAvailableModels();
     }
   };
 
@@ -582,7 +586,13 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
             >
               <div className="flex flex-col justify-start w-full ">
                 {selectedProvider === "presenton" ? (
-                  <OnboardingPresentonAccount variant="settings" />
+                  <OnboardingPresentonAccount
+                    variant="settings"
+                    onDisconnect={() => {
+                      onInputChange("", "LLM");
+                      syncStoreAfterPresentonDisconnect();
+                    }}
+                  />
                 ) : selectedProvider === "ollama" ? (
                   <div className="w-full">
                     <OllamaConfig
@@ -626,14 +636,14 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                     <label className="block text-sm font-medium capitalize text-gray-700 mb-2">
                       {providerApiKeyLabel}
                     </label>
-                    <div className="relative">
+                    <div className="grid">
                       <input
                         type={showApiKey ? "text" : "password"}
                         value={currentApiKey}
                         onChange={(e) =>
                           onApiKeyChange(selectedProvider, e.target.value)
                         }
-                        className="w-full px-2 py-3 outline-none border  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                        className="col-start-1 row-start-1 h-12 w-full rounded-lg border border-gray-300 py-3 pl-3 pr-12 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                         placeholder={
                           selectedProvider === "litellm"
                             ? "Optional if your proxy does not require auth"
@@ -643,12 +653,13 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                       <button
                         type="button"
                         onClick={() => setShowApiKey((prev) => !prev)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white px-2 py-1 cursor-pointer"
+                        className="z-10 col-start-1 row-start-1 mr-2 flex h-8 w-8 cursor-pointer items-center justify-center self-center justify-self-end rounded-md bg-transparent p-0 text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
+                        aria-label={showApiKey ? "Hide API key" : "Show API key"}
                       >
                         {showApiKey ? (
-                          <Eye className="w-4 h-4 text-gray-500" />
+                          <Eye className="h-4 w-4" aria-hidden="true" />
                         ) : (
-                          <EyeOff className="w-4 h-4 text-gray-500" />
+                          <EyeOff className="h-4 w-4" aria-hidden="true" />
                         )}
                       </button>
                     </div>
@@ -796,9 +807,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                 selectedProvider !== "presenton" &&
                 selectedProvider !== "codex" &&
                 selectedProvider !== "ollama" &&
-                !currentModel &&
-                (!modelsChecked ||
-                  availableModels.length === 0) && (
+                !modelsChecked && (
                   <button
                     onClick={fetchAvailableModels}
                     disabled={
@@ -832,142 +841,21 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                 )}
             </div>
           </div>
-          {/* Model Selection - only show if models are available */}
+          {/* Remote discovery is advisory; users may always enter a model ID. */}
           {!isManualModelProvider &&
           selectedProvider !== "presenton" &&
           selectedProvider !== "codex" &&
           selectedProvider !== "ollama" &&
-          (currentModel || (modelsChecked && modelOptions.length > 0)) ? (
+          modelsChecked ? (
             <div className="w-[262px]">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  {selectedProvider === "ollama"
-                    ? "Choose an Ollama model"
-                    : `Select ${modelLabel} Model`}
-                </label>
-                <div className="w-full">
-                  <Popover
-                    open={openModelSelect}
-                    onOpenChange={handleModelSelectOpenChange}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={openModelSelect}
-                        className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
-                      >
-                        <span className="text-sm truncate font-medium text-gray-900">
-                          {(() => {
-                            if (!currentModel) return "Select a model";
-                            const selectedModel = modelOptions.find(
-                              (model) => model.value === currentModel
-                            );
-                            if (!selectedModel) return currentModel;
-                            if (
-                              selectedProvider === "ollama" &&
-                              selectedModel.size
-                            ) {
-                              return `${selectedModel.label} (${selectedModel.size})`;
-                            }
-                            return selectedModel.label;
-                          })()}
-                        </span>
-
-                        <ChevronUp className="w-4 h-4 text-gray-500" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className="p-0"
-                      align="start"
-                      style={{ width: "var(--radix-popover-trigger-width)" }}
-                    >
-                      <Command>
-                        <CommandInput placeholder="Search models..." />
-                        <CommandList>
-                          <CommandEmpty>No model found.</CommandEmpty>
-                          <CommandGroup>
-                            {modelsLoading ? (
-                              <div className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600">
-                                <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                                Fetching models...
-                              </div>
-                            ) : null}
-                            {modelOptions.map((model) => (
-                              <CommandItem
-                                key={model.value}
-                                value={model.value}
-                                onSelect={() => {
-                                  if (currentModelField) {
-                                    trackEvent(MixpanelEvent.Settings_Model_Selected, {
-                                      provider: selectedProvider,
-                                      model: model.value,
-                                    });
-                                    onInputChange(
-                                      model.value,
-                                      currentModelField
-                                    );
-                                  }
-                                  setOpenModelSelect(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    currentModel === model.value
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                <div className="flex gap-3 items-center">
-                                  <div className="flex flex-col space-y-1 flex-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-sm font-medium text-gray-900">
-                                        {model.label}
-                                      </span>
-                                      {selectedProvider === "ollama" &&
-                                      model.size ? (
-                                        <span className="text-xs font-medium text-gray-500">
-                                          {model.size}
-                                        </span>
-                                      ) : null}
-                                      {selectedProvider === "ollama" ? (
-                                        <span
-                                          title={
-                                            model.tested === false
-                                              ? "Experimental"
-                                              : "Recommended"
-                                          }
-                                          aria-label={
-                                            model.tested === false
-                                              ? "Experimental"
-                                              : "Recommended"
-                                          }
-                                          className={cn(
-                                            "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                                            model.tested === false
-                                              ? "border-amber-200 bg-amber-50 text-amber-700"
-                                              : "border-green-200 bg-green-50 text-green-700"
-                                          )}
-                                        >
-                                          <Check
-                                            className="h-3 w-3"
-                                            aria-hidden="true"
-                                          />
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
+              <CreatableModelInput
+                value={currentModel}
+                options={modelOptions.map((model) => model.value)}
+                providerLabel={modelLabel}
+                onChange={(value) => {
+                  if (currentModelField) onInputChange(value, currentModelField);
+                }}
+              />
             </div>
           ) : null}
         </div>
@@ -979,10 +867,17 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         availableModels.length === 0 && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
-            No models found. Please make sure your provider credentials are
-            valid and the selected provider is reachable.
+            No models were discovered. You can still enter a valid model ID or
+            alias manually above.
           </p>
         </div>
+      )}
+
+      {selectedProvider !== "presenton" && (
+        <AdvancedTextProviderSettings
+          config={llmConfig}
+          onChange={onInputChange}
+        />
       )}
 
       {/* <div className="bg-white flex justify-between items-center p-10 rounded-[12px]">

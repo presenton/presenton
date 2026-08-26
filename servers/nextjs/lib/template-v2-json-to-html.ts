@@ -3,6 +3,8 @@ import { markdownToPlainChartText } from "@/components/slide-editor/charts/chart
 import { normalizeRawTextMarkdownElement } from "@/components/slide-editor/text/template-v2-text";
 import { isLatexTextRun } from "@/components/slide-editor/text/text-runs";
 import { normalizeMathLatex, renderMathHtml } from "@/lib/math";
+import { buildSvgUpdateUrl } from "@/lib/svg-color";
+import { normalizeInfographicIcon } from "@/components/slide-editor/infographics/infographic-editing";
 import {
   CHART_BROWSER_SCRIPT_URL,
   CHART_DATALABELS_SCRIPT_URL,
@@ -24,7 +26,33 @@ type ChartKind =
   | "polar_area"
   | "radar"
   | "scatter";
-type InfographicKind = "progress_bar" | "gauge";
+type InfographicKind =
+  | "progress_bar"
+  | "gauge"
+  | "gantt"
+  | "timeline"
+  | "roadmap"
+  | "milestone_timeline"
+  | "staircase"
+  | "supply_chain"
+  | "stair_step_blocks"
+  | "maturity_model"
+  | "pillar_framework"
+  | "transformation_hub"
+  | "diagonal_circles"
+  | "risk_matrix"
+  | "chevron_process"
+  | "radial_cycle"
+  | "conversion_funnel"
+  | "pyramid"
+  | "segmented_wheel"
+  | "customer_journey"
+  | "before_after"
+  | "impact_effort_matrix"
+  | "comparison_matrix"
+  | "org_chart"
+  | "decision_tree"
+  | "mind_map";
 
 type JsonToHtmlItem = JsonRecord;
 const DATA_LABEL_POSITIONS = new Set(["base", "mid", "top", "outside"]);
@@ -426,7 +454,12 @@ function fontFamilyAliases(family: string, weight?: string): string[] {
 
 function renderItem(item: JsonRecord, mode: RenderMode): string {
   if (isComponent(item)) {
-    return renderGroup({ ...item, type: "group", children: item.elements }, mode);
+    const { size, ...component } = item;
+    void size;
+    return renderGroup(
+      { ...component, type: "group", children: item.elements },
+      mode
+    );
   }
 
   switch (readString(item.type)) {
@@ -857,6 +890,29 @@ function renderPolygon(item: JsonRecord, mode: RenderMode): string {
     .map(readNumber)
     .filter((value): value is number => value != null)
     .join(" ");
+  const startMarker = !closed
+    ? vectorMarker(readString(item.start_marker))
+    : null;
+  const endMarker = !closed ? vectorMarker(readString(item.end_marker)) : null;
+  const markerPrefix = `vector-marker-${vectorMarkerHash(
+    `${pointString}|${strokeColor}|${strokeWidth}|${startMarker}|${endMarker}`,
+  )}`;
+  const startMarkerId = `${markerPrefix}-start`;
+  const endMarkerId = `${markerPrefix}-end`;
+  const markerDefs = strokeColor && strokeWidth > 0
+    ? [
+        startMarker
+          ? vectorMarkerDefinition(startMarkerId, startMarker, strokeColor, strokeWidth)
+          : "",
+        endMarker
+          ? vectorMarkerDefinition(endMarkerId, endMarker, strokeColor, strokeWidth)
+          : "",
+      ].join("")
+    : "";
+  const markerAttributes =
+    strokeColor && strokeWidth > 0
+      ? `${startMarker ? ` marker-start="url(#${startMarkerId})"` : ""}${endMarker ? ` marker-end="url(#${endMarkerId})"` : ""}`
+      : "";
   const shape = closed
     ? `<polygon points="${escapeAttribute(pointString)}"${fillColor ? ` fill="${escapeAttribute(fillColor)}"` : ` fill="none"`}${strokeColor && strokeWidth > 0
       ? ` stroke="${escapeAttribute(strokeColor)}" stroke-width="${cssNumber(strokeWidth)}"`
@@ -865,14 +921,69 @@ function renderPolygon(item: JsonRecord, mode: RenderMode): string {
     : `<polyline points="${escapeAttribute(pointString)}" fill="none"${strokeColor && strokeWidth > 0
       ? ` stroke="${escapeAttribute(strokeColor)}" stroke-width="${cssNumber(strokeWidth)}"`
       : ""
-    }${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
+    }${dash ? ` stroke-dasharray="${dash}"` : ""}${markerAttributes}/>`;
   return `<div style="${frameStyleFromBox(box, mode)}${transformStyle(
     item
   )}overflow:visible"><svg width="100%" height="100%" viewBox="0 0 ${cssNumber(
     box.width ?? 1
   )} ${cssNumber(
     box.height ?? 1
-  )}" preserveAspectRatio="none" style="display:block;overflow:visible">${shape}</svg></div>`;
+  )}" preserveAspectRatio="none" style="display:block;overflow:visible">${markerDefs ? `<defs>${markerDefs}</defs>` : ""}${shape}</svg></div>`;
+}
+
+type VectorMarkerStyle =
+  | "arrow"
+  | "stealth"
+  | "triangle"
+  | "circle"
+  | "square"
+  | "diamond";
+
+function vectorMarker(value: string | null): VectorMarkerStyle | null {
+  return value === "arrow" ||
+    value === "stealth" ||
+    value === "triangle" ||
+    value === "circle" ||
+    value === "square" ||
+    value === "diamond"
+    ? value
+    : null;
+}
+
+function vectorMarkerHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function vectorMarkerDefinition(
+  id: string,
+  marker: VectorMarkerStyle,
+  color: string,
+  strokeWidth: number,
+) {
+  const size = Math.max(11, Math.min(28, 8 + strokeWidth * 2.5));
+  const escapedColor = escapeAttribute(color);
+  const content =
+    marker === "arrow"
+      ? `<path d="M1 -5 L11 0 L1 5" fill="none" stroke="${escapedColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`
+      : marker === "stealth"
+        ? `<path d="M11 0 L1 -5 L4.5 0 L1 5 Z" fill="${escapedColor}" stroke="${escapedColor}" stroke-width="1"/>`
+        : marker === "triangle"
+          ? `<path d="M11 0 L1 -5 L1 5 Z" fill="${escapedColor}" stroke="${escapedColor}" stroke-width="1"/>`
+          : marker === "circle"
+            ? `<circle cx="6" cy="0" r="4" fill="${escapedColor}" stroke="${escapedColor}" stroke-width="1"/>`
+            : marker === "square"
+              ? `<rect x="2" y="-4" width="8" height="8" fill="${escapedColor}" stroke="${escapedColor}" stroke-width="1"/>`
+              : `<path d="M11 0 L6 -5 L1 0 L6 5 Z" fill="${escapedColor}" stroke="${escapedColor}" stroke-width="1"/>`;
+  const refX =
+    marker === "circle" || marker === "square" || marker === "diamond"
+      ? 6
+      : 11;
+  return `<marker id="${id}" viewBox="0 -6 12 12" refX="${refX}" refY="0" markerWidth="${cssNumber(size)}" markerHeight="${cssNumber(size)}" markerUnits="userSpaceOnUse" orient="auto-start-reverse" overflow="visible">${content}</marker>`;
 }
 
 function renderEllipseVector(item: JsonRecord, mode: RenderMode): string {
@@ -940,10 +1051,148 @@ function renderChart(item: JsonRecord, mode: RenderMode): string {
   )}" style="display:block;width:100%;height:100%"></canvas></div>`;
 }
 
+type InfographicDesignSize = { width: number; height: number };
+type InfographicRenderer = (item: JsonRecord, mode: RenderMode) => string;
+type FixedInfographicRenderer = {
+  designSize: InfographicDesignSize;
+  renderer: InfographicRenderer;
+};
+
+const FIXED_INFOGRAPHIC_RENDERERS: Partial<
+  Record<InfographicKind, FixedInfographicRenderer>
+> = {
+  gantt: { designSize: { width: 720, height: 300 }, renderer: renderGanttInfographic },
+  timeline: { designSize: { width: 720, height: 260 }, renderer: renderTimelineInfographic },
+  roadmap: { designSize: { width: 720, height: 252 }, renderer: renderRoadmapInfographic },
+  milestone_timeline: {
+    designSize: { width: 720, height: 260 },
+    renderer: renderMilestoneTimelineInfographic,
+  },
+  staircase: { designSize: { width: 720, height: 340 }, renderer: renderStaircaseInfographic },
+  supply_chain: { designSize: { width: 720, height: 300 }, renderer: renderSupplyChainInfographic },
+  stair_step_blocks: {
+    designSize: { width: 720, height: 350 },
+    renderer: renderStairStepBlocksInfographic,
+  },
+  maturity_model: {
+    designSize: { width: 720, height: 390 },
+    renderer: renderMaturityModelInfographic,
+  },
+  pillar_framework: {
+    designSize: { width: 720, height: 380 },
+    renderer: renderPillarFrameworkInfographic,
+  },
+  transformation_hub: {
+    designSize: { width: 720, height: 300 },
+    renderer: renderTransformationHubInfographic,
+  },
+  diagonal_circles: {
+    designSize: { width: 720, height: 430 },
+    renderer: renderDiagonalCirclesInfographic,
+  },
+  risk_matrix: { designSize: { width: 720, height: 370 }, renderer: renderRiskMatrixInfographic },
+  chevron_process: {
+    designSize: { width: 720, height: 360 },
+    renderer: renderChevronProcessInfographic,
+  },
+  radial_cycle: { designSize: { width: 560, height: 520 }, renderer: renderRadialCycleInfographic },
+  conversion_funnel: {
+    designSize: { width: 720, height: 320 },
+    renderer: renderConversionFunnelInfographic,
+  },
+  pyramid: { designSize: { width: 720, height: 400 }, renderer: renderPyramidInfographic },
+  segmented_wheel: {
+    designSize: { width: 720, height: 460 },
+    renderer: renderSegmentedWheelInfographic,
+  },
+  customer_journey: {
+    designSize: { width: 720, height: 420 },
+    renderer: renderCustomerJourneyInfographic,
+  },
+  before_after: { designSize: { width: 720, height: 460 }, renderer: renderBeforeAfterInfographic },
+  impact_effort_matrix: {
+    designSize: { width: 720, height: 420 },
+    renderer: renderImpactEffortInfographic,
+  },
+  comparison_matrix: {
+    designSize: { width: 720, height: 340 },
+    renderer: renderComparisonMatrixInfographic,
+  },
+  mind_map: { designSize: { width: 720, height: 380 }, renderer: renderMindMapInfographic },
+};
+
+function renderScaledInfographic(
+  item: JsonRecord,
+  mode: RenderMode,
+  designSize: InfographicDesignSize,
+  renderer: InfographicRenderer
+): string {
+  const box = readBox(item, designSize);
+  const width = box.width ?? designSize.width;
+  const height = box.height ?? designSize.height;
+  const scale = Math.min(
+    width / designSize.width,
+    height / designSize.height
+  );
+  const renderedWidth = designSize.width * scale;
+  const renderedHeight = designSize.height * scale;
+  const offsetX = (width - renderedWidth) / 2;
+  const offsetY = (height - renderedHeight) / 2;
+  const normalizedItem: JsonRecord = {
+    ...item,
+    position: {
+      ...readRecord(item.position),
+      x: 0,
+      y: 0,
+    },
+    size: {
+      ...readRecord(item.size),
+      width: designSize.width,
+      height: designSize.height,
+    },
+    rotation: 0,
+    flip_h: false,
+    flipH: false,
+    flip_v: false,
+    flipV: false,
+  };
+
+  return `<div style="${frameStyleFromBox(box, mode)}${transformStyle(
+    item
+  )}overflow:hidden"><div data-presenton-infographic-surface="true" style="position:absolute;left:${cssNumber(
+    offsetX
+  )}px;top:${cssNumber(offsetY)}px;width:${cssNumber(
+    designSize.width
+  )}px;height:${cssNumber(
+    designSize.height
+  )}px;transform:scale(${cssNumber(
+    scale
+  )});transform-origin:0 0">${renderer(normalizedItem, "absolute")}</div></div>`;
+}
+
 function renderInfographic(item: JsonRecord, mode: RenderMode): string {
-  const data = infographicData(item);
-  const kind = infographicKindFromValue(readString(data.type));
+  const data = readRecord(item.data);
+  const kind = infographicKindFromValue(
+    readString(data.type ?? item.infographicType ?? item.infographic_type)
+  );
   if (kind === "gauge") return renderGaugeInfographic(item, mode);
+  if (kind === "org_chart" || kind === "decision_tree") {
+    return renderScaledInfographic(
+      item,
+      mode,
+      { width: 720, height: 360 },
+      (normalizedItem, normalizedMode) =>
+        renderHierarchyInfographic(normalizedItem, normalizedMode, kind)
+    );
+  }
+  const fixedRenderer = FIXED_INFOGRAPHIC_RENDERERS[kind];
+  if (fixedRenderer)
+    return renderScaledInfographic(
+      item,
+      mode,
+      fixedRenderer.designSize,
+      fixedRenderer.renderer
+    );
   return renderProgressBarInfographic(item, mode);
 }
 
@@ -953,10 +1202,22 @@ function renderProgressBarInfographic(item: JsonRecord, mode: RenderMode): strin
   const baseColor = infographicBaseColor(item);
   const fallbackSize = { width: 180, height: 40 };
   const box = readBox(item, fallbackSize);
+  const showLabel = (box.height ?? fallbackSize.height) >= 28;
+  const textColor = infographicTextColor(item, highlightColor);
+  const label = showLabel
+    ? `<div style="color:${escapeCssColor(textColor)};font-size:${cssNumber(
+      Math.max(
+        10,
+        Math.min(16, Math.round((box.height ?? fallbackSize.height) * 0.3))
+      )
+    )}px;font-weight:700;line-height:1;text-align:right">${escapeHtml(
+      metrics.label
+    )}</div>`
+    : "";
 
   return `<div style="${frameStyle(item, mode, fallbackSize)}${transformStyle(
     item
-  )}display:flex;align-items:center;overflow:hidden"><div style="position:relative;width:100%;height:${cssNumber(
+  )}display:flex;flex-direction:column;gap:6px;justify-content:center;overflow:hidden"><div style="position:relative;width:100%;height:${cssNumber(
     Math.max(
       6,
       Math.min(18, Math.round((box.height ?? fallbackSize.height) * 0.35))
@@ -965,7 +1226,7 @@ function renderProgressBarInfographic(item: JsonRecord, mode: RenderMode): strin
     baseColor
   )};overflow:hidden"><div style="height:100%;width:${cssNumber(
     metrics.ratio * 100
-  )}%;border-radius:inherit;background:${escapeCssColor(highlightColor)}"></div></div></div>`;
+  )}%;border-radius:inherit;background:${escapeCssColor(highlightColor)}"></div></div>${label}</div>`;
 }
 
 function renderGaugeInfographic(item: JsonRecord, mode: RenderMode): string {
@@ -973,6 +1234,7 @@ function renderGaugeInfographic(item: JsonRecord, mode: RenderMode): string {
   const highlightColor = infographicHighlightColor(item);
   const baseColor = infographicBaseColor(item);
   const fallbackSize = { width: 160, height: 96 };
+  const textColor = infographicTextColor(item, "#111827");
   const progressPath =
     metrics.ratio > 0
       ? `<path d="${escapeAttribute(
@@ -986,7 +1248,897 @@ function renderGaugeInfographic(item: JsonRecord, mode: RenderMode): string {
     item
   )}overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 120 72" preserveAspectRatio="xMidYMid meet" style="display:block"><path d="M 12 60 A 48 48 0 0 1 108 60" fill="none" stroke="${escapeAttribute(
     escapeCssColor(baseColor)
-  )}" stroke-width="12" stroke-linecap="round"/>${progressPath}</svg></div>`;
+  )}" stroke-width="12" stroke-linecap="round"/>${progressPath}<text x="60" y="52" text-anchor="middle" fill="${escapeAttribute(textColor)}" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">${escapeHtml(
+    metrics.label
+  )}</text></svg></div>`;
+}
+
+function renderGanttInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const columns = readArray(data.columns).map(readRecord);
+  const rows = readArray(data.rows).map(readRecord);
+  const safeColumns = columns.length > 0 ? columns : [{ label: "Phase" }];
+  const safeRows = rows.length > 0 ? rows : [{ label: "Workstream", items: [] }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const textColor = infographicTextColor(item, dark ? "#F3F4F6" : "#111111");
+  const gridColor = dark ? "rgba(217,222,232,.78)" : "#D1D5DB";
+  const header = safeColumns
+    .map(
+      (column) =>
+        `<div style="display:flex;align-items:center;justify-content:center;padding:4px;font-size:13px;color:${textColor}">${escapeHtml(
+          readString(column.label) ?? "Phase"
+        )}</div>`
+    )
+    .join("");
+  const body = safeRows
+    .map((row, rowIndex) => {
+      const tasks = readArray(row.items)
+        .map(readRecord)
+        .map((task, taskIndex) => {
+          const start = readRecord(task.start);
+          const end = readRecord(task.end);
+          const startUnits = clamp(
+            (readNumber(start.column) ?? 0) + (readNumber(start.offset) ?? 0),
+            0,
+            safeColumns.length
+          );
+          const endUnits = clamp(
+            (readNumber(end.column) ?? startUnits) + (readNumber(end.offset) ?? 0),
+            startUnits + 0.05,
+            safeColumns.length
+          );
+          return `<div style="position:absolute;left:${cssNumber(
+            (startUnits / safeColumns.length) * 100
+          )}%;width:${cssNumber(
+            ((endUnits - startUnits) / safeColumns.length) * 100
+          )}%;top:14%;bottom:14%;border:1px solid ${gridColor};background:${escapeCssColor(
+            colors[(rowIndex + taskIndex) % colors.length]
+          )}"></div>`;
+        })
+        .join("");
+      const grid = safeColumns
+        .map(
+          (_, index) =>
+            `<div style="position:absolute;left:${cssNumber(
+              (index / safeColumns.length) * 100
+            )}%;top:0;bottom:0;border-left:1px solid ${gridColor}"></div>`
+        )
+        .join("");
+      return `<div style="display:grid;grid-template-columns:22% 78%;min-height:0"><div style="display:flex;align-items:center;padding-right:10px;font-size:12px;color:${textColor}">${escapeHtml(
+        readString(row.label) ?? `Workstream ${rowIndex + 1}`
+      )}</div><div style="position:relative;border-right:1px solid ${gridColor}">${grid}${tasks}</div></div>`;
+    })
+    .join("");
+
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 300 })}${transformStyle(
+    item
+  )}box-sizing:border-box;overflow:hidden;${dark ? "padding:6.5% 7% 2%;" : ""}font-family:Arial,Helvetica,sans-serif"><div style="display:grid;height:12%;grid-template-columns:22% repeat(${safeColumns.length},1fr)"><div style="display:flex;align-items:center;font-size:13px;font-weight:700;color:${textColor}">Process</div>${header}</div><div style="display:grid;height:88%;grid-template-rows:repeat(${safeRows.length},minmax(0,1fr))">${body}</div></div>`;
+}
+
+function renderTimelineInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const items = readArray(data.items).map(readRecord);
+  const safeItems = items.length > 0 ? items : [{ heading: "Milestone" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const textColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const mutedColor = customTextColor ?? (dark ? "#E1E4EA" : "#222222");
+  const cards = safeItems
+    .map(
+      (entry, index) =>
+        `<div style="position:relative;display:flex;min-width:0;flex:1;flex-direction:column;align-items:center;text-align:center">${index < safeItems.length - 1 ? `<div style="position:absolute;left:calc(50% + 47px);right:calc(-50% + 47px);top:112px;height:3px;background:${escapeCssColor(colors[(index + 1) % colors.length])}"></div>` : ""}<div style="height:54px;display:flex;align-items:flex-end;padding-bottom:8px;font-size:15px;font-weight:700;color:${textColor}">${String(index + 1).padStart(2, "0")}</div><div style="z-index:1;display:grid;width:90px;height:90px;box-sizing:border-box;place-items:center;border:3px solid ${escapeCssColor(colors[index % colors.length])};border-radius:999px"><div style="display:grid;width:72px;height:72px;place-items:center;border-radius:999px;background:${escapeCssColor(colors[index % colors.length])};color:#fff">${infographicIconImage(entry.icon, entry.color)}</div></div><div style="padding:12px 6px 0;font-size:15px;font-weight:700;color:${textColor}">${escapeHtml(readString(entry.heading) ?? `Step ${index + 1}`)}</div><div style="padding:5px 8px 0;font-size:10px;line-height:1.25;color:${mutedColor}">${escapeHtml(readString(entry.description) ?? "")}</div></div>`
+    )
+    .join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 260 })}${transformStyle(
+    item
+  )}box-sizing:border-box;display:flex;align-items:center;overflow:hidden;${dark ? "padding:4% 5%;" : "padding:0 2%;"}font-family:Arial,Helvetica,sans-serif"><div style="position:relative;display:flex;width:100%;align-items:flex-start">${cards}</div></div>`;
+}
+
+function renderRoadmapInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 8);
+  const safeEntries = entries.length > 0 ? entries : [{ heading: "Destination" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const textColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const roadStartRatio = (-33 - 51.84) / 616.32;
+  const roadEndRatio = (720 + 33 - 51.84) / 616.32;
+  const roadPath = Array.from({ length: 49 }, (_, index) => {
+    const ratio = roadStartRatio + (index / 48) * (roadEndRatio - roadStartRatio);
+    const x = 51.84 + ratio * 616.32;
+    const y = roadmapHtmlRoadRatio(ratio) * 252;
+    return `${index === 0 ? "M" : "L"} ${cssNumber(x)} ${cssNumber(y)}`;
+  }).join(" ");
+  const content = safeEntries.map((entry, index) => {
+    const ratio = safeEntries.length === 1 ? 0.5 : index / (safeEntries.length - 1);
+    const x = 7.2 + ratio * 85.6;
+    const roadY = roadmapHtmlRoadRatio(ratio) * 100;
+    const labelY = roadmapHtmlLabelRatio(ratio) * 100;
+    const color = colors[index % colors.length];
+    return `<div style="position:absolute;left:${cssNumber(x)}%;top:calc(${cssNumber(roadY)}% - 31px);width:24px;height:32px;transform:translateX(-50%)"><div style="position:absolute;left:5px;top:15px;width:14px;height:14px;transform:rotate(45deg);background:${escapeCssColor(color)}"></div><div style="position:absolute;left:1px;top:0;width:22px;height:22px;border:1px solid #D1D5DB;border-radius:999px;background:${escapeCssColor(color)};z-index:1"><div style="position:absolute;left:5px;top:5px;width:10px;height:10px;border-radius:999px;background:linear-gradient(to bottom,#FFFFFF 0 50%,#D6D6D6 51% 100%)"></div></div></div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(labelY)}%;width:${cssNumber(Math.min(20, 98 / safeEntries.length))}%;transform:translateX(-50%);text-align:center"><div style="font-size:14px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Stop ${index + 1}`)}</div><div style="padding-top:4px;font-size:10px;line-height:1.2;color:${textColor}">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 252 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden;font-family:Arial,Helvetica,sans-serif"><svg width="100%" height="100%" viewBox="0 0 720 252" preserveAspectRatio="none" style="position:absolute;inset:0;display:block"><path d="${roadPath}" fill="none" stroke="#D1D1D1" stroke-width="33" stroke-linecap="butt" stroke-linejoin="round"/><path d="${roadPath}" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="11 9" stroke-linecap="butt" stroke-linejoin="round"/></svg>${content}</div>`;
+}
+
+function renderMilestoneTimelineInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 9);
+  const safeEntries = entries.length > 0 ? entries : [{ heading: "2025" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const textColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const content = safeEntries.map((entry, index) => {
+    const x = 5.5 + ((index + 0.5) / safeEntries.length) * 89;
+    const above = index % 2 === 1;
+    const color = colors[index % colors.length];
+    const bubbleText = blackOrWhiteTextColor(color);
+    const bubbleTop = above ? 5 : 68;
+    const labelTop = above ? 40 : 56;
+    const triangleTop = above ? 24 : -5;
+    return `<div style="position:absolute;left:${cssNumber(x)}%;top:50%;width:24px;height:24px;transform:translate(-50%,-50%);border:1px solid #E5E7EB;border-radius:999px;background:${escapeCssColor(color)}"></div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(labelTop)}%;width:${cssNumber(Math.min(14, 90 / safeEntries.length))}%;transform:translateX(-50%);text-align:center;font-size:15px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Milestone ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(bubbleTop)}%;width:${cssNumber(Math.min(18, 130 / safeEntries.length))}%;min-width:84px;min-height:62px;box-sizing:border-box;transform:translateX(-50%);border:1px solid #E5E7EB;border-radius:15px;background:${escapeCssColor(color)};padding:10px 8px;text-align:center;font-size:10px;line-height:1.2;color:${bubbleText}">${escapeHtml(readString(entry.description) ?? "")}<span style="position:absolute;left:50%;top:${cssNumber(triangleTop)}px;width:14px;height:14px;transform:translateX(-50%) rotate(45deg);background:${escapeCssColor(color)};${above ? "top:auto;bottom:-7px" : ""}"></span></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 260 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:${textColor}"><div style="position:absolute;left:0;right:0;top:50%;height:5px;transform:translateY(-50%);background:#E5E7EB"></div>${content}</div>`;
+}
+
+function renderStaircaseInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 7);
+  const safeEntries = entries.length > 0 ? entries : [{ heading: "Step" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const textColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const sidePadding = 28.8;
+  const itemWidth = 662.4 / safeEntries.length;
+  const drop = safeEntries.length > 1 ? 170 / (safeEntries.length - 1) : 0;
+  const contentInset = itemWidth * 0.14;
+  const staircasePoints = [`M ${cssNumber(sidePadding)} 102`];
+  safeEntries.forEach((_, index) => {
+    const x = sidePadding + index * itemWidth;
+    const y = 102 + index * drop;
+    const horizontal = x + itemWidth * 0.88;
+    const nextX = index < safeEntries.length - 1 ? sidePadding + (index + 1) * itemWidth : Math.min(713, x + itemWidth * 1.02);
+    const nextY = index < safeEntries.length - 1 ? y + drop : y + drop * 0.58;
+    staircasePoints.push(`H ${cssNumber(horizontal)} L ${cssNumber(nextX)} ${cssNumber(nextY)}`);
+  });
+  const gradientId = `staircase-gradient-${safeEntries.length}-${colors
+    .map((color) => color.replace(/[^a-zA-Z0-9]/g, ""))
+    .join("-")}`;
+  const gradientStops = safeEntries.map((_, index) => {
+    const offset = safeEntries.length === 1 ? 0 : index / (safeEntries.length - 1);
+    return `<stop offset="${cssNumber(offset * 100)}%" stop-color="${escapeAttribute(escapeCssColor(colors[index % colors.length]))}"/>`;
+  }).join("");
+  const content = safeEntries.map((entry, index) => {
+    const x = sidePadding + index * itemWidth;
+    const y = 102 + index * drop;
+    const color = colors[index % colors.length];
+    return `<div style="position:absolute;left:${cssNumber(x + contentInset)}px;top:${cssNumber(y - 53)}px;display:grid;width:24px;height:24px;place-items:center;border-radius:999px;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon, entry.color)}</div><div style="position:absolute;left:${cssNumber(x + contentInset)}px;top:${cssNumber(y - 21)}px;width:${cssNumber(itemWidth * 0.92)}px;font-size:13px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Step ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(x + contentInset + 1)}px;top:${cssNumber(y + 10)}px;width:${cssNumber(itemWidth * 0.88)}px;font-size:9.5px;line-height:1.2;color:${textColor}">${escapeHtml(readString(entry.description) ?? "")}</div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 340 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden;font-family:Arial,Helvetica,sans-serif"><svg width="100%" height="100%" viewBox="0 0 720 340" preserveAspectRatio="none" style="position:absolute;inset:0;display:block"><defs><linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="0%">${gradientStops}</linearGradient></defs><path d="${staircasePoints.join(" ")}" fill="none" stroke="url(#${gradientId})" stroke-width="5" stroke-linecap="square" stroke-linejoin="miter"/></svg>${content}</div>`;
+}
+
+function renderSupplyChainInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data=infographicData(item), entries=readArray(data.items).map(readRecord).slice(0,7), safe=entries.length?entries:[{heading:"Sourcing"}];
+  const colors=infographicPalette(item), bg=infographicBaseColor(item), dark=isDarkInfographicColor(bg), text=infographicTextColor(item,dark?"#F0F1F4":"#111111");
+  const lineColor=dark?"#E0E0E0":"#D2D2D2";
+  const pad=safe.length>1?720*.13:720*.5,gap=safe.length>1?(720-pad*2)/(safe.length-1):0,cy=300*.49,rx=safe.length>1?gap*.5:Math.min(720,300)*.16,ry=Math.min(rx,300*.22),radius=Math.min(rx,ry)*.78,k=.55228475;
+  const wavePath=safe.map((_,index)=>{const x=pad+index*gap,direction=index%2===0?-1:1,peakY=cy+direction*ry,left=x-rx,right=x+rx,first=`${left} ${cy} C ${left} ${cy+direction*ry*k} ${x-rx*k} ${peakY} ${x} ${peakY}`,second=`C ${x+rx*k} ${peakY} ${right} ${cy+direction*ry*k} ${right} ${cy}`;return `${index===0?"M":"L"} ${first} ${second}`}).join(" ");
+  const nodes=safe.map((entry,index)=>{const x=pad+index*gap, top=index%2===1, color=colors[index%colors.length], diameter=radius*2,titleY=top?cy-radius-68:cy+radius+31; return `<div style="position:absolute;left:${x-radius}px;top:${cy-radius}px;width:${diameter}px;height:${diameter}px;box-sizing:border-box;border:1.5px solid ${lineColor};border-radius:50%;display:grid;place-items:center;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${x-55}px;top:${titleY}px;width:110px;text-align:center;color:${escapeCssColor(text)};font:700 11px Arial">${escapeHtml(readString(entry.heading)??"Stage")}</div><div style="position:absolute;left:${x-55}px;top:${titleY+16}px;width:110px;text-align:center;white-space:pre-line;color:${escapeCssColor(text)};font:9px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div><div style="position:absolute;left:${x-30}px;top:${top?cy-radius-24:cy+radius+4}px;width:60px;text-align:center;color:${escapeCssColor(color)};font:700 19px Arial">${String(index+1).padStart(2,"0")}</div>`}).join("");
+  return `<div style="${frameStyle(item,mode,{width:720,height:300})}${transformStyle(item)}position:relative;overflow:hidden;font-family:Arial"><svg viewBox="0 0 720 300" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0"><path d="${wavePath}" fill="none" stroke="${lineColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>${nodes}</div>`;
+}
+
+function renderStairStepBlocksInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data=infographicData(item),entries=readArray(data.items).map(readRecord).slice(0,7),safe=entries.length?entries:[{heading:"Foundation"}],colors=infographicPalette(item),bg=infographicBaseColor(item),dark=isDarkInfographicColor(bg),text=infographicTextColor(item,dark?"#F0F1F4":"#111111");
+  const w=560/safe.length;
+  const blockHeight=102;
+  const topPadding=8;
+  // Four steps fit the original 48px rise. For longer sequences, move the
+  // first step down and reduce the rise just enough to keep the final step
+  // inside the 350px design surface instead of clipping it above the frame.
+  const firstBlockTop=safe.length>4?190:144;
+  const rise=safe.length>1?Math.min(48,(firstBlockTop-topPadding)/(safe.length-1)):0;
+  const content=safe.map((entry,index)=>{const x=80+index*w,y=firstBlockTop-index*rise,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return `<div style="position:absolute;left:${cssNumber(x)}px;top:${cssNumber(y)}px;width:${cssNumber(w+1)}px;height:${blockHeight}px;background:${escapeCssColor(color)};box-sizing:border-box;${dark?"border:1px solid #d6d6d6;":""}"><div style="padding:8px;color:${escapeCssColor(nodeText)};font:700 20px Arial">Step ${String(index+1).padStart(2,"0")}</div><div style="position:absolute;left:9px;bottom:34px;width:22px;height:22px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:9px;bottom:6px;color:${escapeCssColor(nodeText)};font:700 10px Arial">${escapeHtml(readString(entry.heading)??"Step")}</div></div><div style="position:absolute;left:${cssNumber(x+9)}px;top:${cssNumber(y+blockHeight+7)}px;width:${cssNumber(w-14)}px;color:${escapeCssColor(text)};font:9px/1.16 Arial">${escapeHtml(readString(entry.description)??"")}</div>`}).join("");
+  return `<div style="${frameStyle(item,mode,{width:720,height:350})}${transformStyle(item)}position:relative;overflow:hidden">${content}</div>`;
+}
+
+function renderMaturityModelInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data=infographicData(item),entries=readArray(data.items).map(readRecord).slice(0,7),safe=entries.length?entries:[{heading:"Initial"}],colors=infographicPalette(item);
+  const content=safe.map((entry,index)=>{const reverse=safe.length-1-index,w=446,x=22+index*65,y=31+reverse*65,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:56px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)}"><div style="position:absolute;left:16px;top:0;width:24%;height:100%;display:flex;align-items:center;font:700 16px Arial">${escapeHtml(readString(entry.heading)??"Level")}</div><div style="position:absolute;left:29%;top:12px;height:32px;border-left:1px solid ${escapeCssColor(nodeText)}"></div><div style="position:absolute;left:36%;top:7px;width:49%;height:42px;display:flex;align-items:center;font:10px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div><div style="position:absolute;right:9px;top:13px;width:30px;height:30px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div></div>`}).join("");
+  return `<div style="${frameStyle(item,mode,{width:720,height:390})}${transformStyle(item)}position:relative;overflow:hidden">${content}</div>`;
+}
+
+function renderPillarFrameworkInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data=infographicData(item),entries=readArray(data.items).map(readRecord).slice(0,7),safe=entries.length?entries:[{heading:"Customer"}],colors=infographicPalette(item); const gap=7,w=(680-gap*(safe.length-1))/safe.length;
+  const roofColor=withHash(readString(data.card_color))??"#D6D6D6",roofTextColor=withHash(readString(data.background_text_color))??withHash(readString(item.text_color))??"#4D73BE";
+  const content=safe.map((entry,index)=>{const x=20+index*(w+gap),color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return `<div style="position:absolute;left:${x}px;top:131px;width:${w}px;height:34px;display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:700 13px Arial">${escapeHtml(readString(entry.heading)??"Pillar")}</div><div style="position:absolute;left:${x}px;top:175px;width:${w}px;height:134px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};text-align:center"><div style="height:55px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="padding:2px 8px;font:10px/1.18 Arial">${escapeHtml(readString(entry.description)??"")}</div></div><div style="position:absolute;left:${x}px;top:320px;width:${w}px;height:36px;display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:10px Arial">${escapeHtml(readString(entry.focus)??"")}</div>`}).join("");
+  return `<div style="${frameStyle(item,mode,{width:720,height:380})}${transformStyle(item)}position:relative;overflow:hidden;font-family:Arial"><svg viewBox="0 0 720 380" style="position:absolute;inset:0;width:100%;height:100%"><path d="M20 125 L375 6 L710 125 Z" fill="${escapeAttribute(escapeCssColor(roofColor))}"/></svg><div style="position:absolute;left:190px;top:82px;width:360px;text-align:center;color:${escapeCssColor(roofTextColor)};font:700 17px Arial">${escapeHtml(readString(data.title)??"Growth & Transformation Framework")}</div>${content}</div>`;
+}
+
+function renderTransformationHubInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data=infographicData(item),entries=readArray(data.items).map(readRecord).slice(0,8),safe=entries.length?entries:[{heading:"Strategy"},{heading:"Process"}],colors=infographicPalette(item),bg=infographicBaseColor(item),dark=isDarkInfographicColor(bg);
+  const centerColor=withHash(readString(data.card_color))??"#D6D6D6",centerTextColor=withHash(readString(data.background_text_color))??withHash(readString(item.text_color))??"#111111";
+  const leftCount=Math.ceil(safe.length/2),lineColor=dark?"#e0e0e0":"#d2d2d2",lines:string[]=[];
+  const boxes=safe.map((entry,index)=>{const left=index<leftCount,rank=left?index:index-leftCount,count=left?leftCount:safe.length-leftCount,centerY=52.5+rank*(195/Math.max(1,count-1)),x=left?11:511,y=centerY-27,elbow=left?297:423,tip=left?191:511,base=left?198:504,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);lines.push(`<path d="M360 150 H${elbow} V${centerY} H${base}" fill="none" stroke="${lineColor}" stroke-width="1.5"/><polygon points="${left?`${tip},${centerY} ${base},${centerY-4} ${base},${centerY+4}`:`${tip},${centerY} ${base},${centerY-4} ${base},${centerY+4}`}" fill="${lineColor}"/>`);return `<div style="position:absolute;left:${x}px;top:${y}px;width:180px;height:54px;box-sizing:border-box;border:1px solid ${lineColor};display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:700 15px Arial">${escapeHtml(readString(entry.heading)??"Capability")}</div>`}).join("");
+  return `<div style="${frameStyle(item,mode,{width:720,height:300})}${transformStyle(item)}position:relative;overflow:hidden"><svg viewBox="0 0 720 300" style="position:absolute;inset:0;width:100%;height:100%">${lines.join("")}</svg>${boxes}<div style="position:absolute;left:280.5px;top:70.5px;width:159px;height:159px;border-radius:50%;display:grid;place-items:center;background:${escapeCssColor(centerColor)};color:${escapeCssColor(centerTextColor)};text-align:center;font:700 20px/1.15 Arial;white-space:pre-line">${escapeHtml(readString(data.center_label)??"Business Transformation")}</div></div>`;
+}
+
+function renderDiagonalCirclesInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data=infographicData(item),entries=readArray(data.items).map(readRecord).slice(0,7),safe=entries.length?entries:[{heading:"Strategy"}],colors=infographicPalette(item),bg=infographicBaseColor(item),dark=isDarkInfographicColor(bg),text=infographicTextColor(item,dark?"#f0f1f4":"#111111");
+  const lineColor=dark?"#e0e0e0":"#d2d2d2",r=58.05,arrowSize=6.02,textW=147.6;
+  const layout=safe.map((entry,index)=>{const x=154.8+index*90,y=301-index*50.74,color=colors[index%colors.length],calloutLeft=index%2===1,anchorX=x+(calloutLeft?-r*.64:r*.3),anchorY=y+(calloutLeft?-r*.77:r*.954),elbowY=y+(calloutLeft?-r*1.28:r*1.22),direction=calloutLeft?-1:1,arrowTipX=anchorX+direction*r*.82,arrowBaseX=arrowTipX-direction*arrowSize,textX=calloutLeft?Math.max(7.2,arrowTipX-arrowSize-12.96-textW):Math.min(565.2,arrowTipX+arrowSize+12.96);return {anchorX,anchorY,arrowBaseX,arrowTipX,calloutLeft,color,elbowY,entry,index,textX,x,y};});
+  const circles=layout.map(({color,x,y})=>`<div style="position:absolute;left:${x-r}px;top:${y-r}px;width:${r*2}px;height:${r*2}px;border-radius:50%;background:${escapeCssColor(color)};opacity:.88"></div>`).join("");
+  const connectors=layout.map(({anchorX,anchorY,arrowBaseX,arrowTipX,elbowY})=>`<path d="M${anchorX} ${anchorY} V${elbowY} H${arrowBaseX}" fill="none" stroke="${lineColor}" stroke-width="1.5"/><polygon points="${arrowTipX},${elbowY} ${arrowBaseX},${elbowY-arrowSize*.65} ${arrowBaseX},${elbowY+arrowSize*.65}" fill="${lineColor}"/><circle cx="${anchorX}" cy="${anchorY}" r="3" fill="${lineColor}"/>`).join("");
+  const annotations=layout.map(({calloutLeft,color,elbowY,entry,index,textX,x,y})=>{const nodeText=blackOrWhiteTextColor(color),numberLeft=calloutLeft?x-r*.82:x-r*.05,numberTop=calloutLeft?y-r*.78:y+r*.51,iconLeft=x+r*.62-r*.34,iconTop=y-r*.34-r*.34;return `<div style="position:absolute;left:${numberLeft}px;top:${numberTop}px;width:${r*.7}px;height:${r*.35}px;text-align:center;color:${escapeCssColor(nodeText)};font:700 19px Arial">${String(index+1).padStart(2,"0")}</div><div style="position:absolute;left:${iconLeft}px;top:${iconTop}px;width:${r*.68}px;height:${r*.68}px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${textX}px;top:${elbowY-11.18}px;width:${textW}px;text-align:${calloutLeft?"right":"left"};color:${escapeCssColor(text)}"><div style="height:21.5px;color:${escapeCssColor(color)};font:700 12px Arial">${escapeHtml(readString(entry.heading)??"Pillar")}</div><div style="padding-top:8px;font:9px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div></div>`}).join("");
+  return `<div style="${frameStyle(item,mode,{width:720,height:430})}${transformStyle(item)}position:relative;overflow:hidden">${circles}<svg viewBox="0 0 720 430" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible">${connectors}</svg>${annotations}</div>`;
+}
+
+function renderRiskMatrixInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data=infographicData(item),raw=readArray(data.items).map(readRecord).slice(0,4),defaults=[{heading:"Identify"},{heading:"Prioritize"},{heading:"Assess"},{heading:"Respond"}],safe=defaults.map((fallback,index)=>raw[index]??fallback),colors=infographicPalette(item),bg=infographicBaseColor(item),dark=isDarkInfographicColor(bg),text=infographicTextColor(item,dark?"#f0f1f4":"#111111");
+  const q=159,cx=360,cy=185,pos=[[194.5,19.5],[366.5,19.5],[194.5,191.5],[366.5,191.5]],sideMargin=10.8,arrowGap=13,arrowLength=28.8,textGap=13,arrowHalf=20.35,arrows:string[]=[];
+  const content=safe.map((entry,index)=>{const [x,y]=pos[index],left=index%2===0,color=colors[index%colors.length],mid=y+q/2,blockEdge=left?x:x+q,arrowBase=blockEdge+(left?-arrowGap:arrowGap),arrowTip=arrowBase+(left?-arrowLength:arrowLength),tx=left?sideMargin:arrowTip+textGap,textWidth=left?Math.max(86.4,arrowTip-textGap-sideMargin):Math.max(86.4,720-sideMargin-tx);arrows.push(`<polygon points="${arrowTip},${mid} ${arrowBase},${mid-arrowHalf} ${arrowBase},${mid+arrowHalf}" fill="${escapeCssColor(color)}"/>`);return `<div style="position:absolute;left:${x}px;top:${y}px;width:${q}px;height:${q}px;border-radius:16px;display:grid;place-items:center;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${tx}px;top:${y+q*.27}px;width:${textWidth}px;text-align:${left?"right":"left"};color:${escapeCssColor(text)}"><div style="height:${q*.11}px;color:${escapeCssColor(color)};font:700 12px Arial">${escapeHtml(readString(entry.heading)??"Activity")}</div><div style="padding-top:${q*.01}px;font:9px/1.1 Arial">${escapeHtml(readString(entry.description)??"")}</div></div>`}).join(""); const label=(readString(data.center_label)??"RISK").padEnd(4," ").slice(0,4);
+  return `<div style="${frameStyle(item,mode,{width:720,height:370})}${transformStyle(item)}position:relative;overflow:hidden"><svg viewBox="0 0 720 370" style="position:absolute;inset:0;width:100%;height:100%">${arrows.join("")}</svg>${content}<div style="position:absolute;left:${cx-q*.375}px;top:${cy-q*.375}px;width:${q*.75}px;height:${q*.75}px;border-radius:16px;background:rgba(255,255,255,.34);display:grid;grid-template-columns:1fr 1fr;color:#fff;font:700 24px Arial;text-align:center;align-items:center">${label.split("").map(letter=>`<span>${escapeHtml(letter)}</span>`).join("")}</div></div>`;
+}
+
+function renderChevronProcessInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 8);
+  const safeEntries = entries.length > 0 ? entries : [{ heading: "Stage" }];
+  const colors = infographicPalette(item);
+  const baseColor = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(baseColor);
+  const customTextColor = withHash(readString(item.text_color));
+  const bodyColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const sidePadding = 25.2;
+  const contentWidth = 597.6;
+  const itemStep = contentWidth / (safeEntries.length + 0.34);
+  const shapes = safeEntries.map((entry, index) => {
+    const x = sidePadding + index * itemStep;
+    const shapeWidth = itemStep * 1.34;
+    const color = colors[index % colors.length];
+    const nodeTextColor = blackOrWhiteTextColor(color);
+    const anchorX = x + shapeWidth * 0.565;
+    const above = index % 2 === 1;
+    const dotY = above ? 27 : 328;
+    const labelX = anchorX + 8.64;
+    const labelWidth = Math.max(
+      72,
+      Math.min(itemStep * 1.45, 720 - labelX - 18),
+    );
+    const labelY = above ? 22 : 284;
+    const labelColor = customTextColor ?? (dark ? bodyColor : color);
+    const points = [
+      x, 115.2,
+      x + shapeWidth * 0.68, 115.2,
+      x + shapeWidth, 180,
+      x + shapeWidth * 0.68, 244.8,
+      x + shapeWidth * 0.04, 244.8,
+      x + shapeWidth * 0.38, 180,
+    ].map(cssNumber).join(" ");
+    const lineStart = above ? 164 : 187;
+    return `<polygon points="${points}" fill="${escapeAttribute(escapeCssColor(color))}"/><text x="${cssNumber(anchorX)}" y="188" text-anchor="middle" fill="${escapeAttribute(escapeCssColor(nodeTextColor))}" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">${String(index + 1).padStart(2, "0")}</text><line x1="${cssNumber(anchorX)}" y1="${lineStart}" x2="${cssNumber(anchorX)}" y2="${dotY}" stroke="#D1D1D1" stroke-width="1.5"/><circle cx="${cssNumber(anchorX)}" cy="${dotY}" r="4" fill="${escapeAttribute(escapeCssColor(color))}"/><foreignObject x="${cssNumber(labelX)}" y="${cssNumber(labelY)}" width="${cssNumber(labelWidth)}" height="70"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,Helvetica,sans-serif;color:${escapeCssColor(bodyColor)}"><div style="font-size:13px;font-weight:700;line-height:1.15;color:${escapeCssColor(labelColor)}">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="padding-top:6px;font-size:10px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div></foreignObject>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 360 })}${transformStyle(
+    item
+  )}overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 720 360" preserveAspectRatio="none" style="display:block">${shapes}</svg></div>`;
+}
+
+function renderRadialCycleInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 8);
+  const safeEntries = entries.length > 0 ? entries : [{ heading: "Stage" }];
+  const colors = infographicPalette(item);
+  const centerX = 280;
+  const centerY = 260;
+  const orbitX = 176.4;
+  const orbitY = 163.8;
+  const nodeRadius = safeEntries.length >= 6 ? 60 : 72;
+  const startAngle = 270 - 360 / safeEntries.length;
+  const centerImage = readString(data.center_image);
+  const center = centerImage
+    ? `<img alt="" src="${escapeAttribute(centerImage)}" style="position:absolute;left:50%;top:50%;width:156px;height:156px;transform:translate(-50%,-50%);border-radius:999px;object-fit:cover">`
+    : `<div style="position:absolute;left:50%;top:50%;width:156px;height:156px;transform:translate(-50%,-50%);border:1px solid #D1D5DB;border-radius:999px;background:#EEF1F5"></div>`;
+  const nodes = safeEntries.map((entry, index) => {
+    const angle = ((startAngle + index * (360 / safeEntries.length)) * Math.PI) / 180;
+    const x = centerX + Math.cos(angle) * orbitX;
+    const y = centerY + Math.sin(angle) * orbitY;
+    const color = colors[index % colors.length];
+    const nodeTextColor = blackOrWhiteTextColor(color);
+    return `<div style="position:absolute;left:${cssNumber(x)}px;top:${cssNumber(y)}px;width:${cssNumber(nodeRadius * 2)}px;height:${cssNumber(nodeRadius * 2)}px;box-sizing:border-box;transform:translate(-50%,-50%);border:1.5px solid #D1D1D1;border-radius:999px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};font-family:Arial,Helvetica,sans-serif;text-align:center"><div style="position:absolute;left:50%;top:10%;display:grid;width:${cssNumber(nodeRadius * 0.5)}px;height:${cssNumber(nodeRadius * 0.5)}px;transform:translateX(-50%);place-items:center;border-radius:999px;background:#FFFFFF;color:#111111;font-size:${cssNumber(Math.max(11, nodeRadius * 0.21))}px;font-weight:700">${String(index + 1).padStart(2, "0")}</div><div style="position:absolute;left:9%;right:9%;top:46%;font-size:${cssNumber(Math.max(9, nodeRadius * 0.14))}px;font-weight:700;line-height:1.1">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="position:absolute;left:9%;right:9%;top:62%;font-size:${cssNumber(Math.max(7, nodeRadius * 0.105))}px;line-height:1.15">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 560, height: 520 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 560 520" preserveAspectRatio="none" style="position:absolute;inset:0;display:block"><ellipse cx="280" cy="260" rx="176.4" ry="163.8" fill="none" stroke="#D1D1D1" stroke-width="2" stroke-dasharray="7 7"/></svg>${center}${nodes}</div>`;
+}
+
+function renderConversionFunnelInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 8);
+  const safeEntries = entries.length > 0 ? entries : [{ value: 50, heading: "Stage" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const textColor = infographicTextColor(item, dark ? "#F0F1F4" : "#111111");
+  const columnWidth = 720 / safeEntries.length;
+  const fills = safeEntries.map((_, index) => {
+    const x0 = index * columnWidth;
+    const x1 = (index + 1) * columnWidth;
+    const curve = Array.from({ length: 11 }, (__, pointIndex) => {
+      const x = x1 - (pointIndex / 10) * columnWidth;
+      return `${cssNumber(x)},${cssNumber(funnelHtmlBoundaryRatio(x / 720) * 320)}`;
+    });
+    const points = [`${cssNumber(x0)},0`, `${cssNumber(x1 + 0.5)},0`, ...curve, `${cssNumber(x0)},${cssNumber(funnelHtmlBoundaryRatio(x0 / 720) * 320)}`].join(" ");
+    return `<polygon points="${points}" fill="${escapeAttribute(escapeCssColor(colors[index % colors.length]))}"/>`;
+  }).join("");
+  const curvePath = Array.from({ length: 41 }, (_, index) => {
+    const x = (index / 40) * 720;
+    const y = funnelHtmlBoundaryRatio(x / 720) * 320;
+    return `${index === 0 ? "M" : "L"} ${cssNumber(x)} ${cssNumber(y)}`;
+  }).join(" ");
+  const separators = safeEntries.slice(1).map((_, index) => {
+    const x = (index + 1) * columnWidth;
+    return `<line x1="${cssNumber(x)}" y1="0" x2="${cssNumber(x)}" y2="320" stroke="#D1D1D1" stroke-width="1.5"/>`;
+  }).join("");
+  const labels = safeEntries.map((entry, index) => {
+    const x = index * columnWidth + columnWidth * 0.13;
+    const value = clamp(readNumber(entry.value) ?? 0, 0, 100);
+    return `<div style="position:absolute;left:${cssNumber(x)}px;top:68%;width:${cssNumber(columnWidth * 0.78)}px;color:${escapeCssColor(textColor)};font-family:Arial,Helvetica,sans-serif"><div style="font-size:19px;font-weight:700">${Math.round(value)}%</div><div style="padding-top:7px;font-size:12px;font-weight:700">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="padding-top:12px;font-size:9.5px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 320 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 720 320" preserveAspectRatio="none" style="position:absolute;inset:0;display:block">${fills}<path d="${curvePath}" fill="none" stroke="${escapeAttribute(escapeCssColor(colors[(safeEntries.length + 1) % colors.length]))}" stroke-width="6" stroke-linejoin="round"/>${separators}<rect x=".75" y=".75" width="718.5" height="318.5" fill="none" stroke="#D1D1D1" stroke-width="1.5"/></svg>${labels}</div>`;
+}
+
+function renderPyramidInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 4);
+  const safeEntries = entries.length >= 3
+    ? entries
+    : [{ heading: "Foundation" }, { heading: "Efficiency" }, { heading: "Innovation" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const outsideTextColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const apexX = 360;
+  const apexY = 20;
+  const bottomY = 376;
+  const baseLeft = 180;
+  const baseRight = 540;
+  const firstCut = 140;
+  const secondCut = 272;
+  const leftAt = (y: number) => apexX - ((y - apexY) / (bottomY - apexY)) * (apexX - baseLeft);
+  const rightAt = (y: number) => apexX + ((y - apexY) / (bottomY - apexY)) * (baseRight - apexX);
+  const shapes = [
+    { entry: safeEntries[0], points: [apexX, apexY, rightAt(firstCut), firstCut, leftAt(firstCut), firstCut], x: apexX, y: (apexY + firstCut * 2) / 3, placement: "right-top" as const },
+    { entry: safeEntries[1], points: [leftAt(firstCut), firstCut, rightAt(firstCut), firstCut, rightAt(secondCut), secondCut, leftAt(secondCut), secondCut], x: apexX, y: (firstCut + secondCut) / 2, placement: "left-middle" as const },
+    ...(safeEntries.length >= 4
+      ? [
+          { entry: safeEntries[2], points: [leftAt(secondCut), secondCut, apexX, secondCut, apexX, bottomY, baseLeft, bottomY], x: (leftAt(secondCut) + apexX + baseLeft) / 3, y: (secondCut + bottomY) / 2, placement: "left-bottom" as const },
+          { entry: safeEntries[3], points: [apexX, secondCut, rightAt(secondCut), secondCut, baseRight, bottomY, apexX, bottomY], x: (rightAt(secondCut) + apexX + baseRight) / 3, y: (secondCut + bottomY) / 2, placement: "right-bottom" as const },
+        ]
+      : [
+          { entry: safeEntries[2], points: [leftAt(secondCut), secondCut, rightAt(secondCut), secondCut, baseRight, bottomY, baseLeft, bottomY], x: apexX, y: (secondCut + bottomY) / 2, placement: "right-bottom" as const },
+        ]),
+  ];
+  const polygons = shapes.map((shape, index) => `<polygon points="${shape.points.map(cssNumber).join(" ")}" fill="${escapeAttribute(escapeCssColor(colors[index % colors.length]))}"/>`).join("");
+  const content = shapes.map((shape, index) => {
+    const color = colors[index % colors.length];
+    const insideTextColor = blackOrWhiteTextColor(color);
+    const layout = pyramidHtmlCalloutLayout(shape.placement);
+    const lineX = Math.min(layout.lineStart, layout.lineEnd);
+    return `<div style="position:absolute;left:${cssNumber(shape.x - 24)}px;top:${cssNumber(shape.y - 21)}px;display:grid;width:48px;height:48px;place-items:center">${infographicIconImage(shape.entry.icon, shape.entry.color)}</div><div style="position:absolute;left:${cssNumber(shape.x - 64.8)}px;top:${cssNumber(shape.y + 22)}px;width:129.6px;text-align:center;color:${escapeCssColor(insideTextColor)};font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700">${escapeHtml(readString(shape.entry.heading) ?? `Level ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(lineX)}px;top:${cssNumber(layout.lineY)}px;width:${cssNumber(Math.abs(layout.lineEnd - layout.lineStart))}px;border-top:1.25px solid #D1D1D1"></div><div style="position:absolute;left:${cssNumber(layout.textX)}px;top:${cssNumber(layout.lineY - 6)}px;width:${cssNumber(layout.textWidth)}px;color:${escapeCssColor(outsideTextColor)};font-family:Arial,Helvetica,sans-serif;text-align:${layout.align}"><div style="font-size:12px;font-weight:700;line-height:1.15">${escapeHtml(readString(shape.entry.heading) ?? `Level ${index + 1}`)}</div><div style="padding-top:7px;font-size:9.5px;line-height:1.2">${escapeHtml(readString(shape.entry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 400 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 720 400" preserveAspectRatio="none" style="position:absolute;inset:0;display:block">${polygons}</svg>${content}</div>`;
+}
+
+function renderSegmentedWheelInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 6);
+  const safeEntries = entries.length >= 3
+    ? entries
+    : [{ heading: "Foundation" }, { heading: "Efficiency" }, { heading: "Growth" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const outsideTextColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const centerX = 360;
+  const centerY = 218.5;
+  const outerRadius = Math.min(720 * 0.235, 460 * 0.33);
+  const innerRadius = outerRadius * 0.29;
+  const angleStep = 360 / safeEntries.length;
+  const gapAngle = Math.min(5, angleStep * 0.08);
+  const labelWidth = 147.6;
+  const shapes = safeEntries.map((entry, index) => {
+    const middleAngle = -90 + (index + 0.5) * angleStep;
+    const startAngle = middleAngle - angleStep / 2 + gapAngle / 2;
+    const endAngle = middleAngle + angleStep / 2 - gapAngle / 2;
+    const color = colors[index % colors.length];
+    const anchor = infographicPolarPoint(centerX, centerY, outerRadius + 2, middleAngle);
+    const elbow = infographicPolarPoint(centerX, centerY, outerRadius + 460 * 0.055, middleAngle);
+    const horizontalBias = Math.cos((middleAngle * Math.PI) / 180);
+    const direction = Math.abs(horizontalBias) <= 0.08
+      ? safeEntries.length === 3 ? 1 : -1
+      : horizontalBias > 0 ? 1 : -1;
+    const endX = elbow.x + direction * 720 * 0.032;
+    const connectorColor = dark ? "#E5E7EB" : color;
+    return `<path d="${annularSectorHtmlPath(centerX, centerY, innerRadius, outerRadius, startAngle, endAngle, Math.max(5, outerRadius * 0.035))}" fill="${escapeAttribute(escapeCssColor(color))}"/><polyline points="${cssNumber(anchor.x)},${cssNumber(anchor.y)} ${cssNumber(elbow.x)},${cssNumber(elbow.y)} ${cssNumber(endX)},${cssNumber(elbow.y)}" fill="none" stroke="${escapeAttribute(escapeCssColor(connectorColor))}" stroke-width="1.5" stroke-linejoin="round"/><circle cx="${cssNumber(endX)}" cy="${cssNumber(elbow.y)}" r="4" fill="${escapeAttribute(escapeCssColor(connectorColor))}"/>`;
+  }).join("");
+  const content = safeEntries.map((entry, index) => {
+    const middleAngle = -90 + (index + 0.5) * angleStep;
+    const color = colors[index % colors.length];
+    const iconPoint = infographicPolarPoint(centerX, centerY, (innerRadius + outerRadius) * 0.54, middleAngle);
+    const elbow = infographicPolarPoint(centerX, centerY, outerRadius + 460 * 0.055, middleAngle);
+    const horizontalBias = Math.cos((middleAngle * Math.PI) / 180);
+    const direction = Math.abs(horizontalBias) <= 0.08
+      ? safeEntries.length === 3 ? 1 : -1
+      : horizontalBias > 0 ? 1 : -1;
+    const endX = elbow.x + direction * 720 * 0.032;
+    const textX = direction > 0 ? endX + 10.08 : endX - 10.08 - labelWidth;
+    const align = direction > 0 ? "left" : "right";
+    const headingColor = customTextColor ?? (dark ? outsideTextColor : color);
+    return `<div style="position:absolute;left:${cssNumber(iconPoint.x - 24)}px;top:${cssNumber(iconPoint.y - 24)}px;display:grid;width:48px;height:48px;place-items:center">${infographicIconImage(entry.icon, entry.color)}</div><div style="position:absolute;left:${cssNumber(textX)}px;top:${cssNumber(elbow.y - 7)}px;width:${labelWidth}px;text-align:${align};font-family:Arial,Helvetica,sans-serif;color:${escapeCssColor(outsideTextColor)}"><div style="font-size:14px;font-weight:700;line-height:1.15;color:${escapeCssColor(headingColor)}">${escapeHtml(readString(entry.heading) ?? `Segment ${index + 1}`)}</div><div style="padding-top:8px;font-size:11px;line-height:1.18">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 460 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 720 460" preserveAspectRatio="none" style="position:absolute;inset:0;display:block">${shapes}</svg>${content}</div>`;
+}
+
+function renderCustomerJourneyInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 6);
+  const safeEntries = entries.length >= 4
+    ? entries
+    : [{}, { heading: "Awareness" }, { heading: "Consideration" }, { heading: "Experience" }];
+  const startEntry = safeEntries[0];
+  const stages = safeEntries.slice(1);
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const textColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const start = { x: 57.6, y: 268.8 };
+  const nodeRadius = Math.min(720 * 0.063, 420 * 0.11);
+  const topY = 126;
+  const bottomY = 277.2;
+  const stageStartX = 208.8;
+  const stageEndX = 604.8;
+  const stagePoints = stages.map((_, index) => ({
+    x: stages.length === 1 ? (stageStartX + stageEndX) / 2 : stageStartX + (index / (stages.length - 1)) * (stageEndX - stageStartX),
+    y: index % 2 === 0 ? topY : bottomY,
+  }));
+  const lastPoint = stagePoints.at(-1) ?? start;
+  const pathData = roundedOrthogonalHtmlPath([start, ...stagePoints, { x: 691.2, y: lastPoint.y }], Math.max(10, 720 * 0.018));
+  const pathColor = dark ? "#E2E2E2" : "#D1D1D1";
+  const startColor =
+    normalizeChartColor(readString(data.start_color)) ??
+    (colors.length >= 12 ? colors.at(-2) : null) ??
+    "#D6D6D6";
+  const startContent = `<div style="position:absolute;left:${cssNumber(start.x - nodeRadius * 1.08)}px;top:${cssNumber(start.y - nodeRadius * 1.08)}px;display:grid;width:${cssNumber(nodeRadius * 2.16)}px;height:${cssNumber(nodeRadius * 2.16)}px;place-items:center;border-radius:999px;background:${escapeCssColor(startColor)}">${infographicIconImage(startEntry.icon, startEntry.color)}</div>`;
+  const stageContent = stages.map((entry, index) => {
+    const point = stagePoints[index];
+    const color = colors[index % colors.length];
+    const above = index % 2 === 1;
+    const textWidth = 122.4;
+    const headingY = above ? point.y - nodeRadius - 84 : point.y + nodeRadius + 10.5;
+    const headingColor = customTextColor ?? (dark ? textColor : color);
+    return `<div style="position:absolute;left:${cssNumber(point.x - nodeRadius)}px;top:${cssNumber(point.y - nodeRadius)}px;display:grid;width:${cssNumber(nodeRadius * 2)}px;height:${cssNumber(nodeRadius * 2)}px;place-items:center;border-radius:999px;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon, entry.color)}</div><div style="position:absolute;left:${cssNumber(point.x - textWidth / 2)}px;top:${cssNumber(headingY)}px;width:${textWidth}px;text-align:center;font-family:Arial,Helvetica,sans-serif;color:${escapeCssColor(textColor)}"><div style="font-size:14px;font-weight:700;line-height:1.15;color:${escapeCssColor(headingColor)}">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="padding-top:7px;font-size:11px;line-height:1.15">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 420 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 720 420" preserveAspectRatio="none" style="position:absolute;inset:0;display:block"><path d="${pathData}" fill="none" stroke="${escapeAttribute(escapeCssColor(pathColor))}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>${startContent}${stageContent}</div>`;
+}
+
+function renderBeforeAfterInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 10);
+  const evenEntries = entries.slice(0, entries.length - (entries.length % 2));
+  const safeEntries = evenEntries.length >= 2 ? evenEntries : [{ heading: "Before" }, { heading: "After" }];
+  const pairCount = safeEntries.length / 2;
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const textColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const lineTop = 82.8;
+  const lineBottom = 432.4;
+  const nodeRadius = Math.min(720 * 0.043, 460 * 0.075);
+  const rowTop = 142.6;
+  const rowBottom = 372.6;
+  const rowY = (index: number) => pairCount === 1 ? (rowTop + rowBottom) / 2 : rowTop + (index / (pairCount - 1)) * (rowBottom - rowTop);
+  const pillFill = dark ? "#FFFFFF" : colors[Math.min(3, colors.length - 1)];
+  const pillText = dark ? colors[Math.min(3, colors.length - 1)] : "#F0F1F4";
+  const dividers = Array.from({ length: Math.max(0, pairCount - 1) }, (_, index) => `<div style="position:absolute;left:352px;top:${cssNumber((rowY(index) + rowY(index + 1)) / 2 - 8)}px;width:16px;height:16px;border-radius:999px;background:#D1D1D1"></div>`).join("");
+  const rows = Array.from({ length: pairCount }, (_, index) => {
+    const beforeEntry = safeEntries[index * 2];
+    const afterEntry = safeEntries[index * 2 + 1];
+    const y = rowY(index);
+    const beforeColor = colors[index % colors.length];
+    const afterColor = colors[(index + pairCount) % colors.length];
+    const beforeHeadingColor = customTextColor ?? (dark ? textColor : beforeColor);
+    const afterHeadingColor = customTextColor ?? (dark ? textColor : afterColor);
+    return `<div style="position:absolute;left:${cssNumber(280.8 - nodeRadius)}px;top:${cssNumber(y - nodeRadius)}px;display:grid;width:${cssNumber(nodeRadius * 2)}px;height:${cssNumber(nodeRadius * 2)}px;place-items:center;border-radius:999px;background:${escapeCssColor(beforeColor)}">${infographicIconImage(beforeEntry.icon, beforeEntry.color)}</div><div style="position:absolute;left:32.4px;top:${cssNumber(y - 16)}px;width:194.4px;font-family:Arial,Helvetica,sans-serif;color:${escapeCssColor(textColor)}"><div style="font-size:14px;font-weight:700;color:${escapeCssColor(beforeHeadingColor)}">${escapeHtml(readString(beforeEntry.heading) ?? `Before ${index + 1}`)}</div><div style="padding-top:8px;font-size:11px;line-height:1.15">${escapeHtml(readString(beforeEntry.description) ?? "")}</div></div><div style="position:absolute;left:${cssNumber(439.2 - nodeRadius)}px;top:${cssNumber(y - nodeRadius)}px;display:grid;width:${cssNumber(nodeRadius * 2)}px;height:${cssNumber(nodeRadius * 2)}px;place-items:center;border-radius:999px;background:${escapeCssColor(afterColor)}">${infographicIconImage(afterEntry.icon, afterEntry.color)}</div><div style="position:absolute;left:493.2px;top:${cssNumber(y - 16)}px;width:194.4px;text-align:right;font-family:Arial,Helvetica,sans-serif;color:${escapeCssColor(textColor)}"><div style="font-size:14px;font-weight:700;color:${escapeCssColor(afterHeadingColor)}">${escapeHtml(readString(afterEntry.heading) ?? `After ${index + 1}`)}</div><div style="padding-top:8px;font-size:11px;line-height:1.15">${escapeHtml(readString(afterEntry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 460 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden"><div style="position:absolute;left:32.4px;top:18.4px;display:grid;width:100.8px;height:32.2px;place-items:center;border-radius:999px;background:${escapeCssColor(pillFill)};color:${escapeCssColor(pillText)};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700">${escapeHtml(readString(data.before_label) ?? "Before")}</div><div style="position:absolute;left:586.8px;top:18.4px;display:grid;width:100.8px;height:32.2px;place-items:center;border-radius:999px;background:${escapeCssColor(pillFill)};color:${escapeCssColor(pillText)};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700">${escapeHtml(readString(data.after_label) ?? "After")}</div><div style="position:absolute;left:359.25px;top:${lineTop}px;width:1.5px;height:${cssNumber(lineBottom - lineTop)}px;background:#D1D1D1"></div><div style="position:absolute;left:356px;top:${cssNumber(lineTop - 4)}px;width:8px;height:8px;border-radius:999px;background:#D1D1D1"></div><div style="position:absolute;left:356px;top:${cssNumber(lineBottom - 4)}px;width:8px;height:8px;border-radius:999px;background:#D1D1D1"></div>${dividers}${rows}</div>`;
+}
+
+function infographicPolarPoint(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleDegrees: number,
+) {
+  const angle = (angleDegrees * Math.PI) / 180;
+  return {
+    x: centerX + Math.cos(angle) * radius,
+    y: centerY + Math.sin(angle) * radius,
+  };
+}
+
+function annularSectorHtmlPath(
+  centerX: number,
+  centerY: number,
+  innerRadius: number,
+  outerRadius: number,
+  startAngle: number,
+  endAngle: number,
+  cornerRadius: number,
+) {
+  const span = endAngle - startAngle;
+  const outerOffset = Math.min((cornerRadius / outerRadius) * (180 / Math.PI), span * 0.18);
+  const innerOffset = Math.min((cornerRadius / innerRadius) * (180 / Math.PI), span * 0.18);
+  const outerStart = infographicPolarPoint(centerX, centerY, outerRadius, startAngle + outerOffset);
+  const outerEnd = infographicPolarPoint(centerX, centerY, outerRadius, endAngle - outerOffset);
+  const outerCornerEnd = infographicPolarPoint(centerX, centerY, outerRadius, endAngle);
+  const outerInsetEnd = infographicPolarPoint(centerX, centerY, outerRadius - cornerRadius, endAngle);
+  const innerOutEnd = infographicPolarPoint(centerX, centerY, innerRadius + cornerRadius, endAngle);
+  const innerCornerEnd = infographicPolarPoint(centerX, centerY, innerRadius, endAngle);
+  const innerEnd = infographicPolarPoint(centerX, centerY, innerRadius, endAngle - innerOffset);
+  const innerStart = infographicPolarPoint(centerX, centerY, innerRadius, startAngle + innerOffset);
+  const innerCornerStart = infographicPolarPoint(centerX, centerY, innerRadius, startAngle);
+  const innerOutStart = infographicPolarPoint(centerX, centerY, innerRadius + cornerRadius, startAngle);
+  const outerInsetStart = infographicPolarPoint(centerX, centerY, outerRadius - cornerRadius, startAngle);
+  const outerCornerStart = infographicPolarPoint(centerX, centerY, outerRadius, startAngle);
+  const largeArc = span > 180 ? 1 : 0;
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `Q ${outerCornerEnd.x} ${outerCornerEnd.y} ${outerInsetEnd.x} ${outerInsetEnd.y}`,
+    `L ${innerOutEnd.x} ${innerOutEnd.y}`,
+    `Q ${innerCornerEnd.x} ${innerCornerEnd.y} ${innerEnd.x} ${innerEnd.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}`,
+    `Q ${innerCornerStart.x} ${innerCornerStart.y} ${innerOutStart.x} ${innerOutStart.y}`,
+    `L ${outerInsetStart.x} ${outerInsetStart.y}`,
+    `Q ${outerCornerStart.x} ${outerCornerStart.y} ${outerStart.x} ${outerStart.y}`,
+    "Z",
+  ].join(" ");
+}
+
+function roundedOrthogonalHtmlPath(
+  points: Array<{ x: number; y: number }>,
+  radius: number,
+) {
+  const first = points[0];
+  if (!first) return "";
+  const commands = [`M ${first.x} ${first.y}`];
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    if (Math.abs(current.y - previous.y) < 0.01) {
+      commands.push(`L ${current.x} ${current.y}`);
+      continue;
+    }
+    const middleX = (previous.x + current.x) / 2;
+    const horizontalDirection = Math.sign(current.x - previous.x) || 1;
+    const verticalDirection = Math.sign(current.y - previous.y) || 1;
+    const safeRadius = Math.min(radius, Math.abs(current.x - previous.x) / 4, Math.abs(current.y - previous.y) / 2);
+    commands.push(
+      `L ${middleX - horizontalDirection * safeRadius} ${previous.y}`,
+      `Q ${middleX} ${previous.y} ${middleX} ${previous.y + verticalDirection * safeRadius}`,
+      `L ${middleX} ${current.y - verticalDirection * safeRadius}`,
+      `Q ${middleX} ${current.y} ${middleX + horizontalDirection * safeRadius} ${current.y}`,
+      `L ${current.x} ${current.y}`,
+    );
+  }
+  return commands.join(" ");
+}
+
+function funnelHtmlBoundaryRatio(value: number) {
+  const normalized = (1 - Math.exp(-2.3 * clamp(value, 0, 1))) / (1 - Math.exp(-2.3));
+  return 0.62 - normalized * 0.52;
+}
+
+function pyramidHtmlCalloutLayout(
+  placement: "right-top" | "left-middle" | "left-bottom" | "right-bottom",
+) {
+  const left = placement.startsWith("left");
+  const lineY = placement === "right-top" ? 42 : placement === "left-middle" ? 154 : 284;
+  const edgeProgress = (lineY - 20) / (376 - 20);
+  const edgeX = left
+    ? 360 - edgeProgress * 180
+    : 360 + edgeProgress * 180;
+  const lineEnd = edgeX + (left ? -72 : 72);
+  const textWidth = 129.6;
+  return {
+    lineStart: edgeX,
+    lineEnd,
+    lineY,
+    textX: left ? edgeX - 90 - textWidth : edgeX + 90,
+    textWidth,
+    align: left ? "right" : "left",
+  };
+}
+
+const ROADMAP_HTML_CURVE_X = [-0.12, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.12];
+const ROADMAP_HTML_CURVE_Y = [0.4, 0.34, 0.2, 0.47, 0.3, 0.38, 0.61, 0.49];
+const ROADMAP_HTML_LABEL_X = [0, 0.2, 0.4, 0.6, 0.8, 1];
+const ROADMAP_HTML_LABEL_Y = [0.52, 0.31, 0.57, 0.46, 0.58, 0.73];
+
+function roadmapHtmlRoadRatio(t: number) {
+  return infographicCatmullRomAt(t, ROADMAP_HTML_CURVE_X, ROADMAP_HTML_CURVE_Y);
+}
+
+function roadmapHtmlLabelRatio(t: number) {
+  return infographicCatmullRomAt(t, ROADMAP_HTML_LABEL_X, ROADMAP_HTML_LABEL_Y);
+}
+
+function infographicCatmullRomAt(t: number, positions: number[], values: number[]) {
+  const last = positions.length - 1;
+  let segment = Math.max(0, last - 1);
+  for (let index = 0; index < last; index += 1) {
+    if (t <= positions[index + 1]) {
+      segment = index;
+      break;
+    }
+  }
+  const start = positions[segment];
+  const end = positions[segment + 1];
+  const u = end === start ? 0 : Math.max(0, Math.min(1, (t - start) / (end - start)));
+  const p0 = values[Math.max(0, segment - 1)];
+  const p1 = values[segment];
+  const p2 = values[segment + 1];
+  const p3 = values[Math.min(last, segment + 2)];
+  const u2 = u * u;
+  const u3 = u2 * u;
+  return 0.5 * (
+    2 * p1 +
+    (-p0 + p2) * u +
+    (2 * p0 - 5 * p1 + 4 * p2 - p3) * u2 +
+    (-p0 + 3 * p1 - 3 * p2 + p3) * u3
+  );
+}
+
+function renderImpactEffortInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 4);
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const textColor = withHash(readString(item.text_color)) ?? (dark ? "#F3F4F6" : "#111111");
+  const defaults = ["Quick Wins", "Strategic Priorities", "Deprioritize", "Fill-ins"];
+  const calloutWidth = 147.6;
+  const calloutGap = 14.4;
+  const positions = [
+    { outerX: 189, outerY: 40, circleX: 264, circleY: 122, side: -1, horizontal: "top", vertical: "left" },
+    { outerX: 402, outerY: 40, circleX: 441, circleY: 122, side: 1, horizontal: "top", vertical: "right" },
+    { outerX: 402, outerY: 276, circleX: 441, circleY: 319, side: 1, horizontal: "bottom", vertical: "right" },
+    { outerX: 189, outerY: 276, circleX: 264, circleY: 319, side: -1, horizontal: "bottom", vertical: "left" },
+  ] as const;
+  const callouts = entries.map((entry, index) => {
+    const position = positions[index];
+    const left = position.side < 0;
+    const color = colors[index % colors.length];
+    const calloutTop = index < 2 ? position.circleY - 40 : position.circleY - 4;
+    const calloutLeft = left
+      ? position.outerX - calloutGap - calloutWidth
+      : position.outerX + 113 + calloutGap;
+    return `<div style="position:absolute;left:${calloutLeft}px;top:${calloutTop}px;width:${calloutWidth}px;text-align:${left ? "right" : "left"};color:${escapeCssColor(textColor)}"><div style="font-size:13px;font-weight:700;color:${escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? defaults[index])}</div><div style="padding-top:7px;font-size:10px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+  }).join("");
+  const corners = positions.map((position, index) => {
+    const color = colors[index % colors.length];
+    const nodeTextColor = blackOrWhiteTextColor(color);
+    const blockWidth = 113;
+    const blockHeight = 125;
+    const thickness = 42;
+    const horizontalY = position.horizontal === "top" ? position.outerY : position.outerY + blockHeight - thickness;
+    const verticalX = position.vertical === "left" ? position.outerX : position.outerX + blockWidth - thickness;
+    return `<rect x="${position.outerX}" y="${horizontalY}" width="${blockWidth}" height="${thickness}" fill="${escapeCssColor(color)}"/><rect x="${verticalX}" y="${position.outerY}" width="${thickness}" height="${blockHeight}" fill="${escapeCssColor(color)}"/><circle cx="${position.circleX}" cy="${position.circleY}" r="20" fill="${escapeCssColor(color)}"/><text x="${position.circleX}" y="${position.circleY + 7}" text-anchor="middle" fill="${escapeAttribute(escapeCssColor(nodeTextColor))}" font-size="17" font-weight="700">${String(index + 1).padStart(2, "0")}</text>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 420 })}${transformStyle(item)}overflow:hidden;font-family:Arial,Helvetica,sans-serif"><svg viewBox="0 0 720 420" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0"><line x1="190" y1="220" x2="516" y2="220" stroke="#d1d1d1" stroke-width="2"/><line x1="353" y1="40" x2="353" y2="401" stroke="#d1d1d1" stroke-width="2"/><path d="M 190 220 l 12 -7 v 14 z M 516 220 l -12 -7 v 14 z M 353 40 l -7 12 h 14 z M 353 401 l -7 -12 h 14 z" fill="#d1d1d1"/><circle cx="353" cy="220" r="13" fill="#d1d1d1"/>${corners}</svg>${callouts}<div style="position:absolute;left:367px;top:225px;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.x_axis_label) ?? "Impact")}</div><div style="position:absolute;left:323px;top:196px;transform:rotate(-90deg);color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.y_axis_label) ?? "Effort")}</div><div style="position:absolute;left:148px;top:212px;width:34px;text-align:right;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.low_label) ?? "Low")}</div><div style="position:absolute;left:524px;top:212px;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.high_label) ?? "High")}</div><div style="position:absolute;left:333px;top:15px;width:40px;text-align:center;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.high_label) ?? "High")}</div><div style="position:absolute;left:333px;top:403px;width:40px;text-align:center;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.low_label) ?? "Low")}</div></div>`;
+}
+
+function renderComparisonMatrixInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const criteria = readArray(data.criteria).map((value) => readString(value) ?? "");
+  const safeCriteria = criteria.length > 0 ? criteria : ["Criterion"];
+  const entries = readArray(data.items).map(readRecord).slice(0, 6);
+  const colors = infographicPalette(item);
+  const cardColor = withHash(readString(data.card_color)) ?? "#E4E4E7";
+  const backgroundTextColor =
+    withHash(readString(data.background_text_color)) ?? "#111111";
+  const criteriaRows = safeCriteria.map((criterion) => `<div style="display:grid;place-items:center;border-top:1px solid #d1d5db;font-size:11px">${escapeHtml(criterion)}</div>`).join("");
+  const columns = entries.map((entry, index) => {
+    const values = readArray(entry.values).map((value) => readString(value) ?? "");
+    const color = colors[index % colors.length];
+    const columnTextColor = blackOrWhiteTextColor(color);
+    return `<div style="position:relative;display:grid;grid-template-rows:110px repeat(${safeCriteria.length},1fr);background:${escapeCssColor(color)};color:${escapeCssColor(columnTextColor)}"><div style="display:grid;place-items:center;padding:20px 8px 8px;text-align:center;font-size:13px;font-weight:700"><span style="position:absolute;top:-24px;display:grid;width:54px;height:54px;place-items:center;border-radius:50%;background:${escapeCssColor(cardColor)};border:3px solid ${escapeCssColor(color)}">${infographicIconImage(entry.icon, entry.color, backgroundTextColor)}</span>${escapeHtml(readString(entry.heading) ?? `Option ${index + 1}`)}</div>${safeCriteria.map((_, valueIndex) => `<div style="display:grid;place-items:center;border-top:1px solid rgba(255,255,255,.35);font-size:11px">${escapeHtml(values[valueIndex] ?? "")}</div>`).join("")}</div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 340 })}${transformStyle(item)}overflow:hidden;padding:54px 22px 28px;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif"><div style="display:grid;height:258px;grid-template-columns:130px repeat(${Math.max(1, entries.length)},1fr);gap:4px"><div style="display:grid;grid-template-rows:110px repeat(${safeCriteria.length},1fr);background:${escapeCssColor(cardColor)};color:${escapeCssColor(backgroundTextColor)}"><div style="display:grid;place-items:center;font-size:13px;font-weight:700">Criteria</div>${criteriaRows}</div>${columns}</div></div>`;
+}
+
+function renderHierarchyInfographic(item: JsonRecord, mode: RenderMode, kind: "org_chart" | "decision_tree"): string {
+  const data = infographicData(item);
+  const rawEntries = readArray(data.items).map(readRecord).slice(0, 18);
+  const entries = rawEntries.length > 0
+    ? rawEntries
+    : [{
+        id: "root",
+        parent_id: null,
+        heading: kind === "org_chart" ? "Leader" : "Decision",
+      }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const ids = entries.map((entry, index) => readString(entry.id) ?? `node-${index}`);
+  const byId = new Map(ids.map((id, index) => [id, index]));
+  const depths = entries.map(() => 0);
+  entries.forEach((entry, index) => {
+    let parent = readString(entry.parent_id);
+    const seen = new Set<number>([index]);
+    while (parent && byId.has(parent) && !seen.has(byId.get(parent)!)) {
+      const parentIndex = byId.get(parent)!;
+      seen.add(parentIndex);
+      depths[index] += 1;
+      parent = readString(entries[parentIndex].parent_id);
+    }
+  });
+  const maxDepth = Math.max(0, ...depths);
+  const maxLevelCount = depths.reduce((counts, depth) => {
+    counts[depth] = (counts[depth] ?? 0) + 1;
+    return counts;
+  }, [] as number[]).reduce((maximum, count) => Math.max(maximum, count), 1);
+  const children = entries.map(() => [] as number[]);
+  entries.forEach((entry, index) => {
+    const parentIndex = byId.get(readString(entry.parent_id) ?? "");
+    if (parentIndex != null && parentIndex !== index) children[parentIndex].push(index);
+  });
+  const positions = entries.map((_, index) => {
+    const sameLevel = entries.map((_, itemIndex) => itemIndex).filter((itemIndex) => depths[itemIndex] === depths[index]);
+    const order = sameLevel.indexOf(index);
+    return {
+      x: ((order + 1) / (sameLevel.length + 1)) * 720,
+      y: 44 + (depths[index] / Math.max(1, maxDepth)) * 272,
+    };
+  });
+  if (kind === "decision_tree") {
+    const rootIndex = entries.findIndex((entry) => !byId.has(readString(entry.parent_id) ?? ""));
+    const root = rootIndex >= 0 ? rootIndex : 0;
+    positions[root] = { x: 360, y: 180 };
+    const anchors = [[202, 97], [202, 263], [518, 97], [518, 263]];
+    children[root].slice(0, anchors.length).forEach((childIndex, childOrder) => {
+      const [x, y] = anchors[childOrder];
+      positions[childIndex] = { x, y };
+      const leaves = children[childIndex];
+      leaves.forEach((leafIndex, leafOrder) => {
+        positions[leafIndex] = {
+          x: x < 360 ? 58 : 662,
+          y: y + (leafOrder - (leaves.length - 1) / 2) * 62,
+        };
+      });
+    });
+  }
+  const orgChartBoxWidth =
+    720 * Math.min(0.19, 0.76 / Math.max(2, maxLevelCount));
+  const orgChartBoxHeight = 360 * 0.14;
+  const connectors = entries.map((entry, index) => {
+    const parentIndex = byId.get(readString(entry.parent_id) ?? "");
+    if (parentIndex == null) return "";
+    const parent = positions[parentIndex];
+    const current = positions[index];
+    if (kind === "decision_tree") {
+      return `<line x1="${parent.x}" y1="${parent.y}" x2="${current.x}" y2="${current.y}"/>`;
+    }
+    const middleY = (parent.y + current.y) / 2;
+    return `<path d="M ${parent.x} ${parent.y + orgChartBoxHeight / 2} V ${middleY} H ${current.x} V ${current.y - orgChartBoxHeight / 2}"/>`;
+  }).join("");
+  const nodes = entries.map((entry, index) => {
+    const { x, y } = positions[index];
+    const color = colors[Math.min(depths[index], colors.length - 1)];
+    const nodeTextColor = blackOrWhiteTextColor(color);
+    const radius = depths[index] === 0 ? 58 : depths[index] === 1 ? 44 : 28;
+    return kind === "decision_tree" ? `<div style="position:absolute;left:${x - radius}px;top:${y - radius}px;display:grid;width:${radius * 2}px;height:${radius * 2}px;place-items:center;border-radius:50%;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};text-align:center;font-size:${depths[index] === 2 ? 9 : 11}px;font-weight:${depths[index] === 2 ? 400 : 700};padding:8px;box-sizing:border-box">${escapeHtml(readString(entry.heading) ?? "")}</div>` : `<div style="position:absolute;left:${x - orgChartBoxWidth / 2}px;top:${y - orgChartBoxHeight / 2}px;width:${orgChartBoxWidth}px;height:${orgChartBoxHeight}px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};text-align:center;padding:9px 8px;box-sizing:border-box"><div style="font-size:12px;font-weight:700">${escapeHtml(readString(entry.heading) ?? "")}</div><div style="padding-top:4px;font-size:10px">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 360 })}${transformStyle(item)}overflow:hidden;font-family:Arial,Helvetica,sans-serif"><svg viewBox="0 0 720 360" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0;fill:none;stroke:${dark ? "#e4e4e7" : "#d1d1d1"};stroke-width:2">${connectors}</svg>${nodes}</div>`;
+}
+
+function renderMindMapInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const topLevel = readArray(data.items).map(readRecord);
+  const nested = readArray(topLevel[0]?.items).map(readRecord);
+  const entries = (topLevel.length === 1 && nested.length > 0 ? nested : topLevel).slice(0, 8);
+  const safeEntries = entries.length > 0 ? entries : [{ heading: "Core idea" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const customTextColor = withHash(readString(item.text_color));
+  const textColor = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
+  const mutedColor = customTextColor ?? (dark ? "#E1E4EA" : "#222222");
+  const layout = mindMapHtmlLayout(safeEntries.length, 720, 380);
+  const content = safeEntries.map((entry, index) => {
+    const position = layout.positions[index];
+    const textBox = mindMapHtmlTextBox(position, layout.radius, 720, 380);
+    const headingAlignment = textBox.verticalAlign === "middle" ? "center" : "flex-end";
+    return `<div style="position:absolute;left:${cssNumber(position.x - layout.radius)}px;top:${cssNumber(position.y - layout.radius)}px;display:grid;width:${cssNumber(layout.radius * 2)}px;height:${cssNumber(layout.radius * 2)}px;place-items:center;border-radius:999px;overflow:hidden"><span style="position:absolute;inset:0;border-radius:inherit;background:${escapeCssColor(colors[index % colors.length])};opacity:.88"></span>${infographicIconImage(entry.icon, entry.color, undefined, 21)}</div><div style="position:absolute;left:${cssNumber(textBox.x)}px;top:${cssNumber(textBox.y)}px;width:${cssNumber(textBox.width)}px;text-align:center;color:${escapeCssColor(textColor)}"><div style="display:flex;align-items:${headingAlignment};justify-content:center;height:${cssNumber(textBox.headingHeight)}px;overflow:hidden;font-size:17px;font-weight:700;line-height:1.1">${escapeHtml(readString(entry.heading) ?? `Idea ${index + 1}`)}</div><div style="height:${cssNumber(textBox.descriptionHeight)}px;overflow:hidden;font-size:12px;line-height:1.2;color:${escapeCssColor(mutedColor)}">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 380 })}${transformStyle(
+    item
+  )}overflow:hidden;font-family:Arial,Helvetica,sans-serif"><div style="position:absolute;inset:0">${content}</div></div>`;
+}
+
+function infographicIconImage(
+  icon: unknown,
+  legacyColor: unknown,
+  overrideColor?: unknown,
+  sizePercent = 48,
+): string {
+  const normalized = normalizeInfographicIcon(icon, legacyColor);
+  if (!normalized) return "";
+  const source =
+    buildSvgUpdateUrl(normalized.url, "http://localhost", {
+      color:
+        withHash(readString(overrideColor)) ??
+        withHash(normalized.color) ??
+        "#FFFFFF",
+    }) ?? normalized.url;
+  return `<img alt="" src="${escapeAttribute(source)}" style="position:relative;display:block;width:${cssNumber(sizePercent)}%;height:${cssNumber(sizePercent)}%;object-fit:contain">`;
+}
+
+function infographicTextColor(item: JsonRecord, fallback: string): string {
+  return withHash(readString(item.text_color)) ?? fallback;
+}
+
+function mindMapHtmlLayout(count: number, width: number, height: number) {
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = Math.max(28, Math.min(width * 0.105, height * (count >= 5 ? 0.19 : 0.22)));
+  if (count === 1) return { radius, positions: [{ x: centerX, y: centerY - radius * 0.25 }] };
+  if (count === 2) return { radius, positions: [{ x: centerX - radius * 0.78, y: centerY }, { x: centerX + radius * 0.78, y: centerY }] };
+  if (count === 3) return { radius, positions: [{ x: centerX - radius * 0.78, y: centerY - radius * 0.58 }, { x: centerX, y: centerY + radius * 0.72 }, { x: centerX + radius * 0.78, y: centerY - radius * 0.58 }] };
+  if (count === 4) return { radius, positions: [{ x: centerX - radius * 0.78, y: centerY - radius * 0.7 }, { x: centerX - radius * 0.78, y: centerY + radius * 0.7 }, { x: centerX + radius * 0.78, y: centerY - radius * 0.7 }, { x: centerX + radius * 0.78, y: centerY + radius * 0.7 }] };
+  const leftCount = Math.ceil(count / 2);
+  const rightCount = count - leftCount;
+  const step = radius * 1.45;
+  const column = (columnCount: number, x: number) => Array.from({ length: columnCount }, (_, index) => ({ x, y: centerY - (step * (columnCount - 1)) / 2 + index * step }));
+  return { radius, positions: [...column(leftCount, centerX - radius * 0.78), ...column(rightCount, centerX + radius * 0.78)] };
+}
+
+function mindMapHtmlTextBox(position: { x: number; y: number }, radius: number, width: number, height: number) {
+  const headingHeight = Math.max(22, height * 0.075);
+  const descriptionHeight = Math.max(30, height * 0.12);
+  const textWidth = Math.max(100, Math.min(width * 0.27, position.x - radius - 16));
+  const isBottomCenter = position.y + radius > height * 0.82 && Math.abs(position.x - width / 2) < radius * 0.5;
+  if (isBottomCenter) return { x: width / 2 - textWidth / 2, y: Math.min(height - headingHeight - descriptionHeight, position.y + radius + 10), width: textWidth, headingHeight, descriptionHeight, verticalAlign: "middle" as const };
+  const isLeft = position.x < width / 2;
+  return { x: isLeft ? 0 : width - textWidth, y: clamp(position.y - (headingHeight + descriptionHeight) / 2, 0, height - headingHeight - descriptionHeight), width: textWidth, headingHeight, descriptionHeight, verticalAlign: "bottom" as const };
 }
 
 function chartConfig(item: JsonRecord, height: number): JsonRecord {
@@ -1698,20 +2850,48 @@ function withAlpha(color: string, alpha: number): string {
 
 interface InfographicMetrics {
   ratio: number;
+  label: string;
 }
 
 function infographicKindFromValue(value: string | null): InfographicKind {
-  return value === "gauge" ? "gauge" : "progress_bar";
+  return value === "gauge" ||
+    value === "gantt" ||
+    value === "timeline" ||
+    value === "roadmap" ||
+    value === "milestone_timeline" ||
+    value === "staircase" ||
+    value === "supply_chain" ||
+    value === "stair_step_blocks" ||
+    value === "maturity_model" ||
+    value === "pillar_framework" ||
+    value === "transformation_hub" ||
+    value === "diagonal_circles" ||
+    value === "risk_matrix" ||
+    value === "chevron_process" ||
+    value === "radial_cycle" ||
+    value === "conversion_funnel" ||
+    value === "pyramid" ||
+    value === "segmented_wheel" ||
+    value === "customer_journey" ||
+    value === "before_after" ||
+    value === "impact_effort_matrix" ||
+    value === "comparison_matrix" ||
+    value === "org_chart" ||
+    value === "decision_tree" ||
+    value === "mind_map"
+    ? value
+    : "progress_bar";
 }
 
 function infographicData(item: JsonRecord): JsonRecord {
-  return readRecord(item.data);
+  const data = readRecord(item.data);
+  return Object.keys(data).length ? data : item;
 }
 
 function infographicMetrics(item: JsonRecord): InfographicMetrics {
   const data = infographicData(item);
-  const rawMin = readNumber(data.min_value) ?? 0;
-  const rawMax = readNumber(data.max_value) ?? 100;
+  const rawMin = readNumber(data.min_value ?? data.minValue) ?? 0;
+  const rawMax = readNumber(data.max_value ?? data.maxValue) ?? 100;
   const min = Math.min(rawMin, rawMax);
   const max = Math.max(rawMin, rawMax);
   const value = clamp(readNumber(data.value) ?? min, min, max);
@@ -1719,13 +2899,20 @@ function infographicMetrics(item: JsonRecord): InfographicMetrics {
 
   return {
     ratio,
+    label: formatInfographicNumber(value),
   };
 }
 
 function infographicHighlightColor(item: JsonRecord): string {
   const colors = readArray(item.colors);
+  const fill = readRecord(item.fill);
   return (
     normalizeChartColor(readString(colors[1])) ??
+    normalizeChartColor(
+      readString(
+        item.highlightColor ?? item.highlight_color ?? item.color ?? fill.color
+      )
+    ) ??
     DEFAULT_CHART_COLORS[0]
   );
 }
@@ -1734,8 +2921,28 @@ function infographicBaseColor(item: JsonRecord): string {
   const colors = readArray(item.colors);
   return (
     normalizeChartColor(readString(colors[0])) ??
+    normalizeChartColor(readString(item.baseColor ?? item.base_color)) ??
     "#E5E7EB"
   );
+}
+
+function infographicPalette(item: JsonRecord): string[] {
+  const colors = readArray(item.colors)
+    .slice(1)
+    .map((color) => normalizeChartColor(readString(color)))
+    .filter((color): color is string => Boolean(color));
+  return colors.length > 0
+    ? colors
+    : ["#2563EB", "#7C3AED", "#0EA5E9", "#10B981"];
+}
+
+function isDarkInfographicColor(color: string): boolean {
+  const hex = color.replace(/^#/, "");
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return false;
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  return (red * 299 + green * 587 + blue * 114) / 1000 < 150;
 }
 
 function describeGaugeArc(
@@ -1767,6 +2974,11 @@ function gaugePoint(
     x: centerX + radius * Math.cos(radians),
     y: centerY + radius * Math.sin(radians),
   };
+}
+
+function formatInfographicNumber(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return Object.is(rounded, -0) ? "0" : String(rounded);
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -2391,6 +3603,15 @@ function readableTableTextColor(
   return fillLuminance > 0.5 ? "#111827" : "#FFFFFF";
 }
 
+function blackOrWhiteTextColor(fill: string | null): string {
+  const fillLuminance = colorLuminance(fill);
+  if (fillLuminance == null) return "#000000";
+
+  const blackContrast = (fillLuminance + 0.05) / 0.05;
+  const whiteContrast = 1.05 / (fillLuminance + 0.05);
+  return whiteContrast >= blackContrast ? "#FFFFFF" : "#000000";
+}
+
 function colorLuminance(color: string | null): number | null {
   const rgb = parseRgbColor(color);
   if (!rgb) return null;
@@ -2759,7 +3980,9 @@ function verticalAlign(value: string | null): string {
 }
 
 function textAlign(value: string | null): string {
-  return value === "center" || value === "right" ? value : "left";
+  return value === "center" || value === "right" || value === "justify"
+    ? value
+    : "left";
 }
 
 function cssAlignment(value: string | null, fallback: string): string {

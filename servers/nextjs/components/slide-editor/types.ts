@@ -13,7 +13,7 @@ export type ThemeRole =
   | "text"
   | "muted";
 
-export type HorizontalAlignment = "left" | "center" | "right";
+export type HorizontalAlignment = "left" | "center" | "right" | "justify";
 export type VerticalAlignment = "top" | "middle" | "bottom";
 export type LayoutAlignment =
   | "flex-start"
@@ -37,20 +37,253 @@ export type ChartType =
   | "radar"
   | "scatter"
   | "stacked_bar";
-export type InfographicType = "progress_bar" | "gauge";
+export type InfographicType =
+  | "progress_bar"
+  | "gauge"
+  | "gantt"
+  | "timeline"
+  | "roadmap"
+  | "milestone_timeline"
+  | "staircase"
+  | "supply_chain"
+  | "stair_step_blocks"
+  | "maturity_model"
+  | "diagonal_circles"
+  | "pillar_framework"
+  | "transformation_hub"
+  | "risk_matrix"
+  | "chevron_process"
+  | "radial_cycle"
+  | "conversion_funnel"
+  | "pyramid"
+  | "segmented_wheel"
+  | "customer_journey"
+  | "before_after"
+  | "impact_effort_matrix"
+  | "comparison_matrix"
+  | "org_chart"
+  | "decision_tree"
+  | "mind_map";
 
-export type ProgressBarInfographicData = {
-  type: "progress_bar";
+export type MeterInfographicData = {
+  type: "progress_bar" | "gauge";
   max_value: number;
   min_value: number;
   value: number;
 };
 
-export type GaugeInfographicData = {
-  type: "gauge";
-  max_value: number;
-  min_value: number;
+export type GanttInfographicPosition = {
+  column: number;
+  offset: number;
+};
+
+export type GanttInfographicItem = {
+  name: string;
+  start: GanttInfographicPosition;
+  end: GanttInfographicPosition;
+};
+
+export type GanttInfographicData = {
+  type: "gantt";
+  columns: Array<{ label: string }>;
+  rows: Array<{ label: string; items: GanttInfographicItem[] }>;
+};
+
+export type InfographicIcon = {
+  url: string;
+  color: string;
+};
+
+export type TimelineInfographicItem = {
+  icon?: InfographicIcon | null;
+  heading?: string | null;
+  description?: string | null;
+  label?: string | null;
+  focus?: string | null;
+};
+
+export type TimelineInfographicData = {
+  type: "timeline";
+  items: TimelineInfographicItem[];
+};
+
+export type RoadmapInfographicData = {
+  type: "roadmap";
+  items: TimelineInfographicItem[];
+};
+
+export type MilestoneTimelineInfographicData = {
+  type: "milestone_timeline";
+  items: TimelineInfographicItem[];
+};
+
+export type StaircaseInfographicData = {
+  type: "staircase";
+  items: TimelineInfographicItem[];
+};
+
+export type SupplyChainInfographicData = {
+  type: "supply_chain";
+  items: TimelineInfographicItem[];
+};
+
+export type StairStepBlocksInfographicData = {
+  type: "stair_step_blocks";
+  items: TimelineInfographicItem[];
+};
+
+export type MaturityModelInfographicData = {
+  type: "maturity_model";
+  items: TimelineInfographicItem[];
+};
+
+export type DiagonalCirclesInfographicData = {
+  type: "diagonal_circles";
+  items: TimelineInfographicItem[];
+};
+
+export type PillarFrameworkInfographicData = {
+  type: "pillar_framework";
+  title: string;
+  items: TimelineInfographicItem[];
+};
+
+export type TransformationHubInfographicData = {
+  type: "transformation_hub";
+  center_label: string;
+  items: TimelineInfographicItem[];
+};
+
+export type RiskMatrixInfographicData = {
+  type: "risk_matrix";
+  center_label: string;
+  items: TimelineInfographicItem[];
+};
+
+export type ChevronProcessInfographicData = {
+  type: "chevron_process";
+  items: TimelineInfographicItem[];
+};
+
+export type RadialCycleInfographicData = {
+  type: "radial_cycle";
+  center_image?: string | null;
+  items: TimelineInfographicItem[];
+};
+
+export type ConversionFunnelInfographicItem = {
   value: number;
+  heading: string;
+  description?: string | null;
+};
+
+export type ConversionFunnelInfographicData = {
+  type: "conversion_funnel";
+  items: ConversionFunnelInfographicItem[];
+};
+
+export type PyramidInfographicData = {
+  type: "pyramid";
+  items: TimelineInfographicItem[];
+};
+
+export type SegmentedWheelInfographicData = {
+  type: "segmented_wheel";
+  items: TimelineInfographicItem[];
+};
+
+export type CustomerJourneyInfographicData = {
+  type: "customer_journey";
+  start_color?: string | null;
+  items: TimelineInfographicItem[];
+};
+
+export type BeforeAfterInfographicData = {
+  type: "before_after";
+  before_label: string;
+  after_label: string;
+  items: TimelineInfographicItem[];
+};
+
+export type ImpactEffortMatrixInfographicData = {
+  type: "impact_effort_matrix";
+  x_axis_label: string;
+  y_axis_label: string;
+  low_label: string;
+  high_label: string;
+  items: TimelineInfographicItem[];
+};
+
+export type ComparisonMatrixInfographicItem = {
+  icon?: InfographicIcon | null;
+  heading: string;
+  values: string[];
+};
+
+export type ComparisonMatrixInfographicData = {
+  type: "comparison_matrix";
+  criteria: string[];
+  items: ComparisonMatrixInfographicItem[];
+};
+
+export type HierarchyInfographicItem = {
+  id: string;
+  parent_id?: string | null;
+  heading: string;
+  description?: string | null;
+};
+
+export type OrgChartInfographicData = {
+  type: "org_chart";
+  items: HierarchyInfographicItem[];
+};
+
+export type DecisionTreeInfographicData = {
+  type: "decision_tree";
+  items: HierarchyInfographicItem[];
+};
+
+export type ItemCollectionInfographicData =
+  | TimelineInfographicData
+  | RoadmapInfographicData
+  | MilestoneTimelineInfographicData
+  | StaircaseInfographicData
+  | SupplyChainInfographicData
+  | StairStepBlocksInfographicData
+  | MaturityModelInfographicData
+  | DiagonalCirclesInfographicData
+  | ChevronProcessInfographicData
+  | RadialCycleInfographicData
+  | PyramidInfographicData
+  | SegmentedWheelInfographicData
+  | CustomerJourneyInfographicData;
+
+export type MindMapInfographicNode = TimelineInfographicItem & {
+  items: MindMapInfographicNode[];
+};
+
+export type MindMapInfographicData = {
+  type: "mind_map";
+  items: MindMapInfographicNode[];
+};
+
+export type InfographicData = (
+  | MeterInfographicData
+  | GanttInfographicData
+  | ItemCollectionInfographicData
+  | BeforeAfterInfographicData
+  | ImpactEffortMatrixInfographicData
+  | ComparisonMatrixInfographicData
+  | OrgChartInfographicData
+  | DecisionTreeInfographicData
+  | PillarFrameworkInfographicData
+  | TransformationHubInfographicData
+  | RiskMatrixInfographicData
+  | ConversionFunnelInfographicData
+  | MindMapInfographicData
+) & {
+  card_color?: string | null;
+  background_text_color?: string | null;
 };
 
 export type Position = {
@@ -276,6 +509,18 @@ export type VectorCurve = {
 
 export type VectorShape = "polygon" | "ellipse";
 
+// Endpoint styles intentionally mirror the useful subset offered by Google
+// Slides. They remain properties of a vector line, so moving either endpoint
+// changes the complete arrow geometry instead of scaling an arrowhead asset.
+export type VectorMarker =
+  | "none"
+  | "arrow"
+  | "stealth"
+  | "triangle"
+  | "circle"
+  | "square"
+  | "diamond";
+
 export type VectorElement = Omit<ElementBase, "decorative" | "name"> & {
   type: "vector";
   decorative?: never;
@@ -285,6 +530,8 @@ export type VectorElement = Omit<ElementBase, "decorative" | "name"> & {
   closed?: boolean | null;
   curve?: VectorCurve | null;
   corner_radii?: number[] | null;
+  start_marker?: VectorMarker | null;
+  end_marker?: VectorMarker | null;
   fill?: Fill | null;
   stroke?: Stroke | null;
 };
@@ -320,8 +567,9 @@ export type ChartElement = ElementBase & {
 
 export type InfographicElement = ElementBase & {
   type: "infographic";
-  data: ProgressBarInfographicData | GaugeInfographicData;
-  colors?: string[] | null;
+  data: InfographicData;
+  colors: string[];
+  text_color?: string | null;
 };
 
 export type FlexElement = RequiredElementBase & {

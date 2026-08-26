@@ -337,6 +337,50 @@ export function appendChartColorTarget(element: ChartElement): ChartElement {
   };
 }
 
+export function removeChartColorTarget(
+  element: ChartElement,
+  targetIndex: number,
+): ChartElement {
+  const currentColors = (element.colors ?? [])
+    .filter((color): color is string => Boolean(color))
+    .map((color) => normalizeChartColor(color));
+  if (
+    currentColors.length <= 1 ||
+    !Number.isInteger(targetIndex) ||
+    targetIndex < 0 ||
+    targetIndex >= currentColors.length
+  ) {
+    return element;
+  }
+
+  const colors = currentColors.filter((_, index) => index !== targetIndex);
+  const primaryColor = colors[0] ?? DEFAULT_CHART_COLORS[0];
+  const mode = chartColorTargetMode(element);
+  const data = chartDataFromSeriesWithColors(
+    resolvedChartCategories(element),
+    element.series ?? [],
+    colors,
+    mode === "category",
+  );
+  const nextData =
+    data.length > 0
+      ? data
+      : element.data.map((datum, index) => ({
+          ...datum,
+          color:
+            mode === "category"
+              ? colors[index % colors.length] ?? primaryColor
+              : primaryColor,
+        }));
+
+  return {
+    ...element,
+    color: primaryColor,
+    colors,
+    data: nextData,
+  };
+}
+
 export function chartDataToCsv(element: ChartElement) {
   const categories = resolvedChartCategories(element);
   const datasets = resolvedChartDatasets(element);

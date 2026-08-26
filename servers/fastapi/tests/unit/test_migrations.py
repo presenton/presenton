@@ -816,3 +816,36 @@ def test_removed_intermediate_revision_upgrades_through_consolidated_migration(
         assert "clusters" not in template_columns
     finally:
         engine.dispose()
+
+
+def test_upgrade_from_previous_head_adds_template_v2_theme(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'template-v2-theme.db'}"
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text("CREATE TABLE template_v2 (id VARCHAR PRIMARY KEY)")
+            )
+            connection.execute(
+                text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+            )
+            connection.execute(
+                text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
+                {"revision": migrations.REVISION_SMART_MODE_BACKFILL},
+            )
+
+        command.upgrade(_alembic_config(database_url), "head")
+
+        with engine.connect() as connection:
+            version = connection.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar_one()
+            template_columns = {
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(template_v2)"))
+            }
+
+        assert version == migrations.REVISION_HEAD
+        assert "theme" in template_columns
+    finally:
+        engine.dispose()

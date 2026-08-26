@@ -2,8 +2,10 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   clearPresentationData,
+  setGenerationMetrics,
   setPresentationData,
   setStreaming,
+  type GenerationMetrics,
   type PresentationData,
 } from "@/store/slices/presentationGeneration";
 import { jsonrepair } from "jsonrepair";
@@ -25,6 +27,26 @@ import { isTemplateV2Slide } from "../../_shared/blank-slide";
 
 const MAX_STREAM_RETRIES = 3;
 const STREAM_RETRY_DELAY_MS = 1_000;
+
+interface PresentationStreamData {
+  type?: string;
+  model?: unknown;
+  input_tokens?: unknown;
+  output_tokens?: unknown;
+  thinking_tokens?: unknown;
+  total_tokens?: unknown;
+  tokens_per_second?: unknown;
+  duration_seconds?: unknown;
+  estimated?: unknown;
+  thinking_tokens_estimated?: unknown;
+  supports_thinking?: unknown;
+  [key: string]: any;
+}
+
+const readMetricNumber = (value: unknown, fallback: number) => {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? Math.max(0, parsedValue) : fallback;
+};
 
 function mergePresentationPreservingTemplateData(
   incoming: PresentationData
@@ -129,6 +151,7 @@ export const usePresentationStreaming = (
     const streamStartedAt = Date.now();
     let streamIsTemplateV2 = preloadPresentationData;
     let smartGenerationOutcomeTracked = false;
+    let latestGenerationMetrics: GenerationMetrics | null = null;
 
     const closeEventSource = () => {
       if (eventSource) {
@@ -166,6 +189,7 @@ export const usePresentationStreaming = (
           error_message: sanitizeAnalyticsError(description, "Stream failed"),
         });
       }
+      isClosed = true;
       closeEventSource();
       clearRetryTimer();
       setLoading(false);
@@ -287,9 +311,9 @@ export const usePresentationStreaming = (
       );
 
       eventSource.addEventListener("response", async (event) => {
-        let data: any;
+        let data: PresentationStreamData;
         try {
-          data = JSON.parse(event.data);
+          data = JSON.parse(event.data) as PresentationStreamData;
         } catch {
           if (!scheduleRetry("invalid SSE payload")) {
             finalizeFailure("Failed to parse stream response.");
@@ -298,6 +322,97 @@ export const usePresentationStreaming = (
         }
 
         switch (data.type) {
+          case "generation_metrics": {
+            const previousMetrics = latestGenerationMetrics;
+            const inputTokens = readMetricNumber(
+              data.input_tokens,
+              previousMetrics?.input_tokens ?? 0
+            );
+            const outputTokens = readMetricNumber(
+              data.output_tokens,
+              previousMetrics?.output_tokens ?? 0
+            );
+            const totalTokens = readMetricNumber(
+              data.total_tokens,
+              previousMetrics?.total_tokens ?? 0
+            );
+            const thinkingTokens =
+              data.thinking_tokens === null ||
+              data.thinking_tokens === undefined
+                ? previousMetrics?.thinking_tokens ?? null
+                : readMetricNumber(
+                    data.thinking_tokens,
+                    previousMetrics?.thinking_tokens ?? 0
+                  );
+            const hasExactThinkingTokens =
+              data.thinking_tokens !== null &&
+              data.thinking_tokens !== undefined &&
+              data.thinking_tokens_estimated === false;
+
+            const nextMetrics: GenerationMetrics = {
+              model:
+                data.model === undefined
+                  ? previousMetrics?.model ?? ""
+                  : String(data.model),
+              input_tokens: Math.max(
+                previousMetrics?.input_tokens ?? 0,
+                inputTokens
+              ),
+              output_tokens: Math.max(
+                previousMetrics?.output_tokens ?? 0,
+                outputTokens
+              ),
+              thinking_tokens:
+                thinkingTokens === null
+                  ? null
+                  : hasExactThinkingTokens
+                    ? thinkingTokens
+                    : Math.max(
+                        previousMetrics?.thinking_tokens ?? 0,
+                        thinkingTokens
+                      ),
+              total_tokens: Math.max(
+                previousMetrics?.total_tokens ?? 0,
+                totalTokens
+              ),
+              tokens_per_second: readMetricNumber(
+                data.tokens_per_second,
+                previousMetrics?.tokens_per_second ?? 0
+              ),
+              duration_seconds: Math.max(
+                previousMetrics?.duration_seconds ?? 0,
+                readMetricNumber(
+                  data.duration_seconds,
+                  previousMetrics?.duration_seconds ?? 0
+                )
+              ),
+              estimated:
+                data.estimated === undefined
+                  ? previousMetrics?.estimated ?? false
+                  : Boolean(data.estimated),
+              thinking_tokens_estimated:
+                data.thinking_tokens_estimated === undefined
+                  ? previousMetrics?.thinking_tokens_estimated ?? false
+                  : Boolean(data.thinking_tokens_estimated),
+              supports_thinking:
+                previousMetrics?.supports_thinking === true ||
+                data.supports_thinking === true,
+            };
+
+            const hasMeaningfulMetrics =
+              nextMetrics.input_tokens > 0 ||
+              nextMetrics.output_tokens > 0 ||
+              nextMetrics.total_tokens > 0 ||
+              nextMetrics.tokens_per_second > 0 ||
+              nextMetrics.supports_thinking;
+
+            if (previousMetrics || hasMeaningfulMetrics) {
+              latestGenerationMetrics = nextMetrics;
+              dispatch(setGenerationMetrics(nextMetrics));
+            }
+            break;
+          }
+
           case "fonts": {
             if (data.fonts && typeof data.fonts === "object") {
               const prev = store.getState().presentationGeneration.presentationData;
@@ -548,15 +663,26 @@ export const usePresentationStreaming = (
               );
               break;
             }
+            const completedSlides = Number(data.completed_slides);
+            const totalSlides = Number(data.total_slides);
+            const detail =
+              data.detail || "Failed to connect to the server. Please try again.";
+            const detailWithProgress =
+              Number.isFinite(completedSlides) && completedSlides > 0
+                ? `${detail} ${completedSlides}${
+                    Number.isFinite(totalSlides) && totalSlides > 0
+                      ? ` of ${totalSlides}`
+                      : ""
+                  } slides were saved and will be reused.`
+                : detail;
+            if (data.retryable === false) {
+              finalizeFailure(detailWithProgress);
+              break;
+            }
             if (
-              !scheduleRetry(
-                data.detail || "server returned stream error response"
-              )
+              !scheduleRetry(detail || "server returned stream error response")
             ) {
-              finalizeFailure(
-                data.detail ||
-                  "Failed to connect to the server. Please try again."
-              );
+              finalizeFailure(detailWithProgress);
             }
             break;
         }
@@ -573,6 +699,8 @@ export const usePresentationStreaming = (
     const startStream = async () => {
       dispatch(setStreaming(true));
       dispatch(clearPresentationData());
+      latestGenerationMetrics = null;
+      dispatch(setGenerationMetrics(null));
       trackEvent(MixpanelEvent.Presentation_Stream_API_Call, {
         presentation_id: presentationId,
         generation_mode: options.generationMode ?? "standard",

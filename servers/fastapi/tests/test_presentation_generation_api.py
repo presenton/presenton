@@ -162,7 +162,11 @@ class TestPresentationGenerationAPI:
         assert task.type == "presentation.generate"
         assert task.status == "pending"
         assert task.message == "Queued for generation"
-        assert task.data == {"created_slides": 0, "remaining_slides": 5}
+        assert task.data["created_slides"] == 0
+        assert task.data["remaining_slides"] == 5
+        # Present from the moment the task is enqueued, so a polling caller
+        # can identify the presentation without waiting for completion.
+        assert uuid.UUID(task.data["presentation_id"])
         assert fake_session.added == [task]
         assert fake_session.commit_count == 1
         assert len(background_tasks.tasks) == 1

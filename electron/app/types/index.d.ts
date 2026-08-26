@@ -11,11 +11,9 @@ interface FastApiEnv extends NodeJS.ProcessEnv {
   LITEPARSE_NODE_BINARY?: string;
   /** Root directory of the bundled presentation export runtime. */
   EXPORT_PACKAGE_ROOT?: string;
-  EXPORT_RUNTIME_DIR?: string;
   PUPPETEER_EXECUTABLE_PATH?: string;
   PUPPETEER_CACHE_DIR?: string;
   PUPPETEER_TMP_DIR?: string;
-  BUILT_PYTHON_MODULE_PATH?: string;
 }
 
 interface NextJsEnv extends NodeJS.ProcessEnv {
@@ -30,7 +28,6 @@ interface NextJsEnv extends NodeJS.ProcessEnv {
   PUPPETEER_EXECUTABLE_PATH?: string;
   PUPPETEER_CACHE_DIR?: string;
   PUPPETEER_TMP_DIR?: string;
-  BUILT_PYTHON_MODULE_PATH?: string;
 }
 
 interface UserConfig {

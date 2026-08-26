@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Layer, Stage } from "react-konva";
+import { Group, Layer, Stage } from "react-konva";
 import {
   BarChart3,
   ChevronDown,
@@ -31,6 +31,7 @@ import {
   ellipsizeChartText,
   extendChartColors,
   limitChartText,
+  removeChartColorTarget,
   resolvedChartColorTargets,
   resolvedChartCategories,
   updateChartColorTarget,
@@ -622,6 +623,20 @@ function ChartSeriesColorControls({
               onChange(updateChartColorTarget(chart, openTarget.index, color))
             }
             onClose={() => setPaletteAnchor(null)}
+            onDeleteColor={
+              targets.length > 1
+                ? () => {
+                    const nextIndex = Math.min(
+                      openTarget.index,
+                      targets.length - 2,
+                    );
+                    onChange(removeChartColorTarget(chart, openTarget.index));
+                    setPaletteAnchor((current) =>
+                      current ? { ...current, index: nextIndex } : current,
+                    );
+                  }
+                : undefined
+            }
             onSelectIndex={(index) =>
               setPaletteAnchor((current) =>
                 current ? { ...current, index } : current,
@@ -792,8 +807,8 @@ function CompactSwitch({
       onClick={() => onChange(!checked)}
     >
       <span
-        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-4" : "translate-x-0"
-          }`}
+        className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-[left]"
+        style={{ left: checked ? "calc(100% - 18px)" : "2px" }}
       />
     </button>
   );
@@ -862,6 +877,21 @@ function ChartDataModal({
     () => chartPreviewElement(draftChart),
     [draftChart],
   );
+  const previewSourceSize = useMemo(
+    () => chartPreviewSourceSize(previewChart),
+    [previewChart],
+  );
+  const previewScale = Math.min(
+    DATA_MODAL_CHART_PREVIEW_WIDTH / previewSourceSize.width,
+    DATA_MODAL_CHART_PREVIEW_HEIGHT / previewSourceSize.height,
+  );
+  const previewX =
+    (DATA_MODAL_CHART_PREVIEW_WIDTH - previewSourceSize.width * previewScale) /
+    2;
+  const previewY =
+    (DATA_MODAL_CHART_PREVIEW_HEIGHT -
+      previewSourceSize.height * previewScale) /
+    2;
 
   const updateData = (
     nextCategories: string[],
@@ -997,12 +1027,19 @@ function ChartDataModal({
                     width={DATA_MODAL_CHART_PREVIEW_WIDTH}
                   >
                     <Layer listening={false}>
-                      <TemplateV2ChartJsElement
-                        element={previewChart}
-                        height={DATA_MODAL_CHART_PREVIEW_HEIGHT}
-                        interactive={false}
-                        width={DATA_MODAL_CHART_PREVIEW_WIDTH}
-                      />
+                      <Group
+                        x={previewX}
+                        y={previewY}
+                        scaleX={previewScale}
+                        scaleY={previewScale}
+                      >
+                        <TemplateV2ChartJsElement
+                          element={previewChart}
+                          height={previewSourceSize.height}
+                          interactive={false}
+                          width={previewSourceSize.width}
+                        />
+                      </Group>
                     </Layer>
                   </Stage>
                 </div>
@@ -1657,11 +1694,21 @@ function chartPreviewElement(chart: ChartElement): ChartElement {
   return {
     ...sanitizeChartTextFields(chart),
     opacity: 1,
-    position: { x: 45, y: 45 },
     rotation: 0,
-    size: {
-      width: EDITOR_STAGE_WIDTH - 90,
-      height: EDITOR_STAGE_HEIGHT - 90,
-    },
+  };
+}
+
+function chartPreviewSourceSize(chart: ChartElement) {
+  const width = chart.size?.width;
+  const height = chart.size?.height;
+  return {
+    width:
+      typeof width === "number" && Number.isFinite(width) && width > 0
+        ? width
+        : EDITOR_STAGE_WIDTH - 90,
+    height:
+      typeof height === "number" && Number.isFinite(height) && height > 0
+        ? height
+        : EDITOR_STAGE_HEIGHT - 90,
   };
 }

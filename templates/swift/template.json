@@ -3,6 +3,32 @@
   "name": "Swift",
   "description": "Bright, energetic layouts with crisp structure and visual momentum for concise, fast-paced presentations.",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#BDEFF8",
+      "background": "#BFF4FF",
+      "card": "#111827",
+      "stroke": "#E5E7EB",
+      "primary_text": "#111827",
+      "background_text": "#111827",
+      "graph_0": "#111827",
+      "graph_1": "#BDEFF8",
+      "graph_2": "#F3F4F6",
+      "graph_3": "#E5E7EB",
+      "graph_4": "#6B7280",
+      "graph_5": "#FFFFFF",
+      "graph_6": "#000000",
+      "graph_7": "#9A9CF4",
+      "graph_8": "#E198F4",
+      "graph_9": "#F49ABC"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Inter",
+        "url": "/vendor/fonts/sans_serif/inter/Inter[opsz,wght].ttf"
+      }
+    }
+  },
   "icon_type": "bold",
   "merged_components": [
     {

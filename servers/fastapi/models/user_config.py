@@ -1,5 +1,5 @@
-from typing import Optional
-from pydantic import BaseModel
+from typing import Literal, Optional
+from pydantic import BaseModel, Field
 
 
 class UserConfig(BaseModel):
@@ -41,6 +41,11 @@ class UserConfig(BaseModel):
     OPENROUTER_API_KEY: Optional[str] = None
     OPENROUTER_MODEL: Optional[str] = None
     OPENROUTER_BASE_URL: Optional[str] = None
+    OPENROUTER_PROVIDER_ORDER: list[str] = Field(default_factory=list)
+    OPENROUTER_ALLOW_FALLBACKS: Optional[bool] = None
+    OPENROUTER_REQUIRE_PARAMETERS: Optional[bool] = None
+    OPENROUTER_DATA_COLLECTION: Optional[Literal["allow", "deny"]] = None
+    OPENROUTER_ZDR: Optional[bool] = None
 
     # Fireworks
     FIREWORKS_API_KEY: Optional[str] = None
@@ -112,6 +117,19 @@ class UserConfig(BaseModel):
     # Reasoning
     DISABLE_THINKING: Optional[bool] = None
     EXTENDED_REASONING: Optional[bool] = None
+
+    # Optional generation overrides
+    LLM_GENERATION_PROFILE: Optional[
+        Literal["fast", "balanced", "deep", "model_max"]
+    ] = None
+    LLM_MAX_OUTPUT_TOKENS: Optional[int] = Field(default=None, gt=0)
+    LLM_REASONING_MODE: Optional[Literal["auto", "enabled", "disabled"]] = None
+    LLM_REASONING_EFFORT: Optional[
+        Literal[
+            "default", "none", "minimal", "low", "medium", "high", "xhigh", "max"
+        ]
+    ] = None
+    LLM_REASONING_BUDGET_TOKENS: Optional[int] = Field(default=None, ge=0)
 
     # Web Search
     WEB_GROUNDING: Optional[bool] = None

@@ -28,10 +28,6 @@ function parseOptionalBool(value: unknown): boolean | undefined {
 export const normalizeLLMConfig = (llmConfig: LLMConfig): LLMConfig => {
   const normalizedConfig: LLMConfig = { ...llmConfig };
 
-  if (!normalizedConfig.LLM) {
-    normalizedConfig.LLM = "openai";
-  }
-
   const parsedDisableImageGeneration = parseOptionalBool(
     (normalizedConfig as Record<string, unknown>).DISABLE_IMAGE_GENERATION
   );
@@ -43,6 +39,48 @@ export const normalizeLLMConfig = (llmConfig: LLMConfig): LLMConfig => {
   );
   if (parsedWebGrounding !== undefined) {
     normalizedConfig.WEB_GROUNDING = parsedWebGrounding;
+  }
+  for (const key of [
+    "OPENROUTER_ALLOW_FALLBACKS",
+    "OPENROUTER_REQUIRE_PARAMETERS",
+    "OPENROUTER_ZDR",
+  ] as const) {
+    const parsed = parseOptionalBool(
+      (normalizedConfig as Record<string, unknown>)[key]
+    );
+    if (parsed !== undefined) normalizedConfig[key] = parsed;
+  }
+  for (const key of ["LLM_MAX_OUTPUT_TOKENS"] as const) {
+    const value = (normalizedConfig as Record<string, unknown>)[key];
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isInteger(parsed)) normalizedConfig[key] = parsed;
+    }
+  }
+  const hasManualTokenLimit = isProvided(
+    (normalizedConfig as Record<string, unknown>).LLM_MAX_OUTPUT_TOKENS
+  );
+  if (
+    normalizedConfig.LLM_GENERATION_PROFILE !== "model_max" ||
+    hasManualTokenLimit
+  ) {
+    // Profiles are no longer user-facing. Keep only the internal model-max
+    // marker used by the checkbox and remove any legacy preset selection.
+    (normalizedConfig as Record<string, unknown>).LLM_GENERATION_PROFILE = "";
+  }
+  // Reasoning budget is no longer exposed in the UI. Sending an empty value
+  // removes any previously saved budget instead of leaving a hidden override.
+  (normalizedConfig as Record<string, unknown>).LLM_REASONING_BUDGET_TOKENS = "";
+  if (normalizedConfig.LLM_REASONING_EFFORT === "none") {
+    (normalizedConfig as Record<string, unknown>).LLM_REASONING_EFFORT = "";
+  }
+  const providerOrder = (normalizedConfig as Record<string, unknown>)
+    .OPENROUTER_PROVIDER_ORDER;
+  if (typeof providerOrder === "string") {
+    normalizedConfig.OPENROUTER_PROVIDER_ORDER = providerOrder
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
   }
 
   return normalizedConfig;
@@ -65,6 +103,17 @@ export const getLLMConfigValidationError = (
     return null;
   }
 
+  const maxOutputTokens = (llmConfig as Record<string, unknown>)
+    .LLM_MAX_OUTPUT_TOKENS;
+  if (
+    isProvided(maxOutputTokens) &&
+    (typeof maxOutputTokens !== "number" ||
+      !Number.isInteger(maxOutputTokens) ||
+      maxOutputTokens <= 0)
+  ) {
+    return "Max output tokens must be a whole number greater than zero.";
+  }
+
   if (!llmConfig.DISABLE_IMAGE_GENERATION && !llmConfig.IMAGE_PROVIDER) {
     return "Select an image provider, or turn off image generation.";
   }
@@ -74,21 +123,21 @@ export const getLLMConfigValidationError = (
       return "OpenAI API key is required.";
     }
     if (!isProvided(llmConfig.OPENAI_MODEL)) {
-      return 'Text provider (OpenAI): choose a chat model on the Text Provider tab—use "Check models" after your API key, then pick a model. The model under Image Provider → Custom is only for image generation.';
+      return "Enter or select an OpenAI chat model ID on the Text Provider tab.";
     }
   } else if (llm === "deepseek") {
     if (!isProvided(llmConfig.DEEPSEEK_API_KEY)) {
       return "DeepSeek API key is required.";
     }
     if (!isProvided(llmConfig.DEEPSEEK_MODEL)) {
-      return 'No DeepSeek model selected. Use "Check models" after entering your API key, then choose a model.';
+      return "Enter or select a DeepSeek model ID.";
     }
   } else if (llm === "google") {
     if (!isProvided(llmConfig.GOOGLE_API_KEY)) {
       return "Google API key is required.";
     }
     if (!isProvided(llmConfig.GOOGLE_MODEL)) {
-      return 'No Google model selected. Use "Check models" after entering your API key, then choose a model.';
+      return "Enter or select a Google model ID.";
     }
   } else if (llm === "vertex") {
     const hasApiKey = isProvided(llmConfig.VERTEX_API_KEY);
@@ -162,7 +211,7 @@ export const getLLMConfigValidationError = (
       return "Anthropic API key is required.";
     }
     if (!isProvided(llmConfig.ANTHROPIC_MODEL)) {
-      return 'No Anthropic model selected. Use "Check models" after entering your API key, then choose a model.';
+      return "Enter or select an Anthropic model ID.";
     }
   } else if (llm === "ollama") {
     if (!isProvided(llmConfig.OLLAMA_URL?.trim())) {
@@ -176,18 +225,18 @@ export const getLLMConfigValidationError = (
       return "Enter your custom LLM endpoint URL (OpenAI-compatible).";
     }
     if (!isProvided(llmConfig.CUSTOM_MODEL)) {
-      return 'No model selected for your custom endpoint. Use "Check models" after entering the URL, then choose a model.';
+      return "Enter a model ID or alias for your custom endpoint.";
     }
   } else if (llm === "litellm") {
     if (!isProvided(llmConfig.LITELLM_BASE_URL)) {
       return "LiteLLM base URL is required.";
     }
     if (!isProvided(llmConfig.LITELLM_MODEL)) {
-      return 'Use "Check models" after entering the base URL, then choose a model.';
+      return "Enter or select a LiteLLM model ID or alias.";
     }
   } else if (llm === "lmstudio") {
     if (!isProvided(llmConfig.LMSTUDIO_MODEL)) {
-      return 'Use "Check models" to load local models from LM Studio, then choose one.';
+      return "Enter or select an LM Studio model ID.";
     }
   } else if (llm === "codex" || llm === "chatgpt") {
     if (!isProvided(llmConfig.CODEX_MODEL)) {
@@ -330,6 +379,17 @@ export function syncStoreAfterCodexSignOut(): void {
       CODEX_USERNAME: "",
       CODEX_EMAIL: "",
       CODEX_IS_PRO: false,
+    })
+  );
+}
+
+/** Clear the stale cloud selection immediately after Presenton is disconnected. */
+export function syncStoreAfterPresentonDisconnect(): void {
+  const prev = store.getState().userConfig.llm_config;
+  store.dispatch(
+    setLLMConfig({
+      ...prev,
+      LLM: "",
     })
   );
 }

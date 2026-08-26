@@ -1,5 +1,5 @@
 import { useFontLoader } from "../../hooks/useFontLoad";
-import type { Theme } from "../../services/api/types";
+import { normalizeTemplateTheme } from "@/lib/template-theme";
 
 const THEME_CSS_KEYS = [
   "--primary-color",
@@ -37,34 +37,36 @@ export function clearPresentationThemeFromElement(element: HTMLElement | null): 
  */
 export function applyPresentationThemeToElement(
   element: HTMLElement | null,
-  theme: Theme | null | undefined
+  theme: unknown,
 ): void {
-  if (!element || !theme?.data) return;
-  if (!theme.data.colors?.["graph_0"]) return;
-  const colors = theme.data.colors;
+  if (!element) return;
+  const normalizedTheme = normalizeTemplateTheme(theme);
+  if (!normalizedTheme) return;
   const cssVariables: Record<string, string> = {
-    "--primary-color": colors["primary"],
-    "--background-color": colors["background"],
-    "--card-color": colors["card"],
-    "--stroke": colors["stroke"],
-    "--primary-text": colors["primary_text"],
-    "--background-text": colors["background_text"],
-    "--graph-0": colors["graph_0"],
-    "--graph-1": colors["graph_1"],
-    "--graph-2": colors["graph_2"],
-    "--graph-3": colors["graph_3"],
-    "--graph-4": colors["graph_4"],
-    "--graph-5": colors["graph_5"],
-    "--graph-6": colors["graph_6"],
-    "--graph-7": colors["graph_7"],
-    "--graph-8": colors["graph_8"],
-    "--graph-9": colors["graph_9"],
+    "--primary-color": normalizedTheme.primary,
+    "--background-color": normalizedTheme.background,
+    "--card-color": normalizedTheme.card,
+    "--stroke": normalizedTheme.stroke,
+    "--primary-text": normalizedTheme.primary_text,
+    "--background-text": normalizedTheme.background_text,
+    "--graph-0": normalizedTheme.graph_0,
+    "--graph-1": normalizedTheme.graph_1,
+    "--graph-2": normalizedTheme.graph_2,
+    "--graph-3": normalizedTheme.graph_3,
+    "--graph-4": normalizedTheme.graph_4,
+    "--graph-5": normalizedTheme.graph_5,
+    "--graph-6": normalizedTheme.graph_6,
+    "--graph-7": normalizedTheme.graph_7,
+    "--graph-8": normalizedTheme.graph_8,
+    "--graph-9": normalizedTheme.graph_9,
   };
   Object.entries(cssVariables).forEach(([key, value]) => {
     element.style.setProperty(key, value);
   });
-  useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url });
-  element.style.setProperty("font-family", `"${theme.data.fonts.textFont.name}"`);
-  element.style.setProperty("--heading-font-family", `"${theme.data.fonts.textFont.name}"`);
-  element.style.setProperty("--body-font-family", `"${theme.data.fonts.textFont.name}"`);
+  const textFont = normalizedTheme.fonts?.textFont;
+  if (!textFont) return;
+  useFontLoader({ [textFont.name]: textFont.url });
+  element.style.setProperty("font-family", `"${textFont.name}"`);
+  element.style.setProperty("--heading-font-family", `"${textFont.name}"`);
+  element.style.setProperty("--body-font-family", `"${textFont.name}"`);
 }

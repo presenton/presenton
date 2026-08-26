@@ -187,6 +187,13 @@ function renderPolygon(
   const pointString = points
     .map((point) => `${point.x - box.x},${point.y - box.y}`)
     .join(" ");
+  const startMarker = !closed
+    ? vectorMarker(readString(element.start_marker))
+    : null;
+  const endMarker = !closed
+    ? vectorMarker(readString(element.end_marker))
+    : null;
+  const markerPrefix = `vector-marker-${hashKey(key)}`;
   const ShapeTag = closed ? "polygon" : "polyline";
   return (
     <div
@@ -204,14 +211,110 @@ function renderPolygon(
         preserveAspectRatio="none"
         style={{ display: "block", overflow: "visible" }}
       >
+        {!closed &&
+        strokeColor &&
+        strokeWidth > 0 &&
+        (startMarker || endMarker) ? (
+          <defs>
+            {startMarker ? (
+              <VectorMarkerDefinition
+                color={strokeColor}
+                id={`${markerPrefix}-start`}
+                marker={startMarker}
+                strokeWidth={strokeWidth}
+              />
+            ) : null}
+            {endMarker ? (
+              <VectorMarkerDefinition
+                color={strokeColor}
+                id={`${markerPrefix}-end`}
+                marker={endMarker}
+                strokeWidth={strokeWidth}
+              />
+            ) : null}
+          </defs>
+        ) : null}
         <ShapeTag
           points={pointString}
           fill={closed ? fillColor ?? "none" : "none"}
           stroke={strokeColor ?? undefined}
           strokeWidth={strokeColor ? strokeWidth : undefined}
+          markerStart={startMarker ? `url(#${markerPrefix}-start)` : undefined}
+          markerEnd={endMarker ? `url(#${markerPrefix}-end)` : undefined}
         />
       </svg>
     </div>
+  );
+}
+
+type VectorMarkerStyle =
+  | "arrow"
+  | "stealth"
+  | "triangle"
+  | "circle"
+  | "square"
+  | "diamond";
+
+function vectorMarker(value: string | null): VectorMarkerStyle | null {
+  return value === "arrow" ||
+    value === "stealth" ||
+    value === "triangle" ||
+    value === "circle" ||
+    value === "square" ||
+    value === "diamond"
+    ? value
+    : null;
+}
+
+function VectorMarkerDefinition({
+  color,
+  id,
+  marker,
+  strokeWidth,
+}: {
+  color: string;
+  id: string;
+  marker: VectorMarkerStyle;
+  strokeWidth: number;
+}) {
+  const size = Math.max(11, Math.min(28, 8 + strokeWidth * 2.5));
+  const refX =
+    marker === "circle" || marker === "square" || marker === "diamond"
+      ? 6
+      : 11;
+  return (
+    <marker
+      id={id}
+      viewBox="0 -6 12 12"
+      refX={refX}
+      refY="0"
+      markerWidth={size}
+      markerHeight={size}
+      markerUnits="userSpaceOnUse"
+      orient="auto-start-reverse"
+      overflow="visible"
+    >
+      {marker === "arrow" ? (
+        <path
+          d="M1 -5 L11 0 L1 5"
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : marker === "stealth" ? (
+        <path d="M11 0 L1 -5 L4.5 0 L1 5 Z" fill={color} stroke={color} />
+      ) : marker === "triangle" ? (
+        <path d="M11 0 L1 -5 L1 5 Z" fill={color} stroke={color} />
+      ) : marker === "circle" ? (
+        <circle cx="6" cy="0" r="4" fill={color} stroke={color} />
+      ) : marker === "square" ? (
+        <rect x="2" y="-4" width="8" height="8" fill={color} stroke={color} />
+      ) : (
+        <path d="M11 0 L6 -5 L1 0 L6 5 Z" fill={color} stroke={color} />
+      )}
+    </marker>
   );
 }
 
@@ -1274,7 +1377,9 @@ function verticalAlign(value: string | null) {
 }
 
 function textAlign(value: string | null): React.CSSProperties["textAlign"] {
-  if (value === "center" || value === "right") return value;
+  if (value === "center" || value === "right" || value === "justify") {
+    return value;
+  }
   return "left";
 }
 

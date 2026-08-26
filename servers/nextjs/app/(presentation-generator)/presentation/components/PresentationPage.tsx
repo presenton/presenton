@@ -19,7 +19,13 @@ import SlideContent from "./SlideContent";
 import { Button } from "@/components/ui/button";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
-import { AlertCircle, Sparkles, X } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronRight,
+  Keyboard,
+  Sparkles,
+  X,
+} from "lucide-react";
 import {
   usePresentationStreaming,
   usePresentationData,
@@ -45,6 +51,7 @@ import {
   type TemplateV2ActivateSurfaceDetail,
   type TemplateV2SurfaceSelectedDetail,
 } from "@/components/slide-editor/events/events";
+import { isEditableTarget } from "@/components/slide-editor/model/core";
 
 function hasTemplateV2Layouts(layout: unknown): boolean {
   if (!layout || typeof layout !== "object") return false;
@@ -127,6 +134,11 @@ const IDLE_LOADING_STATE: LoadingState = {
   extra_info: "",
 };
 
+const NAVIGATION_HINT_STORAGE_KEY = "presenton:editor-navigation-hint:v1";
+const NAVIGATION_HINT_KEYS = ["←", "↑", "↓", "→"];
+const NAVIGATION_SCROLL_THRESHOLD = 240;
+const NAVIGATION_SCROLL_WINDOW_MS = 800;
+
 const PresentationPage: React.FC<PresentationPageProps> = ({
   presentation_id,
 }) => {
@@ -159,16 +171,22 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     Set<string>
   >(() => new Set());
   const [isMobileAssistantOpen, setIsMobileAssistantOpen] = useState(false);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
+  const [showNavigationHint, setShowNavigationHint] = useState(false);
   const [error, setError] = useState(false);
-  const slidesScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileAssistantTriggerRef = useRef<HTMLButtonElement | null>(null);
   const mobileAssistantCloseRef = useRef<HTMLButtonElement | null>(null);
+  const presentationCanvasRef = useRef<HTMLDivElement | null>(null);
   const templateV2EditorLoadedKeyRef = useRef<string | null>(null);
+  const navigationHintShownRef = useRef(false);
+  const navigationHintSlideRef = useRef<number | null>(null);
+  const navigationScrollIntentRef = useRef({ amount: 0, lastAt: 0 });
+  const lastAutoOpenedSelectionRef = useRef<number | null>(null);
   const router = useRouter();
   const shouldPreloadTemplateV2Presentation =
     searchParams.get("editor") === "v2" || searchParams.get("type") === "smart";
 
-  const { presentationData, isStreaming } = useSelector(
+  const { presentationData, isStreaming, chatHtmlSelection } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
   const presentationDataRef = useRef(presentationData);
@@ -186,6 +204,24 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   useEffect(() => {
     presentationDataRef.current = presentationData;
   }, [presentationData]);
+
+  useEffect(() => {
+    if (
+      !isSmartPresentation ||
+      isStreaming ||
+      !chatHtmlSelection ||
+      lastAutoOpenedSelectionRef.current === chatHtmlSelection.selectedAt
+    ) {
+      return;
+    }
+
+    lastAutoOpenedSelectionRef.current = chatHtmlSelection.selectedAt;
+    if (window.matchMedia("(min-width: 1280px)").matches) {
+      setIsRightPanelOpen(true);
+    } else {
+      setIsMobileAssistantOpen(true);
+    }
+  }, [chatHtmlSelection, isSmartPresentation, isStreaming]);
 
   const closeMobileAssistant = useCallback(() => {
     setIsMobileAssistantOpen(false);
@@ -246,8 +282,6 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     isPresentMode,
     stream,
     currentSlide: presentSlideFromUrl,
-    scrollToSlide,
-    handleSlideClick,
     toggleFullscreen,
     handlePresentExit,
     handleSlideChange,
@@ -313,22 +347,109 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   }, [loading, stream]);
 
   useEffect(() => {
-    if (!isStreaming) return;
+    if (isStreaming && slidesLength > 0) {
+      setSelectedSlide(slidesLength - 1);
+    }
+  }, [isStreaming, slidesLength]);
 
-    const scrollContainer = slidesScrollContainerRef.current;
-    if (!scrollContainer) return;
+  const dismissNavigationHint = useCallback(() => {
+    setShowNavigationHint(false);
+    navigationHintSlideRef.current = null;
+    try {
+      window.localStorage.setItem(NAVIGATION_HINT_STORAGE_KEY, "seen");
+    } catch {
+      // The hint can still be dismissed when storage is unavailable.
+    }
+  }, []);
 
-    const frame = window.requestAnimationFrame(() => {
-      if (slidesLength <= 1) {
-        scrollContainer.scrollTo({ top: 0, behavior: "auto" });
-        return;
+  useEffect(() => {
+    if (
+      isPresentMode ||
+      loading ||
+      isStreaming ||
+      slidesLength <= 1 ||
+      navigationHintShownRef.current ||
+      !window.matchMedia("(min-width: 768px)").matches
+    ) {
+      return;
+    }
+
+    try {
+      if (window.localStorage.getItem(NAVIGATION_HINT_STORAGE_KEY)) return;
+    } catch {
+      // Show the hint for this visit when storage is unavailable.
+    }
+
+    navigationHintShownRef.current = true;
+    navigationHintSlideRef.current = selectedSlide;
+    setShowNavigationHint(true);
+  }, [isPresentMode, isStreaming, loading, selectedSlide, slidesLength]);
+
+  useEffect(() => {
+    if (!showNavigationHint) return;
+    const timer = window.setTimeout(dismissNavigationHint, 5_000);
+    return () => window.clearTimeout(timer);
+  }, [dismissNavigationHint, showNavigationHint]);
+
+  useEffect(() => {
+    const canvas = presentationCanvasRef.current;
+    if (
+      !canvas ||
+      isPresentMode ||
+      loading ||
+      isStreaming ||
+      slidesLength <= 1 ||
+      !window.matchMedia("(min-width: 768px)").matches
+    ) {
+      return;
+    }
+
+    const handleWheel = (event: WheelEvent) => {
+      if (showNavigationHint || Math.abs(event.deltaY) < 4) return;
+
+      const now = Date.now();
+      const scrollIntent = navigationScrollIntentRef.current;
+      if (now - scrollIntent.lastAt > NAVIGATION_SCROLL_WINDOW_MS) {
+        scrollIntent.amount = 0;
       }
 
-      scrollToSlide(slidesLength - 1, 2, "smooth");
-    });
+      const multiplier =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? 16
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? window.innerHeight
+            : 1;
+      scrollIntent.amount += Math.abs(event.deltaY) * multiplier;
+      scrollIntent.lastAt = now;
 
-    return () => window.cancelAnimationFrame(frame);
-  }, [isStreaming, scrollToSlide, slidesLength]);
+      if (scrollIntent.amount < NAVIGATION_SCROLL_THRESHOLD) return;
+
+      scrollIntent.amount = 0;
+      navigationHintSlideRef.current = selectedSlide;
+      setShowNavigationHint(true);
+    };
+
+    canvas.addEventListener("wheel", handleWheel, { passive: true });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [
+    isPresentMode,
+    isStreaming,
+    loading,
+    selectedSlide,
+    showNavigationHint,
+    slidesLength,
+  ]);
+
+  useEffect(() => {
+    if (
+      !showNavigationHint ||
+      navigationHintSlideRef.current === null ||
+      navigationHintSlideRef.current === selectedSlide
+    ) {
+      return;
+    }
+    dismissNavigationHint();
+  }, [dismissNavigationHint, selectedSlide, showNavigationHint]);
 
   useEffect(() => {
     trackEvent(MixpanelEvent.Presentation_Editor_Viewed, {
@@ -383,9 +504,16 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     handleSlideChange(newSlide, presentationData);
   };
 
+  const navigateEditorToSlide = useCallback(
+    (index: number) => {
+      setSelectedSlide(index);
+    },
+    [],
+  );
+
   const handleEditorSlideNavigation = useCallback(
     (index: number, options?: SlideAddedOptions) => {
-      handleSlideClick(index);
+      navigateEditorToSlide(index);
       if (!options?.promptOverlayKind || !options.promptOverlaySlideId) {
         return;
       }
@@ -405,7 +533,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
         });
       }
     },
-    [handleSlideClick],
+    [navigateEditorToSlide],
   );
 
   const dismissBlankPromptOverlay = useCallback((slideId: unknown) => {
@@ -484,6 +612,49 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   );
 
   const totalSlides = presentationData?.slides?.length ?? 0;
+  const activeSlideIndex =
+    totalSlides > 0
+      ? Math.min(Math.max(selectedSlide, 0), totalSlides - 1)
+      : 0;
+  const activeEditorSlide = presentationData?.slides?.[activeSlideIndex];
+
+  useEffect(() => {
+    if (isPresentMode || totalSlides <= 1) return;
+
+    const handleEditorArrowNavigation = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.repeat ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+
+      const previousSlide =
+        event.key === "ArrowLeft" || event.key === "ArrowUp";
+      const nextSlide =
+        event.key === "ArrowRight" || event.key === "ArrowDown";
+      if (!previousSlide && !nextSlide) return;
+
+      event.preventDefault();
+      setSelectedSlide((current) =>
+        Math.min(
+          Math.max(current + (previousSlide ? -1 : 1), 0),
+          totalSlides - 1,
+        ),
+      );
+    };
+
+    window.addEventListener("keydown", handleEditorArrowNavigation);
+    return () =>
+      window.removeEventListener("keydown", handleEditorArrowNavigation);
+  }, [isPresentMode, totalSlides]);
+
   // Mutation traces normally identify the exact slide. Fall back to the slide
   // the user is viewing so an active edit never happens without feedback.
   const updatingSlideIndex = isChatMutating
@@ -510,7 +681,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
       totalSlides - 1
     );
     if (clampedIndex !== selectedSlide) {
-      handleSlideClick(clampedIndex);
+      navigateEditorToSlide(clampedIndex);
     }
   }, [
     isFollowModeEnabled,
@@ -519,7 +690,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     agentFocusedSlide,
     agentFocusEventId,
     selectedSlide,
-    handleSlideClick,
+    navigateEditorToSlide,
   ]);
 
   useEffect(() => {
@@ -693,7 +864,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
           generationMode={isSmartPresentation ? "smart" : "standard"}
         />
         <div className="flex flex-1 min-h-0 gap-3 overflow-hidden xl:gap-5 2xl:gap-6">
-          <div className="hidden h-full w-[120px] shrink-0 self-start sticky top-0 pt-[18px] md:block">
+          <div className="sticky top-0 hidden h-full w-[165px] shrink-0 self-start md:block">
             <SidePanel
               selectedSlide={selectedSlide}
               onSlideClick={handleEditorSlideNavigation}
@@ -701,75 +872,87 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
               loading={loading}
             />
           </div>
-          <div className="w-full min-w-0 h-full flex-1 pt-[18px] max-md:ml-6 max-xl:mr-6">
-            <div
-              ref={slidesScrollContainerRef}
-              data-presentation-slides-scroll-container="true"
-              className="font-inter h-full overflow-y-auto hide-scrollbar scroll-pt-[18px]"
-            >
-              <div className="w-full max-w-[1280px] min-h-full mx-auto flex flex-col items-center pb-8">
-                {!presentationData ||
-                  loading ||
-                  !presentationData?.slides ||
-                  presentationData?.slides.length === 0 ? (
-                  <div className="relative w-full h-[calc(100vh-120px)] mx-auto hide-scrollbar">
-                    <div className="">
-                      {Array.from({ length: 2 }).map((_, index) => (
-                        <Skeleton
-                          key={index}
-                          className="aspect-video bg-gray-400 my-4 w-full mx-auto "
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {presentationData &&
-                      presentationData.slides &&
-                      presentationData.slides.length > 0 &&
-                      presentationData.slides.map(
-                        (slide: any, index: number) => (
-                          <SlideContent
-                            key={
-                              slide.id ??
-                              `${slide.type ?? "slide"}-${slide.index ?? index}`
-                            }
-                            slide={slide}
-                            index={index}
-                            selected={selectedSlide === index}
-                            presentationId={presentation_id}
-                            onSlideActive={setSelectedSlide}
-                            onSlideAdded={handleEditorSlideNavigation}
-                            theme={presentationData?.theme}
-                            fonts={presentationData?.fonts}
-                            editingDisabled={editingDisabled}
-                            isStreaming={isStreaming}
-                            showBlankPromptOverlay={
-                              typeof slide?.id === "string" &&
-                              blankPromptSlideIds.has(slide.id)
-                            }
-                            onBlankPromptOverlayDismiss={() =>
-                              dismissBlankPromptOverlay(slide?.id)
-                            }
-                            showTemplatePromptOverlay={
-                              typeof slide?.id === "string" &&
-                              templatePromptSlideIds.has(slide.id)
-                            }
-                            onTemplatePromptOverlayDismiss={() =>
-                              dismissTemplatePromptOverlay(slide?.id)
-                            }
-                            isChatEditing={
-                              updatingSlideIndex !== null &&
-                              index === updatingSlideIndex
-                            }
-                          />
-                          // <div></div>
-                        )
-                      )}
-                  </>
-                )}
+          <div
+            ref={presentationCanvasRef}
+            className="relative h-full min-w-0 flex-1 px-3 pb-6 pt-[18px] md:px-0 max-md:ml-3"
+          >
+            {showNavigationHint ? (
+              <div
+                className="pointer-events-none fixed top-[72px] z-[95] hidden items-center gap-3 rounded-full border border-[#E1E3E9] bg-white/95 py-2 pl-3 pr-2 font-syne text-[13px] text-[#344054] shadow-[0_8px_24px_rgba(16,24,40,0.14)] backdrop-blur md:flex"
+                role="status"
+                style={{ left: "50%", transform: "translateX(-50%)" }}
+              >
+                <Keyboard
+                  className="h-4 w-4 text-[#6847F4]"
+                  aria-hidden="true"
+                />
+                <span>Navigate with</span>
+                <span
+                  className="flex items-center gap-1"
+                  aria-label="arrow keys"
+                >
+                  {NAVIGATION_HINT_KEYS.map((key) => (
+                    <kbd
+                      key={key}
+                      className="flex h-6 min-w-6 items-center justify-center rounded-[6px] border border-[#D9DCE3] bg-[#F8F8FA] px-1 text-[12px] font-medium text-[#101323] shadow-[0_1px_1px_rgba(16,24,40,0.06)]"
+                    >
+                      {key}
+                    </kbd>
+                  ))}
+                </span>
+                <span>or the left thumbnails</span>
+                <button
+                  type="button"
+                  aria-label="Dismiss navigation hint"
+                  onClick={dismissNavigationHint}
+                  className="pointer-events-auto ml-1 flex h-7 w-7 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F0F1F4] hover:text-[#101323] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
               </div>
-            </div>
+            ) : null}
+            {!presentationData ||
+            loading ||
+            !presentationData?.slides ||
+            presentationData.slides.length === 0 ? (
+              <div className="flex h-full min-h-0 w-full items-center justify-center">
+                <Skeleton className="aspect-video w-full max-w-[1280px] bg-gray-400" />
+              </div>
+            ) : (
+              <div className="mx-auto h-full min-h-0 w-full">
+                <SlideContent
+                  slide={activeEditorSlide}
+                  index={activeSlideIndex}
+                  selected
+                  fitToContainer
+                  presentationId={presentation_id}
+                  onSlideActive={setSelectedSlide}
+                  onSlideAdded={handleEditorSlideNavigation}
+                  theme={presentationData.theme}
+                  fonts={presentationData.fonts}
+                  editingDisabled={editingDisabled}
+                  isStreaming={isStreaming}
+                  showBlankPromptOverlay={
+                    typeof activeEditorSlide?.id === "string" &&
+                    blankPromptSlideIds.has(activeEditorSlide.id)
+                  }
+                  onBlankPromptOverlayDismiss={() =>
+                    dismissBlankPromptOverlay(activeEditorSlide?.id)
+                  }
+                  showTemplatePromptOverlay={
+                    typeof activeEditorSlide?.id === "string" &&
+                    templatePromptSlideIds.has(activeEditorSlide.id)
+                  }
+                  onTemplatePromptOverlayDismiss={() =>
+                    dismissTemplatePromptOverlay(activeEditorSlide?.id)
+                  }
+                  isChatEditing={
+                    updatingSlideIndex !== null &&
+                    activeSlideIndex === updatingSlideIndex
+                  }
+                />
+              </div>
+            )}
           </div>
           <button
             ref={mobileAssistantTriggerRef}
@@ -803,12 +986,27 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
             aria-label={isMobileAssistantOpen ? "AI Assistant" : undefined}
             aria-modal={isMobileAssistantOpen ? true : undefined}
             className={cn(
-              "h-screen w-[calc(100vw-16px)] max-w-[375px] shrink-0 flex-col bg-white shadow-[-12px_0_32px_rgba(16,24,40,0.18)] xl:static xl:z-auto xl:flex xl:h-full xl:w-[375px] xl:max-w-none xl:self-start xl:shadow-none",
+              "h-screen w-[calc(100vw-16px)] max-w-[375px] shrink-0 flex-col bg-white shadow-[-12px_0_32px_rgba(16,24,40,0.18)] transition-[width] duration-200 xl:relative xl:z-auto xl:h-full xl:max-w-none xl:self-start xl:border-l xl:border-[#EDEEEF] xl:shadow-none",
+              isRightPanelOpen ? "xl:w-[383px]" : "xl:w-[90px]",
               isMobileAssistantOpen
                 ? "fixed inset-y-0 right-0 z-[70] flex"
-                : "hidden"
+                : "hidden xl:flex"
             )}
           >
+            {isRightPanelOpen ? (
+              <button
+                type="button"
+                aria-label="Close tools panel"
+                onClick={() => setIsRightPanelOpen(false)}
+                className="absolute -left-[10px] top-1/2 z-[80] hidden h-[36px] w-[16px] -translate-y-1/2 items-center justify-center rounded-full border-2 border-[#E8E5FF] bg-[#FEFEFF] text-[#6938EF] shadow-[0_10px_26px_rgba(52,48,96,0.10)] transition-[border-color,box-shadow,color] hover:border-[#D9D6FE] hover:text-[#5925DC] hover:shadow-[0_12px_30px_rgba(52,48,96,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2 xl:flex"
+              >
+                <ChevronRight
+                  className="h-4 w-4"
+                  strokeWidth={2.5}
+                  aria-hidden="true"
+                />
+              </button>
+            ) : null}
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#EDEEEF] px-4 xl:hidden">
               <div className="flex items-center gap-2 text-sm font-semibold text-[#101323]">
                 <Sparkles className="h-4 w-4 text-[#7A5AF8]" aria-hidden="true" />
@@ -837,6 +1035,8 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
                 onFollowModeChange={setIsFollowModeEnabled}
                 onAgentSlideFocus={handleAgentSlideFocus}
                 editingDisabled={editingDisabled}
+                panelOpen={isMobileAssistantOpen || isRightPanelOpen}
+                onPanelOpenChange={setIsRightPanelOpen}
               />
             </div>
           </div>

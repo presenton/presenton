@@ -121,6 +121,7 @@ def _load_default_template(template_dir: Path) -> TemplateV2:
     layouts = _coerce_slide_layouts(rewritten.get("layouts"))
     merged_components = _coerce_merged_components(rewritten.get("merged_components"))
     components = rewritten.get("components")
+    theme = rewritten.get("theme")
     assets = _build_assets(rewritten, template_id, layouts, merged_components)
 
     return TemplateV2(
@@ -131,6 +132,7 @@ def _load_default_template(template_dir: Path) -> TemplateV2:
         components=components if isinstance(components, dict) else None,
         merged_components=merged_components,
         layouts=layouts,
+        theme=theme if isinstance(theme, dict) else None,
         assets=assets,
         is_default=True,
     )
@@ -143,6 +145,7 @@ def _update_template_from_default(existing: TemplateV2, template: TemplateV2) ->
     existing.components = template.components
     existing.merged_components = template.merged_components
     existing.layouts = template.layouts
+    existing.theme = template.theme
     existing.assets = template.assets
     existing.is_default = True
 

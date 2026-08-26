@@ -72,6 +72,7 @@ export function useTemplateSummaries({
     TemplateCreateTaskResponse[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +109,7 @@ export function useTemplateSummaries({
 
     const loadInitialTemplates = async () => {
       setLoading(true);
+      setError(null);
       try {
         const [loadedTemplates, processingTasks] = await Promise.all([
           loadTemplateSummaries(),
@@ -122,7 +124,12 @@ export function useTemplateSummaries({
       } catch (error) {
         console.error("Failed to load templates", error);
         if (!cancelled) {
-          toast.error("Failed to load templates");
+          const message =
+            error instanceof Error
+              ? error.message
+              : "The template service could not be reached. Please try again.";
+          setError(message);
+          toast.error("Could not load templates", { description: message });
         }
       } finally {
         if (!cancelled) {
@@ -177,5 +184,6 @@ export function useTemplateSummaries({
     customTemplates,
     processingTemplateTasks,
     loading,
+    error,
   };
 }

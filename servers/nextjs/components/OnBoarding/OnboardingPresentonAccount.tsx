@@ -56,10 +56,12 @@ export default function OnboardingPresentonAccount({
   onContinue,
   variant = "onboarding",
   onStatusChange,
+  onDisconnect,
 }: {
   onContinue?: () => void | Promise<void>;
   variant?: "onboarding" | "settings";
   onStatusChange?: (status: PresentonStatus) => void;
+  onDisconnect?: () => void | Promise<void>;
 }) {
   const [status, setStatus] = useState<PresentonStatus>(initialStatus);
   const [isLoading, setIsLoading] = useState(true);
@@ -211,9 +213,12 @@ export default function OnboardingPresentonAccount({
       approvalWindowRef.current?.close();
       approvalWindowRef.current = null;
       await loadStatus();
+      await onDisconnect?.();
       notify.success(
         "Presenton Cloud disconnected",
-        "The global provider has been disconnected from this workspace.",
+        variant === "settings"
+          ? "Choose a text provider and save the configuration to continue."
+          : "The global provider has been disconnected from this workspace.",
       );
     } catch (error) {
       notify.error(
@@ -349,7 +354,7 @@ export default function OnboardingPresentonAccount({
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="text-[16px] font-medium leading-normal tracking-[-0.32px] text-[#191919]">
-                  Connect Presenton Cloud
+                  Presenton Cloud
                 </span>
                 {status.linked ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#E9F8EF] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#238553]">
@@ -361,7 +366,7 @@ export default function OnboardingPresentonAccount({
                 {status.linked
                   ? status.email || "Presenton Cloud is ready for this workspace."
                   : status.canManage
-                    ? "Enable cloud presentation generation for your workspace."
+                    ? "Use Presenton as provider for AI Presentations"
                     : "A workspace administrator must connect Presenton Cloud."}
               </span>
             </span>

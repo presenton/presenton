@@ -1,5 +1,6 @@
 import { Theme } from "@/app/(presentation-generator)/services/api/types";
 import { Slide } from "@/app/(presentation-generator)/types/slide";
+import type { TemplateTheme } from "@/lib/template-theme";
 import {
   limitOutlines,
   MAX_NUMBER_OF_SLIDES,
@@ -14,7 +15,9 @@ export interface PresentationData {
   n_slides: number;
   title: string;
   slides: any;
-  theme: Theme | null;
+  theme: Theme | TemplateTheme | null;
+  template_id?: string | null;
+  design_v2_id?: string | null;
   version?: string;
   generation_mode?: "standard" | "smart";
   type?: "standard" | "smart";
@@ -34,6 +37,19 @@ export interface ChatHtmlSelection {
   selectedAt: number;
 }
 
+export interface GenerationMetrics {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  thinking_tokens: number | null;
+  total_tokens: number;
+  tokens_per_second: number;
+  duration_seconds: number;
+  estimated: boolean;
+  thinking_tokens_estimated: boolean;
+  supports_thinking: boolean;
+}
+
 interface PresentationGenerationState {
   presentation_id: string | null;
   isLoading: boolean;
@@ -41,6 +57,7 @@ interface PresentationGenerationState {
   outlines: { content: string }[];
   error: string | null;
   presentationData: PresentationData | null;
+  generationMetrics: GenerationMetrics | null;
   isSlidesRendered: boolean;
   isLayoutLoading: boolean;
   enableHtmlSelector: boolean;
@@ -56,6 +73,7 @@ const initialState: PresentationGenerationState = {
   isStreaming: null,
   error: null,
   presentationData: null,
+  generationMetrics: null,
   enableHtmlSelector: false,
   chatHtmlSelection: null,
 };
@@ -94,7 +112,14 @@ const presentationGenerationSlice = createSlice({
     // Clear presentation data
     clearPresentationData: (state) => {
       state.presentationData = null;
+      state.generationMetrics = null;
       state.chatHtmlSelection = null;
+    },
+    setGenerationMetrics: (
+      state,
+      action: PayloadAction<GenerationMetrics | null>
+    ) => {
+      state.generationMetrics = action.payload;
     },
     clearOutlines: (state) => {
       state.outlines = [];
@@ -557,6 +582,7 @@ export const {
   setSlidesRendered,
   setError,
   clearPresentationData,
+  setGenerationMetrics,
   clearOutlines,
   deleteSlideOutline,
   setPresentationData,

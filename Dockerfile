@@ -29,7 +29,7 @@ ENV HF_HOME=/root/.cache/huggingface \
 RUN /opt/venv/bin/python scripts/warm_fastembed_cache.py
 
 
-FROM node:20-bookworm-slim AS nextjs-builder
+FROM node:22-bookworm-slim AS nextjs-builder
 
 WORKDIR /app/servers/nextjs
 
@@ -44,14 +44,12 @@ RUN npm run build \
     && rm -rf .next-build/cache
 
 
-FROM node:20-bookworm-slim AS assets-builder
+FROM node:22-bookworm-slim AS assets-builder
 
 WORKDIR /app
 
-ARG TARGETARCH
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates unzip \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json /app/
@@ -63,13 +61,9 @@ RUN mkdir -p /app/document-extraction-liteparse \
 
 COPY electron/resources/document-extraction/liteparse_runner.mjs /app/document-extraction-liteparse/liteparse_runner.mjs
 COPY scripts/sync-presentation-export.cjs /app/scripts/sync-presentation-export.cjs
-# Bundled export still loads @img/sharp-* native addons from node_modules (not inlined).
+COPY scripts/run-presentation-export.mjs /app/scripts/run-presentation-export.mjs
 RUN rm -rf /app/presentation-export \
-    && EXPORT_RUNTIME_ARCH="${TARGETARCH}" node /app/scripts/sync-presentation-export.cjs --force \
-    && find /app/presentation-export/py -maxdepth 1 -type f -name "convert-linux-*" -exec chmod +x {} \; \
-    && cd /app/presentation-export \
-    && npm init -y \
-    && npm install "sharp@^0.34.5" --include=optional --omit=dev --no-fund --no-audit --no-package-lock
+    && node /app/scripts/sync-presentation-export.cjs --force
 
 
 FROM python:3.11-slim-trixie AS runtime
@@ -77,7 +71,6 @@ FROM python:3.11-slim-trixie AS runtime
 WORKDIR /app
 
 ARG INSTALL_TESSERACT=true
-ARG TARGETARCH
 ARG CHROMIUM_VERSION=149.0.7827.196-1~deb13u1
 ARG CHROMIUM_SNAPSHOT=20260625T180000Z
 
@@ -85,8 +78,6 @@ ARG CHROMIUM_SNAPSHOT=20260625T180000Z
 ENV APP_DATA_DIRECTORY=/app_data \
     TEMP_DIRECTORY=/tmp/presenton \
     EXPORT_PACKAGE_ROOT=/app/presentation-export \
-    EXPORT_RUNTIME_DIR=/app/presentation-export \
-    BUILT_PYTHON_MODULE_PATH=/app/presentation-export/py/convert-linux-current \
     PRESENTON_APP_ROOT=/app \
     HF_HOME=/root/.cache/huggingface \
     PRESENTON_FASTEMBED_ICON_CACHE_DIR=/root/.cache/presenton/fastembed-icons \
@@ -114,7 +105,7 @@ RUN set -eux; \
     chromium-common="${CHROMIUM_VERSION}" \
     chromium-driver="${CHROMIUM_VERSION}"; \
     apt-mark hold chromium chromium-common chromium-driver; \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -; \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -; \
     apt-get install -y --no-install-recommends nodejs; \
     rm -rf /var/lib/apt/lists/*
 
@@ -138,17 +129,8 @@ COPY --from=assets-builder /app/document-extraction-liteparse /app/document-extr
 COPY --from=assets-builder /app/presentation-export /app/presentation-export
 COPY --from=assets-builder /app/scripts/sync-presentation-export.cjs /app/scripts/sync-presentation-export.cjs
 
-RUN set -eux; \
-    if [ -z "${TARGETARCH:-}" ]; then TARGETARCH="$(dpkg --print-architecture)"; fi; \
-    case "$TARGETARCH" in \
-    amd64) export_arch="x64" ;; \
-    arm64) export_arch="arm64" ;; \
-    *) echo "Unsupported TARGETARCH: $TARGETARCH" && exit 1 ;; \
-    esac; \
-    test -f "/app/presentation-export/py/convert-linux-${export_arch}"; \
-    ln -sf "/app/presentation-export/py/convert-linux-${export_arch}" /app/presentation-export/py/convert-linux-current; \
-    chmod +x "/app/presentation-export/py/convert-linux-${export_arch}"; \
-    ls -lah /app/presentation-export/py
+RUN test -f /app/presentation-export/runner.mjs \
+    && test -f /app/presentation-export/node_modules/@presenton/export-core/dist/index.js
 
 COPY --from=nextjs-builder /app/servers/nextjs/.next-build/standalone/ /app/servers/nextjs/
 COPY --from=nextjs-builder /app/servers/nextjs/public /app/servers/nextjs/public

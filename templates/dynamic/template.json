@@ -3,6 +3,32 @@
   "name": "Dynamic",
   "description": "Bold, high-contrast layouts with dark textured backgrounds and warm accents for impactful, story-driven presentations.",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#C24D12",
+      "background": "#171717",
+      "card": "#000000",
+      "stroke": "#FFFFFF",
+      "primary_text": "#FFFFFF",
+      "background_text": "#FFFFFF",
+      "graph_0": "#FF9257",
+      "graph_1": "#C24D12",
+      "graph_2": "#983608",
+      "graph_3": "#E26C2C",
+      "graph_4": "#111111",
+      "graph_5": "#FD7536",
+      "graph_6": "#F4511E",
+      "graph_7": "#000000",
+      "graph_8": "#FFFFFF",
+      "graph_9": "#242424"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Montserrat",
+        "url": "/vendor/fonts/sans_serif/montserrat/Montserrat[wght].ttf"
+      }
+    }
+  },
   "merged_components": [
     {
       "id": "full_bleed_background",
@@ -2244,7 +2270,7 @@
                     "y": 0
                   },
                   "size": {
-                    "width": 549.96,
+                    "width": 171.42,
                     "height": 33.02
                   },
                   "rotation": 0,
@@ -2285,7 +2311,7 @@
                     "y": 39.77
                   },
                   "size": {
-                    "width": 540.7,
+                    "width": 171.42,
                     "height": 23.78
                   },
                   "rotation": 0,
@@ -3633,60 +3659,6 @@
           ]
         },
         {
-          "id": "upper_title_block",
-          "description": "Large centered title area positioned in the upper-left half, using bold white uppercase display typography.",
-          "position": {
-            "x": 72,
-            "y": 69.32999999999993
-          },
-          "elements": [
-            {
-              "type": "text",
-              "position": {
-                "x": 0,
-                "y": 0
-              },
-              "size": {
-                "width": 1133.5,
-                "height": 160
-              },
-              "font": {
-                "size": 64,
-                "family": "Montserrat Medium",
-                "color": "#FFFFFF",
-                "bold": true,
-                "line_height": 1.25,
-                "letter_spacing": -0.64
-              },
-              "alignment": {
-                "horizontal": "left",
-                "vertical": "top"
-              },
-              "runs": [
-                {
-                  "text": "HEADING\nMETRICS",
-                  "font": {
-                    "size": 64,
-                    "family": "Montserrat Medium",
-                    "color": "#FFFFFF",
-                    "bold": true,
-                    "italic": false,
-                    "underline": false,
-                    "line_height": 1.25,
-                    "letter_spacing": -0.64,
-                    "opacity": 1
-                  }
-                }
-              ],
-              "decorative": false,
-              "name": "main_title",
-              "max_length": 66,
-              "min_length": 8,
-              "rotation": 0
-            }
-          ]
-        },
-        {
           "id": "left_headline_block",
           "description": "Large multiline headline block positioned on the left side with strong contrast and generous line spacing.",
           "position": {
@@ -4897,631 +4869,6 @@
               "min_children": 1
             }
           ]
-        },
-        {
-          "id": "right_text_stack",
-          "description": "Two similar body copy sections stacked vertically on the right side with consistent heading and paragraph styling.",
-          "position": {
-            "x": 872.59,
-            "y": 244.04
-          },
-          "elements": [
-            {
-              "type": "flex",
-              "position": {
-                "x": 0,
-                "y": 0
-              },
-              "size": {
-                "width": 300,
-                "height": 407.54
-              },
-              "direction": "column",
-              "wrap": false,
-              "justify_content": "center",
-              "gap": 37.39,
-              "children": [
-                {
-                  "type": "container",
-                  "size": {
-                    "width": 300,
-                    "height": 185.08
-                  },
-                  "padding": {
-                    "top": 0,
-                    "right": 0,
-                    "bottom": 0,
-                    "left": 0
-                  },
-                  "child": {
-                    "type": "flex",
-                    "direction": "column",
-                    "wrap": false,
-                    "align_items": "flex-start",
-                    "justify_content": "flex-start",
-                    "gap": 12,
-                    "children": [
-                      {
-                        "type": "text",
-                        "size": {
-                          "width": 300,
-                          "height": 27.73
-                        },
-                        "font": {
-                          "size": 21.33,
-                          "family": "Montserrat Semi-Bold",
-                          "color": "#FFFFFF",
-                          "bold": true,
-                          "line_height": 1.4,
-                          "letter_spacing": -0.21
-                        },
-                        "alignment": {
-                          "horizontal": "left",
-                          "vertical": "top"
-                        },
-                        "runs": [
-                          {
-                            "text": "Heading",
-                            "font": {
-                              "size": 21.33,
-                              "family": "Montserrat Semi-Bold",
-                              "color": "#FFFFFF",
-                              "bold": true,
-                              "line_height": 1.4,
-                              "letter_spacing": -0.21
-                            }
-                          }
-                        ],
-                        "decorative": false,
-                        "name": "section_heading",
-                        "max_length": 23,
-                        "min_length": 4
-                      },
-                      {
-                        "type": "text",
-                        "size": {
-                          "width": 270.39,
-                          "height": 145.41
-                        },
-                        "font": {
-                          "size": 19.73,
-                          "family": "Montserrat",
-                          "color": "#E6E6E6",
-                          "line_height": 1.5,
-                          "letter_spacing": -0.2
-                        },
-                        "alignment": {
-                          "horizontal": "left",
-                          "vertical": "top"
-                        },
-                        "runs": [
-                          {
-                            "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore",
-                            "font": {
-                              "size": 19.73,
-                              "family": "Montserrat",
-                              "color": "#E6E6E6",
-                              "line_height": 1.5,
-                              "letter_spacing": -0.2
-                            }
-                          }
-                        ],
-                        "decorative": false,
-                        "name": "section_body",
-                        "max_length": 102,
-                        "min_length": 55
-                      }
-                    ],
-                    "name": "callout_content",
-                    "max_children": 2,
-                    "min_children": 2
-                  }
-                }
-              ],
-              "name": "callout_stack",
-              "max_children": 2,
-              "min_children": 1
-            }
-          ]
-        },
-        {
-          "id": "right_stacked_card",
-          "description": "A translucent right-side panel contains two vertically stacked text sections separated by a subtle horizontal divider.",
-          "position": {
-            "x": 806,
-            "y": 195
-          },
-          "elements": [
-            {
-              "type": "vector",
-              "shape": "polygon",
-              "points": [
-                {
-                  "x": 0,
-                  "y": 0
-                },
-                {
-                  "x": 402,
-                  "y": 0
-                },
-                {
-                  "x": 402,
-                  "y": 453
-                },
-                {
-                  "x": 0,
-                  "y": 453
-                }
-              ],
-              "closed": true,
-              "corner_radii": [
-                3,
-                3,
-                3,
-                3
-              ],
-              "fill": {
-                "color": "#242424",
-                "opacity": 0.82
-              }
-            },
-            {
-              "type": "text",
-              "position": {
-                "x": 19,
-                "y": 28
-              },
-              "size": {
-                "width": 264,
-                "height": 46
-              },
-              "font": {
-                "size": 33.78,
-                "family": "Montserrat Semi-Bold",
-                "color": "#FFFFFF",
-                "bold": true,
-                "line_height": 1.4,
-                "letter_spacing": -0.34
-              },
-              "alignment": {
-                "horizontal": "left",
-                "vertical": "top"
-              },
-              "runs": [
-                {
-                  "text": "Heading",
-                  "font": {
-                    "size": 33.78,
-                    "family": "Montserrat Semi-Bold",
-                    "color": "#FFFFFF",
-                    "bold": true,
-                    "line_height": 1.4,
-                    "letter_spacing": -0.34
-                  }
-                }
-              ],
-              "decorative": false,
-              "name": "upper_card_title",
-              "max_length": 15,
-              "min_length": 4
-            },
-            {
-              "type": "text",
-              "position": {
-                "x": 19,
-                "y": 91
-              },
-              "size": {
-                "width": 293,
-                "height": 113
-              },
-              "font": {
-                "size": 19.55,
-                "family": "Montserrat",
-                "color": "#E6E6E6",
-                "line_height": 1.5,
-                "letter_spacing": -0.19
-              },
-              "alignment": {
-                "horizontal": "left",
-                "vertical": "top"
-              },
-              "runs": [
-                {
-                  "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore",
-                  "font": {
-                    "size": 19.55,
-                    "family": "Montserrat",
-                    "color": "#E6E6E6",
-                    "line_height": 1.5,
-                    "letter_spacing": -0.19
-                  }
-                }
-              ],
-              "decorative": false,
-              "name": "upper_card_body",
-              "max_length": 82,
-              "min_length": 55
-            },
-            {
-              "type": "vector",
-              "shape": "polygon",
-              "points": [
-                {
-                  "x": 0,
-                  "y": 226
-                },
-                {
-                  "x": 402,
-                  "y": 227
-                }
-              ],
-              "closed": false,
-              "stroke": {
-                "color": "#FFFFFF",
-                "opacity": 0.08,
-                "width": 2.67
-              }
-            },
-            {
-              "type": "text",
-              "position": {
-                "x": 19,
-                "y": 249
-              },
-              "size": {
-                "width": 264,
-                "height": 46
-              },
-              "font": {
-                "size": 33.78,
-                "family": "Montserrat Semi-Bold",
-                "color": "#FFFFFF",
-                "bold": true,
-                "line_height": 1.4,
-                "letter_spacing": -0.34
-              },
-              "alignment": {
-                "horizontal": "left",
-                "vertical": "top"
-              },
-              "runs": [
-                {
-                  "text": "Heading",
-                  "font": {
-                    "size": 33.78,
-                    "family": "Montserrat Semi-Bold",
-                    "color": "#FFFFFF",
-                    "bold": true,
-                    "line_height": 1.4,
-                    "letter_spacing": -0.34
-                  }
-                }
-              ],
-              "decorative": false,
-              "name": "lower_card_title",
-              "max_length": 15,
-              "min_length": 4
-            },
-            {
-              "type": "text",
-              "position": {
-                "x": 19,
-                "y": 311
-              },
-              "size": {
-                "width": 293,
-                "height": 113
-              },
-              "font": {
-                "size": 19.55,
-                "family": "Montserrat",
-                "color": "#E6E6E6",
-                "line_height": 1.5,
-                "letter_spacing": -0.19
-              },
-              "alignment": {
-                "horizontal": "left",
-                "vertical": "top"
-              },
-              "runs": [
-                {
-                  "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore",
-                  "font": {
-                    "size": 19.55,
-                    "family": "Montserrat",
-                    "color": "#E6E6E6",
-                    "line_height": 1.5,
-                    "letter_spacing": -0.19
-                  }
-                }
-              ],
-              "decorative": false,
-              "name": "lower_card_body",
-              "max_length": 82,
-              "min_length": 55
-            }
-          ]
-        },
-        {
-          "id": "right_section_stack",
-          "description": "Four vertically stacked text sections in the right column, with consistent internal spacing and divider rules.",
-          "position": {
-            "x": 684.99,
-            "y": 68.67
-          },
-          "elements": [
-            {
-              "type": "flex",
-              "size": {
-                "width": 523.01,
-                "height": 580.04
-              },
-              "direction": "column",
-              "justify_content": "center",
-              "gap": 29.34,
-              "children": [
-                {
-                  "type": "group",
-                  "size": {
-                    "width": 523.01,
-                    "height": 132
-                  },
-                  "children": [
-                    {
-                      "type": "text",
-                      "position": {
-                        "x": 0,
-                        "y": 0
-                      },
-                      "size": {
-                        "width": 502.61,
-                        "height": 30.71
-                      },
-                      "rotation": 0,
-                      "font": {
-                        "size": 23.1,
-                        "family": "Montserrat Semi-Bold",
-                        "color": "#FFFFFF",
-                        "bold": true,
-                        "line_height": 1.4,
-                        "letter_spacing": -0.22
-                      },
-                      "alignment": {
-                        "horizontal": "left",
-                        "vertical": "top"
-                      },
-                      "runs": [
-                        {
-                          "text": "Heading",
-                          "font": {
-                            "size": 23.1,
-                            "family": "Montserrat Semi-Bold",
-                            "color": "#FFFFFF",
-                            "bold": true,
-                            "line_height": 1.4,
-                            "letter_spacing": -0.22
-                          }
-                        }
-                      ],
-                      "decorative": false,
-                      "name": "section_heading",
-                      "max_length": 36,
-                      "min_length": 4
-                    },
-                    {
-                      "type": "text",
-                      "position": {
-                        "x": 0,
-                        "y": 40.55
-                      },
-                      "size": {
-                        "width": 523.01,
-                        "height": 84.13
-                      },
-                      "font": {
-                        "size": 19.55,
-                        "family": "Montserrat",
-                        "color": "#E6E6E6",
-                        "line_height": 1.5,
-                        "letter_spacing": -0.19
-                      },
-                      "alignment": {
-                        "horizontal": "left",
-                        "vertical": "top"
-                      },
-                      "runs": [
-                        {
-                          "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore",
-                          "font": {
-                            "size": 19.55,
-                            "family": "Montserrat",
-                            "color": "#E6E6E6",
-                            "line_height": 1.5,
-                            "letter_spacing": -0.19
-                          }
-                        }
-                      ],
-                      "decorative": false,
-                      "name": "section_body",
-                      "max_length": 103,
-                      "min_length": 55
-                    },
-                    {
-                      "type": "vector",
-                      "shape": "polygon",
-                      "points": [
-                        {
-                          "x": 0,
-                          "y": 129.99
-                        },
-                        {
-                          "x": 523.01,
-                          "y": 130.99
-                        }
-                      ],
-                      "closed": false,
-                      "stroke": {
-                        "color": "#FFFFFF",
-                        "opacity": 0.24,
-                        "width": 1.33
-                      }
-                    }
-                  ],
-                  "name": "section_item"
-                }
-              ],
-              "name": "section_column",
-              "max_children": 4,
-              "min_children": 1
-            }
-          ]
-        },
-        {
-          "id": "list_of_items_title_and_description",
-          "description": "Four vertically stacked text sections in the right column, with consistent internal spacing and divider rules.",
-          "position": {
-            "x": 684.99,
-            "y": 162.82
-          },
-          "elements": [
-            {
-              "type": "grid",
-              "position": {
-                "x": 0,
-                "y": 0
-              },
-              "size": {
-                "width": 526.48,
-                "height": 344.28
-              },
-              "rotation": 0,
-              "columns": 1,
-              "rows": 3,
-              "align_items": "stretch",
-              "justify_items": "stretch",
-              "children": [
-                {
-                  "type": "group",
-                  "position": {
-                    "x": 0,
-                    "y": 0
-                  },
-                  "size": {
-                    "width": 526.48,
-                    "height": 103.3
-                  },
-                  "children": [
-                    {
-                      "type": "text",
-                      "position": {
-                        "x": 0,
-                        "y": 0
-                      },
-                      "size": {
-                        "width": 526.48,
-                        "height": 29.02
-                      },
-                      "rotation": 0,
-                      "font": {
-                        "size": 23.1,
-                        "family": "Montserrat Semi-Bold",
-                        "color": "#FFFFFF",
-                        "bold": true,
-                        "line_height": 1.3,
-                        "letter_spacing": -0.22
-                      },
-                      "alignment": {
-                        "horizontal": "left",
-                        "vertical": "top"
-                      },
-                      "runs": [
-                        {
-                          "text": "Heading",
-                          "font": {
-                            "size": 23.1,
-                            "family": "Montserrat Semi-Bold",
-                            "color": "#FFFFFF",
-                            "bold": true,
-                            "line_height": 1.3,
-                            "letter_spacing": -0.22
-                          }
-                        }
-                      ],
-                      "decorative": false,
-                      "name": "section_heading",
-                      "max_length": 37,
-                      "min_length": 4
-                    },
-                    {
-                      "type": "text",
-                      "position": {
-                        "x": 0,
-                        "y": 38.56
-                      },
-                      "size": {
-                        "width": 523.01,
-                        "height": 26.8
-                      },
-                      "rotation": 0,
-                      "font": {
-                        "size": 19.55,
-                        "family": "Montserrat",
-                        "color": "#E6E6E6",
-                        "line_height": 1.5,
-                        "letter_spacing": -0.19
-                      },
-                      "alignment": {
-                        "horizontal": "left",
-                        "vertical": "top"
-                      },
-                      "runs": [
-                        {
-                          "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
-                          "font": {
-                            "size": 19.55,
-                            "family": "Montserrat",
-                            "color": "#E6E6E6",
-                            "line_height": 1.5,
-                            "letter_spacing": -0.19
-                          }
-                        }
-                      ],
-                      "decorative": false,
-                      "name": "section_body",
-                      "max_length": 51,
-                      "min_length": 25
-                    },
-                    {
-                      "type": "vector",
-                      "shape": "polygon",
-                      "points": [
-                        {
-                          "x": 0,
-                          "y": 98.97
-                        },
-                        {
-                          "x": 523.01,
-                          "y": 99.97
-                        }
-                      ],
-                      "closed": false,
-                      "rotation": 0,
-                      "stroke": {
-                        "color": "#FFFFFF",
-                        "opacity": 0.24,
-                        "width": 1.33
-                      }
-                    }
-                  ],
-                  "name": "inidividual_item_list_grid"
-                }
-              ],
-              "name": "list_items_grid",
-              "max_children": 4,
-              "min_children": 1
-            }
-          ]
         }
       ]
     },
@@ -6292,13 +5639,7 @@
               "min_children": 2
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "surrounding_text_blocks_part_2",
-      "description": "Ungrouped component element",
-      "variants": [
+        },
         {
           "id": "surrounding_text_blocks_part_2",
           "description": "Ungrouped component element",
@@ -6413,13 +5754,7 @@
               "min_children": 2
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "surrounding_text_blocks_part_3",
-      "description": "Ungrouped component element",
-      "variants": [
+        },
         {
           "id": "surrounding_text_blocks_part_3",
           "description": "Ungrouped component element",
@@ -6534,13 +5869,7 @@
               "min_children": 2
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "surrounding_text_blocks_part_4",
-      "description": "Ungrouped component element",
-      "variants": [
+        },
         {
           "id": "surrounding_text_blocks_part_4",
           "description": "Ungrouped component element",
@@ -6999,6 +6328,357 @@
       ]
     },
     {
+      "id": "right_text_stack",
+      "description": "Two similar body copy sections stacked vertically on the right side with consistent heading and paragraph styling.",
+      "variants": [
+        {
+          "id": "right_text_stack",
+          "description": "Two similar body copy sections stacked vertically on the right side with consistent heading and paragraph styling.",
+          "position": {
+            "x": 872.59,
+            "y": 244.04
+          },
+          "elements": [
+            {
+              "type": "flex",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 300,
+                "height": 407.54
+              },
+              "direction": "column",
+              "wrap": false,
+              "justify_content": "center",
+              "gap": 37.39,
+              "children": [
+                {
+                  "type": "container",
+                  "size": {
+                    "width": 300,
+                    "height": 185.08
+                  },
+                  "padding": {
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 0,
+                    "left": 0
+                  },
+                  "child": {
+                    "type": "flex",
+                    "direction": "column",
+                    "wrap": false,
+                    "align_items": "flex-start",
+                    "justify_content": "flex-start",
+                    "gap": 12,
+                    "children": [
+                      {
+                        "type": "text",
+                        "size": {
+                          "width": 300,
+                          "height": 27.73
+                        },
+                        "font": {
+                          "size": 21.33,
+                          "family": "Montserrat Semi-Bold",
+                          "color": "#FFFFFF",
+                          "bold": true,
+                          "line_height": 1.4,
+                          "letter_spacing": -0.21
+                        },
+                        "alignment": {
+                          "horizontal": "left",
+                          "vertical": "top"
+                        },
+                        "runs": [
+                          {
+                            "text": "Heading",
+                            "font": {
+                              "size": 21.33,
+                              "family": "Montserrat Semi-Bold",
+                              "color": "#FFFFFF",
+                              "bold": true,
+                              "line_height": 1.4,
+                              "letter_spacing": -0.21
+                            }
+                          }
+                        ],
+                        "decorative": false,
+                        "name": "section_heading",
+                        "max_length": 23,
+                        "min_length": 4
+                      },
+                      {
+                        "type": "text",
+                        "size": {
+                          "width": 270.39,
+                          "height": 145.41
+                        },
+                        "font": {
+                          "size": 19.73,
+                          "family": "Montserrat",
+                          "color": "#E6E6E6",
+                          "line_height": 1.5,
+                          "letter_spacing": -0.2
+                        },
+                        "alignment": {
+                          "horizontal": "left",
+                          "vertical": "top"
+                        },
+                        "runs": [
+                          {
+                            "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore",
+                            "font": {
+                              "size": 19.73,
+                              "family": "Montserrat",
+                              "color": "#E6E6E6",
+                              "line_height": 1.5,
+                              "letter_spacing": -0.2
+                            }
+                          }
+                        ],
+                        "decorative": false,
+                        "name": "section_body",
+                        "max_length": 102,
+                        "min_length": 55
+                      }
+                    ],
+                    "name": "callout_content",
+                    "max_children": 2,
+                    "min_children": 2
+                  }
+                }
+              ],
+              "name": "callout_stack",
+              "max_children": 2,
+              "min_children": 1
+            }
+          ]
+        },
+        {
+          "id": "right_stacked_card",
+          "description": "A translucent right-side panel contains two vertically stacked text sections separated by a subtle horizontal divider.",
+          "position": {
+            "x": 806,
+            "y": 195
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 402,
+                  "y": 0
+                },
+                {
+                  "x": 402,
+                  "y": 453
+                },
+                {
+                  "x": 0,
+                  "y": 453
+                }
+              ],
+              "closed": true,
+              "corner_radii": [
+                3,
+                3,
+                3,
+                3
+              ],
+              "fill": {
+                "color": "#242424",
+                "opacity": 0.82
+              }
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 19,
+                "y": 28
+              },
+              "size": {
+                "width": 264,
+                "height": 46
+              },
+              "font": {
+                "size": 33.78,
+                "family": "Montserrat Semi-Bold",
+                "color": "#FFFFFF",
+                "bold": true,
+                "line_height": 1.4,
+                "letter_spacing": -0.34
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Heading",
+                  "font": {
+                    "size": 33.78,
+                    "family": "Montserrat Semi-Bold",
+                    "color": "#FFFFFF",
+                    "bold": true,
+                    "line_height": 1.4,
+                    "letter_spacing": -0.34
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "upper_card_title",
+              "max_length": 15,
+              "min_length": 4
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 19,
+                "y": 91
+              },
+              "size": {
+                "width": 293,
+                "height": 113
+              },
+              "font": {
+                "size": 19.55,
+                "family": "Montserrat",
+                "color": "#E6E6E6",
+                "line_height": 1.5,
+                "letter_spacing": -0.19
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore",
+                  "font": {
+                    "size": 19.55,
+                    "family": "Montserrat",
+                    "color": "#E6E6E6",
+                    "line_height": 1.5,
+                    "letter_spacing": -0.19
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "upper_card_body",
+              "max_length": 82,
+              "min_length": 55
+            },
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 226
+                },
+                {
+                  "x": 402,
+                  "y": 227
+                }
+              ],
+              "closed": false,
+              "stroke": {
+                "color": "#FFFFFF",
+                "opacity": 0.08,
+                "width": 2.67
+              }
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 19,
+                "y": 249
+              },
+              "size": {
+                "width": 264,
+                "height": 46
+              },
+              "font": {
+                "size": 33.78,
+                "family": "Montserrat Semi-Bold",
+                "color": "#FFFFFF",
+                "bold": true,
+                "line_height": 1.4,
+                "letter_spacing": -0.34
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Heading",
+                  "font": {
+                    "size": 33.78,
+                    "family": "Montserrat Semi-Bold",
+                    "color": "#FFFFFF",
+                    "bold": true,
+                    "line_height": 1.4,
+                    "letter_spacing": -0.34
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "lower_card_title",
+              "max_length": 15,
+              "min_length": 4
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 19,
+                "y": 311
+              },
+              "size": {
+                "width": 293,
+                "height": 113
+              },
+              "font": {
+                "size": 19.55,
+                "family": "Montserrat",
+                "color": "#E6E6E6",
+                "line_height": 1.5,
+                "letter_spacing": -0.19
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore",
+                  "font": {
+                    "size": 19.55,
+                    "family": "Montserrat",
+                    "color": "#E6E6E6",
+                    "line_height": 1.5,
+                    "letter_spacing": -0.19
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "lower_card_body",
+              "max_length": 82,
+              "min_length": 55
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "lower_left_chart",
       "description": "Wide trend chart occupies the lower-left content area beneath the header, with subtle gridlines and orange series styling.",
       "variants": [
@@ -7061,6 +6741,61 @@
               "source": "static/image24-02344c48b17e.png",
               "decorative": false,
               "name": "trend_line_chart"
+            }
+          ]
+        },
+        {
+          "id": "wide_chart_area",
+          "description": "Large lower chart region spanning most of the slide width with category labels and horizontal value gridlines.",
+          "position": {
+            "x": 87.35602723787974,
+            "y": 355.21986260688305
+          },
+          "elements": [
+            {
+              "type": "chart",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 1100,
+                "height": 286
+              },
+              "chart_type": "bar",
+              "colors": [
+                "#E94213"
+              ],
+              "x_axis": true,
+              "y_axis": true,
+              "axis_color": "#FFFFFF",
+              "categories": [
+                "Sales",
+                "Finance",
+                "Marketing",
+                "HR",
+                "Operation",
+                "L&D"
+              ],
+              "series": [
+                {
+                  "name": "Values",
+                  "values": [
+                    50,
+                    40,
+                    45,
+                    30,
+                    40,
+                    25
+                  ]
+                }
+              ],
+              "legend": false,
+              "x_axis_grid": false,
+              "y_axis_grid": true,
+              "grid_color": "#333333",
+              "decorative": false,
+              "name": "primary_bar_chart"
             }
           ]
         }
@@ -7405,400 +7140,6 @@
               "name": "card_sequence",
               "max_children": 3,
               "min_children": 3
-            }
-          ]
-        },
-        {
-          "id": "staggered_card_group",
-          "description": "Three rounded information cards arranged in a staggered cluster across the lower-left content area.",
-          "position": {
-            "x": 72,
-            "y": 221.41
-          },
-          "elements": [
-            {
-              "type": "group",
-              "position": {
-                "x": 0,
-                "y": 0
-              },
-              "size": {
-                "width": 249.68,
-                "height": 206.35
-              },
-              "children": [
-                {
-                  "type": "image",
-                  "position": {
-                    "x": 0,
-                    "y": 0
-                  },
-                  "size": {
-                    "width": 249.68,
-                    "height": 206.35
-                  },
-                  "data": "static/freeform_4-d1137f81ec29.svg",
-                  "fit": "fill",
-                  "decorative": true,
-                  "name": "card_panel",
-                  "is_icon": false
-                },
-                {
-                  "type": "image",
-                  "position": {
-                    "x": 114.4,
-                    "y": 32.78
-                  },
-                  "size": {
-                    "width": 20.88,
-                    "height": 22.34
-                  },
-                  "data": "/static/icons/placeholder.svg",
-                  "fit": "fill",
-                  "clip_path": "path('M 0 0 L 20.8799 0 L 20.8799 22.34 L 0 22.34 L 0 0 Z')",
-                  "color": "#F15A24",
-                  "decorative": false,
-                  "name": "feature_icon",
-                  "is_icon": true
-                },
-                {
-                  "type": "text",
-                  "position": {
-                    "x": 61.58,
-                    "y": 69.97
-                  },
-                  "size": {
-                    "width": 134.47,
-                    "height": 18.23
-                  },
-                  "rotation": 0,
-                  "font": {
-                    "size": 17.56,
-                    "family": "Montserrat Medium",
-                    "color": "#FFFFFF",
-                    "bold": true,
-                    "line_height": 1.01,
-                    "letter_spacing": -0.17
-                  },
-                  "alignment": {
-                    "horizontal": "center",
-                    "vertical": "top"
-                  },
-                  "runs": [
-                    {
-                      "text": "Heading",
-                      "font": {
-                        "size": 17.56,
-                        "family": "Montserrat Medium",
-                        "color": "#FFFFFF",
-                        "bold": true,
-                        "line_height": 1.01,
-                        "letter_spacing": -0.17
-                      }
-                    }
-                  ],
-                  "decorative": false,
-                  "name": "card_heading",
-                  "max_length": 12,
-                  "min_length": 4
-                },
-                {
-                  "type": "text",
-                  "position": {
-                    "x": 10.77,
-                    "y": 91.96
-                  },
-                  "size": {
-                    "width": 228.14,
-                    "height": 100.19
-                  },
-                  "rotation": 0,
-                  "font": {
-                    "size": 14.63,
-                    "family": "Montserrat",
-                    "color": "#FFFFFF",
-                    "line_height": 1.5,
-                    "letter_spacing": -0.14
-                  },
-                  "alignment": {
-                    "horizontal": "center",
-                    "vertical": "top"
-                  },
-                  "runs": [
-                    {
-                      "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et",
-                      "font": {
-                        "size": 14.63,
-                        "family": "Montserrat",
-                        "color": "#FFFFFF",
-                        "line_height": 1.5,
-                        "letter_spacing": -0.14
-                      }
-                    }
-                  ],
-                  "decorative": false,
-                  "name": "card_body",
-                  "max_length": 103,
-                  "min_length": 52
-                }
-              ],
-              "name": "top_feature_card"
-            },
-            {
-              "type": "group",
-              "position": {
-                "x": 0,
-                "y": 220.24
-              },
-              "size": {
-                "width": 249.68,
-                "height": 206.35
-              },
-              "children": [
-                {
-                  "type": "image",
-                  "position": {
-                    "x": 0,
-                    "y": 0
-                  },
-                  "size": {
-                    "width": 249.68,
-                    "height": 206.35
-                  },
-                  "data": "static/freeform_10-d1137f81ec29.svg",
-                  "fit": "fill",
-                  "decorative": true,
-                  "name": "card_panel",
-                  "is_icon": false
-                },
-                {
-                  "type": "image",
-                  "position": {
-                    "x": 114.84,
-                    "y": 33.62
-                  },
-                  "size": {
-                    "width": 20.01,
-                    "height": 18.99
-                  },
-                  "data": "/static/icons/placeholder.svg",
-                  "fit": "fill",
-                  "clip_path": "path('M 0 0 L 20.01 0 L 20.01 18.99 L 0 18.99 L 0 0 Z')",
-                  "color": "#F15A24",
-                  "decorative": false,
-                  "name": "feature_icon",
-                  "is_icon": true
-                },
-                {
-                  "type": "text",
-                  "position": {
-                    "x": 27.48,
-                    "y": 67.99
-                  },
-                  "size": {
-                    "width": 198.13,
-                    "height": 18.23
-                  },
-                  "rotation": 0,
-                  "font": {
-                    "size": 17.56,
-                    "family": "Montserrat Medium",
-                    "color": "#FFFFFF",
-                    "bold": true,
-                    "line_height": 1.01,
-                    "letter_spacing": -0.17
-                  },
-                  "alignment": {
-                    "horizontal": "center",
-                    "vertical": "top"
-                  },
-                  "runs": [
-                    {
-                      "text": "Heading",
-                      "font": {
-                        "size": 17.56,
-                        "family": "Montserrat Medium",
-                        "color": "#FFFFFF",
-                        "bold": true,
-                        "line_height": 1.01,
-                        "letter_spacing": -0.17
-                      }
-                    }
-                  ],
-                  "decorative": false,
-                  "name": "card_heading",
-                  "max_length": 13,
-                  "min_length": 4
-                },
-                {
-                  "type": "text",
-                  "position": {
-                    "x": 10.77,
-                    "y": 91.11
-                  },
-                  "size": {
-                    "width": 228.14,
-                    "height": 101.32
-                  },
-                  "rotation": 0,
-                  "font": {
-                    "size": 14.63,
-                    "family": "Montserrat",
-                    "color": "#FFFFFF",
-                    "line_height": 1.5,
-                    "letter_spacing": -0.14
-                  },
-                  "alignment": {
-                    "horizontal": "center",
-                    "vertical": "top"
-                  },
-                  "runs": [
-                    {
-                      "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et",
-                      "font": {
-                        "size": 14.63,
-                        "family": "Montserrat",
-                        "color": "#FFFFFF",
-                        "line_height": 1.5,
-                        "letter_spacing": -0.14
-                      }
-                    }
-                  ],
-                  "decorative": false,
-                  "name": "card_body",
-                  "max_length": 103,
-                  "min_length": 52
-                }
-              ],
-              "name": "bottom_feature_card"
-            },
-            {
-              "type": "group",
-              "position": {
-                "x": 286.56,
-                "y": 110.12
-              },
-              "size": {
-                "width": 249.68,
-                "height": 206.35
-              },
-              "children": [
-                {
-                  "type": "image",
-                  "position": {
-                    "x": 0,
-                    "y": 0
-                  },
-                  "size": {
-                    "width": 249.68,
-                    "height": 206.35
-                  },
-                  "data": "static/freeform_16-d1137f81ec29.svg",
-                  "fit": "fill",
-                  "decorative": true,
-                  "name": "card_panel",
-                  "is_icon": false
-                },
-                {
-                  "type": "image",
-                  "position": {
-                    "x": 114.45,
-                    "y": 33.78
-                  },
-                  "size": {
-                    "width": 20.79,
-                    "height": 18.33
-                  },
-                  "data": "/static/icons/placeholder.svg",
-                  "fit": "fill",
-                  "clip_path": "path('M 0 0 L 20.7899 0 L 20.7899 18.33 L 0 18.33 L 0 0 Z')",
-                  "color": "#F15A24",
-                  "decorative": false,
-                  "name": "feature_icon",
-                  "is_icon": true
-                },
-                {
-                  "type": "text",
-                  "position": {
-                    "x": 35.44,
-                    "y": 70.09
-                  },
-                  "size": {
-                    "width": 167.43,
-                    "height": 15.96
-                  },
-                  "rotation": 0,
-                  "font": {
-                    "size": 17.56,
-                    "family": "Montserrat Medium",
-                    "color": "#FFFFFF",
-                    "bold": true,
-                    "line_height": 1.01,
-                    "letter_spacing": -0.17
-                  },
-                  "alignment": {
-                    "horizontal": "center",
-                    "vertical": "top"
-                  },
-                  "runs": [
-                    {
-                      "text": "Heading",
-                      "font": {
-                        "size": 17.56,
-                        "family": "Montserrat Medium",
-                        "color": "#FFFFFF",
-                        "bold": true,
-                        "line_height": 1.01,
-                        "letter_spacing": -0.17
-                      }
-                    }
-                  ],
-                  "decorative": false,
-                  "name": "card_heading",
-                  "max_length": 12,
-                  "min_length": 4
-                },
-                {
-                  "type": "text",
-                  "position": {
-                    "x": 10.77,
-                    "y": 90.95
-                  },
-                  "size": {
-                    "width": 228.14,
-                    "height": 112.69
-                  },
-                  "rotation": 0,
-                  "font": {
-                    "size": 14.63,
-                    "family": "Montserrat",
-                    "color": "#FFFFFF",
-                    "line_height": 1.5,
-                    "letter_spacing": -0.14
-                  },
-                  "alignment": {
-                    "horizontal": "center",
-                    "vertical": "top"
-                  },
-                  "runs": [
-                    {
-                      "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et",
-                      "font": {
-                        "size": 14.63,
-                        "family": "Montserrat",
-                        "color": "#FFFFFF",
-                        "line_height": 1.5,
-                        "letter_spacing": -0.14
-                      }
-                    }
-                  ],
-                  "decorative": false,
-                  "name": "card_body",
-                  "max_length": 103,
-                  "min_length": 52
-                }
-              ],
-              "name": "middle_feature_card"
             }
           ]
         },
@@ -8266,67 +7607,6 @@
               "grid_color": "#333333",
               "decorative": false,
               "name": "main_area_chart"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "wide_chart_area",
-      "description": "Large lower chart region spanning most of the slide width with category labels and horizontal value gridlines.",
-      "variants": [
-        {
-          "id": "wide_chart_area",
-          "description": "Large lower chart region spanning most of the slide width with category labels and horizontal value gridlines.",
-          "position": {
-            "x": 87.35602723787974,
-            "y": 355.21986260688305
-          },
-          "elements": [
-            {
-              "type": "chart",
-              "position": {
-                "x": 0,
-                "y": 0
-              },
-              "size": {
-                "width": 1100,
-                "height": 286
-              },
-              "chart_type": "bar",
-              "colors": [
-                "#E94213"
-              ],
-              "x_axis": true,
-              "y_axis": true,
-              "axis_color": "#FFFFFF",
-              "categories": [
-                "Sales",
-                "Finance",
-                "Marketing",
-                "HR",
-                "Operation",
-                "L&D"
-              ],
-              "series": [
-                {
-                  "name": "Values",
-                  "values": [
-                    50,
-                    40,
-                    45,
-                    30,
-                    40,
-                    25
-                  ]
-                }
-              ],
-              "legend": false,
-              "x_axis_grid": false,
-              "y_axis_grid": true,
-              "grid_color": "#333333",
-              "decorative": false,
-              "name": "primary_bar_chart"
             }
           ]
         }
@@ -9268,6 +8548,752 @@
                 "color": "#FFFFFF",
                 "opacity": 1
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "right_section_stack",
+      "description": "Four vertically stacked text sections in the right column, with consistent internal spacing and divider rules.",
+      "variants": [
+        {
+          "id": "right_section_stack",
+          "description": "Four vertically stacked text sections in the right column, with consistent internal spacing and divider rules.",
+          "position": {
+            "x": 684.99,
+            "y": 68.67
+          },
+          "elements": [
+            {
+              "type": "flex",
+              "size": {
+                "width": 523.01,
+                "height": 580.04
+              },
+              "direction": "column",
+              "justify_content": "center",
+              "gap": 29.34,
+              "children": [
+                {
+                  "type": "group",
+                  "size": {
+                    "width": 523.01,
+                    "height": 132
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "position": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "size": {
+                        "width": 502.61,
+                        "height": 30.71
+                      },
+                      "rotation": 0,
+                      "font": {
+                        "size": 23.1,
+                        "family": "Montserrat Semi-Bold",
+                        "color": "#FFFFFF",
+                        "bold": true,
+                        "line_height": 1.4,
+                        "letter_spacing": -0.22
+                      },
+                      "alignment": {
+                        "horizontal": "left",
+                        "vertical": "top"
+                      },
+                      "runs": [
+                        {
+                          "text": "Heading",
+                          "font": {
+                            "size": 23.1,
+                            "family": "Montserrat Semi-Bold",
+                            "color": "#FFFFFF",
+                            "bold": true,
+                            "line_height": 1.4,
+                            "letter_spacing": -0.22
+                          }
+                        }
+                      ],
+                      "decorative": false,
+                      "name": "section_heading",
+                      "max_length": 36,
+                      "min_length": 4
+                    },
+                    {
+                      "type": "text",
+                      "position": {
+                        "x": 0,
+                        "y": 40.55
+                      },
+                      "size": {
+                        "width": 523.01,
+                        "height": 84.13
+                      },
+                      "font": {
+                        "size": 19.55,
+                        "family": "Montserrat",
+                        "color": "#E6E6E6",
+                        "line_height": 1.5,
+                        "letter_spacing": -0.19
+                      },
+                      "alignment": {
+                        "horizontal": "left",
+                        "vertical": "top"
+                      },
+                      "runs": [
+                        {
+                          "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore",
+                          "font": {
+                            "size": 19.55,
+                            "family": "Montserrat",
+                            "color": "#E6E6E6",
+                            "line_height": 1.5,
+                            "letter_spacing": -0.19
+                          }
+                        }
+                      ],
+                      "decorative": false,
+                      "name": "section_body",
+                      "max_length": 103,
+                      "min_length": 55
+                    },
+                    {
+                      "type": "vector",
+                      "shape": "polygon",
+                      "points": [
+                        {
+                          "x": 0,
+                          "y": 129.99
+                        },
+                        {
+                          "x": 523.01,
+                          "y": 130.99
+                        }
+                      ],
+                      "closed": false,
+                      "stroke": {
+                        "color": "#FFFFFF",
+                        "opacity": 0.24,
+                        "width": 1.33
+                      }
+                    }
+                  ],
+                  "name": "section_item"
+                }
+              ],
+              "name": "section_column",
+              "max_children": 4,
+              "min_children": 1
+            }
+          ]
+        },
+        {
+          "id": "list_of_items_title_and_description",
+          "description": "Four vertically stacked text sections in the right column, with consistent internal spacing and divider rules.",
+          "position": {
+            "x": 684.99,
+            "y": 162.82
+          },
+          "elements": [
+            {
+              "type": "grid",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 526.48,
+                "height": 344.28
+              },
+              "rotation": 0,
+              "columns": 1,
+              "rows": 3,
+              "align_items": "stretch",
+              "justify_items": "stretch",
+              "children": [
+                {
+                  "type": "group",
+                  "position": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "size": {
+                    "width": 526.48,
+                    "height": 103.3
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "position": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "size": {
+                        "width": 526.48,
+                        "height": 29.02
+                      },
+                      "rotation": 0,
+                      "font": {
+                        "size": 23.1,
+                        "family": "Montserrat Semi-Bold",
+                        "color": "#FFFFFF",
+                        "bold": true,
+                        "line_height": 1.3,
+                        "letter_spacing": -0.22
+                      },
+                      "alignment": {
+                        "horizontal": "left",
+                        "vertical": "top"
+                      },
+                      "runs": [
+                        {
+                          "text": "Heading",
+                          "font": {
+                            "size": 23.1,
+                            "family": "Montserrat Semi-Bold",
+                            "color": "#FFFFFF",
+                            "bold": true,
+                            "line_height": 1.3,
+                            "letter_spacing": -0.22
+                          }
+                        }
+                      ],
+                      "decorative": false,
+                      "name": "section_heading",
+                      "max_length": 37,
+                      "min_length": 4
+                    },
+                    {
+                      "type": "text",
+                      "position": {
+                        "x": 0,
+                        "y": 38.56
+                      },
+                      "size": {
+                        "width": 523.01,
+                        "height": 26.8
+                      },
+                      "rotation": 0,
+                      "font": {
+                        "size": 19.55,
+                        "family": "Montserrat",
+                        "color": "#E6E6E6",
+                        "line_height": 1.5,
+                        "letter_spacing": -0.19
+                      },
+                      "alignment": {
+                        "horizontal": "left",
+                        "vertical": "top"
+                      },
+                      "runs": [
+                        {
+                          "text": "Lorem ipsum dolor sit amet, consectetur adipiscing",
+                          "font": {
+                            "size": 19.55,
+                            "family": "Montserrat",
+                            "color": "#E6E6E6",
+                            "line_height": 1.5,
+                            "letter_spacing": -0.19
+                          }
+                        }
+                      ],
+                      "decorative": false,
+                      "name": "section_body",
+                      "max_length": 51,
+                      "min_length": 25
+                    },
+                    {
+                      "type": "vector",
+                      "shape": "polygon",
+                      "points": [
+                        {
+                          "x": 0,
+                          "y": 98.97
+                        },
+                        {
+                          "x": 523.01,
+                          "y": 99.97
+                        }
+                      ],
+                      "closed": false,
+                      "rotation": 0,
+                      "stroke": {
+                        "color": "#FFFFFF",
+                        "opacity": 0.24,
+                        "width": 1.33
+                      }
+                    }
+                  ],
+                  "name": "inidividual_item_list_grid"
+                }
+              ],
+              "name": "list_items_grid",
+              "max_children": 4,
+              "min_children": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "staggered_card_group",
+      "description": "Three rounded information cards arranged in a staggered cluster across the lower-left content area.",
+      "variants": [
+        {
+          "id": "staggered_card_group",
+          "description": "Three rounded information cards arranged in a staggered cluster across the lower-left content area.",
+          "position": {
+            "x": 72,
+            "y": 221.41
+          },
+          "elements": [
+            {
+              "type": "group",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 249.68,
+                "height": 206.35
+              },
+              "children": [
+                {
+                  "type": "image",
+                  "position": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "size": {
+                    "width": 249.68,
+                    "height": 206.35
+                  },
+                  "data": "static/freeform_4-d1137f81ec29.svg",
+                  "fit": "fill",
+                  "decorative": true,
+                  "name": "card_panel",
+                  "is_icon": false
+                },
+                {
+                  "type": "image",
+                  "position": {
+                    "x": 114.4,
+                    "y": 32.78
+                  },
+                  "size": {
+                    "width": 20.88,
+                    "height": 22.34
+                  },
+                  "data": "/static/icons/placeholder.svg",
+                  "fit": "fill",
+                  "clip_path": "path('M 0 0 L 20.8799 0 L 20.8799 22.34 L 0 22.34 L 0 0 Z')",
+                  "color": "#F15A24",
+                  "decorative": false,
+                  "name": "feature_icon",
+                  "is_icon": true
+                },
+                {
+                  "type": "text",
+                  "position": {
+                    "x": 61.58,
+                    "y": 69.97
+                  },
+                  "size": {
+                    "width": 134.47,
+                    "height": 18.23
+                  },
+                  "rotation": 0,
+                  "font": {
+                    "size": 17.56,
+                    "family": "Montserrat Medium",
+                    "color": "#FFFFFF",
+                    "bold": true,
+                    "line_height": 1.01,
+                    "letter_spacing": -0.17
+                  },
+                  "alignment": {
+                    "horizontal": "center",
+                    "vertical": "top"
+                  },
+                  "runs": [
+                    {
+                      "text": "Heading",
+                      "font": {
+                        "size": 17.56,
+                        "family": "Montserrat Medium",
+                        "color": "#FFFFFF",
+                        "bold": true,
+                        "line_height": 1.01,
+                        "letter_spacing": -0.17
+                      }
+                    }
+                  ],
+                  "decorative": false,
+                  "name": "card_heading",
+                  "max_length": 12,
+                  "min_length": 4
+                },
+                {
+                  "type": "text",
+                  "position": {
+                    "x": 10.77,
+                    "y": 91.96
+                  },
+                  "size": {
+                    "width": 228.14,
+                    "height": 100.19
+                  },
+                  "rotation": 0,
+                  "font": {
+                    "size": 14.63,
+                    "family": "Montserrat",
+                    "color": "#FFFFFF",
+                    "line_height": 1.5,
+                    "letter_spacing": -0.14
+                  },
+                  "alignment": {
+                    "horizontal": "center",
+                    "vertical": "top"
+                  },
+                  "runs": [
+                    {
+                      "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et",
+                      "font": {
+                        "size": 14.63,
+                        "family": "Montserrat",
+                        "color": "#FFFFFF",
+                        "line_height": 1.5,
+                        "letter_spacing": -0.14
+                      }
+                    }
+                  ],
+                  "decorative": false,
+                  "name": "card_body",
+                  "max_length": 103,
+                  "min_length": 52
+                }
+              ],
+              "name": "top_feature_card"
+            },
+            {
+              "type": "group",
+              "position": {
+                "x": 0,
+                "y": 220.24
+              },
+              "size": {
+                "width": 249.68,
+                "height": 206.35
+              },
+              "children": [
+                {
+                  "type": "image",
+                  "position": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "size": {
+                    "width": 249.68,
+                    "height": 206.35
+                  },
+                  "data": "static/freeform_10-d1137f81ec29.svg",
+                  "fit": "fill",
+                  "decorative": true,
+                  "name": "card_panel",
+                  "is_icon": false
+                },
+                {
+                  "type": "image",
+                  "position": {
+                    "x": 114.84,
+                    "y": 33.62
+                  },
+                  "size": {
+                    "width": 20.01,
+                    "height": 18.99
+                  },
+                  "data": "/static/icons/placeholder.svg",
+                  "fit": "fill",
+                  "clip_path": "path('M 0 0 L 20.01 0 L 20.01 18.99 L 0 18.99 L 0 0 Z')",
+                  "color": "#F15A24",
+                  "decorative": false,
+                  "name": "feature_icon",
+                  "is_icon": true
+                },
+                {
+                  "type": "text",
+                  "position": {
+                    "x": 27.48,
+                    "y": 67.99
+                  },
+                  "size": {
+                    "width": 198.13,
+                    "height": 18.23
+                  },
+                  "rotation": 0,
+                  "font": {
+                    "size": 17.56,
+                    "family": "Montserrat Medium",
+                    "color": "#FFFFFF",
+                    "bold": true,
+                    "line_height": 1.01,
+                    "letter_spacing": -0.17
+                  },
+                  "alignment": {
+                    "horizontal": "center",
+                    "vertical": "top"
+                  },
+                  "runs": [
+                    {
+                      "text": "Heading",
+                      "font": {
+                        "size": 17.56,
+                        "family": "Montserrat Medium",
+                        "color": "#FFFFFF",
+                        "bold": true,
+                        "line_height": 1.01,
+                        "letter_spacing": -0.17
+                      }
+                    }
+                  ],
+                  "decorative": false,
+                  "name": "card_heading",
+                  "max_length": 13,
+                  "min_length": 4
+                },
+                {
+                  "type": "text",
+                  "position": {
+                    "x": 10.77,
+                    "y": 91.11
+                  },
+                  "size": {
+                    "width": 228.14,
+                    "height": 101.32
+                  },
+                  "rotation": 0,
+                  "font": {
+                    "size": 14.63,
+                    "family": "Montserrat",
+                    "color": "#FFFFFF",
+                    "line_height": 1.5,
+                    "letter_spacing": -0.14
+                  },
+                  "alignment": {
+                    "horizontal": "center",
+                    "vertical": "top"
+                  },
+                  "runs": [
+                    {
+                      "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et",
+                      "font": {
+                        "size": 14.63,
+                        "family": "Montserrat",
+                        "color": "#FFFFFF",
+                        "line_height": 1.5,
+                        "letter_spacing": -0.14
+                      }
+                    }
+                  ],
+                  "decorative": false,
+                  "name": "card_body",
+                  "max_length": 103,
+                  "min_length": 52
+                }
+              ],
+              "name": "bottom_feature_card"
+            },
+            {
+              "type": "group",
+              "position": {
+                "x": 286.56,
+                "y": 110.12
+              },
+              "size": {
+                "width": 249.68,
+                "height": 206.35
+              },
+              "children": [
+                {
+                  "type": "image",
+                  "position": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "size": {
+                    "width": 249.68,
+                    "height": 206.35
+                  },
+                  "data": "static/freeform_16-d1137f81ec29.svg",
+                  "fit": "fill",
+                  "decorative": true,
+                  "name": "card_panel",
+                  "is_icon": false
+                },
+                {
+                  "type": "image",
+                  "position": {
+                    "x": 114.45,
+                    "y": 33.78
+                  },
+                  "size": {
+                    "width": 20.79,
+                    "height": 18.33
+                  },
+                  "data": "/static/icons/placeholder.svg",
+                  "fit": "fill",
+                  "clip_path": "path('M 0 0 L 20.7899 0 L 20.7899 18.33 L 0 18.33 L 0 0 Z')",
+                  "color": "#F15A24",
+                  "decorative": false,
+                  "name": "feature_icon",
+                  "is_icon": true
+                },
+                {
+                  "type": "text",
+                  "position": {
+                    "x": 35.44,
+                    "y": 70.09
+                  },
+                  "size": {
+                    "width": 167.43,
+                    "height": 15.96
+                  },
+                  "rotation": 0,
+                  "font": {
+                    "size": 17.56,
+                    "family": "Montserrat Medium",
+                    "color": "#FFFFFF",
+                    "bold": true,
+                    "line_height": 1.01,
+                    "letter_spacing": -0.17
+                  },
+                  "alignment": {
+                    "horizontal": "center",
+                    "vertical": "top"
+                  },
+                  "runs": [
+                    {
+                      "text": "Heading",
+                      "font": {
+                        "size": 17.56,
+                        "family": "Montserrat Medium",
+                        "color": "#FFFFFF",
+                        "bold": true,
+                        "line_height": 1.01,
+                        "letter_spacing": -0.17
+                      }
+                    }
+                  ],
+                  "decorative": false,
+                  "name": "card_heading",
+                  "max_length": 12,
+                  "min_length": 4
+                },
+                {
+                  "type": "text",
+                  "position": {
+                    "x": 10.77,
+                    "y": 90.95
+                  },
+                  "size": {
+                    "width": 228.14,
+                    "height": 112.69
+                  },
+                  "rotation": 0,
+                  "font": {
+                    "size": 14.63,
+                    "family": "Montserrat",
+                    "color": "#FFFFFF",
+                    "line_height": 1.5,
+                    "letter_spacing": -0.14
+                  },
+                  "alignment": {
+                    "horizontal": "center",
+                    "vertical": "top"
+                  },
+                  "runs": [
+                    {
+                      "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et",
+                      "font": {
+                        "size": 14.63,
+                        "family": "Montserrat",
+                        "color": "#FFFFFF",
+                        "line_height": 1.5,
+                        "letter_spacing": -0.14
+                      }
+                    }
+                  ],
+                  "decorative": false,
+                  "name": "card_body",
+                  "max_length": 103,
+                  "min_length": 52
+                }
+              ],
+              "name": "middle_feature_card"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "upper_title_block",
+      "description": "Large centered title area positioned in the upper-left half, using bold white uppercase display typography.",
+      "variants": [
+        {
+          "id": "upper_title_block",
+          "description": "Large centered title area positioned in the upper-left half, using bold white uppercase display typography.",
+          "position": {
+            "x": 72,
+            "y": 69.32999999999993
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 1133.5,
+                "height": 160
+              },
+              "font": {
+                "size": 64,
+                "family": "Montserrat Medium",
+                "color": "#FFFFFF",
+                "bold": true,
+                "line_height": 1.25,
+                "letter_spacing": -0.64
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "HEADING\nMETRICS",
+                  "font": {
+                    "size": 64,
+                    "family": "Montserrat Medium",
+                    "color": "#FFFFFF",
+                    "bold": true,
+                    "italic": false,
+                    "underline": false,
+                    "line_height": 1.25,
+                    "letter_spacing": -0.64,
+                    "opacity": 1
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "main_title",
+              "max_length": 66,
+              "min_length": 8,
+              "rotation": 0
             }
           ]
         }
@@ -10889,7 +10915,7 @@
                 "y": 0
               },
               "size": {
-                "width": 171.42,
+                "width": 474.3,
                 "height": 63.55
               },
               "direction": "column",
@@ -10905,7 +10931,7 @@
                     "y": 0
                   },
                   "size": {
-                    "width": 549.96,
+                    "width": 474.3,
                     "height": 33.02
                   },
                   "rotation": 0,
@@ -10946,7 +10972,7 @@
                     "y": 39.77
                   },
                   "size": {
-                    "width": 540.7,
+                    "width": 474.3,
                     "height": 23.78
                   },
                   "rotation": 0,

@@ -35,8 +35,12 @@ class DummyUploadFile:
         self._content = content
         self.size = len(content) if size is _SIZE_UNSET else size
 
-    async def read(self) -> bytes:
-        return self._content
+    async def read(self, size: int = -1) -> bytes:
+        if size is None or size < 0:
+            data, self._content = self._content, b""
+            return data
+        data, self._content = self._content[:size], self._content[size:]
+        return data
 
 
 async def _run_sync_in_test(func, *args, **kwargs):
@@ -949,6 +953,53 @@ def test_localize_preview_asset_urls_leaves_external_urls(monkeypatch):
     assert calls == []
 
 
+def test_localize_preview_asset_urls_resolves_converter_relative_assets(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("DISABLE_AUTH", "true")
+    artifact_dir = tmp_path / "pptx-to-html" / "session"
+    image_path = artifact_dir / "images" / "asset.png"
+    svg_with_png_extension_path = artifact_dir / "images" / "icon.png"
+    font_path = artifact_dir / "fonts" / "deck.woff2"
+    image_path.parent.mkdir(parents=True)
+    font_path.parent.mkdir(parents=True)
+    image_path.write_bytes(b"png")
+    svg_with_png_extension_path.write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg"/>')
+    font_path.write_bytes(b"font")
+
+    html = (
+        '<img src="images/asset.png">'
+        '<img src="images/icon.png">'
+        "<style>@font-face { src: url('fonts/deck.woff2'); }</style>"
+    )
+
+    localized = fonts_and_slides_preview._localize_preview_asset_urls(
+        html,
+        relative_asset_root=str(artifact_dir),
+    )
+
+    assert 'src="data:image/png;base64,cG5n"' in localized
+    assert 'src="data:image/svg+xml;base64,' in localized
+    assert "url('data:font/woff2;base64,Zm9udA==')" in localized
+
+
+def test_localize_preview_asset_urls_rejects_relative_path_traversal(tmp_path):
+    artifact_dir = tmp_path / "pptx-to-html" / "session"
+    artifact_dir.mkdir(parents=True)
+    outside_path = tmp_path / "secret.png"
+    outside_path.write_bytes(b"secret")
+    html = '<img src="../../secret.png">'
+
+    localized = fonts_and_slides_preview._localize_preview_asset_urls(
+        html,
+        relative_asset_root=str(artifact_dir),
+    )
+
+    assert localized == html
+
+
 @pytest.mark.anyio
 async def test_create_slide_previews_from_html_uses_converter_dimensions_and_fonts(
     monkeypatch,
@@ -1018,6 +1069,8 @@ async def test_create_slide_previews_from_html_uses_converter_dimensions_and_fon
     assert "cdn.jsdelivr.net/npm/chart.js" not in html
     assert ".deck-font { color: black; }" in html
     assert 'font-family: "Khand Bold";' in html
+    assert "data:font/ttf;base64,Zm9udA==" in html
+    assert font_path.resolve().as_uri() not in html
     assert "fonts.googleapis.com/css2?family=Montserrat" in html
 
 

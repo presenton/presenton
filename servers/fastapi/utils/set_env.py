@@ -133,6 +133,26 @@ def set_openrouter_base_url_env(value):
     os.environ["OPENROUTER_BASE_URL"] = value
 
 
+def set_openrouter_provider_order_env(value):
+    os.environ["OPENROUTER_PROVIDER_ORDER"] = value
+
+
+def set_openrouter_allow_fallbacks_env(value):
+    os.environ["OPENROUTER_ALLOW_FALLBACKS"] = value
+
+
+def set_openrouter_require_parameters_env(value):
+    os.environ["OPENROUTER_REQUIRE_PARAMETERS"] = value
+
+
+def set_openrouter_data_collection_env(value):
+    os.environ["OPENROUTER_DATA_COLLECTION"] = value
+
+
+def set_openrouter_zdr_env(value):
+    os.environ["OPENROUTER_ZDR"] = value
+
+
 def set_fireworks_api_key_env(value):
     os.environ["FIREWORKS_API_KEY"] = value
 
@@ -235,6 +255,26 @@ def set_disable_thinking_env(value):
 
 def set_extended_reasoning_env(value):
     os.environ["EXTENDED_REASONING"] = value
+
+
+def set_llm_generation_profile_env(value):
+    os.environ["LLM_GENERATION_PROFILE"] = value
+
+
+def set_llm_max_output_tokens_env(value):
+    os.environ["LLM_MAX_OUTPUT_TOKENS"] = value
+
+
+def set_llm_reasoning_mode_env(value):
+    os.environ["LLM_REASONING_MODE"] = value
+
+
+def set_llm_reasoning_effort_env(value):
+    os.environ["LLM_REASONING_EFFORT"] = value
+
+
+def set_llm_reasoning_budget_tokens_env(value):
+    os.environ["LLM_REASONING_BUDGET_TOKENS"] = value
 
 
 def set_web_grounding_env(value):

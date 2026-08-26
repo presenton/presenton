@@ -60,7 +60,7 @@ const SettingsPage = () => {
   });
 
   const handleTextProviderInputChange = useCallback(
-    (value: string | boolean, field: string) => {
+    (value: string | boolean | number | string[], field: string) => {
       setLlmConfig((prev) => ({
         ...prev,
         [field]: value,
@@ -263,9 +263,9 @@ const SettingsPage = () => {
     return null;
   }
 
-  const textProviderKey = llmConfig.LLM || "openai";
+  const textProviderKey = llmConfig.LLM || "";
   const textProviderLabel =
-    LLM_PROVIDERS[textProviderKey]?.label || textProviderKey;
+    LLM_PROVIDERS[textProviderKey]?.label || textProviderKey || "No text provider";
   const selectedTextModel =
     textProviderKey === "presenton"
       ? ""
@@ -334,6 +334,7 @@ const SettingsPage = () => {
   useEffect(() => {
 
     if (
+      !llmConfig.LLM ||
       (llmConfig.LLM === "codex" && !llmConfig.CODEX_MODEL) ||
       (llmConfig.LLM === "openai" && !llmConfig.OPENAI_MODEL) ||
       (llmConfig.LLM === "deepseek" && !llmConfig.DEEPSEEK_MODEL) ||
@@ -378,7 +379,13 @@ const SettingsPage = () => {
           targetAttr !== "_blank"
         ) {
 
-          // notify.error("Cannot save settings", "Please select a model for the selected provider");
+          notify.warning(
+            "Provider setup required",
+            !llmConfig.LLM
+              ? "Choose and configure a text provider before opening other pages."
+              : "Complete the selected text provider configuration and save it before leaving Settings.",
+            { id: "provider-setup-required" }
+          );
           e.preventDefault();
           window.history.pushState(null, "", pathname);
         }
@@ -408,15 +415,15 @@ const SettingsPage = () => {
 
 
   return (
-    <div className="h-screen font-syne flex flex-col overflow-hidden relative">
-      <main className="w-full mx-auto gap-6   overflow-hidden flex ">
+    <div className="relative flex h-screen flex-col overflow-hidden font-syne">
+      <main className="mx-auto flex min-h-0 w-full flex-1 gap-6 overflow-hidden">
         <SettingSideBar
           selectedProvider={selectedProvider}
           setSelectedProvider={selectSettingsSection}
           presentonSelected={llmConfig.LLM === "presenton"}
         />
-        <div className="w-full">
-          <div className="sticky top-0 right-0 z-50 py-[28px]   backdrop-blur mb-4 ">
+        <div className="custom_scrollbar min-h-0 w-full flex-1 overflow-y-auto pb-36 pr-5">
+          <div className="sticky right-0 top-0 z-40 mb-4 bg-white/90 py-[28px] backdrop-blur">
             <div className="flex  gap-3 items-center ">
               <h3 className=" text-[28px] tracking-[-0.84px] font-unbounded font-normal text-black flex items-center gap-2">
                 Settings
@@ -426,6 +433,18 @@ const SettingsPage = () => {
               </p>
             </div>
           </div>
+
+          {!llmConfig.LLM && selectedProvider === "text-provider" && (
+            <div
+              role="alert"
+              className="mb-5 mr-7 rounded-[12px] border border-amber-200 bg-amber-50 px-5 py-4 text-[#713F12]"
+            >
+              <p className="text-sm font-semibold">Choose a text provider to continue</p>
+              <p className="mt-1 text-xs leading-5">
+                Presenton Cloud is disconnected. Select any text provider below and save the configuration before opening another page.
+              </p>
+            </div>
+          )}
 
           {selectedProvider === 'text-provider' && <TextProvider
             onInputChange={handleTextProviderInputChange}
@@ -455,7 +474,7 @@ const SettingsPage = () => {
 
       {/* Fixed Bottom Button — hidden on Sign out; nothing to save there */}
       {!["session", "admin"].includes(selectedProvider) ? (
-        <div className=" mx-auto fixed bottom-20 right-5 ">
+        <div className="fixed bottom-20 right-5 z-50 mx-auto">
           <button
             onClick={handleSaveConfig}
             disabled={buttonState.isDisabled}

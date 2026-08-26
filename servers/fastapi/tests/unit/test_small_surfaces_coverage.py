@@ -209,6 +209,44 @@ def test_safe_sse_stream_converts_late_exception_to_error_frame():
     assert data == {"type": "error", "detail": "Stream failed"}
 
 
+def test_safe_sse_stream_includes_structured_progress_metadata():
+    async def broken_stream():
+        raise HTTPException(status_code=422, detail="Generation was incomplete")
+        yield ""  # pragma: no cover
+
+    async def error_metadata(_error):
+        return {
+            "source": "generation",
+            "status_code": 422,
+            "retryable": False,
+            "completed_slides": 3,
+            "total_slides": 8,
+        }
+
+    async def collect():
+        return [
+            chunk
+            async for chunk in safe_sse_stream(
+                broken_stream(),
+                logger=MagicMock(),
+                error_detail="Stream failed",
+                error_metadata=error_metadata,
+            )
+        ]
+
+    chunks = asyncio.run(collect())
+    _event, data = _parse_sse_frame(chunks[-1])
+    assert data == {
+        "type": "error",
+        "detail": "Generation was incomplete",
+        "source": "generation",
+        "status_code": 422,
+        "retryable": False,
+        "completed_slides": 3,
+        "total_slides": 8,
+    }
+
+
 @pytest.mark.parametrize("theme", [{}, None])
 def test_presentation_model_get_new_and_typed_getters(theme):
     outline, layout_payload, structure_payload = _outline_layout_structure_payloads()

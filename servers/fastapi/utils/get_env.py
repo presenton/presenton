@@ -194,6 +194,26 @@ def get_openrouter_base_url_env():
     return os.getenv("OPENROUTER_BASE_URL")
 
 
+def get_openrouter_provider_order_env():
+    return os.getenv("OPENROUTER_PROVIDER_ORDER")
+
+
+def get_openrouter_allow_fallbacks_env():
+    return os.getenv("OPENROUTER_ALLOW_FALLBACKS")
+
+
+def get_openrouter_require_parameters_env():
+    return os.getenv("OPENROUTER_REQUIRE_PARAMETERS")
+
+
+def get_openrouter_data_collection_env():
+    return os.getenv("OPENROUTER_DATA_COLLECTION")
+
+
+def get_openrouter_zdr_env():
+    return os.getenv("OPENROUTER_ZDR")
+
+
 def get_fireworks_api_key_env():
     return os.getenv("FIREWORKS_API_KEY")
 
@@ -297,6 +317,26 @@ def get_disable_thinking_env():
 
 def get_extended_reasoning_env():
     return os.getenv("EXTENDED_REASONING")
+
+
+def get_llm_generation_profile_env():
+    return os.getenv("LLM_GENERATION_PROFILE")
+
+
+def get_llm_max_output_tokens_env():
+    return os.getenv("LLM_MAX_OUTPUT_TOKENS")
+
+
+def get_llm_reasoning_mode_env():
+    return os.getenv("LLM_REASONING_MODE")
+
+
+def get_llm_reasoning_effort_env():
+    return os.getenv("LLM_REASONING_EFFORT")
+
+
+def get_llm_reasoning_budget_tokens_env():
+    return os.getenv("LLM_REASONING_BUDGET_TOKENS")
 
 
 def get_web_grounding_env():

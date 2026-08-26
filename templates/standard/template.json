@@ -3,6 +3,32 @@
   "name": "Standard",
   "description": "Balanced, adaptable layouts that keep business and everyday content clear, organized, and easy to follow.",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#3182BD",
+      "background": "#1B8C2D",
+      "card": "#F3F4F6",
+      "stroke": "#E5E7EB",
+      "primary_text": "#000000",
+      "background_text": "#000000",
+      "graph_0": "#1A4665",
+      "graph_1": "#20567D",
+      "graph_2": "#276695",
+      "graph_3": "#2D77AD",
+      "graph_4": "#3387C5",
+      "graph_5": "#4796CF",
+      "graph_6": "#5EA3D5",
+      "graph_7": "#76B1DC",
+      "graph_8": "#8EBEE2",
+      "graph_9": "#A6CCE8"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Playfair Display",
+        "url": "/vendor/fonts/serif/playfairdisplay/PlayfairDisplay[wght].ttf"
+      }
+    }
+  },
   "icon_type": "bold",
   "merged_components": [
     {

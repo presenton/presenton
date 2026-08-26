@@ -153,7 +153,10 @@ async def logout_presenton_account(
         )
     settings = await get_provider_settings(session)
     if settings.get("LLM") == "presenton":
-        await save_provider_settings(session, {"LLM": "openai"})
+        # Disconnecting the active cloud account leaves no usable text
+        # provider. Keep that state explicit so the UI can require a new
+        # provider choice instead of silently selecting an unconfigured one.
+        await save_provider_settings(session, {"LLM": None})
         update_env_with_user_config()
     return {"detail": "Disconnected from Presenton successfully"}
 

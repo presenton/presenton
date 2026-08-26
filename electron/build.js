@@ -679,6 +679,16 @@ function collectMissingBundleResources(resourcesRoot) {
     "models.json"
   )
   const nextjsRoot = path.join(resourcesRoot, "nextjs")
+  const exportRunner = path.join(resourcesRoot, "export", "runner.mjs")
+  const exportCore = path.join(
+    resourcesRoot,
+    "export",
+    "node_modules",
+    "@presenton",
+    "export-core",
+    "dist",
+    "index.js"
+  )
   const missing = []
 
   if (!fs.existsSync(fastapiPath)) {
@@ -694,6 +704,12 @@ function collectMissingBundleResources(resourcesRoot) {
       label: "Next.js standalone server",
       path: `${directNextServer} or ${nestedNextServer}`,
     })
+  }
+  if (!fs.existsSync(exportRunner)) {
+    missing.push({ label: "Export task runner", path: exportRunner })
+  }
+  if (!fs.existsSync(exportCore)) {
+    missing.push({ label: "Export Core package", path: exportCore })
   }
 
   return missing
@@ -744,13 +760,6 @@ const afterPack = async (context) => {
     assertPackagedBundleResourcesReady(resourcesRoot)
 
     const fastapiPath = path.join(resourcesRoot, "fastapi", getFastApiBinaryName("darwin"))
-    const exportPyDir = path.join(resourcesRoot, "export", "py")
-    const converterCandidates = [
-      `convert-${process.platform}-${process.arch}`,
-      `convert-${process.platform}`,
-      "convert",
-    ]
-
     console.log("Setting executable permissions for FastAPI binary...")
     console.log("FastAPI path:", fastapiPath)
 
@@ -761,27 +770,9 @@ const afterPack = async (context) => {
       console.warn("⚠ FastAPI binary not found at:", fastapiPath)
     }
 
-    console.log("Setting executable permissions for export converter binary...")
-    let converterFound = false
-    for (const candidate of converterCandidates) {
-      const candidatePath = path.join(exportPyDir, candidate)
-      if (fs.existsSync(candidatePath)) {
-        fs.chmodSync(candidatePath, 0o755)
-        console.log("✓ Execute permissions set for converter:", candidatePath)
-        converterFound = true
-      }
-    }
-    if (!converterFound) {
-      console.warn("⚠ No converter binary found in:", exportPyDir)
-    }
-
     const fastapiDir = path.join(resourcesRoot, "fastapi")
     if (fs.existsSync(fastapiDir)) {
       console.log("FastAPI directory contents:", fs.readdirSync(fastapiDir))
-    }
-
-    if (fs.existsSync(exportPyDir)) {
-      console.log("Export py directory contents:", fs.readdirSync(exportPyDir))
     }
 
     pruneUnsupportedPackagedPrebuilds(

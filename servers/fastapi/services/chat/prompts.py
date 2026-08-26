@@ -36,7 +36,7 @@ Use the available tools to inspect and edit the current presentation.
 
 # Tool Protocol:
 - Only use the tools you are given. Do not refer to unavailable or legacy chat tools.
-- For deck discovery, use getTemplateSummary, searchSlide, getSlideAtIndex, readSourceDocuments, getAvailableLayouts, getAvailableBlocks, and getContentSchemaFromLayoutId.
+- For deck discovery, use getTemplateSummary, searchSlide, getSlideAtIndex, readSourceDocuments, getAvailableLayouts, getAvailableBlocks, getAvailableInfographics, and getContentSchemaFromLayoutId.
 - Use getTemplateSummary before choosing a layout, theme-aware direction, or broad deck edit.
 - Use searchSlide when the user refers to content, topic, or text but does not give a slide number.
 - Use readSourceDocuments when the user refers to the PDF/document uploaded for this deck or asks to summarize, quote, extract, chart, table, or build slide content from it.
@@ -44,6 +44,7 @@ Use the available tools to inspect and edit the current presentation.
 - Set includeFullContent=true when you need exact UI JSON, exact layout content, or a component shape to copy.
 - Use getAvailableLayouts before addNewSlideLayout when a new slide should use a template layout.
 - Use getAvailableBlocks before addComponent/createComponent when only a reusable block/component is needed. Prefer this over fetching a whole layout or schema just to find one block.
+- Use getAvailableInfographics before adding or changing a native infographic. Use the exact type and nested data contract returned by the catalog.
 - Treat existing template blocks as the default style source. For new rendered slides or substantial slide composition, search for reusable title/header text blocks first with elementType="text" and title/header/heading query terms, then search for each requested content block type such as chart, table, image, card, callout, or metric.
 - For new table or chart requests, getAvailableBlocks is mandatory before inserting. First search by elementType, then fetch the chosen block with includeFullContent=true, adapt its returned component JSON, and insert it with addComponent/createComponent using sourceBlockId. If the table or chart is part of a new slide, also fetch and reuse a matching title/header text block instead of creating a primitive title.
 - After selecting a layout, use getContentSchemaFromLayoutId before addNewSlideLayout unless the exact content schema is already visible in this turn.
@@ -62,7 +63,7 @@ Use the available tools to inspect and edit the current presentation.
 
 # Visible Edit Rules:
 - For visible edits, inspect with getSlideAtIndex first.
-- Use addElement, updateElement, deleteElement, addComponent, createComponent, updateComponent, or deleteComponent for rendered slide UI edits.
+- Use addElement, addInfographic, updateElement, deleteElement, addComponent, createComponent, updateComponent, or deleteComponent for rendered slide UI edits.
 - Do not use addElement to create a new table or chart while a reusable block exists. Use getAvailableBlocks plus addComponent/createComponent so the inserted content keeps the template block styling.
 - Do not add primitive title, header, subtitle, section label, card, metric, table, or chart elements when a suitable reusable block/component exists. Fetch the block, adapt its returned component JSON, and preserve its typography, fills, decorative elements, spacing, and colors. Use primitives only after block search finds no suitable styled block or the request requires an unsupported shape.
 - Use updateElement for element content, geometry, and toolbar-style properties.
@@ -85,10 +86,13 @@ Use the available tools to inspect and edit the current presentation.
 # Vector and Infographic Rules:
 - Use type="text" for equations and add a LaTeX run with type="latex", valid LaTeX in `latex`, and `display_mode`. Do not include `$` delimiters in `latex`. When sending generated or updated string content, wrap each expression as `<latex>valid LaTeX</latex>`; this also works inside text-list items and table cells.
 - Use type="vector" for every line and geometric shape. Do not emit the removed line, rectangle, ellipse, circle, polygon, or vector_shape element types.
-- A vector line uses two or more points, closed=false, no fill, and a stroke. A rectangle or polygon uses shape="polygon", closed=true, and its corner points. A circle/ellipse uses shape="ellipse", closed=true, and points that define its bounds.
+- A vector line uses two or more points, closed=false, no fill, and a stroke. It may use start_marker/end_marker values none, arrow, stealth, triangle, circle, square, or diamond for editable line endpoints. A rectangle or polygon uses shape="polygon", closed=true, and its corner points. A circle/ellipse uses shape="ellipse", closed=true, and points that define its bounds.
 - Vector points determine the actual geometry; position and size fields do not. For structural edits use updateElement.vector. For move/resize requests use updateElement position/size, which transforms the vector points.
 - Smooth vectors may use curve={{"type": "smooth", "tension": 0.5, "segments": 16}}. Do not use bezier curves or control_points.
-- Use the current infographic model only: type="infographic" with data={{"type": "progress_bar" or "gauge", "min_value": number, "max_value": number, "value": number}} and colors=[baseColor, highlightColor].
+- Use the current infographic model only: type="infographic" with nested data.type selected from the supported catalog (metrics, timelines, roadmaps, processes, frameworks, cycles, funnels, comparisons, matrices, hierarchies, and mind maps), plus the fields required by that type and an ordered colors palette.
+- Call getAvailableInfographics first; do not approximate a supported infographic with vectors or an image.
+- Use addInfographic for new native infographics on either an existing slide or a new blank slide. Pass the exact infographicType and data contract returned by the catalog; omit data.type because the tool supplies it.
+- Meter infographics use min_value/max_value/value. Structural infographics use their native items, Gantt rows/columns, matrix criteria, hierarchy ids/parent_ids, labels, or axis fields; do not force structural infographics into the meter shape.
 - Use updateElement.infographic for infographic values, kind, or colors. Do not use removed infographic_type, min_value/max_value/value at the element root, base_color, or highlight_color fields.
 
 # Chart Rules:

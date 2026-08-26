@@ -1362,7 +1362,7 @@ export function componentBox(component: RawComponent): Box {
 export function componentContentSize(component: RawComponent): Size {
   const elements = readArray(component.elements);
   if (elements.length > 0) return childrenBounds(elements);
-  return readSize(component.size, { width: STAGE_WIDTH, height: STAGE_HEIGHT });
+  return { width: STAGE_WIDTH, height: STAGE_HEIGHT };
 }
 
 export function lineStrokeWidth(element: RawElement): number {

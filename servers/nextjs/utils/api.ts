@@ -1,5 +1,21 @@
 import { extractApiErrorMessage } from "@/utils/apiErrorMessages";
 
+export const BACKEND_CONNECTION_ERROR_MESSAGE =
+  "Check that the FastAPI backend is running and that the frontend can reach it.";
+
+export class BackendConnectionError extends Error {
+  constructor(message = BACKEND_CONNECTION_ERROR_MESSAGE) {
+    super(message);
+    this.name = "BackendConnectionError";
+  }
+}
+
+export function isBackendConnectionError(
+  error: unknown
+): error is BackendConnectionError {
+  return error instanceof BackendConnectionError;
+}
+
 function isAbsoluteHttpUrl(path: string): boolean {
   return /^https?:\/\//i.test(path);
 }
@@ -115,6 +131,44 @@ export function getApiUrl(path: string): string {
   }
 
   return resolveBackendPathForRuntime(normalizedPath);
+}
+
+function isJsonResponse(response: Response): boolean {
+  const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+  return (
+    contentType.includes("application/json") || contentType.includes("+json")
+  );
+}
+
+/**
+ * Verify the browser-to-FastAPI path before configuration bootstrap makes any
+ * provider decisions. A same-origin frontend 404/500 is commonly HTML, so it
+ * must not be mistaken for a valid backend response.
+ */
+export async function assertBackendReachable(): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(getApiUrl("/api/v1/auth/status"), {
+      cache: "no-store",
+      credentials: "include",
+    });
+  } catch {
+    throw new BackendConnectionError();
+  }
+
+  if (!response.ok || !isJsonResponse(response)) {
+    throw new BackendConnectionError();
+  }
+
+  try {
+    const status: unknown = await response.json();
+    if (!status || typeof status !== "object" || Array.isArray(status)) {
+      throw new BackendConnectionError();
+    }
+  } catch (error) {
+    if (isBackendConnectionError(error)) throw error;
+    throw new BackendConnectionError();
+  }
 }
 
 /**

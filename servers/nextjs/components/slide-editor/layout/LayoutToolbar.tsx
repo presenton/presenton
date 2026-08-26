@@ -103,6 +103,7 @@ type TemplateV2LayoutToolbarProps = {
   onChange?: (changes: RawRecord) => void;
   onChartChange?: (element: ChartSlideElement) => void;
   onChartEdit?: () => void;
+  onInfographicEdit?: () => void;
   onTableChange?: (element: TableSlideElement) => void;
   selectedTableCell?: { rowIndex: number; colIndex: number } | null;
   position?: { left: number; top: number };
@@ -301,6 +302,7 @@ export function TemplateV2LayoutToolbar({
   onChange,
   onChartChange,
   onChartEdit,
+  onInfographicEdit,
   onTableChange,
   selectedTableCell,
   position,
@@ -389,6 +391,14 @@ export function TemplateV2LayoutToolbar({
           <TemplateV2InfographicToolbarControls
             element={element}
             onChange={onChange}
+            onEdit={
+              onInfographicEdit
+                ? () => {
+                    setOpenPanel(null);
+                    onInfographicEdit();
+                  }
+                : undefined
+            }
             openPanel={openPanel}
             onToggle={togglePanel}
           />

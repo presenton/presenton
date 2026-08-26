@@ -74,7 +74,13 @@ async function moveExportIntoOwnerDirectory(
   if (sourceParent === ownerDirectory) {
     return sourcePath;
   }
-  if (sourceParent !== exportsDirectory) {
+  const relativeSource = path.relative(exportsDirectory, sourcePath);
+  if (
+    !relativeSource ||
+    relativeSource.startsWith("..") ||
+    path.isAbsolute(relativeSource) ||
+    relativeSource.split(path.sep)[0] === "users"
+  ) {
     throw new Error("Export finished outside the current user's export directory.");
   }
 

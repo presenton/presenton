@@ -19,6 +19,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import type { TemplateTheme } from "@/lib/template-theme";
 import type { Density, PanelMode, SchemaField } from "./templatePreviewUtils";
 import {
   BlocksPanel,
@@ -68,6 +69,7 @@ const insertNavItems: Array<{
   { id: "blocks", label: "Blocks", Icon: BlocksIcon },
   { id: "texts", label: "Texts", Icon: Type },
   { id: "charts", label: "Charts", Icon: BarChart3 },
+  { id: "infographics", label: "Infographics", Icon: Sparkles },
   { id: "tables", label: "Tables", Icon: Rows3 },
   { id: "images", label: "Images", Icon: ImageIcon },
   { id: "elements", label: "Elements", Icon: Shapes },
@@ -169,22 +171,26 @@ export function TemplateInsertPanel({
   activePanel,
   onBlockSelect,
   onChartItemSelect,
+  onInfographicItemSelect,
   onElementItemSelect,
   onImageItemSelect,
   onTableItemSelect,
   onTextItemSelect,
   template,
   templateId,
+  templateTheme,
 }: {
   activePanel: PanelMode;
   onBlockSelect: (block: TemplateBlock) => void;
   onChartItemSelect: (item: PaletteItem) => void;
+  onInfographicItemSelect: (item: PaletteItem) => void;
   onElementItemSelect: (item: PaletteItem) => void;
   onImageItemSelect: (item: PaletteItem) => void;
   onTableItemSelect: (item: PaletteItem) => void;
   onTextItemSelect: (item: PaletteItem) => void;
   template: unknown;
   templateId: string;
+  templateTheme: TemplateTheme;
 }) {
   return (
     <aside className="hidden w-[299px] shrink-0 overflow-hidden bg-[#FEFEFF] lg:block">
@@ -199,33 +205,48 @@ export function TemplateInsertPanel({
           title="Texts"
           groups={[{ label: "Add", items: textItems }]}
           onItemSelect={onTextItemSelect}
+          previewKind="text"
+          theme={templateTheme}
         />
       ) : activePanel === "charts" ? (
         <InsertPanel
           title="Charts"
-          groups={[
-            { label: "Chart Type", items: chartTypeItems },
-            { label: "Infographics", items: infographicItems },
-          ]}
+          groups={[{ label: "Chart Type", items: chartTypeItems }]}
           onItemSelect={onChartItemSelect}
+          previewKind="chart"
+          theme={templateTheme}
+        />
+      ) : activePanel === "infographics" ? (
+        <InsertPanel
+          title="Infographics"
+          groups={[{ label: "Layouts", items: infographicItems }]}
+          onItemSelect={onInfographicItemSelect}
+          previewKind="infographic"
+          theme={templateTheme}
         />
       ) : activePanel === "tables" ? (
         <InsertPanel
           title="Tables"
           groups={[{ label: "Table Type", items: tableTypeItems }]}
           onItemSelect={onTableItemSelect}
+          previewKind="table"
+          theme={templateTheme}
         />
       ) : activePanel === "images" ? (
         <InsertPanel
           title="Images"
           groups={[{ label: "Add", items: imageItems }]}
           onItemSelect={onImageItemSelect}
+          previewKind="image"
+          theme={templateTheme}
         />
       ) : activePanel === "elements" ? (
         <InsertPanel
           title="Elements"
           groups={elementItemGroups}
           onItemSelect={onElementItemSelect}
+          previewKind="element"
+          theme={templateTheme}
         />
       ) : null}
     </aside>

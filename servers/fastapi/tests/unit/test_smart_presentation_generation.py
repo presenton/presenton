@@ -17,6 +17,7 @@ from utils.llm_calls.generate_smart_presentation import (
     SMART_DECK_SYSTEM_PROMPT,
     SmartSlideStreamParser,
     _stream_deck_response,
+    generate_smart_presentation,
     get_smart_messages,
     get_smart_reasoning_config,
     normalize_smart_deck,
@@ -24,6 +25,7 @@ from utils.llm_calls.generate_smart_presentation import (
     parse_smart_presentation_html,
     resolve_smart_slide_count,
 )
+from utils.llm_utils import build_text_generation_metrics
 
 
 def _smart_slide_html(title="Slide", slide_type="content", body="Content"):
@@ -164,6 +166,30 @@ def test_smart_reasoning_respects_disable_thinking(monkeypatch):
     assert supports_thinking is False
 
 
+def test_smart_explicit_reasoning_overrides_legacy_disable(monkeypatch):
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.disable_thinking",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.has_explicit_reasoning_settings",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_llm_provider",
+        lambda: LLMProvider.OPENAI,
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.llmai.supports_thinking",
+        lambda model, provider=None: True,
+    )
+
+    reasoning, supports_thinking = get_smart_reasoning_config("gpt-5")
+
+    assert reasoning is None
+    assert supports_thinking is True
+
+
 def test_smart_stream_separates_thinking_and_reports_exact_usage(monkeypatch):
     reasoning = ReasoningConfig(enabled=True)
     captured_kwargs = {}
@@ -221,6 +247,226 @@ def test_smart_stream_separates_thinking_and_reports_exact_usage(monkeypatch):
     assert metrics.thinking_tokens == 5
     assert metrics.thinking_tokens_estimated is False
     assert metrics.supports_thinking is True
+
+
+def test_estimated_thinking_contributes_to_live_throughput():
+    messages = [UserMessage(content="12345678")]
+    metrics = build_text_generation_metrics(
+        model="thinking-model",
+        messages=messages,
+        content="12345678",
+        streamed_thinking="abcdefghijklmnop",
+        completion=SimpleNamespace(usage=None, duration_seconds=2.0),
+        started_at=0,
+        model_supports_thinking=True,
+    )
+
+    assert metrics.input_tokens == 2
+    assert metrics.output_tokens == 2
+    assert metrics.thinking_tokens == 4
+    assert metrics.total_tokens == 8
+    assert metrics.tokens_per_second == 3
+    assert metrics.estimated is True
+
+
+def test_smart_stream_reports_no_progress_token_limit(monkeypatch):
+    async def fake_stream_generate_events(_client, **_kwargs):
+        yield SimpleNamespace(
+            type="completion",
+            content=None,
+            finish_reason="length",
+            usage=None,
+            duration_seconds=1.0,
+        )
+
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.stream_generate_events",
+        fake_stream_generate_events,
+    )
+    monkeypatch.setattr("utils.llm_utils.get_extra_body", lambda **_kwargs: None)
+
+    async def on_chunk(_chunk):
+        return None
+
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(
+            _stream_deck_response(
+                object(),
+                "limited-model",
+                [UserMessage(content="Build a deck")],
+                on_chunk,
+            )
+        )
+
+    assert error.value.status_code == 422
+    assert "output-token limit" in str(error.value.detail)
+
+
+def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
+    monkeypatch,
+):
+    first_response = (
+        "<!-- SLIDE_START -->"
+        + _smart_slide_html("Cover", "title")
+        + "<!-- SLIDE_END -->"
+    )
+    final_response = (
+        "<!-- PRESENTATION_TITLE: Resumed deck -->"
+        "<!-- SLIDE_START -->"
+        + _smart_slide_html("Conclusion", "closing")
+        + "<!-- SLIDE_END -->"
+    )
+    calls = 0
+    streamed_indices = []
+    retry_indices = []
+    metrics = SimpleNamespace(finish_reason=None)
+    length_metrics = SimpleNamespace(finish_reason="length")
+
+    async def fake_stream_response(
+        _client,
+        _model,
+        _messages,
+        on_chunk,
+        **_kwargs,
+    ):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            await on_chunk(first_response)
+            return first_response, metrics
+        if calls == 2:
+            # A continuation can consume its entire token allowance without
+            # closing another slide. The already checkpointed prefix must make
+            # the next continuation possible instead of turning this into a
+            # terminal 422.
+            await on_chunk("<!-- incomplete continuation -->")
+            return "<!-- incomplete continuation -->", length_metrics
+        await on_chunk(final_response)
+        return final_response, metrics
+
+    async def capture_slide(index, _slide):
+        streamed_indices.append(index)
+
+    async def capture_retry(index, _error):
+        retry_indices.append(index)
+
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_client",
+        lambda **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_llm_config",
+        lambda **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_model",
+        lambda: "limited-model",
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_smart_reasoning_config",
+        lambda _model: (None, False),
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation._stream_deck_response",
+        fake_stream_response,
+    )
+
+    deck = asyncio.run(
+        generate_smart_presentation(
+            content="Build a two-slide deck",
+            n_slides=2,
+            language="English",
+            tone=None,
+            verbosity=None,
+            instructions=None,
+            include_title_slide=True,
+            include_table_of_contents=False,
+            on_slide=capture_slide,
+            on_retry=capture_retry,
+        )
+    )
+
+    assert calls == 3
+    assert streamed_indices == [0, 1]
+    assert retry_indices == [1, 1]
+    assert deck["title"] == "Resumed deck"
+    assert [slide["title"] for slide in deck["slides"]] == [
+        "Cover",
+        "Conclusion",
+    ]
+
+
+def test_smart_generation_resumes_from_existing_checkpoint(monkeypatch):
+    response = (
+        "<!-- PRESENTATION_TITLE: Saved deck -->"
+        "<!-- SLIDE_START -->"
+        + _smart_slide_html("Conclusion", "closing")
+        + "<!-- SLIDE_END -->"
+    )
+    captured_prompt = ""
+    streamed_indices = []
+    metrics = SimpleNamespace(finish_reason=None)
+
+    async def fake_stream_response(
+        _client,
+        _model,
+        messages,
+        on_chunk,
+        **_kwargs,
+    ):
+        nonlocal captured_prompt
+        captured_prompt = str(messages[1].content)
+        await on_chunk(response)
+        return response, metrics
+
+    async def capture_slide(index, _slide):
+        streamed_indices.append(index)
+
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_client",
+        lambda **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_llm_config",
+        lambda **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_model",
+        lambda: "test-model",
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation.get_smart_reasoning_config",
+        lambda _model: (None, False),
+    )
+    monkeypatch.setattr(
+        "utils.llm_calls.generate_smart_presentation._stream_deck_response",
+        fake_stream_response,
+    )
+
+    deck = asyncio.run(
+        generate_smart_presentation(
+            content="Build a two-slide deck",
+            n_slides=2,
+            language="English",
+            tone=None,
+            verbosity=None,
+            instructions=None,
+            include_title_slide=True,
+            include_table_of_contents=False,
+            existing_slides=[{"html": _smart_slide_html("Cover", "title")}],
+            existing_title="Saved deck",
+            on_slide=capture_slide,
+        )
+    )
+
+    assert streamed_indices == [1]
+    assert "Slides 1-1" in captured_prompt
+    assert "Generate exactly 1 remaining slide" in captured_prompt
+    assert deck["title"] == "Saved deck"
+    assert [slide["title"] for slide in deck["slides"]] == [
+        "Cover",
+        "Conclusion",
+    ]
 
 
 def test_normalize_community_ids_preserves_order_and_deduplicates():

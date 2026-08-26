@@ -11,7 +11,7 @@ from typing import Any, Literal, Mapping
 from urllib.parse import unquote, urlparse
 
 from fastapi import HTTPException
-from pydantic import BaseModel, ValidationError, model_validator
+from pydantic import BaseModel, ValidationError
 
 from services.liteparse_service import _command_str, _snippet
 from api.v1.auth.context import get_current_owner_id
@@ -20,7 +20,6 @@ from utils.asset_directory_utils import (
     resolve_app_path_to_filesystem,
 )
 from utils.get_env import get_app_data_directory_env, get_temp_directory_env
-from utils.icon_weights import DEFAULT_ICON_TYPE, extract_icon_type_from_settings
 from utils.runtime_limits import (
     BoundedTextBuffer,
     log_memory,
@@ -120,46 +119,15 @@ class JsonToImageTaskResult(BaseModel):
     path: str
 
 
-class ExtractSchemaSlide(BaseModel):
-    id: str
-    name: str | None = None
-    description: str | None = None
-    json_schema: dict
-
-
-class ExtractSchemaDocument(BaseModel):
-    name: str
-    ordered: bool = False
-    icon_type: str = DEFAULT_ICON_TYPE
-    icon_weight: str = DEFAULT_ICON_TYPE
-    slides: list[ExtractSchemaSlide]
-
-    @model_validator(mode="before")
-    @classmethod
-    def normalize_icon_type(cls, data):
-        if isinstance(data, dict):
-            normalized = dict(data)
-            icon_type = extract_icon_type_from_settings(normalized)
-            normalized["icon_type"] = icon_type
-            normalized["icon_weight"] = icon_type
-            return normalized
-        return data
-
-
 class ExportTaskService:
     def __init__(self, timeout_seconds: int = 300):
         self.timeout_seconds = timeout_seconds
         self.node_binary = os.getenv("LITEPARSE_NODE_BINARY", "node")
         self.export_dir = self._resolve_export_dir()
         self.entrypoint_path = self._resolve_entrypoint_path(self.export_dir)
-        self.converter_path = self._resolve_converter_path(self.export_dir)
 
     @staticmethod
     def _resolve_export_dir() -> str:
-        configured = (os.getenv("EXPORT_RUNTIME_DIR") or "").strip()
-        if configured:
-            return configured
-
         package_root = (os.getenv("EXPORT_PACKAGE_ROOT") or "").strip()
         if package_root:
             return package_root
@@ -174,61 +142,14 @@ class ExportTaskService:
         ]
 
         for candidate in candidates:
-            if os.path.isfile(os.path.join(candidate, "index.cjs")) or os.path.isfile(
-                os.path.join(candidate, "index.js")
-            ):
+            if os.path.isfile(os.path.join(candidate, "runner.mjs")):
                 return candidate
 
         return candidates[0]
 
     @staticmethod
     def _resolve_entrypoint_path(export_dir: str) -> str:
-        index_cjs = os.path.join(export_dir, "index.cjs")
-        if os.path.isfile(index_cjs):
-            return index_cjs
-
-        index_js = os.path.join(export_dir, "index.js")
-        if os.path.isfile(index_js):
-            # Packaged app resource directories can be read-only (e.g. /opt installs).
-            # Try to create index.cjs for compatibility, but fall back to index.js
-            # when writing is not permitted.
-            try:
-                shutil.copyfile(index_js, index_cjs)
-                return index_cjs
-            except OSError:
-                return index_js
-
-        return index_cjs
-
-    @staticmethod
-    def _resolve_converter_path(export_dir: str) -> str:
-        py_dir = os.path.join(export_dir, "py")
-        extension = ".exe" if os.name == "nt" else ""
-        platform_name = sys_platform()
-        arch_name = sys_arch()
-
-        candidates: list[str] = []
-        configured = (os.getenv("BUILT_PYTHON_MODULE_PATH") or "").strip()
-        if configured:
-            candidates.append(configured)
-
-        candidates.append(
-            os.path.join(py_dir, f"convert-{platform_name}-{arch_name}{extension}")
-        )
-        if platform_name == "linux" and arch_name == "x64":
-            # Older Linux export bundles used amd64 while Node reports x64.
-            candidates.append(os.path.join(py_dir, f"convert-linux-amd64{extension}"))
-        candidates.extend(
-            [
-                os.path.join(py_dir, f"convert-{platform_name}{extension}"),
-                os.path.join(py_dir, f"convert{extension}"),
-                os.path.join(py_dir, "convert"),
-            ]
-        )
-        for candidate in candidates:
-            if candidate and os.path.isfile(candidate):
-                return candidate
-        return candidates[0]
+        return os.path.join(export_dir, "runner.mjs")
 
     def _build_node_env(self) -> Mapping[str, str]:
         env = os.environ.copy()
@@ -277,8 +198,6 @@ class ExportTaskService:
         # rendering. Docker intentionally leaves NEXT_PUBLIC_FAST_API unset so
         # nginx remains the public origin; Electron supplies its dynamic origin.
         env["ASSETS_BASE_URL"] = "/app_data"
-        env["BUILT_PYTHON_MODULE_PATH"] = self.converter_path
-
         return env
 
     def _ensure_runtime_ready(self) -> None:
@@ -287,10 +206,18 @@ class ExportTaskService:
                 status_code=500,
                 detail=f"Export runtime not found at {self.entrypoint_path}",
             )
-        if not os.path.isfile(self.converter_path):
+        package_entrypoint = os.path.join(
+            self.export_dir,
+            "node_modules",
+            "@presenton",
+            "export-core",
+            "dist",
+            "index.js",
+        )
+        if not os.path.isfile(package_entrypoint):
             raise HTTPException(
                 status_code=500,
-                detail=f"Export converter binary not found at {self.converter_path}",
+                detail=f"Export package not found at {package_entrypoint}",
             )
 
     @staticmethod
@@ -544,6 +471,38 @@ class ExportTaskService:
             output_path = self._resolve_output_path(response_data)
             with open(output_path, "r", encoding="utf-8") as output_file:
                 output_data = json.load(output_file)
+
+            # export-core intentionally writes slide asset references relative to
+            # presentation.json (for example, images/slide.png). Preserve that
+            # relationship after the conversion directory is owner-scoped by
+            # resolving the manifest's asset directories before it is moved.
+            artifact_dir = os.path.realpath(os.path.dirname(output_path))
+            for directory_key in ("images_dir", "fonts_dir"):
+                directory = output_data.get(directory_key)
+                if not isinstance(directory, str) or not directory:
+                    continue
+                resolved_directory = os.path.realpath(
+                    directory
+                    if os.path.isabs(directory)
+                    else os.path.join(artifact_dir, directory)
+                )
+                try:
+                    is_artifact_directory = (
+                        os.path.commonpath([resolved_directory, artifact_dir])
+                        == artifact_dir
+                    )
+                except ValueError:
+                    is_artifact_directory = False
+                if not is_artifact_directory:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=(
+                            "PPTX-to-HTML export returned an asset directory "
+                            "outside its conversion directory"
+                        ),
+                    )
+                output_data[directory_key] = resolved_directory
+
             output_data = self._scope_conversion_artifacts(
                 output_path,
                 output_data,
@@ -677,12 +636,7 @@ class ExportTaskService:
 
         return HtmlToImagesTaskResult(paths=output_paths)
 
-    async def convert_pptx_to_json(
-        self,
-        pptx_path: str,
-        *,
-        slide_concurrency: int | None = None,
-    ) -> PptxToJsonDocument:
+    async def convert_pptx_to_json(self, pptx_path: str) -> PptxToJsonDocument:
         if not os.path.isfile(pptx_path):
             raise HTTPException(status_code=400, detail=f"PPTX not found: {pptx_path}")
 
@@ -690,8 +644,6 @@ class ExportTaskService:
             "type": "pptx-to-json",
             "pptx_path": pptx_path,
         }
-        if slide_concurrency is not None:
-            task_payload["slide_concurrency"] = slide_concurrency
 
         try:
             response_data = await self._run_task(
@@ -735,7 +687,15 @@ class ExportTaskService:
         resolved_output = os.path.realpath(output_path)
         resolved_destination_dir = os.path.realpath(destination_dir)
         source_parent = os.path.dirname(resolved_output)
-        if source_parent not in {exports_root, resolved_destination_dir}:
+        try:
+            relative_source = os.path.relpath(resolved_output, exports_root)
+            source_is_export = (
+                os.path.commonpath([resolved_output, exports_root]) == exports_root
+                and relative_source.split(os.sep, 1)[0] != "users"
+            )
+        except ValueError:
+            source_is_export = False
+        if not source_is_export and source_parent != resolved_destination_dir:
             raise HTTPException(
                 status_code=500,
                 detail="Export task returned an output outside its asset directory",
@@ -800,69 +760,5 @@ class ExportTaskService:
             return value
 
         return rewrite(output_data)
-
-    async def extract_schema(self, url: str) -> ExtractSchemaDocument:
-        LOGGER.info(
-            "[export_runtime] extract_schema spawn "
-            "url=%s entrypoint=%s export_dir=%s",
-            url,
-            self.entrypoint_path,
-            self.export_dir,
-        )
-        try:
-            response_data = await self._run_task(
-                {
-                    "type": "extract-schema",
-                    "url": url,
-                },
-                "Extract-schema task did not produce a response file",
-            )
-            slides = response_data.get("slides") if isinstance(response_data, dict) else None
-            slide_n = len(slides) if isinstance(slides, list) else "?"
-            LOGGER.info(
-                "[export_runtime] extract_schema node finished url=%s "
-                "response_name=%r ordered=%s icon_type=%s slides=%s",
-                url,
-                response_data.get("name") if isinstance(response_data, dict) else None,
-                response_data.get("ordered") if isinstance(response_data, dict) else None,
-                (
-                    response_data.get("icon_type") or response_data.get("icon_weight")
-                    if isinstance(response_data, dict)
-                    else None
-                ),
-                slide_n,
-            )
-            return ExtractSchemaDocument(**response_data)
-        except ValidationError as exc:
-            LOGGER.exception(
-                "[export_runtime] extract_schema pydantic validation failed url=%s",
-                url,
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Extract-schema task produced invalid output",
-            ) from exc
-
-
-def sys_platform() -> str:
-    if os.name == "nt":
-        return "win32"
-    return os.sys.platform
-
-
-def sys_arch() -> str:
-    machine = (os.environ.get("PROCESSOR_ARCHITECTURE") or "").lower()
-    if not machine and hasattr(os, "uname"):
-        machine = os.uname().machine.lower()
-
-    arch_map = {
-        "x86_64": "x64",
-        "amd64": "x64",
-        "x64": "x64",
-        "aarch64": "arm64",
-        "arm64": "arm64",
-    }
-    return arch_map.get(machine, machine or "x64")
-
 
 EXPORT_TASK_SERVICE = ExportTaskService()

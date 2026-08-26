@@ -46,6 +46,8 @@ from utils.font_uploads import (
     get_font_upload_url,
     get_font_uploads_for_names_by_variant,
     persist_font_file,
+    read_upload_with_size_limit,
+    safe_font_filename,
 )
 
 
@@ -239,7 +241,11 @@ def _font_face_css_for_local_fonts(font_paths: List[str]) -> str:
     return "\n".join(rules)
 
 
-def _preview_asset_url_to_data_uri(url: str) -> str:
+def _preview_asset_url_to_data_uri(
+    url: str,
+    relative_asset_root: Optional[str] = None,
+    trusted_local_files: Optional[Set[str]] = None,
+) -> str:
     if not url:
         return url
 
@@ -254,10 +260,33 @@ def _preview_asset_url_to_data_uri(url: str) -> str:
     elif url.startswith(("/app_data/", "/static/")):
         candidate = url
         fallback_url = absolute_fastapi_asset_url(candidate)
+    elif (
+        not parsed.scheme
+        and relative_asset_root
+        and parsed.path
+        and not url.startswith(("/", "//"))
+    ):
+        asset_root = os.path.realpath(relative_asset_root)
+        candidate = os.path.realpath(
+            os.path.join(asset_root, urllib.parse.unquote(parsed.path))
+        )
+        try:
+            if os.path.commonpath([candidate, asset_root]) != asset_root:
+                return url
+        except ValueError:
+            return url
     else:
         return url
 
-    resolved = resolve_app_path_to_filesystem(candidate)
+    resolved = None
+    if trusted_local_files and os.path.isabs(candidate):
+        trusted_candidate = os.path.realpath(candidate)
+        if trusted_candidate in trusted_local_files and os.path.isfile(
+            trusted_candidate
+        ):
+            resolved = trusted_candidate
+    if not resolved:
+        resolved = resolve_app_path_to_filesystem(candidate)
     if not resolved:
         return fallback_url
 
@@ -266,22 +295,46 @@ def _preview_asset_url_to_data_uri(url: str) -> str:
     except OSError:
         return fallback_url
 
-    mime_type = mimetypes.guess_type(resolved)[0] or "application/octet-stream"
+    leading_data = data.lstrip()[:512].lower()
+    if leading_data.startswith(b"<svg") or (
+        leading_data.startswith(b"<?xml") and b"<svg" in leading_data
+    ):
+        mime_type = "image/svg+xml"
+    else:
+        mime_type = mimetypes.guess_type(resolved)[0] or "application/octet-stream"
     encoded = base64.b64encode(data).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
 
 
-def _localize_preview_asset_urls(html: str) -> str:
+def _localize_preview_asset_urls(
+    html: str,
+    relative_asset_root: Optional[str] = None,
+    trusted_local_files: Optional[Set[str]] = None,
+) -> str:
     def replace_attr(match: re.Match[str]) -> str:
+        localized_url = _preview_asset_url_to_data_uri(
+            match.group("url"),
+            relative_asset_root,
+            trusted_local_files,
+        )
         return (
             f"{match.group('prefix')}"
-            f"{_preview_asset_url_to_data_uri(match.group('url'))}"
+            f"{localized_url}"
             f"{match.group('suffix')}"
         )
 
     def replace_css_url(match: re.Match[str]) -> str:
         quote = match.group("quote") or ""
-        return f"url({quote}{_preview_asset_url_to_data_uri(match.group('url'))}{quote})"
+        localized_url = _preview_asset_url_to_data_uri(
+            match.group("url"),
+            relative_asset_root,
+            trusted_local_files,
+        )
+        return (
+            f"url({quote}"
+            f"{localized_url}"
+            f"{quote})"
+        )
 
     html = re.sub(
         r"(?P<prefix>\b(?:src|href|xlink:href)=['\"])(?P<url>[^'\"]+)(?P<suffix>['\"])",
@@ -713,6 +766,24 @@ async def render_pptx_slides_to_images(
     )
 
     localized_slide_htmls = []
+    asset_directories = [
+        directory
+        for directory in (
+            getattr(pptx_document, "images_dir", None),
+            getattr(pptx_document, "fonts_dir", None),
+        )
+        if isinstance(directory, str) and os.path.isabs(directory)
+    ]
+    relative_asset_root = (
+        os.path.commonpath([os.path.dirname(path) for path in asset_directories])
+        if asset_directories
+        else None
+    )
+    trusted_local_font_files = {
+        os.path.realpath(path)
+        for path in font_paths_for_install
+        if os.path.isfile(path)
+    }
     font_css = "\n".join(
         css
         for css in (
@@ -722,7 +793,11 @@ async def render_pptx_slides_to_images(
         )
         if css
     )
-    localized_font_css = _localize_preview_asset_urls(font_css)
+    localized_font_css = _localize_preview_asset_urls(
+        font_css,
+        relative_asset_root=relative_asset_root,
+        trusted_local_files=trusted_local_font_files,
+    )
     localized_font_css = "\n".join(
         css
         for css in (
@@ -733,7 +808,11 @@ async def render_pptx_slides_to_images(
     )
     explicit_font_links = _font_stylesheet_links_for_urls(font_stylesheet_urls or [])
     for slide_html in slide_htmls:
-        localized_slide_html = _localize_preview_asset_urls(slide_html)
+        localized_slide_html = _localize_preview_asset_urls(
+            slide_html,
+            relative_asset_root=relative_asset_root,
+            trusted_local_files=trusted_local_font_files,
+        )
         inferred_font_links = _font_stylesheet_links_for_slide_html(
             localized_slide_html, localized_font_css
         )
@@ -1726,10 +1805,12 @@ async def _save_uploaded_fonts_to_temp(
     for i, (font_file, original_name) in enumerate(
         zip(font_files, original_font_names)
     ):
-        font_filename = getattr(font_file, "filename", f"font_{i}")
+        font_filename = safe_font_filename(
+            getattr(font_file, "filename", None) or f"font_{i}.ttf"
+        )
         font_path = os.path.join(temp_dir, font_filename)
 
-        font_content = await font_file.read()
+        font_content = await read_upload_with_size_limit(font_file)
         await asyncio.to_thread(_write_bytes_to_path, font_path, font_content)
 
         saved_fonts.append((font_path, original_name))

@@ -6,6 +6,10 @@ import math
 import re
 from typing import Any
 
+from utils.infographic_catalog import (
+    INFOGRAPHIC_BY_TYPE,
+    normalize_infographic_data,
+)
 from utils.latex_text import replace_text_runs, text_runs_to_tagged_text
 
 _PATH_SEGMENT_RE = re.compile(r"^(?P<key>components|elements|children)\[(?P<index>\d+)\]$")
@@ -50,6 +54,15 @@ SUPPORTED_CHART_TYPES = {
     "stacked_bar",
 }
 DATA_LABEL_POSITIONS = {"base", "mid", "top", "outside"}
+VECTOR_MARKERS = {
+    "none",
+    "arrow",
+    "stealth",
+    "triangle",
+    "circle",
+    "square",
+    "diamond",
+}
 DEFAULT_CHART_COLORS = [
     "#7F22FE",
     "#155DFC",
@@ -318,19 +331,33 @@ def _validate_vector_element(element: dict[str, Any]) -> None:
     corner_radii = element.get("corner_radii")
     if isinstance(corner_radii, list) and len(corner_radii) != len(points):
         raise ValueError("vector.corner_radii must match the number of points.")
+    for field in ("start_marker", "end_marker"):
+        marker = element.get(field)
+        if marker is not None and marker not in VECTOR_MARKERS:
+            raise ValueError(
+                f"vector.{field} must be a supported line endpoint marker."
+            )
 
 
 def _validate_infographic_element(element: dict[str, Any]) -> None:
     data = element.get("data")
     if not isinstance(data, dict):
         raise ValueError("Infographic elements require a nested data object.")
-    if data.get("type") not in {"progress_bar", "gauge"}:
-        raise ValueError("infographic.data.type must be 'progress_bar' or 'gauge'.")
-    for key in ("min_value", "max_value", "value"):
-        if not isinstance(data.get(key), (int, float)):
-            raise ValueError(f"infographic.data.{key} must be numeric.")
-    if float(data["max_value"]) <= float(data["min_value"]):
-        raise ValueError("infographic.data.max_value must exceed min_value.")
+    infographic_type = data.get("type")
+    if not isinstance(infographic_type, str) or infographic_type not in INFOGRAPHIC_BY_TYPE:
+        supported = ", ".join(INFOGRAPHIC_BY_TYPE)
+        raise ValueError(
+            f"infographic.data.type must be a supported infographic type: {supported}."
+        )
+
+    element["data"] = normalize_infographic_data(infographic_type, data)  # type: ignore[arg-type]
+    colors = element.get("colors")
+    if colors is not None and (
+        not isinstance(colors, list)
+        or not colors
+        or not all(isinstance(color, str) and color.strip() for color in colors)
+    ):
+        raise ValueError("infographic.colors must be a non-empty string array.")
 
 
 def _chart_element_has_explicit_data(element: dict[str, Any]) -> bool:
@@ -1788,7 +1815,15 @@ def _content_update_requested_for_type(
 
 
 def _update_vector_element(element: dict[str, Any], vector: dict[str, Any]) -> None:
-    for key in ("shape", "points", "closed", "curve", "corner_radii"):
+    for key in (
+        "shape",
+        "points",
+        "closed",
+        "curve",
+        "corner_radii",
+        "start_marker",
+        "end_marker",
+    ):
         if key in vector:
             element[key] = copy.deepcopy(vector[key])
     _validate_vector_element(element)
@@ -1799,13 +1834,44 @@ def _update_infographic_element(
 ) -> None:
     if "data" in infographic:
         current_data = element.get("data")
+        data_patch = _normalize_infographic_data_keys(infographic["data"])
         element["data"] = {
             **(copy.deepcopy(current_data) if isinstance(current_data, dict) else {}),
-            **copy.deepcopy(infographic["data"]),
+            **data_patch,
         }
     if "colors" in infographic:
         element["colors"] = copy.deepcopy(infographic["colors"])
     _validate_infographic_element(element)
+
+
+_INFOGRAPHIC_DATA_KEY_ALIASES = {
+    "afterLabel": "after_label",
+    "beforeLabel": "before_label",
+    "centerImage": "center_image",
+    "centerLabel": "center_label",
+    "highLabel": "high_label",
+    "lowLabel": "low_label",
+    "maxValue": "max_value",
+    "minValue": "min_value",
+    "parentId": "parent_id",
+    "startColor": "start_color",
+    "textColor": "text_color",
+    "xAxisLabel": "x_axis_label",
+    "yAxisLabel": "y_axis_label",
+}
+
+
+def _normalize_infographic_data_keys(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_normalize_infographic_data_keys(item) for item in value]
+    if not isinstance(value, dict):
+        return copy.deepcopy(value)
+    return {
+        _INFOGRAPHIC_DATA_KEY_ALIASES.get(key, key): _normalize_infographic_data_keys(
+            item
+        )
+        for key, item in value.items()
+    }
 
 
 def _update_text_element(element: dict[str, Any], text: str) -> None:

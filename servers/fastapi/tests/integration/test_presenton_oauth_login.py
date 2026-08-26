@@ -281,7 +281,7 @@ def test_admin_can_disconnect_global_provider(monkeypatch, tmp_path):
             settings = await session.get(ProviderSettings, 1)
             return settings.config["LLM"]
 
-    assert asyncio.run(selected_provider()) == "openai"
+    assert asyncio.run(selected_provider()) is None
     asyncio.run(engine.dispose())
 
 

@@ -33,6 +33,20 @@ EMPTY_VALUE_PRESERVED_FIELDS = {
     "OPEN_WEBUI_IMAGE_API_KEY",
     "CODEX_MODEL",
 }
+OPTIONAL_ADVANCED_FIELDS = {
+    "LLM_GENERATION_PROFILE",
+    "LLM_MAX_OUTPUT_TOKENS",
+    "LLM_REASONING_MODE",
+    "LLM_REASONING_EFFORT",
+    "LLM_REASONING_BUDGET_TOKENS",
+    "DISABLE_THINKING",
+    "EXTENDED_REASONING",
+    "OPENROUTER_PROVIDER_ORDER",
+    "OPENROUTER_ALLOW_FALLBACKS",
+    "OPENROUTER_REQUIRE_PARAMETERS",
+    "OPENROUTER_DATA_COLLECTION",
+    "OPENROUTER_ZDR",
+}
 
 
 def sanitize_provider_settings(config: dict[str, Any]) -> dict[str, Any]:
@@ -60,6 +74,10 @@ def merge_provider_settings(
     for key in EMPTY_VALUE_PRESERVED_FIELDS:
         if not sanitized.get(key) and key in existing:
             merged[key] = existing[key]
+
+    for key in OPTIONAL_ADVANCED_FIELDS:
+        if key in sanitized and sanitized[key] in (None, "", []):
+            merged.pop(key, None)
 
     return merged
 

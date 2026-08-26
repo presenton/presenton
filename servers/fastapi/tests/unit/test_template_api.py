@@ -8,6 +8,7 @@ import pytest
 from fastapi import BackgroundTasks, HTTPException
 
 from api.v1.ppt.endpoints.template import (
+    TEMPLATE_ROUTER,
     CreateTemplateLayoutsRequest,
     CreateTemplateRequest,
     GenerateTemplateLayoutRequest,
@@ -23,6 +24,7 @@ from api.v1.ppt.endpoints.template import (
     generate_template_layout_from_prompt,
     generate_template_blocks,
     get_template,
+    get_template_theme,
     init_template,
     list_templates,
     patch_template_slide_layout,
@@ -30,6 +32,7 @@ from api.v1.ppt.endpoints.template import (
 )
 from models.sql.async_task import AsyncTaskModel
 from models.sql.template_v2 import TemplateV2
+from models.theme_data import PresentationThemeData
 from services.export_task_service import PptxToJsonDocument
 from templates.v2.models.layouts import MergedComponents, RawSlideLayouts, SlideLayouts
 
@@ -104,6 +107,19 @@ MERGED_COMPONENTS = MergedComponents.model_validate(
         ]
     }
 )
+GENERATED_THEME_DATA = {
+    "colors": {
+        "primary": "#2563EB",
+        "background": "#F8FAFC",
+        "card": "#FFFFFF",
+        "stroke": "#CBD5E1",
+        "background_text": "#111827",
+        "primary_text": "#FFFFFF",
+        **{f"graph_{index}": f"#{index + 1:06X}" for index in range(10)},
+    },
+    "fonts": {"textFont": {"name": "Inter", "url": "Inter"}},
+}
+GENERATED_THEME = PresentationThemeData.model_validate(GENERATED_THEME_DATA)
 
 
 def _normalized_raw_layouts(layouts=RAW_LAYOUTS):
@@ -309,6 +325,9 @@ def test_create_template_converts_generates_and_persists(tmp_path, fake_async_se
         "api.v1.ppt.endpoints.template.merge_similar_components",
         new=Mock(return_value=MERGED_COMPONENTS),
     ) as merge_mock, patch(
+        "api.v1.ppt.endpoints.template.generate_template_theme",
+        new=Mock(return_value=GENERATED_THEME),
+    ) as theme_mock, patch(
         "api.v1.ppt.endpoints.template.random.randint",
         return_value=4801,
     ) as randint_mock:
@@ -333,6 +352,10 @@ def test_create_template_converts_generates_and_persists(tmp_path, fake_async_se
     merge_mock.assert_called_once()
     merged_layouts_arg = merge_mock.call_args.args[0]
     assert merged_layouts_arg.layouts[0].id == "slide_1_4801"
+    theme_mock.assert_called_once()
+    theme_layouts_arg, theme_fonts_arg = theme_mock.call_args.args
+    assert theme_layouts_arg.layouts[0].id == "slide_1_4801"
+    assert theme_fonts_arg == {"Inter": "Inter"}
     assert template.name == "quarterly-review"
     assert template.raw_layouts == _normalized_raw_layouts()
     assert template.components is None
@@ -349,6 +372,7 @@ def test_create_template_converts_generates_and_persists(tmp_path, fake_async_se
         ]
     }
     assert template.layouts == expected_layouts
+    assert template.theme == GENERATED_THEME_DATA
     assert template.assets == {
         "icon_type": "bold",
         "icon_weight": "bold",
@@ -735,6 +759,7 @@ def test_get_template_returns_layouts_components_and_fonts(fake_async_session):
         description="User-generated customer template",
         layouts=TEMPLATE_LAYOUTS,
         merged_components={"components": [{"id": "hero"}]},
+        theme=GENERATED_THEME_DATA,
         assets={
             "thumbnail": "/app_data/images/customer-template.png",
             "fonts": {"Inter": "https://example.com/inter.css"},
@@ -752,11 +777,87 @@ def test_get_template_returns_layouts_components_and_fonts(fake_async_session):
     assert response.is_default is False
     assert response.layouts == TEMPLATE_LAYOUTS
     assert response.merged_components == {"components": [{"id": "hero"}]}
+    assert response.theme is not None
+    assert response.theme.model_dump(mode="json") == GENERATED_THEME_DATA
     assert response.fonts == {"Inter": "https://example.com/inter.css"}
     assert not hasattr(response, "raw_layouts")
     assert not hasattr(response, "components")
     assert not hasattr(response, "assets")
     assert not hasattr(response, "layout_schema")
+
+
+def test_get_template_theme_returns_stored_theme_without_rewriting(
+    fake_async_session,
+):
+    template_id = str(uuid.uuid4())
+    template = TemplateV2(
+        id=template_id,
+        name="Customer Brand",
+        layouts=TEMPLATE_LAYOUTS,
+        theme=GENERATED_THEME_DATA,
+    )
+    fake_async_session._get_results[template_id] = template
+
+    response = asyncio.run(
+        get_template_theme(template_id, sql_session=fake_async_session)
+    )
+
+    assert response.template_id == template_id
+    assert response.theme is not None
+    assert response.theme.model_dump(mode="json") == GENERATED_THEME_DATA
+    assert fake_async_session.added == []
+    assert fake_async_session.commit_count == 0
+
+
+def test_get_template_theme_route_is_registered_before_template_detail_get():
+    route_paths = [
+        route.path
+        for route in TEMPLATE_ROUTER.routes
+        if "GET" in getattr(route, "methods", set())
+    ]
+
+    assert "/template/{template_id}/theme" in route_paths
+    assert route_paths.index("/template/{template_id}/theme") < route_paths.index(
+        "/template/{template_id}"
+    )
+
+
+def test_get_template_theme_derives_and_persists_missing_theme(
+    fake_async_session,
+):
+    template_id = str(uuid.uuid4())
+    template = TemplateV2(
+        id=template_id,
+        name="Customer Brand",
+        layouts=TEMPLATE_LAYOUTS,
+        theme=None,
+    )
+    fake_async_session._get_results[template_id] = template
+
+    with patch(
+        "api.v1.ppt.endpoints.template._derive_template_theme",
+        return_value=GENERATED_THEME,
+    ) as derive_theme:
+        response = asyncio.run(
+            get_template_theme(template_id, sql_session=fake_async_session)
+        )
+
+    derive_theme.assert_called_once_with(template)
+    assert response.theme is not None
+    assert response.theme.model_dump(mode="json") == GENERATED_THEME_DATA
+    assert template.theme == GENERATED_THEME_DATA
+    assert fake_async_session.added == [template]
+    assert fake_async_session.commit_count == 1
+
+
+def test_get_template_theme_returns_404_for_missing_template(fake_async_session):
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            get_template_theme("missing-template", sql_session=fake_async_session)
+        )
+
+    assert exc.value.status_code == 404
+    assert exc.value.detail == "Template not found"
 
 
 def test_create_template_slide_layouts_returns_generated_layout(
@@ -1438,6 +1539,7 @@ def test_update_template_updates_response_assets_and_components(fake_async_sessi
                 merged_components=MERGED_COMPONENTS.model_dump(
                     mode="json", exclude_none=True
                 ),
+                theme=GENERATED_THEME,
             ),
             sql_session=fake_async_session,
         )
@@ -1450,6 +1552,7 @@ def test_update_template_updates_response_assets_and_components(fake_async_sessi
     assert template.merged_components == MERGED_COMPONENTS.model_dump(
         mode="json", exclude_none=True
     )
+    assert template.theme == GENERATED_THEME_DATA
     assert fake_async_session.commit_count == 1
 
 

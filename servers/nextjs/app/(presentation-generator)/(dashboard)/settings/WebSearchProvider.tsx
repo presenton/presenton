@@ -56,6 +56,23 @@ const WebSearchProvider = ({
     : "";
   const provider = selected ? WEB_SEARCH_PROVIDERS[selected] : undefined;
 
+  const setWebSearchEnabled = (checked: boolean) => {
+    setLlmConfig((current) => {
+      const currentProvider = String(current.WEB_SEARCH_PROVIDER || "").toLowerCase();
+      const hasValidProvider = WEB_SEARCH_PROVIDER_OPTIONS.some(
+        (option) => option.value === currentProvider
+      );
+
+      return {
+        ...current,
+        WEB_GROUNDING: checked,
+        ...(checked && !hasValidProvider
+          ? { WEB_SEARCH_PROVIDER: "auto" }
+          : {}),
+      };
+    });
+  };
+
   const getValue = (field?: string) =>
     field ? String(llmConfig[field as keyof LLMConfig] || "") : "";
 
@@ -70,10 +87,11 @@ const WebSearchProvider = ({
               trackEvent(MixpanelEvent.Settings_Provider_Selected, {
                 section: "web_search_provider",
                 enabled: checked,
-                provider: checked ? selected : "disabled",
+                provider: checked ? selected || "auto" : "disabled",
               });
-              update("WEB_GROUNDING", checked);
+              setWebSearchEnabled(checked);
             }}
+            aria-label="Enable web search"
           />
         </div>
         <div className="flex flex-col items-start justify-between gap-8 lg:flex-row lg:gap-10">
@@ -201,13 +219,15 @@ const WebSearchProvider = ({
                       />
                       <button
                         type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-lg text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
                         onClick={() => setShowApiKey((value) => !value)}
+                        aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                        aria-pressed={showApiKey}
                       >
                         {showApiKey ? (
-                          <Eye className="h-4 w-4 text-gray-500" />
+                          <EyeOff className="h-4 w-4" aria-hidden="true" />
                         ) : (
-                          <EyeOff className="h-4 w-4 text-gray-500" />
+                          <Eye className="h-4 w-4" aria-hidden="true" />
                         )}
                       </button>
                     </div>

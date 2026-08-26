@@ -32,7 +32,7 @@ dependencies = [
     "pillow>=12.2.0",
     "psycopg[binary]>=3.2.0",
     "sqlmodel>=0.0.24",
-    "llmai==0.3.7",
+    "llmai==0.3.9",
     "jsonschema>=4.26.0",
     "python-pptx>=1.0.2",
     "fonttools>=4.55.0",

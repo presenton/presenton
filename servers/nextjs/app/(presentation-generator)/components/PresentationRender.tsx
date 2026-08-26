@@ -18,6 +18,7 @@ const SlideScale = ({
   presentMode = false,
   isClickable = true,
   fixedSize = false,
+  fitToContainer = false,
   presentationLayout,
   renderIndex,
   enableViewportCulling = false,
@@ -37,6 +38,7 @@ const SlideScale = ({
   presentMode?: boolean;
   isClickable?: boolean;
   fixedSize?: boolean;
+  fitToContainer?: boolean;
   presentationLayout?: unknown;
   renderIndex?: number;
   enableViewportCulling?: boolean;
@@ -58,10 +60,16 @@ const SlideScale = ({
       const sy = box.h / BASE_HEIGHT;
       return Math.min(sx, sy);
     }
+    if (fitToContainer) {
+      if (box.w < 1 || box.h < 1) return 1;
+      const sx = box.w / BASE_WIDTH;
+      const sy = box.h / BASE_HEIGHT;
+      return Math.min(sx, sy);
+    }
     const safeWidth = Math.max(0, box.w + 20);
     if (!safeWidth) return 1;
     return Math.min((safeWidth / BASE_WIDTH) * 0.98, 1);
-  }, [fixedSize, presentMode, box.w, box.h]);
+  }, [fitToContainer, fixedSize, presentMode, box.w, box.h]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -83,7 +91,7 @@ const SlideScale = ({
         fixedSize
           ? "relative h-[720px] w-[1280px] overflow-hidden shadow-none"
           : `relative w-full ${
-              presentMode
+              presentMode || fitToContainer
                 ? "flex h-full min-h-0 items-center justify-center shadow-none"
                 : "shadow-md"
             }`
@@ -91,7 +99,7 @@ const SlideScale = ({
     >
       <div
         className={
-          presentMode || fixedSize
+          presentMode || fixedSize || fitToContainer
             ? "relative mx-auto shrink-0"
             : "relative mx-auto max-w-[1280px]"
         }

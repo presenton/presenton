@@ -1,7 +1,13 @@
 import { getApiUrl } from "@/utils/api";
 import type { TemplateV2Layout } from "@/components/slide-editor/importing/template-v2-import";
+import {
+    normalizeTemplateTheme,
+    type TemplateTheme,
+} from "@/lib/template-theme";
 import { ApiResponseHandler } from "./api-error-handler";
 import { getHeader } from "./header";
+
+const TEMPLATE_THEME_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export interface CloneTemplatePayload {
     id: string;
@@ -108,6 +114,26 @@ export interface GenerateTemplateLayoutResponse {
 
 class TemplateService {
 
+    private static templateThemeCache = new Map<
+        string,
+        { expiresAt: number; value: TemplateTheme | null }
+    >();
+
+    private static templateThemeRequests = new Map<
+        string,
+        Promise<TemplateTheme | null>
+    >();
+
+    private static normalizeTemplateId(templateId: string) {
+        return templateId.trim().replace(/^template-v2-/, "");
+    }
+
+    private static invalidateTemplateTheme(templateId: string) {
+        const cacheKey = this.normalizeTemplateId(templateId);
+        this.templateThemeCache.delete(cacheKey);
+        this.templateThemeRequests.delete(cacheKey);
+    }
+
     static async getCustomTemplateSummaries() {
         try {
             const response = await fetch(getApiUrl(`/api/v1/ppt/template/all?page_size=100&default=false`),);
@@ -150,12 +176,54 @@ class TemplateService {
 
     static async getTemplateDetails(templateId: string): Promise<TemplateDetailsResponse> {
         try {
-            const apiTemplateId = templateId.replace(/^template-v2-/, "");
+            const apiTemplateId = this.normalizeTemplateId(templateId);
             const response = await fetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(apiTemplateId)}`));
             return await ApiResponseHandler.handleResponse(response, "Failed to get template details");
         } catch (error) {
             console.error("Failed to get Templates v1 details", error);
             throw error;
+        }
+    }
+
+    static async getTemplateTheme(templateId: string): Promise<TemplateTheme | null> {
+        const cacheKey = this.normalizeTemplateId(templateId);
+        if (!cacheKey) return null;
+
+        const cached = this.templateThemeCache.get(cacheKey);
+        if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+        const existingRequest = this.templateThemeRequests.get(cacheKey);
+        if (existingRequest) return existingRequest;
+
+        const request = (async () => {
+            try {
+                const response = await fetch(
+                    getApiUrl(
+                        `/api/v1/ppt/template/${encodeURIComponent(cacheKey)}/theme`,
+                    ),
+                    { headers: getHeader() },
+                );
+                if (!response.ok) {
+                    throw new Error(`Template theme request failed (${response.status})`);
+                }
+
+                const theme = normalizeTemplateTheme(await response.json());
+                this.templateThemeCache.set(cacheKey, {
+                    expiresAt: Date.now() + TEMPLATE_THEME_CACHE_TTL_MS,
+                    value: theme,
+                });
+                return theme;
+            } catch (error) {
+                console.warn("Failed to get template theme", error);
+                return null;
+            }
+        })();
+
+        this.templateThemeRequests.set(cacheKey, request);
+        try {
+            return await request;
+        } finally {
+            this.templateThemeRequests.delete(cacheKey);
         }
     }
 
@@ -198,7 +266,9 @@ class TemplateService {
                 method: "DELETE",
                 headers: getHeader(),
             });
-            return await ApiResponseHandler.handleResponseWithResult(response, "Failed to delete template");
+            const result = await ApiResponseHandler.handleResponseWithResult(response, "Failed to delete template");
+            this.invalidateTemplateTheme(templateId);
+            return result;
         } catch (error) {
             console.error("Failed to delete Templates template", error);
             throw error;
@@ -225,7 +295,9 @@ class TemplateService {
                 headers: getHeader(),
                 body: JSON.stringify(payload),
             });
-            return await ApiResponseHandler.handleResponse(response, "Failed to update template");
+            const result = await ApiResponseHandler.handleResponse(response, "Failed to update template");
+            this.invalidateTemplateTheme(templateId);
+            return result;
         } catch (error) {
             console.error("Failed to update template", error);
             throw error;
@@ -245,10 +317,12 @@ class TemplateService {
                     body: JSON.stringify(payload),
                 },
             );
-            return await ApiResponseHandler.handleResponse(
+            const result = await ApiResponseHandler.handleResponse(
                 response,
                 "Failed to update template layouts",
             );
+            this.invalidateTemplateTheme(templateId);
+            return result;
         } catch (error) {
             console.error("Failed to update template layouts", error);
             throw error;
@@ -265,10 +339,12 @@ class TemplateService {
                     body: JSON.stringify(payload),
                 },
             );
-            return await ApiResponseHandler.handleResponse(
+            const result = await ApiResponseHandler.handleResponse(
                 response,
                 `Failed to create layout for slide ${payload.index + 1}`,
             );
+            this.invalidateTemplateTheme(payload.template_id);
+            return result;
         } catch (error) {
             console.error("Failed to create template layout", error);
             throw error;
@@ -287,10 +363,12 @@ class TemplateService {
                     body: JSON.stringify(payload),
                 },
             );
-            return await ApiResponseHandler.handleResponse(
+            const result = await ApiResponseHandler.handleResponse(
                 response,
                 "Failed to generate template layout",
             );
+            this.invalidateTemplateTheme(payload.template_id);
+            return result;
         } catch (error) {
             console.error("Failed to generate template layout", error);
             throw error;

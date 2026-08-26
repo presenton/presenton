@@ -47,6 +47,11 @@ const USER_CONFIG_ENV_KEYS = [
   "OPENROUTER_API_KEY",
   "OPENROUTER_MODEL",
   "OPENROUTER_BASE_URL",
+  "OPENROUTER_PROVIDER_ORDER",
+  "OPENROUTER_ALLOW_FALLBACKS",
+  "OPENROUTER_REQUIRE_PARAMETERS",
+  "OPENROUTER_DATA_COLLECTION",
+  "OPENROUTER_ZDR",
   "FIREWORKS_API_KEY",
   "FIREWORKS_MODEL",
   "FIREWORKS_BASE_URL",
@@ -75,6 +80,11 @@ const USER_CONFIG_ENV_KEYS = [
   "DISABLE_IMAGE_GENERATION",
   "DISABLE_THINKING",
   "EXTENDED_REASONING",
+  "LLM_GENERATION_PROFILE",
+  "LLM_MAX_OUTPUT_TOKENS",
+  "LLM_REASONING_MODE",
+  "LLM_REASONING_EFFORT",
+  "LLM_REASONING_BUDGET_TOKENS",
   "WEB_GROUNDING",
   "WEB_SEARCH_PROVIDER",
   "WEB_SEARCH_MAX_RESULTS",
@@ -108,6 +118,9 @@ const BOOLEAN_CONFIG_KEYS = new Set([
   "DISABLE_IMAGE_GENERATION",
   "DISABLE_THINKING",
   "EXTENDED_REASONING",
+  "OPENROUTER_ALLOW_FALLBACKS",
+  "OPENROUTER_REQUIRE_PARAMETERS",
+  "OPENROUTER_ZDR",
   "WEB_GROUNDING",
   "USE_CUSTOM_URL",
   "CODEX_IS_PRO",
@@ -153,6 +166,18 @@ const normalizeConfigTypes = (config) => {
     if (parsedValue !== undefined) {
       config[key] = parsedValue;
     }
+  }
+  for (const key of ["LLM_MAX_OUTPUT_TOKENS", "LLM_REASONING_BUDGET_TOKENS"]) {
+    if (typeof config[key] === "string" && config[key].trim() !== "") {
+      const parsedValue = Number(config[key]);
+      if (Number.isInteger(parsedValue)) config[key] = parsedValue;
+    }
+  }
+  if (typeof config.OPENROUTER_PROVIDER_ORDER === "string") {
+    config.OPENROUTER_PROVIDER_ORDER = config.OPENROUTER_PROVIDER_ORDER
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
   }
   return config;
 };
