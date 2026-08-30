@@ -1,11 +1,11 @@
 {
   "name": "presenton",
-  "version": "0.9.6-beta",
-  "presentationExportVersion": "v0.4.6",
+  "version": "0.9.8-beta",
+  "presentationExportVersion": "v1.0.18",
   "type": "module",
   "description": "Open-source AI presentation generator",
   "scripts": {
-    "test": "npm run test:template-converter && node --test scripts/package-metadata.test.mjs",
+    "test": "npm run test:template-converter && node --test scripts/package-metadata.test.mjs scripts/sync-presentation-export.test.mjs",
     "convert:template": "node scripts/convert-template.mjs",
     "convert:presentation-template": "node scripts/convert-presentation-template.mjs",
     "test:template-converter": "node --test scripts/convert-template.test.mjs scripts/convert-presentation-template.test.mjs",

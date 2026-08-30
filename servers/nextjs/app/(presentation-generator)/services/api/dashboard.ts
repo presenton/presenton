@@ -10,6 +10,7 @@ export interface PresentationResponse {
   id: string;
   version?: PresentationVersion;
   generation_mode?: "standard" | "smart";
+  type?: "standard" | "smart";
   title: string;
   created_at: string;
   updated_at: string;

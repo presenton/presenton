@@ -12,6 +12,17 @@ export function readableTableTextColor(
   return fillLuminance > 0.5 ? "#111827" : "#FFFFFF";
 }
 
+export function blackOrWhiteTextColor(
+  fill: string | null | undefined,
+) {
+  const fillLuminance = colorLuminance(fill);
+  if (fillLuminance == null) return "#000000";
+
+  const blackContrast = contrastRatio(fillLuminance, 0);
+  const whiteContrast = contrastRatio(fillLuminance, 1);
+  return whiteContrast >= blackContrast ? "#FFFFFF" : "#000000";
+}
+
 function contrastRatio(left: number, right: number) {
   const lighter = Math.max(left, right);
   const darker = Math.min(left, right);

@@ -11,12 +11,13 @@ import { cn } from "@/lib/utils";
 import { Slide } from "../../types/slide";
 import SlideScale from "../../components/PresentationRender";
 import type { Theme } from "../../services/api/types";
+import type { TemplateTheme } from "@/lib/template-theme";
 import { applyPresentationThemeToElement } from "../utils/applyPresentationThemeDom";
 
 interface PresentationModeProps {
   slides: Slide[];
   currentSlide: number;
-  theme?: Theme | null;
+  theme?: Theme | TemplateTheme | null;
   fonts?: unknown;
   isFullscreen: boolean;
   onFullscreenToggle: (target?: Element | null) => void;
@@ -108,7 +109,7 @@ const PresentationModeSlide = memo(
   }: {
     slide: Slide;
     slideIndex: number;
-    theme?: Theme | null;
+    theme?: Theme | TemplateTheme | null;
     fonts?: unknown;
   }) {
     return (
@@ -142,7 +143,7 @@ const PresentationThumbnail = memo(
     slide: Slide;
     slideIndex: number;
     isActive: boolean;
-    theme?: Theme | null;
+    theme?: Theme | TemplateTheme | null;
     fonts?: unknown;
     onSelect: (index: number) => void;
   }) {

@@ -45,6 +45,8 @@ function matchesOpenAIModel(model: string, family: string): boolean {
 }
 
 function isSotaTemplateModel(config: LLMConfig): boolean {
+    if (config.LLM === "presenton") return true;
+
     const model = normalizeModelName(selectedTextModel(config));
 
     if (!model) return false;

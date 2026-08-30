@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import SmartHtmlSlide from "../../../components/SmartHtmlSlide";
 import { TemplateV2HtmlSlidePreview } from "../../../components/TemplateV2HtmlSlidePreview";
 import { quickPromptGroups } from "./chat-prompts";
 import type { AssistantActivity, ChatEditPreview } from "./chat-types";
@@ -117,6 +118,36 @@ export const EditComparisonPreview = ({
     },
   ];
 
+  const renderSlidePreview = (slide: unknown, label: string, index: number) => {
+    const htmlContent =
+      slide && typeof slide === "object"
+        ? (slide as Record<string, unknown>).html_content
+        : null;
+    const previewClassName =
+      "pointer-events-none overflow-hidden rounded-[2px] border border-[#EDEEEF] bg-white";
+
+    if (typeof htmlContent === "string" && htmlContent.trim()) {
+      return (
+        <div key={`${label}-${index}`} className={previewClassName}>
+          <SmartHtmlSlide
+            html={htmlContent}
+            fonts={fonts}
+            title={`${label} slide preview ${index + 1}`}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <TemplateV2HtmlSlidePreview
+        key={`${label}-${index}`}
+        slide={slide}
+        fonts={fonts}
+        className={previewClassName}
+      />
+    );
+  };
+
   return (
     <div className="flex w-full flex-col gap-2 font-manrope">
       <div className="flex items-center gap-1 text-[13px] leading-[18px]">
@@ -155,14 +186,12 @@ export const EditComparisonPreview = ({
               <span>{card.label}</span>
             </span>
             <span className="flex flex-col gap-[3px]">
-              {card.slides.slice(0, 2).map((slide, index) => (
-                <TemplateV2HtmlSlidePreview
-                  key={`${card.label}-${index}`}
-                  slide={slide}
-                  fonts={fonts}
-                  className="overflow-hidden rounded-[2px] border border-[#EDEEEF] bg-white"
-                />
-              ))}
+              {card.slides
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((slide, index) =>
+                  renderSlidePreview(slide, card.label, index),
+                )}
             </span>
           </button>
         ))}

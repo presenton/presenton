@@ -1606,7 +1606,13 @@ function readHorizontalAlignment(
   value: unknown,
 ): TemplateV2TextEditStyle["horizontal"] {
   const normalized = readString(value);
-  if (normalized === "center" || normalized === "right") return normalized;
+  if (
+    normalized === "center" ||
+    normalized === "right" ||
+    normalized === "justify"
+  ) {
+    return normalized;
+  }
   return "left";
 }
 

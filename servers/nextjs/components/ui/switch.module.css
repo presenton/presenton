@@ -1,0 +1,18 @@
+.thumb {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  transition: left 200ms ease;
+  will-change: left;
+}
+
+.thumb[data-state="checked"] {
+  left: calc(100% - 18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}

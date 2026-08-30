@@ -1,14 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { setCanChangeKeys, setLLMConfig } from '@/store/slices/userConfig';
 import { hasValidLLMConfig, normalizeLLMConfig } from '@/utils/storeHelpers';
 import { usePathname, useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { isOllamaModelAvailable } from '@/utils/providerUtils';
 import { LLMConfig } from '@/types/llm_config';
-import { getApiUrl } from '@/utils/api';
+import {
+  assertBackendReachable,
+  getApiUrl,
+  isBackendConnectionError,
+} from '@/utils/api';
 import { notify } from '@/components/ui/sonner';
 import { PRESENTON_SPLASH_MIN_DURATION_MS } from '@/components/ui/presenton-splash-loader';
 
@@ -16,10 +19,10 @@ function ConfigurationLoadingScreen() {
   return (
     <main
       aria-busy="true"
-      className="fixed inset-0 z-[2147483000] overflow-hidden bg-white"
+      className="fixed inset-0 z-[2147483000] flex items-center justify-center overflow-hidden bg-white"
       role="status"
     >
-      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-7 whitespace-nowrap">
+      <div className="flex flex-col items-center gap-7 whitespace-nowrap text-center">
         <div aria-hidden="true" className="configuration-loader" />
         <p className="font-syne text-[18px] font-normal leading-normal tracking-[-0.54px] text-[#191919]">
           Loading Presenton...
@@ -61,7 +64,98 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
   // Fetch user config state
   useEffect(() => {
     fetchUserConfigState();
+    // Configuration bootstrap runs once. Presenton is revalidated separately
+    // below whenever the user navigates to another application route.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (
+      route === '/' ||
+      isSettingsRoute ||
+      route.startsWith('/pdf-maker')
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    let selectedProvider: string | undefined;
+    const revalidateProviderConfiguration = async () => {
+      try {
+        const configResponse = await fetch('/api/user-config', {
+          cache: 'no-store',
+        });
+        if (!configResponse.ok) {
+          await assertBackendReachable();
+          throw new Error(`user-config returned ${configResponse.status}`);
+        }
+
+        const config = normalizeLLMConfig(await configResponse.json());
+        selectedProvider = config.LLM;
+        dispatch(setLLMConfig(config));
+
+        if (!hasValidLLMConfig(config)) {
+          if (!cancelled) {
+            notify.warning(
+              "Provider setup required",
+              "Choose and configure a text provider before opening other pages.",
+              { id: "provider-setup-required" }
+            );
+            router.replace('/');
+          }
+          return;
+        }
+
+        if (selectedProvider !== 'presenton') return;
+
+        const statusResponse = await fetch(
+          getApiUrl('/api/v1/auth/presenton/status'),
+          { cache: 'no-store', credentials: 'include' }
+        );
+        if (!statusResponse.ok) {
+          await assertBackendReachable();
+          throw new Error(`Presenton status returned ${statusResponse.status}`);
+        }
+        const status = await statusResponse.json() as { linked?: boolean };
+
+        if (!cancelled && !status?.linked) {
+          dispatch(setLLMConfig({ ...config, LLM: '' }));
+          notify.warning(
+            "Provider setup required",
+            "Presenton Cloud is disconnected. Choose a text provider to continue.",
+            { id: "provider-setup-required" }
+          );
+          router.replace('/');
+        }
+      } catch (error) {
+        console.error('Failed to revalidate provider configuration:', error);
+        if (!cancelled && isBackendConnectionError(error)) {
+          notify.error(
+            "Cannot reach backend",
+            error.message,
+            { id: "backend-unreachable" }
+          );
+        } else if (!cancelled && selectedProvider === 'presenton') {
+          notify.error(
+            "Could not verify Presenton Cloud",
+            "Your current page has been kept open. Try again after checking the backend service.",
+            { id: "presenton-status-unavailable" }
+          );
+        } else if (!cancelled) {
+          notify.error(
+            "Could not verify provider settings",
+            "Your current page has been kept open. Refresh after checking the backend service.",
+            { id: "configuration-unavailable" }
+          );
+        }
+      }
+    };
+
+    void revalidateProviderConfiguration();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, isSettingsRoute, route, router]);
 
   useEffect(() => {
     if (!shouldShowStartupSplash) {
@@ -98,6 +192,19 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
 
     setIsLoading(true);
 
+    try {
+      await assertBackendReachable();
+    } catch (error) {
+      console.error('Failed to reach the FastAPI backend:', error);
+      notify.error(
+        "Cannot reach backend",
+        error instanceof Error ? error.message : "Check the backend service and try again.",
+        { id: "backend-unreachable" }
+      );
+      setIsLoading(false);
+      return;
+    }
+
     let canChangeKeys = false;
     try {
       const res = await fetch('/api/can-change-keys');
@@ -106,7 +213,13 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
       canChangeKeys = data.canChange ?? false;
     } catch (e) {
       console.error('Failed to fetch can-change-keys:', e);
-      canChangeKeys = false;
+      notify.error(
+        "Could not load configuration",
+        "Your current page has been kept open. Refresh after checking the backend service.",
+        { id: "configuration-unavailable" }
+      );
+      setIsLoading(false);
+      return;
     }
     dispatch(setCanChangeKeys(canChangeKeys));
 
@@ -118,16 +231,47 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         llmConfig = await res.json();
       } catch (e) {
         console.error('Failed to fetch user config:', e);
-        llmConfig = {};
-      }
-      if (!llmConfig.LLM) {
-        llmConfig.LLM = 'openai';
+        notify.error(
+          "Could not load provider settings",
+          "Your current page has been kept open. Refresh after checking the backend service.",
+          { id: "configuration-unavailable" }
+        );
+        setIsLoading(false);
+        return;
       }
       llmConfig = normalizeLLMConfig(llmConfig);
 
       dispatch(setLLMConfig(llmConfig));
 
-      const isValid = hasValidLLMConfig(llmConfig);
+      let hasPresentonCloud = false;
+      if (llmConfig.LLM === 'presenton') {
+        try {
+          const response = await fetch(
+            getApiUrl('/api/v1/auth/presenton/status'),
+            { cache: 'no-store', credentials: 'include' }
+          );
+          if (!response.ok) {
+            await assertBackendReachable();
+            throw new Error(`Presenton status returned ${response.status}`);
+          }
+          const status = await response.json();
+          hasPresentonCloud = Boolean(status.linked);
+        } catch (error) {
+          console.error('Failed to fetch Presenton cloud status:', error);
+          const backendUnavailable = isBackendConnectionError(error);
+          notify.error(
+            backendUnavailable ? "Cannot reach backend" : "Could not verify Presenton Cloud",
+            backendUnavailable
+              ? error.message
+              : "Your current page has been kept open. Refresh after checking the backend service.",
+            { id: backendUnavailable ? "backend-unreachable" : "presenton-status-unavailable" }
+          );
+          setIsLoading(false);
+          return;
+        }
+      }
+      const isValid = hasValidLLMConfig(llmConfig) &&
+        (llmConfig.LLM !== 'presenton' || hasPresentonCloud);
       if (route.startsWith('/pdf-maker')) {
         setIsLoading(false);
         return;
@@ -142,27 +286,15 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
               llmConfig.OLLAMA_URL
             );
           } catch (error) {
+            const backendUnavailable = isBackendConnectionError(error);
             notify.error(
-              "Could not connect to Ollama",
-              error instanceof Error ? error.message : "Check the Ollama URL and try again."
+              backendUnavailable ? "Cannot reach backend" : "Could not connect to Ollama",
+              error instanceof Error ? error.message : "Check the Ollama URL and try again.",
+              { id: backendUnavailable ? "backend-unreachable" : "ollama-unreachable" }
             );
-          }
-          if (!isAvailable) {
-            router.push('/');
-            setLoadingToFalseAfterNavigatingTo('/');
+            setIsLoading(false);
             return;
           }
-        }
-        if (llmConfig.LLM === 'custom') {
-          const isAvailable = await checkIfSelectedCustomModelIsAvailable(llmConfig);
-          if (!isAvailable) {
-            router.push('/');
-            setLoadingToFalseAfterNavigatingTo('/');
-            return;
-          }
-        }
-        if (llmConfig.LLM === 'deepseek') {
-          const isAvailable = await checkIfSelectedDeepSeekModelIsAvailable(llmConfig);
           if (!isAvailable) {
             router.push('/');
             setLoadingToFalseAfterNavigatingTo('/');
@@ -175,7 +307,13 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         } else {
           setIsLoading(false);
         }
-      } else if (route !== '/' && !(isSettingsRoute && llmConfig.LLM === 'codex')) {
+      } else if (
+        route !== '/' &&
+        !(
+          isSettingsRoute &&
+          (llmConfig.LLM === 'codex' || llmConfig.LLM === 'presenton')
+        )
+      ) {
         router.push('/');
         setLoadingToFalseAfterNavigatingTo('/');
       } else {
@@ -186,23 +324,29 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         const res = await fetch("/api/runtime-config", {
           cache: "no-store",
         });
-        if (res.ok) {
-          const runtime = await res.json();
-          const runtimeConfig = normalizeLLMConfig(
-            (runtime.config || {}) as LLMConfig
+        if (!res.ok) throw new Error(`runtime-config returned ${res.status}`);
+        const runtime = await res.json();
+        const runtimeConfig = normalizeLLMConfig(
+          (runtime.config || {}) as LLMConfig
+        );
+        dispatch(setLLMConfig(runtimeConfig));
+        if (!runtime.configured) {
+          notify.error(
+            "Instance not configured",
+            "Ask the administrator to configure the AI providers in Settings."
           );
-          dispatch(setLLMConfig(runtimeConfig));
-          if (!runtime.configured) {
-            notify.error(
-              "Instance not configured",
-              "Ask the administrator to configure the AI providers in Settings."
-            );
-            setIsLoading(false);
-            return;
-          }
+          setIsLoading(false);
+          return;
         }
       } catch (error) {
         console.error("Failed to fetch runtime configuration:", error);
+        notify.error(
+          "Could not load provider settings",
+          "Your current page has been kept open. Refresh after checking the backend service.",
+          { id: "configuration-unavailable" }
+        );
+        setIsLoading(false);
+        return;
       }
       if (route === '/') {
         router.push('/upload');
@@ -212,48 +356,6 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
       }
     }
   }
-
-
-  const checkIfSelectedCustomModelIsAvailable = async (llmConfig: LLMConfig) => {
-    try {
-      const response = await fetch(getApiUrl('/api/v1/ppt/openai/models/available'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: llmConfig.CUSTOM_LLM_URL,
-          api_key: llmConfig.CUSTOM_LLM_API_KEY,
-        }),
-      });
-      const data = await response.json();
-      return data.includes(llmConfig.CUSTOM_MODEL);
-    } catch (error) {
-      console.error('Error fetching custom models:', error);
-      return false;
-    }
-  }
-
-  const checkIfSelectedDeepSeekModelIsAvailable = async (llmConfig: LLMConfig) => {
-    try {
-      const response = await fetch(getApiUrl('/api/v1/ppt/openai/models/available'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: llmConfig.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
-          api_key: llmConfig.DEEPSEEK_API_KEY,
-        }),
-      });
-      const data = await response.json();
-      return data.includes(llmConfig.DEEPSEEK_MODEL);
-    } catch (error) {
-      console.error('Error fetching DeepSeek models:', error);
-      return false;
-    }
-  }
-
 
   if (isLoading || !hasMetSplashDuration) {
     return <ConfigurationLoadingScreen />;

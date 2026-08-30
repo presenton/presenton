@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   clearPresentationData,
+  setGenerationMetrics,
   setPresentationData,
   setStreaming,
+  type GenerationMetrics,
   type PresentationData,
 } from "@/store/slices/presentationGeneration";
 import { jsonrepair } from "jsonrepair";
@@ -12,6 +14,7 @@ import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import { sanitizeAnalyticsError } from "@/utils/analytics";
 import { getApiUrl, normalizeBackendAssetUrls } from "@/utils/api";
 import { store } from "@/store/store";
+import type { RootState } from "@/store/store";
 import {
   isChatGptAuthRequiredMessage,
   requestChatGptReauth,
@@ -24,6 +27,26 @@ import { isTemplateV2Slide } from "../../_shared/blank-slide";
 
 const MAX_STREAM_RETRIES = 3;
 const STREAM_RETRY_DELAY_MS = 1_000;
+
+interface PresentationStreamData {
+  type?: string;
+  model?: unknown;
+  input_tokens?: unknown;
+  output_tokens?: unknown;
+  thinking_tokens?: unknown;
+  total_tokens?: unknown;
+  tokens_per_second?: unknown;
+  duration_seconds?: unknown;
+  estimated?: unknown;
+  thinking_tokens_estimated?: unknown;
+  supports_thinking?: unknown;
+  [key: string]: any;
+}
+
+const readMetricNumber = (value: unknown, fallback: number) => {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? Math.max(0, parsedValue) : fallback;
+};
 
 function mergePresentationPreservingTemplateData(
   incoming: PresentationData
@@ -94,7 +117,9 @@ export const usePresentationStreaming = (
   stream: string | null,
   setLoading: (loading: boolean) => void,
   setError: (error: boolean) => void,
-  fetchUserSlides: () => void,
+  fetchUserSlides: (options?: {
+    clearHistory?: boolean;
+  }) => void | Promise<unknown>,
   options: {
     preloadPresentationData?: boolean;
     generationMode?: "standard" | "smart";
@@ -104,6 +129,10 @@ export const usePresentationStreaming = (
   const previousSlidesLength = useRef(0);
   const preloadPresentationData = Boolean(options.preloadPresentationData);
   const isSmartMode = options.generationMode === "smart";
+  const usePresentonSmartEndpoint = useSelector(
+    (state: RootState) =>
+      isSmartMode && state.userConfig.llm_config.LLM === "presenton"
+  );
 
   useEffect(() => {
     if (!stream) {
@@ -122,6 +151,7 @@ export const usePresentationStreaming = (
     const streamStartedAt = Date.now();
     let streamIsTemplateV2 = preloadPresentationData;
     let smartGenerationOutcomeTracked = false;
+    let latestGenerationMetrics: GenerationMetrics | null = null;
 
     const closeEventSource = () => {
       if (eventSource) {
@@ -159,6 +189,7 @@ export const usePresentationStreaming = (
           error_message: sanitizeAnalyticsError(description, "Stream failed"),
         });
       }
+      isClosed = true;
       closeEventSource();
       clearRetryTimer();
       setLoading(false);
@@ -272,13 +303,17 @@ export const usePresentationStreaming = (
     const openStream = () => {
       closeEventSource();
       eventSource = new EventSource(
-        getApiUrl(`/api/v1/ppt/presentation/stream/${presentationId}`)
+        getApiUrl(
+          usePresentonSmartEndpoint
+            ? `/api/v2/ppt/presentation/stream/${presentationId}`
+            : `/api/v1/ppt/presentation/stream/${presentationId}`
+        )
       );
 
-      eventSource.addEventListener("response", (event) => {
-        let data: any;
+      eventSource.addEventListener("response", async (event) => {
+        let data: PresentationStreamData;
         try {
-          data = JSON.parse(event.data);
+          data = JSON.parse(event.data) as PresentationStreamData;
         } catch {
           if (!scheduleRetry("invalid SSE payload")) {
             finalizeFailure("Failed to parse stream response.");
@@ -287,6 +322,97 @@ export const usePresentationStreaming = (
         }
 
         switch (data.type) {
+          case "generation_metrics": {
+            const previousMetrics = latestGenerationMetrics;
+            const inputTokens = readMetricNumber(
+              data.input_tokens,
+              previousMetrics?.input_tokens ?? 0
+            );
+            const outputTokens = readMetricNumber(
+              data.output_tokens,
+              previousMetrics?.output_tokens ?? 0
+            );
+            const totalTokens = readMetricNumber(
+              data.total_tokens,
+              previousMetrics?.total_tokens ?? 0
+            );
+            const thinkingTokens =
+              data.thinking_tokens === null ||
+              data.thinking_tokens === undefined
+                ? previousMetrics?.thinking_tokens ?? null
+                : readMetricNumber(
+                    data.thinking_tokens,
+                    previousMetrics?.thinking_tokens ?? 0
+                  );
+            const hasExactThinkingTokens =
+              data.thinking_tokens !== null &&
+              data.thinking_tokens !== undefined &&
+              data.thinking_tokens_estimated === false;
+
+            const nextMetrics: GenerationMetrics = {
+              model:
+                data.model === undefined
+                  ? previousMetrics?.model ?? ""
+                  : String(data.model),
+              input_tokens: Math.max(
+                previousMetrics?.input_tokens ?? 0,
+                inputTokens
+              ),
+              output_tokens: Math.max(
+                previousMetrics?.output_tokens ?? 0,
+                outputTokens
+              ),
+              thinking_tokens:
+                thinkingTokens === null
+                  ? null
+                  : hasExactThinkingTokens
+                    ? thinkingTokens
+                    : Math.max(
+                        previousMetrics?.thinking_tokens ?? 0,
+                        thinkingTokens
+                      ),
+              total_tokens: Math.max(
+                previousMetrics?.total_tokens ?? 0,
+                totalTokens
+              ),
+              tokens_per_second: readMetricNumber(
+                data.tokens_per_second,
+                previousMetrics?.tokens_per_second ?? 0
+              ),
+              duration_seconds: Math.max(
+                previousMetrics?.duration_seconds ?? 0,
+                readMetricNumber(
+                  data.duration_seconds,
+                  previousMetrics?.duration_seconds ?? 0
+                )
+              ),
+              estimated:
+                data.estimated === undefined
+                  ? previousMetrics?.estimated ?? false
+                  : Boolean(data.estimated),
+              thinking_tokens_estimated:
+                data.thinking_tokens_estimated === undefined
+                  ? previousMetrics?.thinking_tokens_estimated ?? false
+                  : Boolean(data.thinking_tokens_estimated),
+              supports_thinking:
+                previousMetrics?.supports_thinking === true ||
+                data.supports_thinking === true,
+            };
+
+            const hasMeaningfulMetrics =
+              nextMetrics.input_tokens > 0 ||
+              nextMetrics.output_tokens > 0 ||
+              nextMetrics.total_tokens > 0 ||
+              nextMetrics.tokens_per_second > 0 ||
+              nextMetrics.supports_thinking;
+
+            if (previousMetrics || hasMeaningfulMetrics) {
+              latestGenerationMetrics = nextMetrics;
+              dispatch(setGenerationMetrics(nextMetrics));
+            }
+            break;
+          }
+
           case "fonts": {
             if (data.fonts && typeof data.fonts === "object") {
               const prev = store.getState().presentationGeneration.presentationData;
@@ -439,15 +565,49 @@ export const usePresentationStreaming = (
 
           case "complete":
             try {
-              dispatch(
-                setPresentationData(
-                  mergePresentationPreservingTemplateData(
-                    normalizeBackendAssetUrls(data.presentation) as PresentationData
+              const hasCompletePresentation =
+                data.presentation &&
+                typeof data.presentation === "object" &&
+                !Array.isArray(data.presentation);
+              let completedPresentation: unknown = hasCompletePresentation
+                ? data.presentation
+                : null;
+
+              if (hasCompletePresentation) {
+                dispatch(
+                  setPresentationData(
+                    mergePresentationPreservingTemplateData(
+                      normalizeBackendAssetUrls(
+                        data.presentation
+                      ) as PresentationData
+                    )
                   )
-                )
-              );
-              trackTemplateV2StreamCompleted(data.presentation);
-              trackSmartModeGenerationCompleted(data.presentation);
+                );
+              } else if (
+                isSmartMode &&
+                typeof data.presentation_id === "string" &&
+                data.presentation_id === presentationId
+              ) {
+                // Smart v2 completes with only the presentation id. The local
+                // proxy mirrors the finished cloud deck before forwarding this
+                // event, so load that persisted presentation for the editor.
+                const fetchedPresentation = await fetchUserSlides({
+                  clearHistory: false,
+                });
+                if (!fetchedPresentation) {
+                  throw new Error("Completed presentation could not be loaded");
+                }
+                completedPresentation = fetchedPresentation;
+              } else {
+                throw new Error("Completion event did not contain a presentation");
+              }
+
+              if (!completedPresentation) {
+                throw new Error("Completed presentation could not be loaded");
+              }
+
+              trackTemplateV2StreamCompleted(completedPresentation);
+              trackSmartModeGenerationCompleted(completedPresentation);
               dispatch(setStreaming(false));
               setLoading(false);
               isClosed = true;
@@ -459,9 +619,10 @@ export const usePresentationStreaming = (
               const newUrl = new URL(window.location.href);
               newUrl.searchParams.delete("stream");
               window.history.replaceState({}, "", newUrl.toString());
-            } catch {
+            } catch (error) {
+              console.error("Could not finalize presentation stream:", error);
               if (!scheduleRetry("failed to parse complete payload")) {
-                finalizeFailure("Failed to parse final presentation payload.");
+                finalizeFailure("Failed to load the completed presentation.");
               }
             }
             accumulatedChunks = "";
@@ -502,15 +663,26 @@ export const usePresentationStreaming = (
               );
               break;
             }
+            const completedSlides = Number(data.completed_slides);
+            const totalSlides = Number(data.total_slides);
+            const detail =
+              data.detail || "Failed to connect to the server. Please try again.";
+            const detailWithProgress =
+              Number.isFinite(completedSlides) && completedSlides > 0
+                ? `${detail} ${completedSlides}${
+                    Number.isFinite(totalSlides) && totalSlides > 0
+                      ? ` of ${totalSlides}`
+                      : ""
+                  } slides were saved and will be reused.`
+                : detail;
+            if (data.retryable === false) {
+              finalizeFailure(detailWithProgress);
+              break;
+            }
             if (
-              !scheduleRetry(
-                data.detail || "server returned stream error response"
-              )
+              !scheduleRetry(detail || "server returned stream error response")
             ) {
-              finalizeFailure(
-                data.detail ||
-                  "Failed to connect to the server. Please try again."
-              );
+              finalizeFailure(detailWithProgress);
             }
             break;
         }
@@ -527,6 +699,8 @@ export const usePresentationStreaming = (
     const startStream = async () => {
       dispatch(setStreaming(true));
       dispatch(clearPresentationData());
+      latestGenerationMetrics = null;
+      dispatch(setGenerationMetrics(null));
       trackEvent(MixpanelEvent.Presentation_Stream_API_Call, {
         presentation_id: presentationId,
         generation_mode: options.generationMode ?? "standard",
@@ -554,5 +728,6 @@ export const usePresentationStreaming = (
     preloadPresentationData,
     isSmartMode,
     options.generationMode,
+    usePresentonSmartEndpoint,
   ]);
 };

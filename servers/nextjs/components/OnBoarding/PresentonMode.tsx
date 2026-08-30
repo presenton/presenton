@@ -14,7 +14,7 @@ import ToolTip from '../ToolTip';
 import { Switch } from '../ui/switch';
 import { Select, SelectItem, SelectContent, SelectValue, SelectTrigger } from '../ui/select';
 import { MixpanelEvent, trackEvent } from '@/utils/mixpanel';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { getLLMConfigValidationError, handleSaveLLMConfig } from '@/utils/storeHelpers';
 import { getDefaultOllamaUrl, isOllamaModelAvailable } from '@/utils/providerUtils';
 import { getApiErrorMessage, getApiUrl } from '@/utils/api';
@@ -26,11 +26,17 @@ import OpenAICompatibleImageFields from '@/components/OpenAICompatibleImageField
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import Image from 'next/image';
 import OllamaConfig from '../OllamaConfig';
+import OnboardingPresentonAccount from './OnboardingPresentonAccount';
+import CreatableModelInput from '@/components/CreatableModelInput';
+import AdvancedTextProviderSettings from '@/components/AdvancedTextProviderSettings';
 
 const MANUAL_MODEL_PROVIDERS = new Set(["vertex", "azure", "bedrock"]);
 const LOCAL_PROVIDERS = ["ollama", "lmstudio"];
 const OTHER_PROVIDERS = Object.values(LLM_PROVIDERS).filter(
-    (provider) => provider.value !== "codex" && !LOCAL_PROVIDERS.includes(provider.value)
+    (provider) =>
+        provider.value !== "codex" &&
+        provider.value !== "presenton" &&
+        !LOCAL_PROVIDERS.includes(provider.value)
 );
 const OTHER_PROVIDER_VALUES = new Set(OTHER_PROVIDERS.map((provider) => provider.value));
 type TextProviderTab = "chatgpt" | "local" | "other";
@@ -61,6 +67,7 @@ const PresentonMode = ({
     setProviderStep: (step: number) => void,
 }) => {
     const pathname = usePathname();
+    const router = useRouter();
     const userConfigState = useSelector((state: RootState) => state.userConfig);
     const [openProviderSelect, setOpenProviderSelect] = useState(false);
     const [textProviderTab, setTextProviderTab] = useState<TextProviderTab>("chatgpt");
@@ -71,7 +78,6 @@ const PresentonMode = ({
         !!(userConfigState.llm_config.DEEPSEEK_BASE_URL || '').trim()
     );
     const [availableModels, setAvailableModels] = useState<string[]>([]);
-    const [openModelSelect, setOpenModelSelect] = useState(false);
     const [modelsLoading, setModelsLoading] = useState(false);
     const [modelsChecked, setModelsChecked] = useState(false);
     const [savingConfig, setSavingConfig] = useState(false);
@@ -225,6 +231,20 @@ const PresentonMode = ({
         if (currentDeepseekBaseUrl) setDeepseekAdvancedOpen(true);
     }, [currentDeepseekBaseUrl]);
 
+    useEffect(() => {
+        setAvailableModels([]);
+        setModelsChecked(false);
+    }, [
+        llmConfig.LLM,
+        currentApiKey,
+        llmConfig.CUSTOM_LLM_URL,
+        currentDeepseekBaseUrl,
+        currentLitellmUrl,
+        currentLmStudioUrl,
+        currentFireworksUrl,
+        currentTogetherUrl,
+    ]);
+
     const getSelectedTextModel = (config: LLMConfig): string => {
         switch (config.LLM) {
             case 'openai':
@@ -370,7 +390,7 @@ const PresentonMode = ({
                 setModelsChecked(true);
 
                 if (normalizedModels.length > 0 && currentModelField) {
-                    if (llmConfig[currentModelField] && normalizedModels.includes(llmConfig[currentModelField])) {
+                    if (llmConfig[currentModelField]) {
                         setLlmConfig(prev => ({
                             ...prev,
                             [currentModelField]: llmConfig[currentModelField]
@@ -414,16 +434,22 @@ const PresentonMode = ({
                 );
                 console.error('Failed to fetch models');
                 setAvailableModels([]);
+                // Model discovery may not exist on custom-compatible APIs.
+                // Keep setup usable by revealing the creatable model input.
                 setModelsChecked(true);
-                notify.error("Could not load models", message);
+                notify.error(
+                    "Could not load models",
+                    `${message} You can enter a model ID manually.`
+                );
             }
         } catch (error) {
             console.error('Error fetching models:', error);
+            const message = error instanceof Error
+                ? error.message
+                : "The server could not list models. Check your API key or endpoint and try again.";
             notify.error(
                 llmConfig.LLM === "ollama" ? "Could not connect to Ollama" : "Could not load models",
-                error instanceof Error
-                    ? error.message
-                    : "The server could not list models. Check your API key or endpoint and try again."
+                `${message} You can enter a model ID manually.`
             );
             setAvailableModels([]);
             setModelsChecked(true);
@@ -819,6 +845,10 @@ const PresentonMode = ({
 
     const handleContinue = async () => {
         if (providerStep === 1) {
+            if (llmConfig.LLM === "presenton") {
+                await handlePresentonContinue();
+                return;
+            }
             if (await validateTextProvider()) {
                 trackEvent(MixpanelEvent.Onboarding_Step_Continued, {
                     from_step: "text_provider",
@@ -875,6 +905,48 @@ const PresentonMode = ({
         });
         if (providerStep > 1) {
             setProviderStep(providerStep - 1);
+        }
+    };
+
+    const handlePresentonContinue = async () => {
+        try {
+            setSavingConfig(true);
+            const statusResponse = await fetch(
+                getApiUrl("/api/v1/auth/presenton/status"),
+                {
+                    credentials: "include",
+                    cache: "no-store",
+                }
+            );
+            const statusPayload = statusResponse.ok
+                ? await statusResponse.json() as { linked?: boolean }
+                : null;
+            if (!statusPayload?.linked) {
+                notify.warning(
+                    "Connect Presenton first",
+                    "Sign in to Presenton Cloud before continuing."
+                );
+                return;
+            }
+            const presentonConfig = { ...llmConfig, LLM: "presenton" };
+            await handleSaveLLMConfig(presentonConfig);
+            setLlmConfig(presentonConfig);
+            trackEvent(MixpanelEvent.Onboarding_Step_Continued, {
+                from_step: "text_provider",
+                to_step: "generation",
+                provider: "presenton",
+            });
+            trackEvent(MixpanelEvent.Onboarding_Completed, {
+                provider: "presenton",
+            });
+            router.push('/upload');
+        } catch (error) {
+            notify.error(
+                "Could not select Presenton",
+                error instanceof Error ? error.message : "Please try again."
+            );
+        } finally {
+            setSavingConfig(false);
         }
     };
 
@@ -1115,11 +1187,11 @@ const PresentonMode = ({
             <div className=''>
 
                 <h2 className='mb-4 text-black text-[26px] font-normal font-unbounded '>
-                    {providerStep === 1 ? "Choose your text provider" : providerStep === 2 ? "Choose your image provider" : providerStep === 3 ? "Configure web search" : "Configure video narration"}
+                    {providerStep === 1 ? "Choose how you want to create" : providerStep === 2 ? "Choose your image provider" : providerStep === 3 ? "Configure web search" : "Configure video narration"}
                 </h2>
                 <p className='text-[#000000CC] text-xl font-normal font-syne'>
                     {providerStep === 1
-                        ? "Start with ChatGPT, run a local model, or connect another AI provider."
+                        ? "Use your Presenton account, or configure your own AI providers."
                         : providerStep === 2
                             ? "Choose how Presenton creates visuals, or continue without image generation."
                             : providerStep === 3
@@ -1127,9 +1199,26 @@ const PresentonMode = ({
                                 : "Turn slide notes into narration for video export, or continue without it."}
                 </p>
             </div>
-            <div className='flex items-center gap-2 bg-[#F0F3F9B2] rounded-[8px]  px-6 py-2.5 my-[54px]'>
-                <Info className='w-4 h-4 fill-[#003399] stroke-white' />
-                <p className='text-sm text-[#5F6062] font-medium'>Runs locally on your device. Your API keys and generation setup stay on your machine.</p>
+
+            {providerStep === 1 ? (
+                <div className="mt-10">
+                    <OnboardingPresentonAccount onContinue={handlePresentonContinue} />
+                    <div className="my-8 flex items-center gap-4" aria-hidden="true">
+                        <div className="h-px flex-1 bg-[#E8E6EC]" />
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#938D9B]">
+                            Or configure your own providers
+                        </span>
+                        <div className="h-px flex-1 bg-[#E8E6EC]" />
+                    </div>
+                </div>
+            ) : null}
+
+            <div className={cn(
+                'flex items-center gap-2 bg-[#F0F3F9B2] rounded-[8px] px-6 py-2.5',
+                providerStep === 1 ? 'mb-6' : 'my-[54px]'
+            )}>
+                <Info className='w-4 h-4 shrink-0 fill-[#003399] stroke-white' />
+                <p className='text-sm text-[#5F6062] font-medium'>Your own provider keys and local generation setup stay on this machine.</p>
             </div>
 
             {providerStep === 1 && <>
@@ -1360,7 +1449,7 @@ const PresentonMode = ({
                                         {llmConfig.LLM && LLM_PROVIDERS[llmConfig.LLM!]?.getApiKeyUrl && <a href={LLM_PROVIDERS[llmConfig.LLM!]?.getApiKeyUrl || ""} target='_blank' className='text-[#666666] text-xs font-normal flex items-center gap-1'>Get API Key <ArrowUpRight className='w-3.5 h-3.5' /></a>}
                                     </div>
 
-                                    <div className="relative">
+                                    <div className="grid">
                                         <input
                                             type={showApiKey ? 'text' : 'password'}
                                             value={currentApiKey}
@@ -1368,13 +1457,13 @@ const PresentonMode = ({
                                                 ...prev,
                                                 [currentApiKeyField]: e.target.value
                                             }))}
-                                            className="w-full px-2 py-3 outline-none border  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                            className="col-start-1 row-start-1 h-12 w-full rounded-lg border border-gray-300 py-3 pl-3 pr-12 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                                             placeholder={`Enter your ${providerApiKeyLabel}`}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowApiKey((prev) => !prev)}
-                                            className='absolute right-2 top-1/2 -translate-y-1/2 bg-white px-2 py-1 cursor-pointer'
+                                            className='z-10 col-start-1 row-start-1 mr-2 flex h-8 w-8 cursor-pointer items-center justify-center self-center justify-self-end rounded-md bg-transparent p-0 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30'
                                         >
                                             {showApiKey ? <Eye className='w-4 h-4 text-gray-500' /> : <EyeOff className='w-4 h-4 text-gray-500' />}
                                         </button>
@@ -1520,7 +1609,7 @@ const PresentonMode = ({
                         </div>
 
 
-                        {!isManualModelProvider && llmConfig.LLM !== 'chatgpt' && llmConfig.LLM !== 'codex' && llmConfig.LLM !== 'ollama' && (!modelsChecked || availableModels.length === 0) && (
+                        {!isManualModelProvider && llmConfig.LLM !== 'chatgpt' && llmConfig.LLM !== 'codex' && llmConfig.LLM !== 'ollama' && !modelsChecked && (
 
                             <button
                                 onClick={fetchAvailableModels}
@@ -1559,100 +1648,31 @@ const PresentonMode = ({
                 <div className="mt-4 flex w-full max-w-[222px] items-start gap-4">
 
 
-                    {/* Model Selection - only show if models are available */}
-                    {isActiveNonChatProvider && !isManualModelProvider && llmConfig.LLM !== 'ollama' && modelsChecked && availableModels.length > 0 && (
+                    {/* Remote discovery is advisory; manual model IDs are always accepted. */}
+                    {isActiveNonChatProvider && !isManualModelProvider && llmConfig.LLM !== 'ollama' && modelsChecked && (
                         <div className="w-full">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    {`Select ${LLM_PROVIDERS[llmConfig.LLM!]?.label} Model`}
-                                </label>
-                                <div className="w-full">
-                                    <Popover
-                                        open={openModelSelect}
-                                        onOpenChange={(open) => {
-                                            setOpenModelSelect(open);
-                                            if (open && llmConfig.LLM === "ollama") {
-                                                void fetchAvailableModels();
-                                            }
-                                        }}
-                                    >
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                aria-expanded={openModelSelect}
-                                                className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
-                                            >
-                                                <span className="text-sm truncate font-medium text-gray-900">
-                                                    {
-                                                        currentModel
-                                                            ? availableModels.find(model => model === currentModel) || currentModel
-                                                            :
-                                                            "Select a model"
-                                                    }
-                                                </span>
-
-                                                <ChevronUp className="w-4 h-4 text-gray-500" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent
-                                            className="p-0"
-                                            align="start"
-                                            style={{ width: "var(--radix-popover-trigger-width)" }}
-                                        >
-                                            <Command>
-                                                <CommandInput placeholder="Search models..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No model found.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {availableModels.map((model, index) => (
-                                                            <CommandItem
-                                                                key={index}
-                                                                value={model}
-                                                                onSelect={(value) => {
-                                                                    if (currentModelField) {
-                                                                        trackEvent(MixpanelEvent.Onboarding_Text_Model_Selected, {
-                                                                            provider: llmConfig.LLM || "",
-                                                                            model: value,
-                                                                            text_provider_tab: textProviderTab,
-                                                                        });
-                                                                        setLlmConfig(prev => ({
-                                                                            ...prev,
-                                                                            [currentModelField]: value
-                                                                        }));
-                                                                    }
-                                                                    setOpenModelSelect(false);
-                                                                }}
-                                                            >
-                                                                <Check
-                                                                    className={cn(
-                                                                        "mr-2 h-4 w-4",
-                                                                        currentModel === model
-                                                                            ? "opacity-100"
-                                                                            : "opacity-0"
-                                                                    )}
-                                                                />
-                                                                <div className="flex gap-3 items-center">
-                                                                    <div className="flex flex-col space-y-1 flex-1">
-                                                                        <div className="flex items-center justify-between gap-2">
-                                                                            <span className="text-sm font-medium text-gray-900">
-                                                                                {model}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
+                            <CreatableModelInput
+                                value={currentModel}
+                                options={availableModels}
+                                providerLabel={LLM_PROVIDERS[llmConfig.LLM!]?.label || llmConfig.LLM || "Provider"}
+                                onChange={(value) => {
+                                    if (!currentModelField) return;
+                                    setLlmConfig(prev => ({ ...prev, [currentModelField]: value }));
+                                }}
+                            />
                         </div>
                     )}
                 </div>
+                {llmConfig.LLM !== "presenton" && (
+                    <div className="mt-5 w-full">
+                        <AdvancedTextProviderSettings
+                            config={llmConfig}
+                            onChange={(value, field) => {
+                                setLlmConfig(prev => ({ ...prev, [field]: value }));
+                            }}
+                        />
+                    </div>
+                )}
             </div>
             </>}
             {providerStep === 2 && <>
@@ -1919,7 +1939,9 @@ const PresentonMode = ({
                     onClick={handleContinue}
                     className='border font-syne border-[#EDEEEF] bg-[#7C51F8]  rounded-[58px] px-5 py-2.5 text-white text-xs  font-semibold'>
                     {providerStep === 1
-                        ? "Continue to image provider"
+                        ? llmConfig.LLM === "presenton"
+                            ? "Continue with Presenton"
+                            : "Continue to image provider"
                         : providerStep === 2
                             ? llmConfig.DISABLE_IMAGE_GENERATION ? "Disable image generation & Continue" : "Continue to web search"
                             : providerStep === 3

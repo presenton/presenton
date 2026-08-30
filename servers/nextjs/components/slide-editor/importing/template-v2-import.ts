@@ -13,6 +13,7 @@ import {
   type Fill,
   type Font,
   type GroupElement,
+  type InfographicData,
   type LayoutAlignment,
   type LayoutItem,
   type Padding,
@@ -26,6 +27,7 @@ import {
   type TextRun,
   type VectorCurve,
 } from "@/components/slide-editor/types";
+import { normalizeInfographicIcon } from "@/components/slide-editor/infographics/infographic-editing";
 
 const MIN_ELEMENT_SIZE = 1;
 const MAX_BORDER_RADIUS = 128;
@@ -570,15 +572,17 @@ function rawElementFrame(
   const width = readNumber(size ?? {}, "width");
   const height = readNumber(size ?? {}, "height");
   const hasPosition = x != null && y != null;
+  const vectorFrame = rawVectorFrame(element, offsetX, offsetY);
   const frame =
-    hasPosition && width != null && height != null
+    vectorFrame ??
+    (hasPosition && width != null && height != null
       ? {
         x: offsetX + x,
         y: offsetY + y,
         width: Math.max(1, width),
         height: Math.max(1, height),
       }
-      : null;
+      : null);
   const childOffsetX = hasPosition ? offsetX + x : offsetX;
   const childOffsetY = hasPosition ? offsetY + y : offsetY;
   const childFrames = rawElementChildren(element)
@@ -586,6 +590,33 @@ function rawElementFrame(
     .filter((childFrame): childFrame is RawFrame => Boolean(childFrame));
 
   return mergeRawElementFrames(frame ? [frame, ...childFrames] : childFrames);
+}
+
+function rawVectorFrame(
+  element: UnknownRecord,
+  offsetX: number,
+  offsetY: number,
+): RawFrame | null {
+  if (readString(element.type) !== "vector") return null;
+  const points = readArray(element, "points")
+    .map(asRecord)
+    .filter((point): point is UnknownRecord => point != null);
+  const xs = points
+    .map((point) => readNumber(point, "x"))
+    .filter((value): value is number => value != null);
+  const ys = points
+    .map((point) => readNumber(point, "y"))
+    .filter((value): value is number => value != null);
+  if (xs.length === 0 || ys.length === 0) return null;
+
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  return {
+    x: offsetX + minX,
+    y: offsetY + minY,
+    width: Math.max(1, Math.max(...xs) - minX),
+    height: Math.max(1, Math.max(...ys) - minY),
+  };
 }
 
 function rawElementChildren(element: UnknownRecord): UnknownRecord[] {
@@ -614,28 +645,17 @@ function mergeRawElementFrames(frames: RawFrame[]): RawFrame | null {
 
 function rawComponentFrame(component: UnknownRecord) {
   const position = readRecord(component, "position");
-  const size = readRecord(component, "size");
   const x = readNumber(position ?? {}, "x");
   const y = readNumber(position ?? {}, "y");
-  const width = readNumber(size ?? {}, "width");
-  const height = readNumber(size ?? {}, "height");
   if (x == null || y == null) return null;
-  if (width == null || height == null) {
-    const elements = readArray(component, "elements").filter(isRecord);
-    const content = rawElementsContentSize(elements);
-    return {
-      x,
-      y,
-      width: content.width,
-      height: content.height,
-    };
-  }
+  const elements = readArray(component, "elements").filter(isRecord);
+  const content = rawElementsContentSize(elements);
 
   return {
     x,
     y,
-    width: Math.max(1, width),
-    height: Math.max(1, height),
+    width: content.width,
+    height: content.height,
   };
 }
 
@@ -851,6 +871,18 @@ function adaptVector(raw: UnknownRecord): SlideElement | null {
     closed: adaptVectorClosed(raw, points),
     corner_radii: adaptCornerRadii(raw, points.length),
     curve: adaptVectorCurve(raw) ?? adaptImplicitVectorCurve(raw),
+    start_marker:
+      readEnum(
+        raw,
+        ["none", "arrow", "stealth", "triangle", "circle", "square", "diamond"],
+        "start_marker",
+      ) ?? undefined,
+    end_marker:
+      readEnum(
+        raw,
+        ["none", "arrow", "stealth", "triangle", "circle", "square", "diamond"],
+        "end_marker",
+      ) ?? undefined,
     fill,
     stroke,
     shadow: adaptShadow(readRecord(raw, "shadow")),
@@ -994,11 +1026,79 @@ function adaptChart(raw: UnknownRecord): SlideElement {
 
 function adaptInfographic(raw: UnknownRecord): SlideElement {
   const data = readRecord(raw, "data") ?? {};
+  const infographicType =
+    readEnum(
+      data,
+      [
+        "progress_bar",
+        "gauge",
+        "gantt",
+        "timeline",
+        "roadmap",
+        "milestone_timeline",
+        "staircase",
+        "supply_chain",
+        "stair_step_blocks",
+        "maturity_model",
+        "pillar_framework",
+        "transformation_hub",
+        "diagonal_circles",
+        "risk_matrix",
+        "chevron_process",
+        "radial_cycle",
+        "conversion_funnel",
+        "pyramid",
+        "segmented_wheel",
+        "customer_journey",
+        "before_after",
+        "impact_effort_matrix",
+        "comparison_matrix",
+        "org_chart",
+        "decision_tree",
+        "mind_map",
+      ],
+      "type",
+    ) ??
+    readEnum(
+      raw,
+      [
+        "progress_bar",
+        "gauge",
+        "gantt",
+        "timeline",
+        "roadmap",
+        "milestone_timeline",
+        "staircase",
+        "supply_chain",
+        "stair_step_blocks",
+        "maturity_model",
+        "pillar_framework",
+        "transformation_hub",
+        "diagonal_circles",
+        "risk_matrix",
+        "chevron_process",
+        "radial_cycle",
+        "conversion_funnel",
+        "pyramid",
+        "segmented_wheel",
+        "customer_journey",
+        "before_after",
+        "impact_effort_matrix",
+        "comparison_matrix",
+        "org_chart",
+        "decision_tree",
+        "mind_map",
+      ],
+      "infographic_type",
+    ) ??
+    "gauge";
   const minValue =
     readNumber(data, "min_value") ??
+    readNumber(raw, "min_value") ??
     0;
   const rawMaxValue =
     readNumber(data, "max_value") ??
+    readNumber(raw, "max_value") ??
     100;
   const maxValue =
     rawMaxValue === minValue ? minValue + 1 : rawMaxValue;
@@ -1009,16 +1109,324 @@ function adaptInfographic(raw: UnknownRecord): SlideElement {
   return {
     ...baseElement(raw),
     type: "infographic",
-    data: {
-      type:
-        readEnum(data, ["progress_bar", "gauge"], "type") ??
-        "gauge",
-      min_value: minValue,
-      max_value: maxValue,
-      value: readNumber(data, "value") ?? minValue,
-    },
-    colors,
+    name: truncateString(readString(raw.name) ?? "", 120) || null,
+    data: adaptInfographicData(
+      infographicType,
+      data,
+      raw,
+      minValue,
+      maxValue,
+    ),
+    colors: [
+      colors[0] ??
+        readColor(readValue(raw, "base_color")) ??
+        "E5E7EB",
+      colors[1] ??
+        readColor(readValue(raw, "highlight_color")) ??
+        "2563EB",
+      ...colors.slice(2),
+    ],
+    text_color: readColor(readValue(raw, "text_color")) ?? null,
   };
+}
+
+function adaptInfographicData(
+  type:
+    | "progress_bar"
+    | "gauge"
+    | "gantt"
+    | "timeline"
+    | "roadmap"
+    | "milestone_timeline"
+    | "staircase"
+    | "supply_chain"
+    | "stair_step_blocks"
+    | "maturity_model"
+    | "pillar_framework"
+    | "transformation_hub"
+    | "diagonal_circles"
+    | "risk_matrix"
+    | "chevron_process"
+    | "radial_cycle"
+    | "conversion_funnel"
+    | "pyramid"
+    | "segmented_wheel"
+    | "customer_journey"
+    | "before_after"
+    | "impact_effort_matrix"
+    | "comparison_matrix"
+    | "org_chart"
+    | "decision_tree"
+    | "mind_map",
+  data: UnknownRecord,
+  raw: UnknownRecord,
+  minValue: number,
+  maxValue: number,
+): InfographicData {
+  if (type === "gantt") {
+    const columns = readArray(data, "columns")
+      .map(asRecord)
+      .filter((item): item is UnknownRecord => Boolean(item))
+      .map((item, index) => ({
+        label: truncateString(
+          readString(item.label) ?? `Phase ${index + 1}`,
+          80,
+        ),
+      }));
+    const safeColumns = columns.length > 0 ? columns : [{ label: "Phase 1" }];
+    const rows = readArray(data, "rows")
+      .map(asRecord)
+      .filter((item): item is UnknownRecord => Boolean(item))
+      .map((row, rowIndex) => ({
+        label: truncateString(
+          readString(row.label) ?? `Workstream ${rowIndex + 1}`,
+          80,
+        ),
+        items: readArray(row, "items")
+          .map(asRecord)
+          .filter((item): item is UnknownRecord => Boolean(item))
+          .map((item, itemIndex) => ({
+            name: truncateString(
+              readString(item.name) ?? `Task ${itemIndex + 1}`,
+              80,
+            ),
+            start: adaptGanttPosition(
+              asRecord(item.start),
+              0,
+              safeColumns.length,
+            ),
+            end: adaptGanttPosition(
+              asRecord(item.end),
+              safeColumns.length - 1,
+              safeColumns.length,
+            ),
+          })),
+      }));
+    return {
+      type,
+      columns: safeColumns,
+      rows: rows.length > 0 ? rows : [{ label: "Workstream", items: [] }],
+    };
+  }
+
+  if (
+    type === "timeline" ||
+    type === "roadmap" ||
+    type === "milestone_timeline" ||
+    type === "staircase" ||
+    type === "supply_chain" ||
+    type === "stair_step_blocks" ||
+    type === "maturity_model" ||
+    type === "diagonal_circles" ||
+    type === "chevron_process" ||
+    type === "segmented_wheel" ||
+    type === "customer_journey" ||
+    type === "pyramid"
+  ) {
+    const items = readArray(data, "items")
+      .map(adaptInfographicTextItem)
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    return {
+      type,
+      ...(type === "customer_journey"
+        ? { start_color: readString(data.start_color) }
+        : {}),
+      items:
+        items.length > 0
+          ? items
+          : type === "pyramid"
+            ? [
+                { heading: "Foundation" },
+                { heading: "Efficiency" },
+                { heading: "Innovation" },
+              ]
+            : [{ heading: "Milestone" }],
+    };
+  }
+
+  if (type === "radial_cycle") {
+    const items = readArray(data, "items")
+      .map(adaptInfographicTextItem)
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    return {
+      type,
+      center_image: truncateString(readString(data.center_image) ?? "", 2000) || null,
+      items: items.length > 0 ? items : [{ heading: "Step 1" }],
+    };
+  }
+
+  if (type === "pillar_framework") {
+    const items = readArray(data, "items").map(adaptInfographicTextItem).filter((item): item is NonNullable<typeof item> => Boolean(item));
+    return { type, title: truncateString(readString(data.title) ?? "Growth & Transformation Framework", 120), items: items.length > 0 ? items : [{ heading: "Customer", focus: "Experience & Value" }] };
+  }
+
+  if (type === "transformation_hub") {
+    const items = readArray(data, "items").map(adaptInfographicTextItem).filter((item): item is NonNullable<typeof item> => Boolean(item));
+    return { type, center_label: truncateString(readString(data.center_label) ?? "Business Transformation", 120), items: items.length > 0 ? items : [{ heading: "Strategy" }, { heading: "Process" }] };
+  }
+
+  if (type === "risk_matrix") {
+    const items = readArray(data, "items").map(adaptInfographicTextItem).filter((item): item is NonNullable<typeof item> => Boolean(item));
+    const defaults = ["Identify", "Prioritize", "Assess", "Respond"];
+    return { type, center_label: truncateString(readString(data.center_label) ?? "RISK", 4), items: defaults.map((heading, index) => items[index] ?? { heading }) };
+  }
+
+  if (type === "conversion_funnel") {
+    const items = readArray(data, "items")
+      .map(asRecord)
+      .filter((item): item is UnknownRecord => Boolean(item))
+      .map((item, index) => ({
+        value: clamp(
+          readNumber(item, "value") ?? Math.max(0, 60 - index * 10),
+          0,
+          100,
+        ),
+        heading: truncateString(readString(item.heading) ?? `Stage ${index + 1}`, 80),
+        description: truncateString(readString(item.description) ?? "", 280) || null,
+      }));
+    return {
+      type,
+      items:
+        items.length > 0
+          ? items
+          : [{ value: 50, heading: "Stage 1", description: null }],
+    };
+  }
+
+  if (type === "before_after") {
+    const items = readArray(data, "items")
+      .map(adaptInfographicTextItem)
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    const evenItems = items.slice(0, items.length - (items.length % 2));
+    return {
+      type,
+      before_label: truncateString(readString(data.before_label) ?? "Before", 80),
+      after_label: truncateString(readString(data.after_label) ?? "After", 80),
+      items:
+        evenItems.length >= 2
+          ? evenItems
+          : [{ heading: "Before" }, { heading: "After" }],
+    };
+  }
+
+  if (type === "impact_effort_matrix") {
+    const items = readArray(data, "items")
+      .map(adaptInfographicTextItem)
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    const defaults = ["Quick Wins", "Strategic Priorities", "Deprioritize", "Fill-ins"];
+    return {
+      type,
+      x_axis_label: truncateString(readString(data.x_axis_label) ?? "Impact", 80),
+      y_axis_label: truncateString(readString(data.y_axis_label) ?? "Effort", 80),
+      low_label: truncateString(readString(data.low_label) ?? "Low", 40),
+      high_label: truncateString(readString(data.high_label) ?? "High", 40),
+      items: defaults.map((heading, index) => items[index] ?? { heading }),
+    };
+  }
+
+  if (type === "comparison_matrix") {
+    const criteria = readArray(data, "criteria")
+      .map((value) => truncateString(readString(value) ?? "", 80))
+      .filter(Boolean);
+    const safeCriteria = criteria.length > 0 ? criteria : ["Criterion 1"];
+    const items = readArray(data, "items")
+      .map(asRecord)
+      .filter((item): item is UnknownRecord => Boolean(item))
+      .map((item, index) => {
+        const normalizedIcon = normalizeInfographicIcon(item.icon, item.color);
+        const values = readArray(item, "values").map((value) => truncateString(readString(value) ?? "", 80));
+        return {
+          icon: normalizedIcon ?? undefined,
+          heading: truncateString(readString(item.heading) ?? `Option ${index + 1}`, 120),
+          values: safeCriteria.map((_, valueIndex) => values[valueIndex] ?? ""),
+        };
+      });
+    return {
+      type,
+      criteria: safeCriteria,
+      items: items.length > 0 ? items : [{ heading: "Option 1", values: safeCriteria.map(() => "") }],
+    };
+  }
+
+  if (type === "org_chart" || type === "decision_tree") {
+    const items = readArray(data, "items")
+      .map(asRecord)
+      .filter((item): item is UnknownRecord => Boolean(item))
+      .map((item, index) => ({
+        id: truncateString(readString(item.id) ?? `node-${index + 1}`, 80),
+        parent_id: truncateString(readString(item.parent_id) ?? "", 80) || null,
+        heading: truncateString(readString(item.heading) ?? `Item ${index + 1}`, 120),
+        description: truncateString(readString(item.description) ?? "", 240) || null,
+      }));
+    return {
+      type,
+      items: items.length > 0 ? items : [{ id: "node-1", parent_id: null, heading: type === "org_chart" ? "Leader" : "Decision", description: null }],
+    };
+  }
+
+  if (type === "mind_map") {
+    const items = readArray(data, "items")
+      .map(adaptMindMapNode)
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    return {
+      type,
+      items:
+        items.length > 0 ? items : [{ heading: "Core idea", items: [] }],
+    };
+  }
+
+  return {
+    type,
+    min_value: minValue,
+    max_value: maxValue,
+    value: readNumber(data, "value") ?? readNumber(raw, "value") ?? minValue,
+  };
+}
+
+function adaptGanttPosition(
+  value: UnknownRecord | null,
+  fallbackColumn: number,
+  columnCount: number,
+) {
+  const column = Math.round(
+    readNumber(value ?? {}, "column") ?? fallbackColumn,
+  );
+  const offset = readNumber(value ?? {}, "offset") ?? 0;
+  return {
+    column: clamp(column, 0, Math.max(0, columnCount - 1)),
+    offset: clamp(offset, 0, 1),
+  };
+}
+
+function adaptInfographicTextItem(value: unknown) {
+  const item = asRecord(value);
+  if (!item) return null;
+  const normalizedIcon = normalizeInfographicIcon(item.icon, item.color);
+  const icon = normalizedIcon
+    ? {
+        ...normalizedIcon,
+        url: truncateString(normalizedIcon.url, 2048),
+      }
+    : undefined;
+  const heading =
+    truncateString(readString(item.heading) ?? "", 120) || undefined;
+  const description =
+    truncateString(readString(item.description) ?? "", 240) || undefined;
+  const focus = truncateString(readString(item.focus) ?? "", 120) || undefined;
+  return icon || heading || description || focus ? { icon, heading, description, focus } : null;
+}
+
+function adaptMindMapNode(
+  value: unknown,
+): Extract<InfographicData, { type: "mind_map" }>["items"][number] | null {
+  const item = asRecord(value);
+  if (!item) return null;
+  const visible = adaptInfographicTextItem(item);
+  const items = readArray(item, "items")
+    .map(adaptMindMapNode)
+    .filter((child): child is NonNullable<typeof child> => Boolean(child));
+  if (!visible && items.length === 0) return null;
+  return { ...visible, items };
 }
 
 function adaptFlex(raw: UnknownRecord): SlideElement {
@@ -1312,7 +1720,11 @@ function adaptLayoutItem(value: UnknownRecord | null): LayoutItem | null {
 function adaptAlignment(value: UnknownRecord | null): Alignment | null {
   if (!value) return null;
   return stripNullish({
-    horizontal: readEnum(value, ["left", "center", "right"], "horizontal"),
+    horizontal: readEnum(
+      value,
+      ["left", "center", "right", "justify"],
+      "horizontal",
+    ),
     vertical: readEnum(value, ["top", "middle", "bottom"], "vertical"),
   });
 }
@@ -1503,7 +1915,11 @@ function adaptTableCells(value: unknown[]): TableCell[] {
           adaptFont(readRecord(record, "font")) ??
           adaptFont(readRecord(firstRun, "font")) ??
           adaptFont(readRecord(textRecord ?? {}, "font")),
-        alignment: readEnum(record, ["left", "center", "right"], "alignment"),
+        alignment: readEnum(
+          record,
+          ["left", "center", "right", "justify"],
+          "alignment",
+        ),
         runs,
       }) as TableCell;
     })

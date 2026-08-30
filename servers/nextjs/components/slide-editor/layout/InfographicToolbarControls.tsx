@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Palette, SlidersHorizontal } from "lucide-react";
+import { Pencil, Plus, PlusCircle, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  ColorField,
-  NumberField,
-  Panel,
-} from "@/components/slide-editor/shapes/ShapeToolbar";
+import { NumberField, Panel } from "@/components/slide-editor/shapes/ShapeToolbar";
 import type { InfographicType } from "@/components/slide-editor/types";
+import {
+  addInfographicToolbarItem,
+  infographicToolbarItemStats,
+  removeLastInfographicToolbarItem,
+} from "@/components/slide-editor/infographics/infographic-editing";
+import { resizedInfographicFrame } from "@/components/slide-editor/infographics/infographic-sizing";
 import {
   numericInputMode,
   preventInvalidNumberInput,
@@ -16,21 +18,14 @@ import {
 } from "@/components/slide-editor/toolbar/numericInput";
 
 type RawRecord = Record<string, unknown>;
-type InfographicPanelId = "infographic-colors" | "infographic-range";
-
-const INFOGRAPHIC_TYPE_OPTIONS: Array<{
-  label: string;
-  value: InfographicType;
-}> = [
-  { label: "Progress Bar", value: "progress_bar" },
-  { label: "Gauge", value: "gauge" },
-];
+type InfographicPanelId = "items" | "infographic-range";
 
 export type TemplateV2InfographicToolbarElement = RawRecord & {
   type: "infographic";
+  text_color?: string | null;
 };
 
-type ToolbarInfographicData = RawRecord & {
+type ToolbarInfographicData = {
   type: InfographicType;
   min_value: number;
   max_value: number;
@@ -40,11 +35,13 @@ type ToolbarInfographicData = RawRecord & {
 export function TemplateV2InfographicToolbarControls({
   element,
   onChange,
+  onEdit,
   onToggle,
   openPanel,
 }: {
   element: TemplateV2InfographicToolbarElement;
   onChange: (changes: RawRecord) => void;
+  onEdit?: () => void;
   onToggle: (panel: InfographicPanelId) => void;
   openPanel: string | null;
 }) {
@@ -53,101 +50,163 @@ export function TemplateV2InfographicToolbarControls({
   const minValue = data.min_value;
   const maxValue = data.max_value;
   const value = data.value;
-  const colors = readInfographicColors(element);
-  const baseColor = colors[0];
-  const highlightColor = colors[1];
+  const isMeter =
+    infographicType === "progress_bar" || infographicType === "gauge";
+  const rawData = readRecord(element.data);
+  const itemStats = infographicToolbarItemStats(rawData);
 
   const commitDataChange = (changes: Partial<ToolbarInfographicData>) => {
-    onChange({ data: { ...data, ...changes } });
+    const next = { ...rawData, ...data, ...changes };
+    onChange({
+      data: next,
+      infographic_type: undefined,
+      min_value: undefined,
+      max_value: undefined,
+      value: undefined,
+    });
   };
 
-  const commitColorChange = (index: number, color: string) => {
-    const nextColors = [...colors];
-    nextColors[index] = color;
-    onChange({ colors: nextColors });
+  const commitItemsChange = (nextData: unknown) => {
+    if (nextData === rawData) return;
+    onChange({
+      data: nextData,
+      ...resizedInfographicFrame(element, nextData),
+      infographic_type: undefined,
+      min_value: undefined,
+      max_value: undefined,
+      value: undefined,
+    });
   };
 
   return (
     <>
-      <div className="inline-flex h-7 items-center gap-1.5 rounded-[6px] px-1.5 text-[#191919]">
-        <SlidersHorizontal size={16} strokeWidth={1.6} aria-hidden />
-        <select
-          aria-label="Infographic type"
-          title="Infographic type"
-          value={infographicType}
-          onChange={(event) =>
-            commitDataChange({
-              type: event.target.value as InfographicType,
-            })
+      {isMeter ? (
+        <InlineNumberInput
+          label="Value"
+          value={value}
+          onCommit={(nextValue) => commitDataChange({ value: nextValue })}
+        />
+      ) : null}
+
+      {isMeter ? (
+        <div className="relative">
+          <ToolbarIconButton
+            title="Range"
+            open={openPanel === "infographic-range"}
+            onClick={() => onToggle("infographic-range")}
+          >
+            <span className="text-[11px] font-semibold leading-none" aria-hidden>
+              Min
+            </span>
+          </ToolbarIconButton>
+          {openPanel === "infographic-range" ? (
+            <Panel className="w-[230px] space-y-3 p-3">
+              <NumberField
+                label="Min"
+                value={minValue}
+                step={1}
+                onCommit={(min_value) => commitDataChange({ min_value })}
+              />
+              <NumberField
+                label="Max"
+                value={maxValue}
+                step={1}
+                onCommit={(max_value) => commitDataChange({ max_value })}
+              />
+            </Panel>
+          ) : null}
+        </div>
+      ) : null}
+
+      {itemStats ? (
+        <InfographicItemsControl
+          canAdd={infographicType !== "decision_tree" && itemStats.canAdd}
+          canRemove={itemStats.canRemove}
+          count={itemStats.count}
+          open={openPanel === "items"}
+          onAdd={() => commitItemsChange(addInfographicToolbarItem(rawData))}
+          onRemove={() =>
+            commitItemsChange(removeLastInfographicToolbarItem(rawData))
           }
-          className="h-7 max-w-[116px] bg-transparent px-0 text-[12px] font-medium outline-none"
-        >
-          {INFOGRAPHIC_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          onToggle={() => onToggle("items")}
+        />
+      ) : null}
 
-      <InlineNumberInput
-        label="Value"
-        value={value}
-        onCommit={(nextValue) => commitDataChange({ value: nextValue })}
-      />
-
-      <div className="relative">
-        <ToolbarIconButton
-          title="Range"
-          open={openPanel === "infographic-range"}
-          onClick={() => onToggle("infographic-range")}
-        >
-          <span className="text-[11px] font-semibold leading-none" aria-hidden>
-            Min
-          </span>
+      {onEdit ? (
+        <ToolbarIconButton title="Edit infographic" open={false} onClick={onEdit}>
+          <Pencil size={15} strokeWidth={1.8} aria-hidden />
         </ToolbarIconButton>
-        {openPanel === "infographic-range" ? (
-          <Panel className="w-[230px] space-y-3 p-3">
-            <NumberField
-              label="Min"
-              value={minValue}
-              step={1}
-              onCommit={(min_value) => commitDataChange({ min_value })}
-            />
-            <NumberField
-              label="Max"
-              value={maxValue}
-              step={1}
-              onCommit={(max_value) => commitDataChange({ max_value })}
-            />
-          </Panel>
-        ) : null}
-      </div>
-
-      <div className="relative">
-        <ToolbarIconButton
-          title="Colors"
-          open={openPanel === "infographic-colors"}
-          onClick={() => onToggle("infographic-colors")}
-        >
-          <Palette size={16} strokeWidth={1.8} aria-hidden />
-        </ToolbarIconButton>
-        {openPanel === "infographic-colors" ? (
-          <Panel className="w-[230px] space-y-3 p-3">
-            <ColorField
-              label="Base"
-              color={baseColor}
-              onCommit={(baseColor) => commitColorChange(0, baseColor)}
-            />
-            <ColorField
-              label="Highlight"
-              color={highlightColor}
-              onCommit={(highlightColor) => commitColorChange(1, highlightColor)}
-            />
-          </Panel>
-        ) : null}
-      </div>
+      ) : null}
     </>
+  );
+}
+
+function InfographicItemsControl({
+  canAdd,
+  canRemove,
+  count,
+  onAdd,
+  onRemove,
+  onToggle,
+  open,
+}: {
+  canAdd: boolean;
+  canRemove: boolean;
+  count: number;
+  onAdd: () => void;
+  onRemove: () => void;
+  onToggle: () => void;
+  open: boolean;
+}) {
+  const addItem = () => {
+    if (!canAdd) return;
+    onAdd();
+    onToggle();
+  };
+  const removeItem = () => {
+    if (!canRemove) return;
+    onRemove();
+    onToggle();
+  };
+
+  return (
+    <div className="relative">
+      <ToolbarIconButton title="Items" open={open} onClick={onToggle}>
+        <PlusCircle size={16} strokeWidth={1} aria-hidden />
+      </ToolbarIconButton>
+      {open ? (
+        <Panel className="w-[206px] overflow-hidden py-2.5">
+          <button
+            type="button"
+            disabled={!canAdd}
+            onClick={addItem}
+            className={cn(
+              "flex w-full items-center gap-2 px-4 py-2.5 text-left font-manrope text-[14px] font-medium text-[#191919] hover:bg-[#F8F8FA]",
+              !canAdd &&
+                "cursor-not-allowed text-[#A0A3AD] hover:bg-transparent",
+            )}
+          >
+            <Plus size={16} strokeWidth={1} aria-hidden />
+            <span>Add Item</span>
+          </button>
+          <div className="my-1 h-px bg-[#E7E8EC]" aria-hidden />
+          <button
+            type="button"
+            disabled={!canRemove}
+            onClick={removeItem}
+            className={cn(
+              "flex w-full items-center gap-2 px-4 py-2.5 text-left font-manrope text-[14px] font-medium text-[#191919] hover:bg-[#F8F8FA]",
+              !canRemove &&
+                "cursor-not-allowed text-[#A0A3AD] hover:bg-transparent",
+            )}
+          >
+            <Trash2 size={16} strokeWidth={1} aria-hidden />
+            <span>Last Item</span>
+            <span className="ml-auto text-[11px] text-[#8A8D96]">{count}</span>
+          </button>
+        </Panel>
+      ) : null}
+    </div>
   );
 }
 
@@ -200,6 +259,7 @@ function InlineNumberInput({
 
   useEffect(() => {
     if (focused) return;
+    // Keep the unfocused input draft synchronized with external canvas updates.
     setDraft(formatNumber(value));
   }, [focused, value]);
 
@@ -252,28 +312,52 @@ function InlineNumberInput({
 }
 
 function readInfographicType(value: unknown): InfographicType {
-  return value === "progress_bar" || value === "gauge" ? value : "gauge";
+  return value === "progress_bar" ||
+    value === "gauge" ||
+    value === "gantt" ||
+    value === "timeline" ||
+    value === "roadmap" ||
+    value === "milestone_timeline" ||
+    value === "staircase" ||
+    value === "supply_chain" ||
+    value === "stair_step_blocks" ||
+    value === "maturity_model" ||
+    value === "diagonal_circles" ||
+    value === "pillar_framework" ||
+    value === "transformation_hub" ||
+    value === "risk_matrix" ||
+    value === "chevron_process" ||
+    value === "radial_cycle" ||
+    value === "conversion_funnel" ||
+    value === "pyramid" ||
+    value === "segmented_wheel" ||
+    value === "customer_journey" ||
+    value === "before_after" ||
+    value === "impact_effort_matrix" ||
+    value === "comparison_matrix" ||
+    value === "org_chart" ||
+    value === "decision_tree" ||
+    value === "mind_map"
+    ? value
+    : "gauge";
 }
 
 function readInfographicData(element: RawRecord): ToolbarInfographicData {
   const data = readRecord(element.data);
-  const minValue = readNumber(data.min_value, 0);
-  const maxValue = readNumber(data.max_value, 100);
+  const minValue = readNumber(
+    data.min_value,
+    readNumber(element.min_value, 0),
+  );
+  const maxValue = readNumber(
+    data.max_value,
+    readNumber(element.max_value, 100),
+  );
   return {
-    ...data,
-    type: readInfographicType(data.type),
+    type: readInfographicType(data.type ?? element.infographic_type),
     min_value: minValue,
     max_value: maxValue,
-    value: readNumber(data.value, minValue),
+    value: readNumber(data.value, readNumber(element.value, minValue)),
   };
-}
-
-function readInfographicColors(element: RawRecord): [string, string] {
-  const colors = Array.isArray(element.colors) ? element.colors : [];
-  return [
-    readColor(colors[0], "E5E7EB"),
-    readColor(colors[1], "2563EB"),
-  ];
 }
 
 function readRecord(value: unknown): RawRecord {
@@ -286,10 +370,6 @@ function readNumber(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value)
     ? value
     : fallback;
-}
-
-function readColor(value: unknown, fallback: string) {
-  return typeof value === "string" && value.trim() ? value : fallback;
 }
 
 function formatNumber(value: number) {

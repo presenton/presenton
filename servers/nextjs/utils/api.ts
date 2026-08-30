@@ -1,5 +1,21 @@
 import { extractApiErrorMessage } from "@/utils/apiErrorMessages";
 
+export const BACKEND_CONNECTION_ERROR_MESSAGE =
+  "Check that the FastAPI backend is running and that the frontend can reach it.";
+
+export class BackendConnectionError extends Error {
+  constructor(message = BACKEND_CONNECTION_ERROR_MESSAGE) {
+    super(message);
+    this.name = "BackendConnectionError";
+  }
+}
+
+export function isBackendConnectionError(
+  error: unknown
+): error is BackendConnectionError {
+  return error instanceof BackendConnectionError;
+}
+
 function isAbsoluteHttpUrl(path: string): boolean {
   return /^https?:\/\//i.test(path);
 }
@@ -117,6 +133,44 @@ export function getApiUrl(path: string): string {
   return resolveBackendPathForRuntime(normalizedPath);
 }
 
+function isJsonResponse(response: Response): boolean {
+  const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+  return (
+    contentType.includes("application/json") || contentType.includes("+json")
+  );
+}
+
+/**
+ * Verify the browser-to-FastAPI path before configuration bootstrap makes any
+ * provider decisions. A same-origin frontend 404/500 is commonly HTML, so it
+ * must not be mistaken for a valid backend response.
+ */
+export async function assertBackendReachable(): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(getApiUrl("/api/v1/auth/status"), {
+      cache: "no-store",
+      credentials: "include",
+    });
+  } catch {
+    throw new BackendConnectionError();
+  }
+
+  if (!response.ok || !isJsonResponse(response)) {
+    throw new BackendConnectionError();
+  }
+
+  try {
+    const status: unknown = await response.json();
+    if (!status || typeof status !== "object" || Array.isArray(status)) {
+      throw new BackendConnectionError();
+    }
+  } catch (error) {
+    if (isBackendConnectionError(error)) throw error;
+    throw new BackendConnectionError();
+  }
+}
+
 /**
  * getApiUrl may return a path without host (e.g. `/api/v1/...`). A single-argument
  * `new URL("/api/...")` call is invalid; use this before `new URL(..., ...)`-style
@@ -138,6 +192,34 @@ export function buildAbsoluteApiRequestUrl(
 
 function hasBackendAssetPrefix(path: string): boolean {
   return path.startsWith("/static/") || path.startsWith("/app_data/");
+}
+
+function getHttpOrigin(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+      ? parsed.origin
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalBackendOrigin(origin: string): boolean {
+  const localOrigins = new Set<string>();
+  const configuredOrigin = getHttpOrigin(getConfiguredFastApiUrl());
+  const queryOrigin = getHttpOrigin(getFastApiUrlFromQuery());
+  const runtimeOrigin = getHttpOrigin(getFastAPIUrl());
+
+  if (configuredOrigin) localOrigins.add(configuredOrigin);
+  if (queryOrigin) localOrigins.add(queryOrigin);
+  if (runtimeOrigin) localOrigins.add(runtimeOrigin);
+  if (typeof window !== "undefined" && window.location?.origin) {
+    localOrigins.add(window.location.origin);
+  }
+
+  return localOrigins.has(origin);
 }
 
 function toBackendServedPath(rawPath: string): string {
@@ -223,6 +305,12 @@ export function resolveBackendAssetUrl(path?: string): string {
   if (isAbsoluteHttpUrl(trimmedPath)) {
     try {
       const parsed = new URL(trimmedPath);
+      // Assets returned by Presenton cloud (or any other remote origin) must
+      // retain their complete URL. Only URLs that point at this deployment's
+      // own backend are normalized to the runtime's local/reverse-proxy path.
+      if (!isLocalBackendOrigin(parsed.origin)) {
+        return trimmedPath;
+      }
       const servedPath = toBackendServedPath(parsed.pathname);
       if (hasBackendAssetPrefix(servedPath)) {
         return resolveBackendPathForRuntime(

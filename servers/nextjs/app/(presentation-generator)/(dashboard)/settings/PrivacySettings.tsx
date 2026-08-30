@@ -1,7 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
-import { setTelemetryEnabled } from "@/utils/mixpanel";
+import {
+  MixpanelEvent,
+  setTelemetryEnabled,
+  trackEventImmediately,
+} from "@/utils/mixpanel";
 import { Loader2 } from "lucide-react";
 
 const PrivacySettings = () => {
@@ -25,9 +29,18 @@ const PrivacySettings = () => {
   const handleTrackingToggle = async (enabled: boolean) => {
     const prev = trackingEnabled;
     setTrackingEnabled(enabled);
-    setTelemetryEnabled(enabled);
     setSaving(true);
     try {
+      if (!enabled) {
+        try {
+          await trackEventImmediately(MixpanelEvent.Usage_Analytics_Disabled, {
+            source: "settings",
+          });
+        } catch {
+          // Analytics failures must not prevent the user from opting out.
+        }
+      }
+      setTelemetryEnabled(enabled);
       const response = await fetch("/api/user-config", {
         method: "POST",
         body: JSON.stringify({

@@ -16,8 +16,8 @@ class RawSlideLayouts(BaseModel):
 
 
 class Component(BaseModel):
-    id: str = Field(min_length=1, max_length=80)
-    description: str = Field(min_length=10, max_length=300)
+    id: str
+    description: str
     position: Position
     elements: list[SlideElement] = Field(min_length=1)
 
@@ -43,8 +43,8 @@ class SimilarComponentsList(BaseModel):
 
 
 class MergedComponent(BaseModel):
-    id: str = Field(min_length=1, max_length=80)
-    description: str = Field(min_length=10, max_length=300)
+    id: str
+    description: str
     variants: list[Component] = Field(min_length=1)
 
 
@@ -60,8 +60,8 @@ class MergedComponents(BaseModel):
 
 
 class SlideLayout(BaseModel):
-    id: str = Field(min_length=1, max_length=80)
-    description: str = Field(min_length=10, max_length=300)
+    id: str
+    description: str
     components: list[Component]
 
     @model_validator(mode="after")
@@ -81,3 +81,16 @@ class SlideLayouts(BaseModel):
         if len(ids) != len(set(ids)):
             raise ValueError("slide layout ids must be unique")
         return self
+
+
+def slide_layout_llm_json_schema() -> dict:
+    """Return the SlideLayout output schema with LLM-only string length hints."""
+    schema = SlideLayout.model_json_schema()
+
+    def add_length_hints(properties: dict) -> None:
+        properties["id"].update(minLength=1, maxLength=80)
+        properties["description"].update(minLength=10, maxLength=300)
+
+    add_length_hints(schema["properties"])
+    add_length_hints(schema["$defs"]["Component"]["properties"])
+    return schema

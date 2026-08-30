@@ -8,6 +8,12 @@ import { applyPresentationThemeToElement } from "../utils/applyPresentationTheme
 import { normalizeBackendAssetUrls } from "@/utils/api";
 import { useFontLoader } from "../../hooks/useFontLoad";
 import { DashboardApi } from "../../services/api/dashboard";
+import TemplateService from "../../services/api/template";
+import {
+  DEFAULT_TEMPLATE_THEME,
+  normalizeTemplateTheme,
+  resolveTemplateIdFromPresentation,
+} from "@/lib/template-theme";
 
 
 export const usePresentationData = (
@@ -38,19 +44,37 @@ export const usePresentationData = (
 
 
       if (normalizedData) {
-        dispatch(setPresentationData(normalizedData));
+        const templateId = resolveTemplateIdFromPresentation(normalizedData);
+        const responseTheme = normalizeTemplateTheme(normalizedData.theme);
+        const fetchedTheme = templateId
+          ? await TemplateService.getTemplateTheme(templateId)
+          : null;
+        const theme = fetchedTheme ?? responseTheme ?? DEFAULT_TEMPLATE_THEME;
+        const themedData = {
+          ...normalizedData,
+          ...(templateId && !normalizedData.template_id
+            ? { template_id: templateId }
+            : {}),
+          theme,
+        };
+
+        dispatch(setPresentationData(themedData));
         if (options?.clearHistory ?? true) {
           dispatch(clearHistory());
         }
         setLoading(false);
-      }
-      if (normalizedData.fonts) {
-        useFontLoader(normalizedData.fonts);
-      }
-      if (normalizedData?.theme) {
+        if (normalizedData.fonts) {
+          useFontLoader(normalizedData.fonts);
+        }
+        const textFont = theme.fonts?.textFont;
+        if (textFont) {
+          useFontLoader({ [textFont.name]: textFont.url });
+        }
         const el = document.getElementById("presentation-slides-wrapper");
-        applyPresentationThemeToElement(el, normalizedData.theme);
+        applyPresentationThemeToElement(el, theme);
+        return themedData;
       }
+
       return normalizedData;
     } catch (error) {
       setError(true);

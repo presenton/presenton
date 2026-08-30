@@ -35,8 +35,12 @@ class DummyUploadFile:
         self._content = content
         self.size = len(content) if size is _SIZE_UNSET else size
 
-    async def read(self) -> bytes:
-        return self._content
+    async def read(self, size: int = -1) -> bytes:
+        if size is None or size < 0:
+            data, self._content = self._content, b""
+            return data
+        data, self._content = self._content[:size], self._content[size:]
+        return data
 
 
 async def _run_sync_in_test(func, *args, **kwargs):
@@ -715,6 +719,22 @@ def test_preview_dimensions_preserve_converter_aspect_ratio():
     )
 
 
+def test_preview_dimensions_from_pptx_use_export_core_coordinate_space(tmp_path):
+    pptx_path = tmp_path / "deck.pptx"
+    with zipfile.ZipFile(pptx_path, "w") as archive:
+        archive.writestr(
+            "ppt/presentation.xml",
+            """\
+<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:sldSz cx="9144000" cy="5143500" />
+</p:presentation>""",
+        )
+
+    assert fonts_and_slides_preview._preview_dimensions_from_pptx(
+        str(pptx_path)
+    ) == (960, 540)
+
+
 def test_build_slide_preview_html_adds_fixed_viewport_css(monkeypatch):
     monkeypatch.setattr(
         fonts_and_slides_preview,
@@ -949,8 +969,55 @@ def test_localize_preview_asset_urls_leaves_external_urls(monkeypatch):
     assert calls == []
 
 
+def test_localize_preview_asset_urls_resolves_converter_relative_assets(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("DISABLE_AUTH", "true")
+    artifact_dir = tmp_path / "pptx-to-html" / "session"
+    image_path = artifact_dir / "images" / "asset.png"
+    svg_with_png_extension_path = artifact_dir / "images" / "icon.png"
+    font_path = artifact_dir / "fonts" / "deck.woff2"
+    image_path.parent.mkdir(parents=True)
+    font_path.parent.mkdir(parents=True)
+    image_path.write_bytes(b"png")
+    svg_with_png_extension_path.write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg"/>')
+    font_path.write_bytes(b"font")
+
+    html = (
+        '<img src="images/asset.png">'
+        '<img src="images/icon.png">'
+        "<style>@font-face { src: url('fonts/deck.woff2'); }</style>"
+    )
+
+    localized = fonts_and_slides_preview._localize_preview_asset_urls(
+        html,
+        relative_asset_root=str(artifact_dir),
+    )
+
+    assert 'src="data:image/png;base64,cG5n"' in localized
+    assert 'src="data:image/svg+xml;base64,' in localized
+    assert "url('data:font/woff2;base64,Zm9udA==')" in localized
+
+
+def test_localize_preview_asset_urls_rejects_relative_path_traversal(tmp_path):
+    artifact_dir = tmp_path / "pptx-to-html" / "session"
+    artifact_dir.mkdir(parents=True)
+    outside_path = tmp_path / "secret.png"
+    outside_path.write_bytes(b"secret")
+    html = '<img src="../../secret.png">'
+
+    localized = fonts_and_slides_preview._localize_preview_asset_urls(
+        html,
+        relative_asset_root=str(artifact_dir),
+    )
+
+    assert localized == html
+
+
 @pytest.mark.anyio
-async def test_create_slide_previews_from_html_uses_converter_dimensions_and_fonts(
+async def test_create_slide_previews_from_json_uses_pptx_dimensions_and_fonts(
     monkeypatch,
     tmp_path,
 ):
@@ -974,24 +1041,25 @@ async def test_create_slide_previews_from_html_uses_converter_dimensions_and_fon
     )
 
     class FakeExportTaskService:
-        async def convert_pptx_to_html(self, pptx_path, get_fonts=False):
+        async def convert_pptx_to_json(self, pptx_path):
             assert pptx_path == "deck.pptx"
-            assert get_fonts is True
             return SimpleNamespace(
-                slides=['<div class="slide-content">Slide</div>'],
-                font_css=".deck-font { color: black; }",
-                width=1024.0,
-                height=768.0,
+                layouts=[{"elements": [{"type": "text", "text": "Slide"}]}],
             )
 
-        async def render_htmls_to_images(self, htmls, width, height):
-            render_calls.append((htmls, width, height))
+        async def render_jsons_to_images(self, data, width, height, fonts=None):
+            render_calls.append((data, width, height, fonts))
             return SimpleNamespace(paths=[str(rendered_path)])
 
     monkeypatch.setattr(
         fonts_and_slides_preview,
         "EXPORT_TASK_SERVICE",
         FakeExportTaskService(),
+    )
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "_preview_dimensions_from_pptx",
+        lambda _path: (1024, 768),
     )
 
     result = await fonts_and_slides_preview.render_pptx_slides_to_images(
@@ -1006,23 +1074,19 @@ async def test_create_slide_previews_from_html_uses_converter_dimensions_and_fon
 
     assert result == [str(rendered_path)]
     assert len(render_calls) == 1
-    htmls, width, height = render_calls[0]
+    layouts, width, height, fonts = render_calls[0]
     assert width == 1024
     assert height == 768
-    assert len(htmls) == 1
-    html = htmls[0]
-    assert 'tailwindcss-browser-4.3.3.js"></script>' in html
-    assert "cdn.tailwindcss.com" not in html
-    assert 'chart-4.5.1.umd.min.js"></script>' in html
-    assert 'chartjs-plugin-datalabels-2.2.0.min.js"></script>' in html
-    assert "cdn.jsdelivr.net/npm/chart.js" not in html
-    assert ".deck-font { color: black; }" in html
-    assert 'font-family: "Khand Bold";' in html
-    assert "fonts.googleapis.com/css2?family=Montserrat" in html
+    assert layouts == [{"elements": [{"type": "text", "text": "Slide"}]}]
+    assert 'font-family: "Khand Bold";' in fonts["css"]
+    assert font_path.resolve().as_uri() in fonts["css"]
+    assert fonts["fonts"] == [
+        "https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap"
+    ]
 
 
 @pytest.mark.anyio
-async def test_create_slide_previews_from_html_batches_slides_in_one_task(
+async def test_create_slide_previews_from_json_batches_slides_in_one_task(
     monkeypatch,
     tmp_path,
 ):
@@ -1032,25 +1096,27 @@ async def test_create_slide_previews_from_html_batches_slides_in_one_task(
     render_calls = []
 
     class FakeExportTaskService:
-        async def convert_pptx_to_html(self, pptx_path, get_fonts=False):
+        async def convert_pptx_to_json(self, pptx_path):
             return SimpleNamespace(
-                slides=[
-                    '<div class="slide-content">One</div>',
-                    '<div class="slide-content">Two</div>',
+                layouts=[
+                    {"elements": [{"type": "text", "text": "One"}]},
+                    {"elements": [{"type": "text", "text": "Two"}]},
                 ],
-                font_css="",
-                width=320.0,
-                height=180.0,
             )
 
-        async def render_htmls_to_images(self, htmls, width, height):
-            render_calls.append((htmls, width, height))
+        async def render_jsons_to_images(self, data, width, height, fonts=None):
+            render_calls.append((data, width, height, fonts))
             return SimpleNamespace(paths=[str(path) for path in output_paths])
 
     monkeypatch.setattr(
         fonts_and_slides_preview,
         "EXPORT_TASK_SERVICE",
         FakeExportTaskService(),
+    )
+    monkeypatch.setattr(
+        fonts_and_slides_preview,
+        "_preview_dimensions_from_pptx",
+        lambda _path: (320, 180),
     )
 
     result = await fonts_and_slides_preview.render_pptx_slides_to_images(
@@ -1061,27 +1127,25 @@ async def test_create_slide_previews_from_html_batches_slides_in_one_task(
     )
 
     assert len(render_calls) == 1
-    htmls, width, height = render_calls[0]
+    layouts, width, height, fonts = render_calls[0]
     assert width == 320
     assert height == 180
-    assert len(htmls) == 2
-    assert "One" in htmls[0]
-    assert "Two" in htmls[1]
+    assert len(layouts) == 2
+    assert layouts[0]["elements"][0]["text"] == "One"
+    assert layouts[1]["elements"][0]["text"] == "Two"
+    assert fonts is None
     assert result == [str(path) for path in output_paths]
 
 
 @pytest.mark.anyio
 async def test_render_pptx_slides_to_images_rejects_image_count_mismatch(monkeypatch):
     class FakeExportTaskService:
-        async def convert_pptx_to_html(self, pptx_path, get_fonts=False):
+        async def convert_pptx_to_json(self, pptx_path):
             return SimpleNamespace(
-                slides=["<div>One</div>", "<div>Two</div>"],
-                font_css="",
-                width=320.0,
-                height=180.0,
+                layouts=[{"elements": []}, {"elements": []}],
             )
 
-        async def render_htmls_to_images(self, htmls, width, height):
+        async def render_jsons_to_images(self, data, width, height, fonts=None):
             return SimpleNamespace(paths=["slide-1.png"])
 
     monkeypatch.setattr(
@@ -1103,10 +1167,10 @@ async def test_render_pptx_slides_to_images_rejects_image_count_mismatch(monkeyp
 
 
 @pytest.mark.anyio
-async def test_create_slide_previews_uses_html_render_path(monkeypatch, tmp_path):
-    html_paths = [str(tmp_path / "slide1.png"), str(tmp_path / "slide2.png")]
+async def test_create_slide_previews_uses_json_render_path(monkeypatch, tmp_path):
+    rendered_paths = [str(tmp_path / "slide1.png"), str(tmp_path / "slide2.png")]
 
-    async def fake_create_from_html(
+    async def fake_render_from_json(
         modified_pptx_path,
         font_paths_for_install,
         max_slides,
@@ -1117,7 +1181,7 @@ async def test_create_slide_previews_uses_html_render_path(monkeypatch, tmp_path
         assert font_paths_for_install == ["font.ttf"]
         assert max_slides == 2
         assert font_stylesheet_urls is None
-        return html_paths
+        return rendered_paths
 
     async def fake_persist_files_to_session(pairs):
         return [destination for destination, _source in pairs]
@@ -1125,7 +1189,7 @@ async def test_create_slide_previews_uses_html_render_path(monkeypatch, tmp_path
     monkeypatch.setattr(
         fonts_and_slides_preview,
         "render_pptx_slides_to_images",
-        fake_create_from_html,
+        fake_render_from_json,
     )
     monkeypatch.setattr(
         fonts_and_slides_preview,

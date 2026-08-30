@@ -45,6 +45,7 @@ type TemplateV2SelectionToolbarProps = {
   toolbarBounds: TemplateV2ToolbarViewportBounds | null;
   onChartChange: (element: ChartSlideElement) => void;
   onChartEdit: () => void;
+  onInfographicEdit: () => void;
   onEditorChange: (element: SlideElement) => void;
   onImageCropModeChange: (active: boolean) => void;
   onIconEdit: () => void;
@@ -77,6 +78,7 @@ export function TemplateV2SelectionToolbar({
   toolbarBounds,
   onChartChange,
   onChartEdit,
+  onInfographicEdit,
   onEditorChange,
   onImageCropModeChange,
   onIconEdit,
@@ -147,6 +149,7 @@ export function TemplateV2SelectionToolbar({
       componentActions={componentActions}
       onChartChange={chartTarget ? onChartChange : undefined}
       onChartEdit={chartTarget ? onChartEdit : undefined}
+      onInfographicEdit={layoutTarget ? onInfographicEdit : undefined}
       onChange={layoutTarget ? onLayoutChange : undefined}
       onTableChange={tableTarget ? onTableChange : undefined}
       selectedTableCell={selectedTableCell}

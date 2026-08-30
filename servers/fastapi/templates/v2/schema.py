@@ -6,6 +6,8 @@ import copy
 import re
 from typing import Any
 
+from utils.infographic_catalog import INFOGRAPHIC_BY_TYPE
+
 from .models.layouts import RawSlideLayout
 
 
@@ -1009,17 +1011,159 @@ def _component_content_field_schema(field: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _infographic_data_content_schema(infographic_type: str) -> dict[str, Any]:
+def _infographic_text_item_schema(*, hierarchy: bool = False) -> dict[str, Any]:
+    properties: dict[str, Any] = {
+        "heading": {"type": "string"},
+        "description": {"type": "string"},
+        "label": {"type": "string"},
+        "focus": {"type": "string"},
+        "icon": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "url": {"type": "string"},
+                "color": {"type": "string"},
+            },
+            "required": ["url", "color"],
+        },
+    }
+    if hierarchy:
+        properties.update(
+            {
+                "id": {"type": "string"},
+                "parent_id": {"type": ["string", "null"]},
+            }
+        )
     return {
         "type": "object",
         "additionalProperties": False,
-        "properties": {
-            "type": {"const": infographic_type},
-            "min_value": {"type": "number"},
-            "max_value": {"type": "number"},
-            "value": {"type": "number"},
-        },
-        "required": ["type", "min_value", "max_value", "value"],
+        "properties": properties,
+        **({"required": ["id", "heading"]} if hierarchy else {}),
+    }
+
+
+def _infographic_data_content_schema(infographic_type: str) -> dict[str, Any]:
+    properties: dict[str, Any] = {"type": {"const": infographic_type}}
+    required = ["type"]
+
+    if infographic_type in {"progress_bar", "gauge"}:
+        properties.update(
+            {
+                "min_value": {"type": "number"},
+                "max_value": {"type": "number"},
+                "value": {"type": "number"},
+            }
+        )
+        required.extend(["min_value", "max_value", "value"])
+    elif infographic_type == "gantt":
+        position = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "column": {"type": "integer", "minimum": 0},
+                "offset": {"type": "number", "minimum": 0, "maximum": 1},
+            },
+            "required": ["column", "offset"],
+        }
+        properties.update(
+            {
+                "columns": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"label": {"type": "string"}},
+                        "required": ["label"],
+                    },
+                },
+                "rows": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "label": {"type": "string"},
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": False,
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "start": position,
+                                        "end": position,
+                                    },
+                                    "required": ["name", "start", "end"],
+                                },
+                            },
+                        },
+                        "required": ["label", "items"],
+                    },
+                },
+            }
+        )
+        required.extend(["columns", "rows"])
+    elif infographic_type == "comparison_matrix":
+        item_schema = _infographic_text_item_schema()
+        item_schema["properties"]["values"] = {
+            "type": "array",
+            "items": {"type": "string"},
+        }
+        item_schema["required"] = ["heading", "values"]
+        properties.update(
+            {
+                "criteria": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {"type": "string"},
+                },
+                "items": {"type": "array", "minItems": 1, "items": item_schema},
+            }
+        )
+        required.extend(["criteria", "items"])
+    else:
+        hierarchy = infographic_type in {"org_chart", "decision_tree"}
+        item_schema = _infographic_text_item_schema(hierarchy=hierarchy)
+        if infographic_type == "conversion_funnel":
+            item_schema["properties"]["value"] = {"type": "number"}
+            item_schema["required"] = ["value", "heading"]
+        if infographic_type == "mind_map":
+            item_schema["properties"]["items"] = {
+                "type": "array",
+                "items": _infographic_text_item_schema(),
+            }
+        properties["items"] = {
+            "type": "array",
+            "minItems": 1,
+            "items": item_schema,
+        }
+        required.append("items")
+        for field_name in {
+            "pillar_framework": ("title",),
+            "transformation_hub": ("center_label",),
+            "risk_matrix": ("center_label",),
+            "before_after": ("before_label", "after_label"),
+            "impact_effort_matrix": (
+                "x_axis_label",
+                "y_axis_label",
+                "low_label",
+                "high_label",
+            ),
+        }.get(infographic_type, ()):
+            properties[field_name] = {"type": "string"}
+            required.append(field_name)
+        if infographic_type == "radial_cycle":
+            properties["center_image"] = {"type": ["string", "null"]}
+        if infographic_type == "customer_journey":
+            properties["start_color"] = {"type": ["string", "null"]}
+
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": properties,
+        "required": required,
     }
 
 
@@ -1030,8 +1174,8 @@ def _infographic_content_schema() -> dict[str, Any]:
         "properties": {
             "data": {
                 "oneOf": [
-                    _infographic_data_content_schema("progress_bar"),
-                    _infographic_data_content_schema("gauge"),
+                    _infographic_data_content_schema(infographic_type)
+                    for infographic_type in INFOGRAPHIC_BY_TYPE
                 ]
             },
             "colors": {

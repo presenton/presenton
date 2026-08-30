@@ -6,6 +6,7 @@ import {
   Layers3,
   MousePointer2,
   PencilLine,
+  Presentation,
   CircleHelp,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const SECTION_ICONS: Record<EditorShortcutSection["id"], LucideIcon> = {
   selection: MousePointer2,
   editing: PencilLine,
   arrange: Layers3,
+  navigation: Presentation,
   help: CircleHelp,
 };
 

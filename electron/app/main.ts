@@ -51,6 +51,7 @@ import {
   resolveLaunchableExportChromiumPath,
 } from "./utils/export-chromium";
 import { syncUserConfigFromEnv } from "./utils/user-config-env";
+import { resolveExportRuntimeRoot } from "./utils/export-msix-runtime";
 
 installSafeConsole();
 
@@ -138,19 +139,6 @@ function recordProcessGone(kind: "child" | "renderer", details: ProcessGoneDetai
   }
 
   captureMainException(new Error(`Electron ${kind} process gone: ${reason}`), data);
-}
-
-function resolveExportConverterPath(appRoot: string): string | undefined {
-  const pyDir = path.join(appRoot, "resources", "export", "py");
-  const candidates = [
-    path.join(pyDir, `convert-${process.platform}-${process.arch}`),
-    path.join(pyDir, `convert-${process.platform}-${process.arch}.exe`),
-    path.join(pyDir, `convert-${process.platform}`),
-    path.join(pyDir, `convert-${process.platform}.exe`),
-    path.join(pyDir, "convert"),
-    path.join(pyDir, "convert.exe"),
-  ];
-  return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
 function isDisableAuthEnabledValue(value?: string): boolean {
@@ -345,8 +333,9 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
     const userConfigPath = getUserConfigPath();
     const disableAuthForElectron = resolveElectronDisableAuth();
     const imageMagickRuntime = resolveImageMagickRuntime();
-    const exportPackageRoot = path.join(resourceBaseDir, "resources", "export");
-    const exportConverterPath = resolveExportConverterPath(resourceBaseDir);
+    const exportPackageRoot = await resolveExportRuntimeRoot(
+      path.join(resourceBaseDir, "resources", "export"),
+    );
     await removeBrokenExportChromiumCaches();
     const exportChromiumPath = await resolveLaunchableExportChromiumPath();
     const puppeteerCacheDir = path.join(getCacheDir(), "puppeteer");
@@ -392,14 +381,10 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         LITEPARSE_NODE_BINARY: process.execPath,
         ELECTRON_RUN_AS_NODE: "1",
         EXPORT_PACKAGE_ROOT: exportPackageRoot,
-        EXPORT_RUNTIME_DIR: exportPackageRoot,
         PUPPETEER_CACHE_DIR: puppeteerCacheDir,
         PUPPETEER_TMP_DIR: puppeteerTempDir,
         ...(exportChromiumPath && {
           PUPPETEER_EXECUTABLE_PATH: exportChromiumPath,
-        }),
-        ...(exportConverterPath && {
-          BUILT_PYTHON_MODULE_PATH: exportConverterPath,
         }),
       },
       isDev,
@@ -424,9 +409,6 @@ async function startServers(fastApiPort: number, nextjsPort: number) {
         PUPPETEER_TMP_DIR: puppeteerTempDir,
         ...(exportChromiumPath && {
           PUPPETEER_EXECUTABLE_PATH: exportChromiumPath,
-        }),
-        ...(exportConverterPath && {
-          BUILT_PYTHON_MODULE_PATH: exportConverterPath,
         }),
       },
       isDev,

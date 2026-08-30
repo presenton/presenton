@@ -7,8 +7,14 @@ import dirtyjson  # type: ignore[import-untyped]
 from llmai.shared import AssistantToolCall, Tool  # type: ignore[import-not-found]
 
 from constants.presentation import MAX_NUMBER_OF_SLIDES, MAX_OUTLINE_CONTENT_WORDS
+from utils.infographic_catalog import (
+    infographic_default_size,
+    normalize_infographic_data,
+    search_infographic_catalog,
+)
 from services.chat.schemas import (
     AddElementInput,
+    AddInfographicInput,
     AddNewSlideInput,
     AddNewSlideLayoutInput,
     AddOutlineInput,
@@ -19,6 +25,7 @@ from services.chat.schemas import (
     DeleteOutlineInput,
     GenerateAssetsInput,
     GetAvailableBlocksInput,
+    GetAvailableInfographicsInput,
     GetContentSchemaFromLayoutIdInput,
     GetSmartPresentationContextInput,
     GetSlideAtIndexInput,
@@ -98,12 +105,14 @@ class ChatTools:
             "getSlideAtIndex": self._get_slide_at_index,
             "getAvailableLayouts": self._get_available_layouts,
             "getAvailableBlocks": self._get_available_blocks,
+            "getAvailableInfographics": self._get_available_infographics,
             "getContentSchemaFromLayoutId": self._get_content_schema_from_layout_id,
             "generateAssets": self._generate_assets,
             "saveSlide": self._save_slide,
             "updateSlide": self._update_slide,
             "deleteSlide": self._delete_slide,
             "addElement": self._add_element,
+            "addInfographic": self._add_infographic,
             "updateElement": self._update_slide_element,
             "deleteElement": self._delete_slide_element,
             "addComponent": self._add_slide_component,
@@ -190,6 +199,17 @@ class ChatTools:
                 strict=False,
             ),
             Tool(
+                name="getAvailableInfographics",
+                description=(
+                    "Browse or search the supported editable infographic catalog. "
+                    "Returns exact type names, intended uses, required data shapes, "
+                    "default sizes, and example payloads. Call this before adding or "
+                    "changing a native infographic."
+                ),
+                schema=GetAvailableInfographicsInput,
+                strict=False,
+            ),
+            Tool(
                 name="getContentSchemaFromLayoutId",
                 description=(
                     "Return the exact JSON content schema for one layout id. "
@@ -270,10 +290,21 @@ class ChatTools:
                     "or legacy data rows with label/value. Image elements must include "
                     "data set to a URL returned by generateAssets. Geometry must use the "
                     "current vector type; line/rectangle/ellipse/circle/polygon element "
-                    "types were removed. Infographics use nested data with type, "
-                    "min_value, max_value, and value."
+                    "types were removed. Infographics use a supported nested data.type "
+                    "and the catalog-native meter, sequence, matrix, hierarchy, or "
+                    "framework fields for that type."
                 ),
                 schema=AddElementInput,
+                strict=False,
+            ),
+            Tool(
+                name="addInfographic",
+                description=(
+                    "Add a native editable infographic to an existing slide, or create "
+                    "a new blank slide and add it there. Call getAvailableInfographics "
+                    "first and pass its exact infographicType and matching data contract."
+                ),
+                schema=AddInfographicInput,
                 strict=False,
             ),
             Tool(
@@ -682,6 +713,24 @@ class ChatTools:
             max_results=max_results,
         )
 
+    async def _get_available_infographics(
+        self, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        payload = GetAvailableInfographicsInput(**args)
+        infographics = search_infographic_catalog(
+            infographic_type=payload.infographic_type,
+            query=payload.query,
+        )
+        return {
+            "count": len(infographics),
+            "infographics": infographics,
+            "message": (
+                "Supported editable infographics returned successfully."
+                if infographics
+                else "No supported infographic matched that search."
+            ),
+        }
+
     async def _get_template_summary(self, _: dict[str, Any]) -> dict[str, Any]:
         outline = await self._get_presentation_outline({})
         layouts = await self._get_available_layouts({})
@@ -823,6 +872,63 @@ class ChatTools:
             component_id=payload.component_id,
             insert_index=payload.insert_index,
         )
+
+    async def _add_infographic(self, args: dict[str, Any]) -> dict[str, Any]:
+        payload = AddInfographicInput(**args)
+        data = normalize_infographic_data(payload.infographic_type, payload.data)
+        element = {
+            "type": "infographic",
+            "position": (
+                payload.position.model_dump()
+                if payload.position is not None
+                else {"x": 128, "y": 170}
+            ),
+            "size": (
+                payload.size.model_dump()
+                if payload.size is not None
+                else infographic_default_size(payload.infographic_type)
+            ),
+            "data": data,
+            "colors": payload.colors
+            or (
+                ["E5E7EB", "2563EB"]
+                if payload.infographic_type in {"progress_bar", "gauge"}
+                else [
+                    "FFFFFF",
+                    "536AA2",
+                    "647DB8",
+                    "7894CF",
+                    "8AA8E4",
+                    "9DC2ED",
+                ]
+            ),
+            "text_color": payload.text_color or "111111",
+            "decorative": False,
+            "name": payload.infographic_type,
+        }
+
+        created_slide: dict[str, Any] | None = None
+        destination_index = payload.slide_index
+        if payload.target == "new_slide":
+            created_slide = await self._memory.add_blank_slide(index=payload.slide_index)
+            if not created_slide.get("added"):
+                return {**created_slide, "infographic_added": False}
+            destination_index = int(created_slide["index"])
+
+        if destination_index is None:
+            raise ValueError("Unable to resolve the infographic destination slide.")
+        result = await self._memory.add_slide_ui_element(
+            index=destination_index,
+            element=element,
+            component_id=payload.component_id,
+            insert_index=payload.insert_index,
+        )
+        return {
+            **result,
+            "infographic_type": payload.infographic_type,
+            "created_slide": created_slide,
+            "infographic_added": bool(result.get("added")),
+        }
 
     async def _update_slide_element(self, args: dict[str, Any]) -> dict[str, Any]:
         payload = UpdateSlideElementInput(**args)

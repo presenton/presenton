@@ -52,7 +52,7 @@ const DashboardHeaderDivider = () => (
 );
 
 const FloatingActionCards = () => (
-  <div className="pointer-events-none absolute right-[14px] top-[-36px] z-0 block h-[64px] w-[158px]">
+  <div className="pointer-events-none absolute right-[14px] top-[-35px] z-0 hidden h-[64px] w-[158px] sm:block">
     <div
       className={`${actionCardBase} left-0 top-0 border-none group-hover/action:-translate-x-2 group-hover/action:-rotate-3 group-focus-visible/action:-translate-x-2 group-focus-visible/action:-rotate-3`}
       style={{
@@ -74,70 +74,104 @@ const FloatingActionCards = () => (
   </div>
 );
 
-const BlankPresentationGraphic = ({ loading }: { loading: boolean }) => (
-  <span
-    className="relative ml-auto  h-[90px] flex justify-center items-center w-[90px] shrink-0"
-    aria-hidden="true"
-  >
-    {loading ? (
-      <span className="absolute inset-0 flex items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-[#7A5AF8]" />
-      </span>
-    ) : (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="63"
-        height="63"
-        viewBox="0 0 63 63"
-        fill="none"
+type DashboardActionCardProps = {
+  href?: string;
+  title: string;
+  media: React.ReactNode;
+  ariaLabel: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  isLoading?: boolean;
+  children?: React.ReactNode;
+  mediaClassName?: string;
+};
+
+const DashboardActionCard = ({
+  href,
+  title,
+  media,
+  ariaLabel,
+  onClick,
+  disabled = false,
+  isLoading = false,
+  children,
+  mediaClassName = "w-[96px]",
+}: DashboardActionCardProps) => {
+  const className =
+    "group/action relative isolate flex h-[90px] w-full min-w-0 overflow-visible rounded-[10.8px] border border-[#EDEEEF] bg-white text-[#191919] outline-none transition-all duration-300 hover:border-[#D7D8DE] hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-4 disabled:cursor-wait disabled:opacity-70 disabled:hover:border-[#EDEEEF] disabled:hover:shadow-none";
+  const content = (
+    <>
+      {children}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-10 rounded-[10.8px] bg-white"
+      />
+      <div
+        className={`relative z-20 h-full ${mediaClassName} shrink-0 overflow-hidden rounded-l-[10.8px] bg-[#F8F8FB]`}
       >
-        <rect
-          width="63"
-          height="63"
-          transform="translate(0 -0.00585938)"
-          fill="#D1E9FF"
-        />
-        <rect
-          x="10.5159"
-          y="13.0332"
-          width="38.88"
-          height="41.76"
-          transform="rotate(-5.80941 10.5159 13.0332)"
-          fill="black"
-          fillOpacity="0.14"
-        />
-        <rect
-          x="9.83057"
-          y="12.6211"
-          width="38.88"
-          height="41.76"
-          transform="rotate(-5.80941 9.83057 12.6211)"
-          fill="#ECEEEE"
-        />
-        <rect
-          x="13.6705"
-          y="11.9805"
-          width="38.88"
-          height="41.76"
-          fill="black"
-          fillOpacity="0.14"
-        />
-        <rect
-          x="13.0305"
-          y="11.5"
-          width="38.88"
-          height="41.76"
-          fill="#FEFEFF"
-        />
-        <path
-          d="M15.5906 11.5807L15.1906 9.66079C15.1905 8.1956 15.3118 7.7329 16.4 7.34961C18.0384 6.77254 18.6867 8.31651 18.9 8.84984L21.4001 16.8504C21.5068 17.3304 21.424 18.0305 20.4 18.3505C19.376 18.6705 18.5067 17.9105 18.4 17.3505L16.6635 11.5807"
-          stroke="#F46036"
-          strokeWidth="0.6"
-        />
-        <rect x="15.1105" y="11.5" width="0.8" height="0.32" fill="#FEFEFF" />
-      </svg>
+        {media}
+      </div>
+      <span className="relative z-20 flex min-w-0 flex-1 items-center justify-center px-3 text-center font-syne text-sm font-medium leading-normal text-[#191919] sm:px-4">
+        {title}
+      </span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        onClick={onClick}
+        aria-label={ariaLabel}
+        className={className}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-busy={isLoading}
+      className={className}
+    >
+      {content}
+    </button>
+  );
+};
+
+const BlankPresentationIllustration = ({
+  isLoading,
+}: {
+  isLoading: boolean;
+}) => (
+  <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[#D1E9FF]">
+    <div className="relative h-[90px] w-[90px] shrink-0">
+      <div className="absolute left-[22.312px] top-[20.46px] h-[52.514px] w-[48.892px] -rotate-[5.81deg] bg-[rgba(0,0,0,0.14)]" />
+      <div className="absolute left-[21.452px] top-[19.94px] h-[52.514px] w-[48.892px] -rotate-[5.81deg] bg-[#ECEEEE]" />
+      <div className="absolute left-[23.57px] top-[21.78px] h-[50.53px] w-[47.045px] bg-[rgba(0,0,0,0.14)]" />
+      <div className="absolute left-[22.79px] top-[21.2px] h-[50.53px] w-[47.045px] bg-[#FEFEFF]" />
+      <Image
+        src="/dashboard/blank-presentation-clip.svg"
+        alt=""
+        aria-hidden="true"
+        width={9}
+        height={15}
+        className="absolute left-[25.05px] top-[15.66px] h-[14.283px] w-[8.282px]"
+      />
+      <div className="absolute left-[25.31px] top-[21.2px] h-[0.387px] w-[0.968px] bg-[#FEFEFF]" />
+    </div>
+
+    {isLoading && (
+      <div className="absolute inset-0 flex items-center justify-center bg-[#D1E9FF]/75">
+        <Loader2 className="h-5 w-5 animate-spin text-[#6847F4]" />
+      </div>
     )}
-  </span>
+  </div>
 );
 
 const GridViewIcon = () => (
@@ -164,6 +198,7 @@ const ListViewIcon = () => (
 
 const sortPresentationsNewestFirst = (presentations: PresentationResponse[]) =>
   [...presentations].sort((a, b) => {
+    
     const createdAtA = Date.parse(a.created_at);
     const createdAtB = Date.parse(b.created_at);
 
@@ -469,8 +504,8 @@ const DashboardPage: React.FC = () => {
         <h2 className="w-full font-syne text-[16px] font-medium leading-[normal] text-[#191919]">
           Actions
         </h2>
-        <div className="mt-[18px] flex flex-wrap items-start gap-4">
-          <Link
+        <div className="mt-[18px] grid w-full max-w-[625px] grid-cols-1 gap-4 sm:grid-cols-2">
+          <DashboardActionCard
             href="/upload"
             onClick={() =>
               trackEvent(MixpanelEvent.Dashboard_New_Presentation_Clicked, {
@@ -478,43 +513,40 @@ const DashboardPage: React.FC = () => {
                 source: "dashboard_actions_card",
               })
             }
-            className="group/action relative z-50 block w-[304.5px] max-w-full cursor-pointer overflow-visible rounded-[10.8px] bg-white outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-4"
-            aria-label="Create presentation"
+            title="Create new Presentation"
+            ariaLabel="Create new presentation"
+            media={
+              <Image
+                src="/create_presentation_bg.png"
+                alt=""
+                fill
+                sizes="96px"
+                className="h-full w-full object-cover object-left"
+              />
+            }
           >
             <FloatingActionCards />
+          </DashboardActionCard>
 
-            <img
-              src="/create_presentation_bg.png"
-              alt="Background of the create presentation card"
-              className="relative z-10 h-[89.983px] w-[304.5px] max-w-full rounded-[10.8px] bg-white object-cover"
-            />
-            <span className="absolute inset-0 z-20 flex items-center justify-center text-center font-syne text-sm font-medium text-[#191919]">
-              Create Presentation
-            </span>
-          </Link>
-
-          <button
-            type="button"
+          <DashboardActionCard
             onClick={() => void createBlankPresentation()}
             disabled={isCreatingBlankPresentation}
-            aria-busy={isCreatingBlankPresentation}
-            className="group relative z-50 flex h-[89.983px] w-[304.5px] max-w-full items-center overflow-hidden rounded-[10.8px] border border-[#EDEEEF]  px-5 text-left outline-none transition hover:border-[#CFC7FF] hover:shadow-[0_8px_22px_rgba(81,70,229,0.12)] focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-4 disabled:cursor-not-allowed disabled:opacity-70"
-            aria-label="Create blank presentation"
-          >
-            <span className="flex min-w-0 flex-col pr-3">
-              <span className="font-syne text-sm font-medium text-[#191919]">
-                {isCreatingBlankPresentation
-                  ? "Creating presentation"
-                  : "Blank Presentation"}
-              </span>
-              <span className="mt-1 text-[11px] leading-[14px] text-[#777387]">
-                {isCreatingBlankPresentation
-                  ? "Preparing your canvas"
-                  : "Start from scratch"}
-              </span>
-            </span>
-            <BlankPresentationGraphic loading={isCreatingBlankPresentation} />
-          </button>
+            isLoading={isCreatingBlankPresentation}
+            title={
+              isCreatingBlankPresentation ? "Creating..." : "Blank Presentation"
+            }
+            ariaLabel={
+              isCreatingBlankPresentation
+                ? "Creating blank presentation"
+                : "Create blank presentation"
+            }
+            mediaClassName="w-[90px]"
+            media={
+              <BlankPresentationIllustration
+                isLoading={isCreatingBlankPresentation}
+              />
+            }
+          />
         </div>
       </section>
       <section className="relative z-10 mt-[46px] pl-3 pr-3 sm:pl-6 sm:pr-[9px]">

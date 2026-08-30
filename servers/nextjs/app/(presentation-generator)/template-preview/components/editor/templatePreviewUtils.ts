@@ -11,6 +11,7 @@ export type PanelMode =
   | "blocks"
   | "texts"
   | "charts"
+  | "infographics"
   | "tables"
   | "images"
   | "elements"

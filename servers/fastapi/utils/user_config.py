@@ -1,3 +1,5 @@
+import os
+
 from models.user_config import UserConfig
 from utils.get_env import (
     get_anthropic_api_key_env,
@@ -55,6 +57,11 @@ from utils.get_env import (
     get_openrouter_api_key_env,
     get_openrouter_base_url_env,
     get_openrouter_model_env,
+    get_openrouter_provider_order_env,
+    get_openrouter_allow_fallbacks_env,
+    get_openrouter_require_parameters_env,
+    get_openrouter_data_collection_env,
+    get_openrouter_zdr_env,
     get_gpt_image_1_5_quality_env,
     get_llm_provider_env,
     get_ollama_model_env,
@@ -66,6 +73,11 @@ from utils.get_env import (
     get_image_provider_env,
     get_pixabay_api_key_env,
     get_extended_reasoning_env,
+    get_llm_generation_profile_env,
+    get_llm_max_output_tokens_env,
+    get_llm_reasoning_mode_env,
+    get_llm_reasoning_effort_env,
+    get_llm_reasoning_budget_tokens_env,
     get_web_grounding_env,
     get_web_search_provider_env,
     get_web_search_max_results_env,
@@ -109,6 +121,11 @@ from utils.set_env import (
     set_disable_image_generation_env,
     set_disable_thinking_env,
     set_extended_reasoning_env,
+    set_llm_generation_profile_env,
+    set_llm_max_output_tokens_env,
+    set_llm_reasoning_mode_env,
+    set_llm_reasoning_effort_env,
+    set_llm_reasoning_budget_tokens_env,
     set_google_api_key_env,
     set_google_model_env,
     set_vertex_api_key_env,
@@ -147,6 +164,11 @@ from utils.set_env import (
     set_openrouter_api_key_env,
     set_openrouter_base_url_env,
     set_openrouter_model_env,
+    set_openrouter_provider_order_env,
+    set_openrouter_allow_fallbacks_env,
+    set_openrouter_require_parameters_env,
+    set_openrouter_data_collection_env,
+    set_openrouter_zdr_env,
     set_gpt_image_1_5_quality_env,
     set_llm_provider_env,
     set_ollama_model_env,
@@ -230,6 +252,31 @@ def get_user_config():
         OPENROUTER_API_KEY=existing_config.OPENROUTER_API_KEY or get_openrouter_api_key_env(),
         OPENROUTER_MODEL=existing_config.OPENROUTER_MODEL or get_openrouter_model_env(),
         OPENROUTER_BASE_URL=existing_config.OPENROUTER_BASE_URL or get_openrouter_base_url_env(),
+        OPENROUTER_PROVIDER_ORDER=(
+            existing_config.OPENROUTER_PROVIDER_ORDER
+            or [
+                item.strip()
+                for item in (get_openrouter_provider_order_env() or "").split(",")
+                if item.strip()
+            ]
+        ),
+        OPENROUTER_ALLOW_FALLBACKS=(
+            existing_config.OPENROUTER_ALLOW_FALLBACKS
+            if existing_config.OPENROUTER_ALLOW_FALLBACKS is not None
+            else parse_bool_or_none(get_openrouter_allow_fallbacks_env())
+        ),
+        OPENROUTER_REQUIRE_PARAMETERS=(
+            existing_config.OPENROUTER_REQUIRE_PARAMETERS
+            if existing_config.OPENROUTER_REQUIRE_PARAMETERS is not None
+            else parse_bool_or_none(get_openrouter_require_parameters_env())
+        ),
+        OPENROUTER_DATA_COLLECTION=existing_config.OPENROUTER_DATA_COLLECTION
+        or get_openrouter_data_collection_env(),
+        OPENROUTER_ZDR=(
+            existing_config.OPENROUTER_ZDR
+            if existing_config.OPENROUTER_ZDR is not None
+            else parse_bool_or_none(get_openrouter_zdr_env())
+        ),
         FIREWORKS_API_KEY=existing_config.FIREWORKS_API_KEY or get_fireworks_api_key_env(),
         FIREWORKS_MODEL=existing_config.FIREWORKS_MODEL or get_fireworks_model_env(),
         FIREWORKS_BASE_URL=existing_config.FIREWORKS_BASE_URL
@@ -295,6 +342,19 @@ def get_user_config():
             if existing_config.EXTENDED_REASONING is not None
             else (parse_bool_or_none(get_extended_reasoning_env()) or False)
         ),
+        LLM_GENERATION_PROFILE=existing_config.LLM_GENERATION_PROFILE
+        or get_llm_generation_profile_env(),
+        LLM_MAX_OUTPUT_TOKENS=existing_config.LLM_MAX_OUTPUT_TOKENS
+        or get_llm_max_output_tokens_env(),
+        LLM_REASONING_MODE=existing_config.LLM_REASONING_MODE
+        or get_llm_reasoning_mode_env(),
+        LLM_REASONING_EFFORT=existing_config.LLM_REASONING_EFFORT
+        or get_llm_reasoning_effort_env(),
+        LLM_REASONING_BUDGET_TOKENS=(
+            existing_config.LLM_REASONING_BUDGET_TOKENS
+            if existing_config.LLM_REASONING_BUDGET_TOKENS is not None
+            else get_llm_reasoning_budget_tokens_env()
+        ),
         WEB_GROUNDING=(
             existing_config.WEB_GROUNDING
             if existing_config.WEB_GROUNDING is not None
@@ -334,6 +394,27 @@ def get_user_config():
 
 
 def update_env_with_user_config():
+    user_config_path = get_user_config_path_env()
+    if user_config_path:
+        persisted = read_user_config_file(user_config_path)
+        if not persisted.get("LLM"):
+            os.environ.pop("LLM", None)
+        for key in (
+            "LLM_GENERATION_PROFILE",
+            "LLM_MAX_OUTPUT_TOKENS",
+            "LLM_REASONING_MODE",
+            "LLM_REASONING_EFFORT",
+            "LLM_REASONING_BUDGET_TOKENS",
+            "DISABLE_THINKING",
+            "EXTENDED_REASONING",
+            "OPENROUTER_PROVIDER_ORDER",
+            "OPENROUTER_ALLOW_FALLBACKS",
+            "OPENROUTER_REQUIRE_PARAMETERS",
+            "OPENROUTER_DATA_COLLECTION",
+            "OPENROUTER_ZDR",
+        ):
+            if key not in persisted:
+                os.environ.pop(key, None)
     user_config = get_user_config()
     if user_config.LLM:
         set_llm_provider_env(user_config.LLM)
@@ -387,6 +468,16 @@ def update_env_with_user_config():
         set_openrouter_model_env(user_config.OPENROUTER_MODEL)
     if user_config.OPENROUTER_BASE_URL:
         set_openrouter_base_url_env(user_config.OPENROUTER_BASE_URL)
+    if user_config.OPENROUTER_PROVIDER_ORDER:
+        set_openrouter_provider_order_env(",".join(user_config.OPENROUTER_PROVIDER_ORDER))
+    if user_config.OPENROUTER_ALLOW_FALLBACKS is not None:
+        set_openrouter_allow_fallbacks_env(str(user_config.OPENROUTER_ALLOW_FALLBACKS))
+    if user_config.OPENROUTER_REQUIRE_PARAMETERS is not None:
+        set_openrouter_require_parameters_env(str(user_config.OPENROUTER_REQUIRE_PARAMETERS))
+    if user_config.OPENROUTER_DATA_COLLECTION:
+        set_openrouter_data_collection_env(user_config.OPENROUTER_DATA_COLLECTION)
+    if user_config.OPENROUTER_ZDR is not None:
+        set_openrouter_zdr_env(str(user_config.OPENROUTER_ZDR))
     if user_config.FIREWORKS_API_KEY:
         set_fireworks_api_key_env(user_config.FIREWORKS_API_KEY)
     if user_config.FIREWORKS_MODEL:
@@ -465,6 +556,18 @@ def update_env_with_user_config():
         set_disable_thinking_env(str(user_config.DISABLE_THINKING))
     if user_config.EXTENDED_REASONING is not None:
         set_extended_reasoning_env(str(user_config.EXTENDED_REASONING))
+    if user_config.LLM_GENERATION_PROFILE:
+        set_llm_generation_profile_env(user_config.LLM_GENERATION_PROFILE)
+    if user_config.LLM_MAX_OUTPUT_TOKENS is not None:
+        set_llm_max_output_tokens_env(str(user_config.LLM_MAX_OUTPUT_TOKENS))
+    if user_config.LLM_REASONING_MODE:
+        set_llm_reasoning_mode_env(user_config.LLM_REASONING_MODE)
+    if user_config.LLM_REASONING_EFFORT:
+        set_llm_reasoning_effort_env(user_config.LLM_REASONING_EFFORT)
+    if user_config.LLM_REASONING_BUDGET_TOKENS is not None:
+        set_llm_reasoning_budget_tokens_env(
+            str(user_config.LLM_REASONING_BUDGET_TOKENS)
+        )
     if user_config.WEB_GROUNDING is not None:
         set_web_grounding_env(str(user_config.WEB_GROUNDING))
     if user_config.WEB_SEARCH_PROVIDER:

@@ -3,6 +3,7 @@ import { BarChart3, Palette, Pencil } from "lucide-react";
 import type { ChartSlideElement } from "@/components/slide-editor/state/state";
 import {
   appendChartColorTarget,
+  removeChartColorTarget,
   resolvedChartColorTargets,
   updateChartColorTarget,
 } from "@/components/slide-editor/charts/chart-data";
@@ -144,6 +145,20 @@ export function ChartToolbarControls({
                 )
               }
               onClose={() => setPaletteOpen(false)}
+              onDeleteColor={
+                colorTargets.length > 1
+                  ? () => {
+                      const nextIndex = Math.min(
+                        activeTarget.index,
+                        colorTargets.length - 2,
+                      );
+                      setActiveColorIndex(nextIndex);
+                      onChange(
+                        removeChartColorTarget(element, activeTarget.index),
+                      );
+                    }
+                  : undefined
+              }
               onSelectIndex={setActiveColorIndex}
               selectedIndex={activeTarget.index}
             />

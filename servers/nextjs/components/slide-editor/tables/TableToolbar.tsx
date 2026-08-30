@@ -1,5 +1,6 @@
 import {
   AlignCenter,
+  AlignJustify,
   AlignLeft,
   AlignRight,
   ChevronLeft,
@@ -38,8 +39,12 @@ import {
 
 type TableCellAlignment = NonNullable<TableCell["alignment"]>;
 
-const TABLE_CELL_ALIGNMENTS = ["left", "center", "right"] as const satisfies
-  readonly TableCellAlignment[];
+const TABLE_CELL_ALIGNMENTS = [
+  "left",
+  "center",
+  "right",
+  "justify",
+] as const satisfies readonly TableCellAlignment[];
 
 export function TableToolbarControls({
   element,
@@ -81,7 +86,9 @@ export function TableToolbarControls({
       ? AlignCenter
       : activeCellAlignment === "right"
         ? AlignRight
-        : AlignLeft;
+        : activeCellAlignment === "justify"
+          ? AlignJustify
+          : AlignLeft;
   const canAddRow = rows.length < 8;
   const canAddColumn = columnCount < 6;
   const canDeleteRow = rows.length > 2;

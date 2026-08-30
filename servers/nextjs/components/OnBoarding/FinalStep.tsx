@@ -1,7 +1,12 @@
 import { ArrowRight, PartyPopper } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import React, { useCallback, useEffect, useState } from 'react'
-import { trackEvent, MixpanelEvent, setTelemetryEnabled } from "@/utils/mixpanel";
+import {
+    trackEvent,
+    trackEventImmediately,
+    MixpanelEvent,
+    setTelemetryEnabled,
+} from "@/utils/mixpanel";
 import { Switch } from '../ui/switch';
 import confetti from 'canvas-confetti';
 
@@ -53,6 +58,15 @@ const FinalStep = () => {
     const handleTrackingToggle = useCallback(async (enabled: boolean) => {
         const prev = trackingEnabled;
         setTrackingEnabled(enabled);
+        if (!enabled) {
+            try {
+                await trackEventImmediately(MixpanelEvent.Usage_Analytics_Disabled, {
+                    source: "onboarding",
+                });
+            } catch {
+                // Analytics failures must not prevent the user from opting out.
+            }
+        }
         setTelemetryEnabled(enabled);
         try {
             const response = await fetch('/api/user-config', {
