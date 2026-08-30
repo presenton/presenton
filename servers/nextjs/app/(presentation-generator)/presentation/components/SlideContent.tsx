@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import SlideScale from "../../components/PresentationRender";
 import SlideActionBar from "./SlideActionBar";
 import { isTemplateV2Slide } from "../../_shared/blank-slide";
+import { cn } from "@/lib/utils";
 
 interface SlideContentProps {
   slide: any;
@@ -27,6 +28,7 @@ interface SlideContentProps {
   fonts?: unknown;
   editingDisabled?: boolean;
   isStreaming?: boolean | null;
+  fitToContainer?: boolean;
 }
 
 const SlideContent = ({
@@ -45,6 +47,7 @@ const SlideContent = ({
   fonts,
   editingDisabled = false,
   isStreaming = false,
+  fitToContainer = false,
 }: SlideContentProps) => {
   const canEditSlide = !editingDisabled && isStreaming !== true;
 
@@ -53,7 +56,10 @@ const SlideContent = ({
   return (
     <div
       id={`slide-${index}`}
-      className="main-slide relative flex w-full items-center justify-center max-md:mb-4"
+      className={cn(
+        "main-slide relative flex w-full items-center justify-center",
+        fitToContainer ? "h-full min-h-0" : "max-md:mb-4",
+      )}
     >
       {isStreaming && (
         <Loader2 className="absolute right-2 top-2 z-30 h-8 w-8 animate-spin text-blue-800" />
@@ -61,15 +67,20 @@ const SlideContent = ({
       <div
         data-layout={slide?.layout}
         data-group={slide?.layout_group}
-        className={`group w-full font-syne ${isTemplateV2SlideContent ? "relative" : ""
-          }`}
+        className={cn(
+          "group w-full font-syne",
+          isTemplateV2SlideContent && "relative",
+          fitToContainer && "flex h-full min-h-0 flex-col",
+        )}
       >
         <div
-          className={
-            isChatEditing
-              ? "chat-slide-glow relative rounded-[14px] max-xl:mb-6"
-              : "relative max-xl:mb-6"
-          }
+          className={cn(
+            "relative",
+            isChatEditing && "chat-slide-glow rounded-[14px]",
+            fitToContainer
+              ? "flex min-h-0 flex-1 items-center justify-center"
+              : "max-xl:mb-6",
+          )}
           onPointerDownCapture={() => onSlideActive?.(index)}
         >
           {isChatEditing && (
@@ -102,8 +113,8 @@ const SlideContent = ({
             theme={theme ?? null}
             fonts={fonts}
             renderIndex={index}
-            enableViewportCulling
             isSelected={selected}
+            fitToContainer={fitToContainer}
             showEditScan={isChatEditing}
             showBlankPromptOverlay={showBlankPromptOverlay}
             onBlankPromptOverlayDismiss={onBlankPromptOverlayDismiss}
@@ -111,13 +122,17 @@ const SlideContent = ({
             onTemplatePromptOverlayDismiss={onTemplatePromptOverlayDismiss}
           />
         </div>
-        <div className="my-3 w-full xl:my-4">
+        <div
+          className={cn(
+            "w-full shrink-0",
+            fitToContainer ? "mt-5" : "my-3 xl:my-4",
+          )}
+        >
           <SlideActionBar
             slide={slide}
             selectedSlide={index}
             presentationId={presentationId}
             onSlideSelected={onSlideAdded ?? (() => undefined)}
-            revealOnGroupHover
           />
         </div>
       </div>
@@ -140,5 +155,6 @@ export default memo(
     previous.theme === next.theme &&
     previous.fonts === next.fonts &&
     previous.editingDisabled === next.editingDisabled &&
-    previous.isStreaming === next.isStreaming,
+    previous.isStreaming === next.isStreaming &&
+    previous.fitToContainer === next.fitToContainer,
 );

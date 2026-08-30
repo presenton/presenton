@@ -3,7 +3,6 @@ FROM python:3.11-slim-trixie
 
 WORKDIR /app
 
-ARG TARGETARCH
 ARG CHROMIUM_VERSION=149.0.7827.196-1~deb13u1
 ARG CHROMIUM_SNAPSHOT=20260625T180000Z
 
@@ -15,8 +14,6 @@ ENV APP_DATA_DIRECTORY=/app_data \
     UV_LINK_MODE=copy \
     PATH="/root/.local/bin:${PATH}" \
     EXPORT_PACKAGE_ROOT=/app/presentation-export \
-    EXPORT_RUNTIME_DIR=/app/presentation-export \
-    BUILT_PYTHON_MODULE_PATH=/app/presentation-export/py/convert-linux-current \
     PRESENTON_APP_ROOT=/app \
     HF_HOME=/root/.cache/huggingface \
     PRESENTON_FASTEMBED_ICON_CACHE_DIR=/root/.cache/presenton/fastembed-icons \
@@ -47,7 +44,7 @@ RUN find /usr/share/fonts -type f ! -iname 'Noto*' -delete \
     && find /usr/share/fonts -type d -empty -delete \
     && fc-cache -fsv
 
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
@@ -61,22 +58,13 @@ RUN mkdir -p /app/document-extraction-liteparse \
 COPY electron/resources/document-extraction/liteparse_runner.mjs /app/document-extraction-liteparse/liteparse_runner.mjs
 
 COPY scripts/sync-presentation-export.cjs /app/scripts/sync-presentation-export.cjs
+COPY scripts/run-presentation-export.mjs /app/scripts/run-presentation-export.mjs
 COPY scripts/presenton-terminal-banner.mjs /app/scripts/presenton-terminal-banner.mjs
 COPY scripts/user-config-env.cjs /app/scripts/user-config-env.cjs
 RUN rm -rf /app/presentation-export \
-    && EXPORT_RUNTIME_ARCH="${TARGETARCH}" node /app/scripts/sync-presentation-export.cjs --force \
-    && find /app/presentation-export/py -maxdepth 1 -type f -name "convert-linux-*" -exec chmod +x {} \; \
-    && set -eux; \
-    if [ -z "${TARGETARCH:-}" ]; then TARGETARCH="$(dpkg --print-architecture)"; fi; \
-    case "$TARGETARCH" in \
-    amd64) export_arch="x64" ;; \
-    arm64) export_arch="arm64" ;; \
-    *) echo "Unsupported TARGETARCH: $TARGETARCH" && exit 1 ;; \
-    esac; \
-    test -f "/app/presentation-export/py/convert-linux-${export_arch}"; \
-    ln -sf "/app/presentation-export/py/convert-linux-${export_arch}" /app/presentation-export/py/convert-linux-current; \
-    chmod +x "/app/presentation-export/py/convert-linux-${export_arch}"; \
-    ls -lah /app/presentation-export/py
+    && node /app/scripts/sync-presentation-export.cjs --force \
+    && test -f /app/presentation-export/runner.mjs \
+    && test -f /app/presentation-export/node_modules/@presenton/export-core/dist/index.js
 
 # Bind mount `.:/app` hides any .venv under servers/fastapi at runtime — install deps into
 # system site-packages (same interpreter `start.js` uses as `python`).

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import sys
 from types import SimpleNamespace
@@ -127,6 +128,45 @@ def test_export_output_path_accepts_file_path_key(monkeypatch, tmp_path):
     )
 
 
+def test_convert_pptx_to_html_resolves_relative_asset_directories(
+    monkeypatch,
+    tmp_path,
+):
+    app_data = tmp_path / "app-data"
+    artifact_dir = app_data / "pptx-to-html" / "session"
+    manifest_path = artifact_dir / "presentation.json"
+    (artifact_dir / "images").mkdir(parents=True)
+    (artifact_dir / "fonts").mkdir()
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "slides": ['<img src="images/asset.png">'],
+                "font_css": "",
+                "width": 1280,
+                "height": 720,
+                "images_dir": "images",
+                "fonts_dir": "fonts",
+            }
+        ),
+        encoding="utf-8",
+    )
+    pptx_path = tmp_path / "deck.pptx"
+    pptx_path.write_bytes(b"pptx")
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(app_data))
+    monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
+    service = ExportTaskService(timeout_seconds=10)
+
+    async def fake_run_task(_task_payload, _response_error_detail):
+        return {"file_path": str(manifest_path)}
+
+    service._run_task = fake_run_task
+
+    result = asyncio.run(service.convert_pptx_to_html(str(pptx_path)))
+
+    assert result.images_dir == str(artifact_dir / "images")
+    assert result.fonts_dir == str(artifact_dir / "fonts")
+
+
 def test_render_html_to_image_sends_html_task_payload(monkeypatch, tmp_path):
     monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
     output_path = tmp_path / "preview.png"
@@ -230,6 +270,60 @@ def test_render_json_to_image_embeds_protected_local_assets(monkeypatch, tmp_pat
     assert data[0]["children"][0]["data"] == local_url
 
 
+def test_render_jsons_to_images_sends_localized_batch_payload(monkeypatch, tmp_path):
+    app_data = tmp_path / "app-data"
+    asset_path = app_data / "pptx-to-json" / "session" / "images" / "photo.svg"
+    asset_path.parent.mkdir(parents=True)
+    asset_path.write_text("<svg></svg>", encoding="utf-8")
+    output_paths = [tmp_path / "preview-1.png", tmp_path / "preview-2.png"]
+    for output_path in output_paths:
+        output_path.write_bytes(b"png")
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(app_data))
+    monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("DISABLE_AUTH", "true")
+    service = ExportTaskService(timeout_seconds=10)
+    captured = {}
+
+    async def fake_run_task(task_payload, response_error_detail):
+        captured["task_payload"] = task_payload
+        captured["response_error_detail"] = response_error_detail
+        return {"file_paths": [str(path) for path in output_paths]}
+
+    service._run_task = fake_run_task
+    layouts = [
+        {
+            "elements": [
+                {
+                    "type": "image",
+                    "data": "/app_data/pptx-to-json/session/images/photo.svg",
+                }
+            ]
+        },
+        {"elements": [{"type": "text", "text": "Two"}]},
+    ]
+
+    result = asyncio.run(
+        service.render_jsons_to_images(
+            layouts,
+            960,
+            540,
+            fonts={"css": "@font-face {}"},
+        )
+    )
+
+    assert result.paths == [str(path) for path in output_paths]
+    payload = captured["task_payload"]
+    assert payload["type"] == "json-to-images"
+    assert payload["width"] == 960
+    assert payload["height"] == 540
+    assert payload["fonts"] == {"css": "@font-face {}"}
+    assert payload["jsons"][0]["elements"][0]["data"].startswith(
+        "data:image/svg+xml;base64,"
+    )
+    assert layouts[0]["elements"][0]["data"].startswith("/app_data/")
+    assert "JSON-to-images" in captured["response_error_detail"]
+
+
 def test_render_htmls_to_images_sends_batch_task_payload(monkeypatch, tmp_path):
     monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
     output_paths = [tmp_path / "preview-1.png", tmp_path / "preview-2.png"]
@@ -321,25 +415,7 @@ def test_render_htmls_to_images_falls_back_when_batch_render_fails(tmp_path):
     ]
 
 
-def test_export_converter_resolver_accepts_linux_amd64_name(tmp_path, monkeypatch):
-    monkeypatch.delenv("BUILT_PYTHON_MODULE_PATH", raising=False)
-    monkeypatch.setattr("services.export_task_service.sys_platform", lambda: "linux")
-    monkeypatch.setattr("services.export_task_service.sys_arch", lambda: "x64")
-    converter = tmp_path / "py" / "convert-linux-amd64"
-    converter.parent.mkdir()
-    converter.write_text("binary")
-
-    assert ExportTaskService._resolve_converter_path(str(tmp_path)) == str(converter)
-
-
-def test_export_converter_resolver_prefers_existing_configured_path(
-    tmp_path, monkeypatch
-):
-    configured = tmp_path / "custom-converter"
-    configured.write_text("binary")
-    converter = tmp_path / "py" / "convert-linux-x64"
-    converter.parent.mkdir()
-    converter.write_text("binary")
-    monkeypatch.setenv("BUILT_PYTHON_MODULE_PATH", str(configured))
-
-    assert ExportTaskService._resolve_converter_path(str(tmp_path)) == str(configured)
+def test_export_entrypoint_resolves_architecture_independent_runner(tmp_path):
+    assert ExportTaskService._resolve_entrypoint_path(str(tmp_path)) == str(
+        tmp_path / "runner.mjs"
+    )

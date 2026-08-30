@@ -52,6 +52,9 @@ import {
 import MarkdownRenderer from "@/components/MarkDownRender";
 import { cn } from "@/lib/utils";
 import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
+import { sanitizeAnalyticsError } from "@/utils/analytics";
+import { v4 as uuidv4 } from "uuid";
+import StreamingGenerationMetrics from "./StreamingGenerationMetrics";
 
 const MAX_EXPORT_TITLE_LENGTH = 40;
 
@@ -115,9 +118,12 @@ const PresentationHeader = ({
   const pathname = usePathname();
   const dispatch = useDispatch();
 
-  const { presentationData, isStreaming, enableHtmlSelector } = useSelector(
-    (state: RootState) => state.presentationGeneration
-  );
+  const {
+    presentationData,
+    isStreaming,
+    enableHtmlSelector,
+    generationMetrics,
+  } = useSelector((state: RootState) => state.presentationGeneration);
   const { onUndo, onRedo, canUndo, canRedo } = usePresentationUndoRedo();
 
   useEffect(() => {
@@ -217,6 +223,11 @@ const PresentationHeader = ({
   const handleExportPptx = async () => {
     if (isStreaming) return;
 
+    const exportId = uuidv4();
+    const exportStartedAt = Date.now();
+    const exportRuntime = window.electron?.exportPresentation
+      ? "electron"
+      : "browser_api";
     let exportToastId: string | number | undefined;
     try {
       exportToastId = notify.loading(
@@ -224,13 +235,19 @@ const PresentationHeader = ({
         "Your presentation is being exported. This may take a moment."
       );
       setIsExporting(true);
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Started,
+        "pptx",
+        exportRuntime,
+        exportId,
+        exportStartedAt
+      );
       const safePptxFileName = buildSafeExportFileName(
         presentationData?.title,
         "pptx"
       );
       const safePptxTitle = safePptxFileName.replace(/\.pptx$/i, "");
-      if (window.electron?.exportPresentation) {
-        await trackExportCompleted("pptx", "electron");
+      if (exportRuntime === "electron") {
         await exportViaIpc("pptx", safePptxTitle);
       } else {
         const response = await fetch("/api/export-presentation", {
@@ -251,9 +268,15 @@ const PresentationHeader = ({
           throw new Error("No path returned from export");
         }
 
-        await trackExportCompleted("pptx", "browser_api");
         downloadLink(pptxPath, safePptxFileName);
       }
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Completed,
+        "pptx",
+        exportRuntime,
+        exportId,
+        exportStartedAt
+      );
       notify.success(
         "Export complete",
         "Your PPTX file has been downloaded.",
@@ -261,6 +284,14 @@ const PresentationHeader = ({
       );
     } catch (error) {
       console.error("Export failed:", error);
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Failed,
+        "pptx",
+        exportRuntime,
+        exportId,
+        exportStartedAt,
+        error
+      );
       notify.error(
         "Export failed",
         "We are having trouble exporting your presentation. Please try again.",
@@ -274,6 +305,11 @@ const PresentationHeader = ({
   const handleExportPdf = async () => {
     if (isStreaming) return;
 
+    const exportId = uuidv4();
+    const exportStartedAt = Date.now();
+    const exportRuntime = window.electron?.exportPresentation
+      ? "electron"
+      : "browser_api";
     let exportToastId: string | number | undefined;
     try {
       exportToastId = notify.loading(
@@ -281,13 +317,19 @@ const PresentationHeader = ({
         "Your presentation is being exported. This may take a moment."
       );
       setIsExporting(true);
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Started,
+        "pdf",
+        exportRuntime,
+        exportId,
+        exportStartedAt
+      );
       const safePdfFileName = buildSafeExportFileName(
         presentationData?.title,
         "pdf"
       );
       const safePdfTitle = safePdfFileName.replace(/\.pdf$/i, "");
-      if (window.electron?.exportPresentation) {
-        await trackExportCompleted("pdf", "electron");
+      if (exportRuntime === "electron") {
         await exportViaIpc("pdf", safePdfTitle);
       } else {
         const response = await fetch("/api/export-presentation", {
@@ -304,19 +346,33 @@ const PresentationHeader = ({
           if (!pdfPath) {
             throw new Error("No path returned from export");
           }
-          await trackExportCompleted("pdf", "browser_api");
           downloadLink(pdfPath, safePdfFileName);
         } else {
           throw new Error("Failed to export PDF");
         }
       }
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Completed,
+        "pdf",
+        exportRuntime,
+        exportId,
+        exportStartedAt
+      );
       notify.success(
         "Export complete",
         "Your PDF file has been downloaded.",
         { id: exportToastId }
       );
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Failed,
+        "pdf",
+        exportRuntime,
+        exportId,
+        exportStartedAt,
+        error
+      );
       notify.error(
         "Export failed",
         "We are having trouble exporting your presentation. Please try again.",
@@ -330,6 +386,9 @@ const PresentationHeader = ({
   const handleExportVideo = async () => {
     if (isStreaming) return;
 
+    const exportId = uuidv4();
+    const exportStartedAt = Date.now();
+    const exportRuntime: "electron" | "browser_api" = "browser_api"; // video export always runs server-side, never via Electron IPC
     let exportToastId: string | number | undefined;
     try {
       exportToastId = notify.loading(
@@ -337,6 +396,13 @@ const PresentationHeader = ({
         "Generating narration and assembling your video. This can take a while for longer decks."
       );
       setIsExporting(true);
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Started,
+        "mp4",
+        exportRuntime,
+        exportId,
+        exportStartedAt
+      );
 
       const kickoffResponse = await fetch("/api/export-presentation-video", {
         method: "POST",
@@ -415,7 +481,13 @@ const PresentationHeader = ({
         safeVideoFileName
       );
 
-      await trackExportCompleted("mp4", "browser_api");
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Completed,
+        "mp4",
+        exportRuntime,
+        exportId,
+        exportStartedAt
+      );
       notify.success(
         "Export complete",
         "Your narrated video has been downloaded.",
@@ -423,6 +495,14 @@ const PresentationHeader = ({
       );
     } catch (error) {
       console.error("Video export failed:", error);
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Failed,
+        "mp4",
+        exportRuntime,
+        exportId,
+        exportStartedAt,
+        error
+      );
       notify.error(
         "Export failed",
         "We are having trouble exporting your video. Please try again.",
@@ -467,18 +547,37 @@ const PresentationHeader = ({
     document.body.removeChild(link);
   };
 
-  const trackExportCompleted = async (
+  const trackExportLifecycle = async (
+    event:
+      | MixpanelEvent.Presentation_Export_Started
+      | MixpanelEvent.Presentation_Export_Completed
+      | MixpanelEvent.Presentation_Export_Failed,
     format: "pptx" | "pdf" | "mp4",
-    exportRuntime: "electron" | "browser_api"
+    exportRuntime: "electron" | "browser_api",
+    exportId: string,
+    exportStartedAt: number,
+    error?: unknown
   ) => {
-    await trackEventImmediately(MixpanelEvent.Presentation_Export_Completed, {
-      pathname,
-      presentation_id,
-      format,
-      slide_count: presentationData?.slides?.length || 0,
-      export_runtime: exportRuntime,
-      generation_mode: generationMode,
-    });
+    try {
+      await trackEventImmediately(event, {
+        pathname,
+        presentation_id,
+        export_id: exportId,
+        format,
+        slide_count: presentationData?.slides?.length || 0,
+        export_runtime: exportRuntime,
+        generation_mode: generationMode,
+        ...(event !== MixpanelEvent.Presentation_Export_Started
+          ? { duration_ms: Date.now() - exportStartedAt }
+          : {}),
+        ...(error !== undefined
+          ? { error_message: sanitizeAnalyticsError(error, "Export failed") }
+          : {}),
+      });
+    } catch (analyticsError) {
+      // Analytics must never prevent or change the result of an export.
+      console.warn("Failed to track export lifecycle:", analyticsError);
+    }
   };
 
   const ExportOptions = ({ mobile }: { mobile: boolean }) => (
@@ -613,7 +712,7 @@ const PresentationHeader = ({
   return (
     <>
       <div className="py-[18px] px-4 sticky top-0 bg-white z-50 shadow-sm font-syne flex justify-between items-center gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <img
             onClick={() => {
               router.push("/dashboard");
@@ -630,7 +729,10 @@ const PresentationHeader = ({
          
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2.5">
+          {generationMode === "smart" && generationMetrics ? (
+            <StreamingGenerationMetrics metrics={generationMetrics} />
+          ) : null}
           {isPresentationSaving && (
             <div className="flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

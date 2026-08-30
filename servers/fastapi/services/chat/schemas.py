@@ -5,6 +5,7 @@ import dirtyjson  # type: ignore[import-untyped]
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from constants.presentation import MAX_OUTLINE_CONTENT_WORDS
+from utils.infographic_catalog import InfographicType
 
 
 class StrictSchemaModel(BaseModel):
@@ -173,6 +174,27 @@ class GetAvailableBlocksInput(OpenAIStrictSchemaModel):
         le=50,
         description=(
             "Maximum matching block summaries to return. Use null for the default."
+        ),
+    )
+
+    model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
+
+
+class GetAvailableInfographicsInput(OpenAIStrictSchemaModel):
+    infographic_type: InfographicType | None = Field(
+        ...,
+        alias="infographicType",
+        description=(
+            "Optional exact infographic type. Use null to browse or search the catalog."
+        ),
+    )
+    query: str | None = Field(
+        ...,
+        min_length=1,
+        max_length=300,
+        description=(
+            "Optional search text for a use case, category, type, or name. "
+            "Use null to return the complete catalog."
         ),
     )
 
@@ -432,11 +454,13 @@ class SlideElementInfographicDataInput(OpenAIStrictSchemaModel):
 
 
 class SlideElementInfographicInput(OpenAIStrictSchemaModel):
-    data: SlideElementInfographicDataInput | None = Field(
+    data: dict[str, Any] | None = Field(
         ...,
         description=(
-            "Partial progress bar or gauge data using type, minValue, maxValue, "
-            "and/or value; supplied fields merge into the current data."
+            "Partial nested infographic data. Meter updates use type, min_value, "
+            "max_value, and value; structural updates use the catalog-native items, "
+            "Gantt, matrix, hierarchy, label, or axis fields. Supplied fields merge "
+            "into the current data."
         ),
     )
     colors: list[str] | None = Field(
@@ -482,6 +506,62 @@ class SlideElementSizeInput(StrictSchemaModel):
     height: float = Field(ge=1, le=10000)
 
 
+class AddInfographicInput(OpenAIStrictSchemaModel):
+    infographic_type: InfographicType = Field(
+        ...,
+        alias="infographicType",
+        description="Exact type returned by getAvailableInfographics.",
+    )
+    target: Literal["existing_slide", "new_slide"] = Field(...)
+    slide_index: int | None = Field(
+        ...,
+        alias="slideIndex",
+        ge=0,
+        le=1000,
+        description=(
+            "Required for existing_slide; optional insertion index for new_slide."
+        ),
+    )
+    data: dict[str, Any] = Field(
+        ...,
+        description=(
+            "Infographic content matching the selected catalog entry. The tool adds "
+            "data.type automatically."
+        ),
+    )
+    position: SlideElementPositionInput | None = Field(...)
+    size: SlideElementSizeInput | None = Field(...)
+    colors: list[str] | None = Field(..., min_length=2, max_length=12)
+    text_color: str | None = Field(
+        ...,
+        alias="textColor",
+        min_length=1,
+        max_length=64,
+    )
+    component_id: str | None = Field(
+        ...,
+        alias="componentId",
+        min_length=1,
+        max_length=120,
+    )
+    insert_index: int | None = Field(
+        ...,
+        alias="insertIndex",
+        ge=0,
+        le=1000,
+    )
+
+    model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
+
+    @model_validator(mode="after")
+    def validate_target(self) -> "AddInfographicInput":
+        if self.target == "existing_slide" and self.slide_index is None:
+            raise ValueError("slideIndex is required for target existing_slide.")
+        if self.target == "new_slide" and self.component_id is not None:
+            raise ValueError("componentId must be null for target new_slide.")
+        return self
+
+
 class SlideElementVectorCurveInput(OpenAIStrictSchemaModel):
     type: Literal["smooth"] = Field(...)
     tension: float | None = Field(..., ge=0, le=1)
@@ -504,6 +584,12 @@ class SlideElementVectorInput(OpenAIStrictSchemaModel):
         min_length=2,
         max_length=200,
     )
+    start_marker: Literal[
+        "none", "arrow", "stealth", "triangle", "circle", "square", "diamond"
+    ] | None = Field(..., alias="startMarker")
+    end_marker: Literal[
+        "none", "arrow", "stealth", "triangle", "circle", "square", "diamond"
+    ] | None = Field(..., alias="endMarker")
 
     model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
 
@@ -552,7 +638,7 @@ class SlideElementFontInput(OpenAIStrictSchemaModel):
 
 
 class SlideElementAlignmentInput(OpenAIStrictSchemaModel):
-    horizontal: Literal["left", "center", "right"] | None = Field(...)
+    horizontal: Literal["left", "center", "right", "justify"] | None = Field(...)
     vertical: Literal["top", "middle", "bottom"] | None = Field(...)
 
 
@@ -607,15 +693,15 @@ class UpdateSlideElementInput(OpenAIStrictSchemaModel):
     vector: SlideElementVectorInput | None = Field(
         ...,
         description=(
-            "Vector update using shape, points, closed, smooth curve, and cornerRadii. "
+            "Vector update using shape, points, closed, smooth curve, cornerRadii, "
+            "and optional startMarker/endMarker line endpoints. "
             "Use position/size for ordinary vector move and resize requests."
         ),
     )
     infographic: SlideElementInfographicInput | None = Field(
         ...,
         description=(
-            "Infographic update using nested data (type, minValue, maxValue, value) "
-            "and colors."
+            "Infographic update using catalog-native nested data and ordered colors."
         ),
     )
     table: SlideElementTableInput | None = Field(

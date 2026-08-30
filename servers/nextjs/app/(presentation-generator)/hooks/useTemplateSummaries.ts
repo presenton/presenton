@@ -49,16 +49,30 @@ function filterTemplatesWithLayouts(templates: TemplateListItem[]) {
   );
 }
 
+function deduplicateCloudTemplates(templates: TemplateListItem[]) {
+  const seen = new Set<string>();
+  return templates.filter((template) => {
+    const normalizedName = template.name.trim().toLowerCase();
+    const key = `${template.is_default ? "default" : "custom"}:${normalizedName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function useTemplateSummaries({
   includeProcessingTemplateTasks = false,
+  presentonCloudOnly = false,
 }: {
   includeProcessingTemplateTasks?: boolean;
+  presentonCloudOnly?: boolean;
 } = {}) {
   const [templates, setTemplates] = useState<TemplateListItem[]>([]);
   const [processingTemplateTasks, setProcessingTemplateTasks] = useState<
     TemplateCreateTaskResponse[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,17 +95,21 @@ export function useTemplateSummaries({
 
     const loadTemplateSummaries = async () => {
       const [defaultResponse, customResponse] = await Promise.all([
-        TemplateService.getTemplateSummaries(true),
-        TemplateService.getTemplateSummaries(false),
+        TemplateService.getTemplateSummaries(true, { presentonCloudOnly }),
+        TemplateService.getTemplateSummaries(false, { presentonCloudOnly }),
       ]);
-      return [
+      const loadedTemplates = [
         ...filterTemplatesWithLayouts(defaultResponse.items ?? []),
         ...filterTemplatesWithLayouts(customResponse.items ?? []),
       ];
+      return presentonCloudOnly
+        ? deduplicateCloudTemplates(loadedTemplates)
+        : loadedTemplates;
     };
 
     const loadInitialTemplates = async () => {
       setLoading(true);
+      setError(null);
       try {
         const [loadedTemplates, processingTasks] = await Promise.all([
           loadTemplateSummaries(),
@@ -106,7 +124,12 @@ export function useTemplateSummaries({
       } catch (error) {
         console.error("Failed to load templates", error);
         if (!cancelled) {
-          toast.error("Failed to load templates");
+          const message =
+            error instanceof Error
+              ? error.message
+              : "The template service could not be reached. Please try again.";
+          setError(message);
+          toast.error("Could not load templates", { description: message });
         }
       } finally {
         if (!cancelled) {
@@ -148,7 +171,7 @@ export function useTemplateSummaries({
         clearInterval(intervalId);
       }
     };
-  }, [includeProcessingTemplateTasks]);
+  }, [includeProcessingTemplateTasks, presentonCloudOnly]);
 
   const { defaultTemplates, customTemplates } = useMemo(
     () => splitTemplatesByDefault(templates),
@@ -161,5 +184,6 @@ export function useTemplateSummaries({
     customTemplates,
     processingTemplateTasks,
     loading,
+    error,
   };
 }

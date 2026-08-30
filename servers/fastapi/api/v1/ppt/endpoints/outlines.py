@@ -222,9 +222,12 @@ async def stream_outlines(
             )
         )
 
+        # Only undershooting is fatal. Overshooting is trimmed just below --
+        # the slice was already here, unreachable for that case because this
+        # check rejected the request first.
         if (
             n_slides_to_generate is not None
-            and len(presentation_outlines.slides) != n_slides_to_generate
+            and len(presentation_outlines.slides) < n_slides_to_generate
         ):
             yield SSEErrorResponse(
                 detail=(

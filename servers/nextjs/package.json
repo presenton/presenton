@@ -8,10 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test tests/*.test.mjs",
-    "test:export-output-path": "node --test tests/export-output-path.test.mjs",
-    "test:layout-code": "node --test tests/layout-code-validator.test.mjs",
-    "check:layout-code": "node --test tests/layout-code-validator.test.mjs"
+    "test": "node --test"
   },
   "dependencies": {
     "@babel/parser": "^7.28.4",

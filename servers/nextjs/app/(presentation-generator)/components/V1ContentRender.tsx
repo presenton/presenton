@@ -116,6 +116,7 @@ function TemplateV2PromptOverlay({
                 aria-label="Create slide from prompt"
                 onSubmit={submitPrompt}
                 onPointerDown={(event) => event.stopPropagation()}
+                style={{ translate: "none" }}
                 className="pointer-events-auto absolute left-1/2 top-[292px] flex h-[104px] w-[980px] max-w-[calc(100%_-_160px)] -translate-x-1/2 items-center rounded-[14px] border border-dashed border-[#E3E4EA] bg-white/90 px-4 shadow-[0_10px_30px_rgba(16,24,40,0.03)]"
             >
                 <div className="flex min-w-0 flex-1 items-start gap-3">

@@ -3,6 +3,32 @@
   "name": "Executive",
   "description": "Leadership-ready layouts with bold typography, crisp structure, and subtle violet accents for strategic, decision-focused presentations.",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#8554EB",
+      "background": "#F8F7FB",
+      "card": "#F0EEF8",
+      "stroke": "#9081C8",
+      "primary_text": "#FFFFFF",
+      "background_text": "#000000",
+      "graph_0": "#A386EA",
+      "graph_1": "#8554EB",
+      "graph_2": "#8958F4",
+      "graph_3": "#5F4F9B",
+      "graph_4": "#6354A3",
+      "graph_5": "#8F84BE",
+      "graph_6": "#8074B4",
+      "graph_7": "#F4F0FF",
+      "graph_8": "#F0EEF8",
+      "graph_9": "#9081C8"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Montserrat Bold",
+        "url": "static/Montserrat Bold.ttf"
+      }
+    }
+  },
   "merged_components": [
     {
       "id": "background_accents",

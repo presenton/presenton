@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 import uuid
 
+from pydantic import field_serializer
 from sqlalchemy import JSON, Column, DateTime, ForeignKey, String
 from sqlmodel import Field, SQLModel
 
@@ -48,3 +49,8 @@ class AsyncTaskModel(SQLModel, table=True):
             onupdate=get_current_utc_datetime,
         )
     )
+
+    @field_serializer("status")
+    def serialize_status(self, status: AsyncTaskStatus | str) -> str:
+        """Serialize values hydrated from the database's string column."""
+        return status.value if isinstance(status, AsyncTaskStatus) else status

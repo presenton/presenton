@@ -1,9 +1,9 @@
 {
-  "version": "0.9.5-beta",
-  "message": "Presenton Desktop electron-v0.8.9-beta\n\nA polished 0.8.9-beta release with lots of improvements across the Electron app.\n\nWhat's New\n\n• Faster, more reliable exports with Chromium export support\n• Better image editing with stock search and OpenAI-compatible generation\n• Improved AI model support, including LiteLLM, Azure, Vertex, and ComfyUI seeds\n• Cleaner editing workflows, markdown rendering, and slide management\n• Updated templates, Chart.js migration, and multilingual UI improvements\n• Stability fixes for packaging, onboarding, layouts, fonts, and exports\n\nInstallation\nDownload Link: https://presenton.ai/download\nLove the app? Star us on GitHub → github.com/presenton/presenton",
+  "version": "0.9.8-beta",
+  "message": "Presenton Desktop electron-v0.9.8-beta\n\nWhat's New Since 0.9.5\n\n• Connect and sign in to Presenton Cloud directly from the desktop app\n• Choose between Standard and Smart presentation generation modes\n• Access cloud-generated presentations from your local dashboard\n• Improved onboarding and clearer provider connection status\n• More responsive dashboard with quicker access to Settings\n• Improved presentation deletion and action menus\n• More reliable exports, authentication, and session handling\n• Additional interface, localization, and stability fixes\n\nInstallation\nDownload Link: https://presenton.ai/download\nLove the app? Star us on GitHub → github.com/presenton/presenton",
   "downloads": {
-    "linux": "https://github.com/presenton/presenton/releases/download/electron-v0.9.5-beta/Presenton-0.9.5-beta.deb",
-    "mac": "https://github.com/presenton/presenton/releases/download/electron-v0.9.5-beta/Presenton-0.9.5-beta.dmg",
-    "windows": "https://github.com/presenton/presenton/releases/download/electron-v0.9.5-beta/Presenton-0.9.5-beta.exe"
+    "linux": "https://github.com/presenton/presenton/releases/download/electron-v0.9.8-beta/Presenton-0.9.8-beta.deb",
+    "mac": "https://github.com/presenton/presenton/releases/download/electron-v0.9.8-beta/Presenton-0.9.8-beta.dmg",
+    "windows": "https://github.com/presenton/presenton/releases/download/electron-v0.9.8-beta/Presenton-0.9.8-beta.exe"
   }
 }

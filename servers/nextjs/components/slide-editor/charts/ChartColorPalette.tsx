@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties } from "react";
 import { Check, Plus, X } from "lucide-react";
 import {
   CHART_SYSTEM_COLORS,
@@ -12,6 +12,7 @@ type ChartColorPaletteCardProps = {
   onAddColor?: () => void;
   onChange: (color: string) => void;
   onClose?: () => void;
+  onDeleteColor?: () => void;
   onSelectIndex: (index: number) => void;
   selectedIndex: number;
   style?: CSSProperties;
@@ -23,6 +24,7 @@ export function ChartColorPaletteCard({
   onAddColor,
   onChange,
   onClose,
+  onDeleteColor,
   onSelectIndex,
   selectedIndex,
   style,
@@ -39,6 +41,29 @@ export function ChartColorPaletteCard({
   const commitColor = (color: string) => {
     onChange(normalizeChartColor(color));
   };
+
+  useEffect(() => {
+    if (!onDeleteColor) return;
+
+    const deleteSelectedColor = (event: KeyboardEvent) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      onDeleteColor();
+    };
+
+    document.addEventListener("keydown", deleteSelectedColor);
+    return () => document.removeEventListener("keydown", deleteSelectedColor);
+  }, [onDeleteColor]);
 
   return (
     <div

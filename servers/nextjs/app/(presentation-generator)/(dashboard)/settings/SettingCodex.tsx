@@ -120,6 +120,11 @@ export default function CodexConfig({
     };
 
     const handleSignIn = async () => {
+        trackEvent(MixpanelEvent.Provider_Login_Clicked, {
+            provider: "chatgpt",
+            implementation: "codex",
+            source: "settings",
+        });
         try {
             onInputChange('codex', 'LLM');
             trackEvent(MixpanelEvent.Codex_SignIn_API_Call);
@@ -145,6 +150,12 @@ export default function CodexConfig({
                     if (pollData.status === "success") {
                         stopPolling();
                         trackEvent(MixpanelEvent.Codex_SignIn_Completed, {
+                            method: "browser_poll",
+                        });
+                        trackEvent(MixpanelEvent.Provider_Connection_Completed, {
+                            provider: "chatgpt",
+                            implementation: "codex",
+                            source: "settings",
                             method: "browser_poll",
                         });
                         setAuthStatus("authenticated");
@@ -205,6 +216,12 @@ export default function CodexConfig({
             trackEvent(MixpanelEvent.Codex_SignIn_Completed, {
                 method: "manual_exchange",
             });
+            trackEvent(MixpanelEvent.Provider_Connection_Completed, {
+                provider: "chatgpt",
+                implementation: "codex",
+                source: "settings",
+                method: "manual_exchange",
+            });
             setAuthStatus("authenticated");
             applyProfile(data);
             setSessionId(null);
@@ -239,10 +256,25 @@ export default function CodexConfig({
     };
 
     const handleSignOut = async () => {
+        trackEvent(MixpanelEvent.Provider_Logout_Clicked, {
+            provider: "chatgpt",
+            implementation: "codex",
+            source: "settings",
+        });
         setIsLoggingOut(true);
         try {
-            await fetch(getApiUrl("/api/v1/ppt/codex/auth/logout"), { method: "POST" });
+            const response = await fetch(getApiUrl("/api/v1/ppt/codex/auth/logout"), {
+                method: "POST",
+            });
+            if (!response.ok) {
+                throw new Error(`Codex logout returned ${response.status}`);
+            }
             trackEvent(MixpanelEvent.Codex_Signed_Out);
+            trackEvent(MixpanelEvent.Provider_Connection_Deleted, {
+                provider: "chatgpt",
+                implementation: "codex",
+                source: "settings",
+            });
             setAuthStatus("unauthenticated");
             applyProfile({});
             onInputChange("codex", "LLM");

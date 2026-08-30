@@ -83,11 +83,22 @@ def test_upgrade_from_baseline_stamp_skips_existing_theme_column(tmp_path):
                 row[1]
                 for row in connection.execute(text("PRAGMA index_list('user')"))
             }
+            provider_columns = {
+                row[1]
+                for row in connection.execute(
+                    text("PRAGMA table_info('presenton_cloud_provider')")
+                )
+            }
 
-        assert version == migrations.REVISION_PRIMARY_ADMIN_SLOT
+        assert version == migrations.REVISION_HEAD
         assert "theme" in columns
         assert "fonts" in columns
         assert "async_tasks" in tables
+        assert "presenton_oauth_identity" not in tables
+        assert "presenton_cloud_provider" in tables
+        assert "access_token_encrypted" in provider_columns
+        assert "refresh_token_encrypted" not in provider_columns
+        assert "scopes" not in provider_columns
         assert "admin_slot" in user_columns
         assert "uq_user_admin_slot" in user_indexes
     finally:
@@ -138,7 +149,7 @@ def test_upgrade_from_theme_stamp_skips_existing_template_create_infos_table(tmp
                 )
             }
 
-        assert version == migrations.REVISION_PRIMARY_ADMIN_SLOT
+        assert version == migrations.REVISION_HEAD
         assert "template_create_infos" in tables
     finally:
         engine.dispose()
@@ -198,7 +209,7 @@ def test_upgrade_from_template_stamp_skips_existing_chat_history_table(tmp_path)
                 for row in connection.execute(text("PRAGMA table_info(template_v2)"))
             }
 
-        assert version == migrations.REVISION_PRIMARY_ADMIN_SLOT
+        assert version == migrations.REVISION_HEAD
         assert {
             "ix_chat_history_messages_conversation_id",
             "ix_chat_history_messages_position",
@@ -266,7 +277,7 @@ def test_consolidated_migration_adds_presentation_version(tmp_path):
                 for row in connection.execute(text("PRAGMA table_info(slides)"))
             }
 
-        assert version == migrations.REVISION_PRIMARY_ADMIN_SLOT
+        assert version == migrations.REVISION_HEAD
         assert presentation_version == "v1-standard"
         assert version_column[3] == 1
         assert version_column[4] is None
@@ -323,11 +334,88 @@ def test_async_task_status_migration_maps_processing_to_pending(tmp_path):
                 ).all()
             )
 
-        assert version == migrations.REVISION_PRIMARY_ADMIN_SLOT
+        assert version == migrations.REVISION_HEAD
         assert statuses == {
             "task-completed": "completed",
             "task-pending": "pending",
             "task-processing": "pending",
+        }
+    finally:
+        engine.dispose()
+
+
+def test_smart_mode_backfill_repairs_html_presentations(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'smart-mode-backfill.db'}"
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE presentations (
+                        id TEXT PRIMARY KEY,
+                        generation_mode VARCHAR NOT NULL
+                    )
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE slides (
+                        id TEXT PRIMARY KEY,
+                        presentation TEXT NOT NULL,
+                        html_content TEXT
+                    )
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO presentations (id, generation_mode)
+                    VALUES
+                        ('smart-deck', 'standard'),
+                        ('standard-deck', 'standard')
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO slides (id, presentation, html_content)
+                    VALUES
+                        ('smart-slide', 'smart-deck', '<section>Smart</section>'),
+                        ('standard-slide', 'standard-deck', NULL)
+                    """
+                )
+            )
+            connection.execute(
+                text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+            )
+            connection.execute(
+                text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
+                {"revision": migrations.REVISION_PRESENTON_CLOUD_PROVIDER},
+            )
+
+        command.upgrade(_alembic_config(database_url), "head")
+
+        with engine.connect() as connection:
+            version = connection.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar_one()
+            modes = dict(
+                connection.execute(
+                    text(
+                        "SELECT id, generation_mode FROM presentations ORDER BY id"
+                    )
+                ).all()
+            )
+
+        assert version == migrations.REVISION_HEAD
+        assert modes == {
+            "smart-deck": "smart",
+            "standard-deck": "standard",
         }
     finally:
         engine.dispose()
@@ -435,7 +523,7 @@ def test_upgrade_from_template_v2_revision_adds_slide_ui(tmp_path):
                 for row in connection.execute(text("PRAGMA table_info(slides)"))
             }
 
-        assert version == migrations.REVISION_PRIMARY_ADMIN_SLOT
+        assert version == migrations.REVISION_HEAD
         assert "ui" in slide_columns
     finally:
         engine.dispose()
@@ -574,7 +662,7 @@ def test_upgrade_from_font_uploads_revision_converts_template_v2_ids_to_strings(
                 for row in connection.execute(text("PRAGMA table_info(template_v2)"))
             }
 
-        assert version == migrations.REVISION_PRIMARY_ADMIN_SLOT
+        assert version == migrations.REVISION_HEAD
         assert stored_template_id == expected_template_id
         assert stored_chat_template_id == expected_template_id
         assert template_id_type == "VARCHAR"
@@ -721,10 +809,43 @@ def test_removed_intermediate_revision_upgrades_through_consolidated_migration(
                 for row in connection.execute(text("PRAGMA table_info(template_v2)"))
             }
 
-        assert version == migrations.REVISION_PRIMARY_ADMIN_SLOT
+        assert version == migrations.REVISION_HEAD
         assert {"description", "components", "assets"}.issubset(template_columns)
         assert "is_default" in template_columns
         assert "cluster_candidates" not in template_columns
         assert "clusters" not in template_columns
+    finally:
+        engine.dispose()
+
+
+def test_upgrade_from_previous_head_adds_template_v2_theme(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'template-v2-theme.db'}"
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text("CREATE TABLE template_v2 (id VARCHAR PRIMARY KEY)")
+            )
+            connection.execute(
+                text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+            )
+            connection.execute(
+                text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
+                {"revision": migrations.REVISION_SMART_MODE_BACKFILL},
+            )
+
+        command.upgrade(_alembic_config(database_url), "head")
+
+        with engine.connect() as connection:
+            version = connection.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar_one()
+            template_columns = {
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(template_v2)"))
+            }
+
+        assert version == migrations.REVISION_HEAD
+        assert "theme" in template_columns
     finally:
         engine.dispose()

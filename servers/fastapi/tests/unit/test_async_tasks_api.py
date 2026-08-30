@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from datetime import datetime, timezone
 from typing import Any
 
@@ -58,6 +59,17 @@ def test_async_task_status_enum_uses_string_column():
     status_column_type = AsyncTaskModel.__table__.c.status.type
     assert isinstance(status_column_type, String)
     assert not isinstance(status_column_type, SQLAlchemyEnum)
+
+
+@pytest.mark.parametrize("status", [AsyncTaskStatus.PENDING, "pending"])
+def test_async_task_status_serializes_without_pydantic_warnings(status):
+    task = AsyncTaskModel(type="template.create", status=status)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        payload = task.model_dump_json()
+
+    assert '"status":"pending"' in payload
 
 
 def test_check_async_task_status_returns_task():

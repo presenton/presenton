@@ -39,7 +39,7 @@ type SnapBoxToAlignmentGuidesOptions = {
   threshold: number;
 };
 
-const GUIDE_EXTENSION = 10;
+const GUIDE_EXTENSION = 24;
 const DISTANCE_EPSILON = 0.001;
 
 function axisAnchors(
@@ -176,6 +176,7 @@ function guideForCandidate(
   snappedBox: Box,
   stageBox: Box,
   axis: "x" | "y",
+  axisTargets: AlignmentTarget[],
 ): AlignmentGuide {
   if (candidate.kind === "stage" || !candidate.box) {
     return axis === "x"
@@ -193,21 +194,30 @@ function guideForCandidate(
         };
   }
 
-  const target = candidate.box;
+  const alignedBoxes = Array.from(
+    new Set(
+      axisTargets.flatMap((target) =>
+        target.kind === "element" &&
+        target.box &&
+        Math.abs(target.value - candidate.value) <= DISTANCE_EPSILON
+          ? [target.box]
+          : [],
+      ),
+    ),
+  );
+  const guideBoxes = [snappedBox, ...alignedBoxes];
   if (axis === "x") {
     return {
       axis: "vertical",
       coordinate: candidate.value,
       start: clamp(
-        Math.min(snappedBox.y, target.y) - GUIDE_EXTENSION,
+        Math.min(...guideBoxes.map((box) => box.y)) - GUIDE_EXTENSION,
         stageBox.y,
         stageBox.y + stageBox.height,
       ),
       end: clamp(
-        Math.max(
-          snappedBox.y + snappedBox.height,
-          target.y + target.height,
-        ) + GUIDE_EXTENSION,
+        Math.max(...guideBoxes.map((box) => box.y + box.height)) +
+          GUIDE_EXTENSION,
         stageBox.y,
         stageBox.y + stageBox.height,
       ),
@@ -218,15 +228,13 @@ function guideForCandidate(
     axis: "horizontal",
     coordinate: candidate.value,
     start: clamp(
-      Math.min(snappedBox.x, target.x) - GUIDE_EXTENSION,
+      Math.min(...guideBoxes.map((box) => box.x)) - GUIDE_EXTENSION,
       stageBox.x,
       stageBox.x + stageBox.width,
     ),
     end: clamp(
-      Math.max(
-        snappedBox.x + snappedBox.width,
-        target.x + target.width,
-      ) + GUIDE_EXTENSION,
+      Math.max(...guideBoxes.map((box) => box.x + box.width)) +
+        GUIDE_EXTENSION,
       stageBox.x,
       stageBox.x + stageBox.width,
     ),
@@ -259,10 +267,26 @@ export function snapBoxToAlignmentGuides({
   const snappedBox = { ...movingBox, ...position };
   const guides = [
     ...(vertical
-      ? [guideForCandidate(vertical, snappedBox, stageBox, "x")]
+      ? [
+          guideForCandidate(
+            vertical,
+            snappedBox,
+            stageBox,
+            "x",
+            targets.vertical,
+          ),
+        ]
       : []),
     ...(horizontal
-      ? [guideForCandidate(horizontal, snappedBox, stageBox, "y")]
+      ? [
+          guideForCandidate(
+            horizontal,
+            snappedBox,
+            stageBox,
+            "y",
+            targets.horizontal,
+          ),
+        ]
       : []),
   ];
 

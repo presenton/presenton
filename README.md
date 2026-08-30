@@ -377,6 +377,11 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **OPENROUTER_API_KEY**: Required if **LLM** is **openrouter**.
 - **OPENROUTER_MODEL**: Required if **LLM** is **openrouter** (default: `openai/gpt-4o`).
 - **OPENROUTER_BASE_URL**: Optional if **LLM** is **openrouter** (default: `https://openrouter.ai/api/v1`).
+- **OPENROUTER_PROVIDER_ORDER**: Optional comma-separated OpenRouter provider routing order.
+- **OPENROUTER_ALLOW_FALLBACKS**=[true/false]: Optional OpenRouter fallback override.
+- **OPENROUTER_REQUIRE_PARAMETERS**=[true/false]: Only route to providers supporting every request parameter.
+- **OPENROUTER_DATA_COLLECTION**=[allow/deny]: Optional OpenRouter data-collection policy.
+- **OPENROUTER_ZDR**=[true/false]: Optional OpenRouter zero-data-retention requirement.
 - **FIREWORKS_API_KEY**: Required if **LLM** is **fireworks**.
 - **FIREWORKS_MODEL**: Required if **LLM** is **fireworks** (example: `accounts/fireworks/models/llama-v3p1-8b-instruct`).
 - **FIREWORKS_BASE_URL**: Optional if **LLM** is **fireworks** (default: `https://api.fireworks.ai/inference/v1`).
@@ -408,6 +413,13 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **TAVILY_API_KEY**, **EXA_API_KEY**: Credentials for optional hosted search APIs.
 <!-- - **BRAVE_SEARCH_API_KEY**, **SERPER_API_KEY**: Credentials for hidden, untested hosted search APIs. -->
 - **EXTENDED_REASONING**=[true/false]: Enables extended reasoning where supported by the configured stack.
+- **LLM_GENERATION_PROFILE**=[fast/balanced/deep/model_max]: Optional global generation profile (default: `balanced`).
+- **LLM_MAX_OUTPUT_TOKENS**: Optional positive output-token override for every text provider.
+- **LLM_REASONING_MODE**=[auto/enabled/disabled]: Optional global reasoning-mode override.
+- **LLM_REASONING_EFFORT**=[default/none/minimal/low/medium/high/xhigh/max]: Optional reasoning-effort override.
+- **LLM_REASONING_BUDGET_TOKENS**: Optional non-negative reasoning token budget.
+
+All advanced text-provider settings are optional. Use **Reset advanced settings** in Settings or onboarding to remove overrides and inherit application/provider defaults.
 
 #### Ollama
 
@@ -506,6 +518,27 @@ Usernames must contain at least 3 characters, and new passwords must contain at 
 | **AUTH_PASSWORD** | Password used for first-time setup, rotation, or recovery. Required when using either flag below. |
 | **AUTH_OVERRIDE_FROM_ENV**=[true/false] | Replace the primary administrator's credentials from the environment on the next startup. Use this for a deployment-managed credential rotation. |
 | **RESET_AUTH**=[true/false] | Recover access to the existing primary administrator without replacing the account or its data. |
+
+##### Presenton Cloud provider
+
+Presenton Cloud is an optional, installation-wide generation provider. It is not an
+authentication method for the self-hosted instance. Create or sign in to the local
+administrator account first, then connect Presenton from provider onboarding.
+
+Only the local administrator can connect, replace, or disconnect the provider. The
+browser displays a short device code and opens the hosted Presenton approval page.
+After approval, the delegated access and rotating refresh tokens are encrypted at rest
+and stored as one global provider credential; they are never returned to the browser or
+stored per local user.
+
+Selecting Presenton as the text provider saves `LLM=presenton`. Presentation generation
+and document uploads then use the Presenton Cloud API and its token. Connecting the
+provider alone does not change generation: when another provider is selected, the
+existing local generation pipeline remains unchanged. Disconnecting revokes and removes
+the global credentials and deselects Presenton.
+
+No OAuth client registration, client secret, or environment configuration is required.
+Official builds contain the cloud URL and first-party public device-flow client ID.
 
 To rotate credentials from the environment:
 

@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import {
   AlignCenter,
+  AlignJustify,
   AlignLeft,
   AlignRight,
   Ban,
@@ -73,6 +74,7 @@ const HORIZONTAL_ALIGNMENT_ICONS = {
   left: AlignLeft,
   center: AlignCenter,
   right: AlignRight,
+  justify: AlignJustify,
 };
 
 const MIN_FONT_SIZE = 4;
@@ -597,7 +599,9 @@ export function TextToolbar({
                       ? "center"
                       : horizontalAlignment === "center"
                         ? "right"
-                        : "left",
+                        : horizontalAlignment === "right"
+                          ? "justify"
+                          : "left",
                 })
               }
             >

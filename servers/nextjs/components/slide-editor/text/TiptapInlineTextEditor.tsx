@@ -19,13 +19,14 @@ import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { NodeSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import type { Font, Marker, TextRun } from "@/components/slide-editor/types";
 import {
   isLatexTextRun,
   mergeAdjacentTextRuns,
   type TextSelectionRange,
 } from "@/components/slide-editor/text/text-runs";
+import { cssFontFamilyStack } from "@/components/slide-editor/text/css-text";
 import { normalizeMathLatex } from "@/lib/math";
 
 export const COMMIT_TEMPLATE_V2_INLINE_TEXT_EVENT =
@@ -88,6 +89,7 @@ const LatexRun = TiptapNode.create({
   inline: true,
   atom: true,
   selectable: true,
+  draggable: false,
   addAttributes() {
     return {
       latex: { default: "" },
@@ -145,7 +147,27 @@ const LatexRun = TiptapNode.create({
         scheduleTextareaResize();
       };
 
-      const commit = () => {
+      const emitTextareaSelection = () => {
+        const position = getPos();
+        if (typeof position !== "number") return;
+        const runStart = view.state.doc.textBetween(
+          0,
+          position,
+          "\n",
+          editorLeafText,
+        ).length;
+        const range = {
+          start: runStart + textarea.selectionStart,
+          end: runStart + textarea.selectionEnd,
+        };
+        view.dom.dispatchEvent(
+          new CustomEvent<TextSelectionRange>(LATEX_RUN_FOCUS_EVENT, {
+            detail: range,
+          }),
+        );
+      };
+
+      const commit = (deleteEmpty = true) => {
         if (committing) return;
         committing = true;
 
@@ -156,7 +178,14 @@ const LatexRun = TiptapNode.create({
           return;
         }
         const latex = normalizeMathLatex(textarea.value);
-        const transaction = latex
+        if (
+          latex === currentNode.attrs.latex &&
+          (latex.length > 0 || !deleteEmpty)
+        ) {
+          committing = false;
+          return;
+        }
+        const transaction = latex || !deleteEmpty
           ? view.state.tr.setNodeMarkup(position, undefined, {
               ...currentNode.attrs,
               latex,
@@ -171,29 +200,36 @@ const LatexRun = TiptapNode.create({
       textarea.setAttribute("aria-label", "Edit LaTeX expression");
       textarea.setAttribute("title", "LaTeX expression");
       textarea.spellcheck = false;
-      textarea.style.cssText = `box-sizing:border-box;display:block;min-width:8ch;max-width:100%;min-height:1.8em;padding:2px 6px;border:1px solid #7c3aed;border-radius:4px;background:#fff;color:#111827;font:500 0.8em/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;outline:none;overflow:hidden;overflow-wrap:anywhere;resize:none;white-space:pre-wrap;vertical-align:middle;`;
-      textarea.addEventListener("input", resizeTextarea);
+      textarea.draggable = false;
+      textarea.style.cssText = `box-sizing:border-box;display:block;min-width:8ch;max-width:100%;min-height:1.8em;padding:2px 6px;border:1px solid #7c3aed;border-radius:4px;background:#fff;color:#111827;caret-color:currentColor;font:500 0.8em/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;outline:none;overflow:hidden;overflow-wrap:anywhere;resize:none;white-space:pre-wrap;vertical-align:middle;`;
+      textarea.addEventListener("input", () => {
+        resizeTextarea();
+        commit(false);
+        emitTextareaSelection();
+      });
       textarea.addEventListener("focus", () => {
         resizeTextarea();
         const position = getPos();
         if (typeof position !== "number") return;
-        const range = selectionRangeForPositions(
-          view.state.doc,
-          position,
-          position + currentNode.nodeSize,
-        );
-        view.dispatch(
-          view.state.tr.setSelection(
-            NodeSelection.create(view.state.doc, position),
-          ),
-        );
-        view.dom.dispatchEvent(
-          new CustomEvent<TextSelectionRange>(LATEX_RUN_FOCUS_EVENT, {
-            detail: range,
-          }),
-        );
+        const { selection } = view.state;
+        if (selection instanceof NodeSelection && selection.from === position) {
+          view.dispatch(
+            view.state.tr.setSelection(
+              TextSelection.near(
+                view.state.doc.resolve(position + currentNode.nodeSize),
+              ),
+            ),
+          );
+        }
+        emitTextareaSelection();
       });
-      textarea.addEventListener("blur", commit);
+      textarea.addEventListener("select", emitTextareaSelection);
+      textarea.addEventListener("mouseup", emitTextareaSelection);
+      textarea.addEventListener("keyup", emitTextareaSelection);
+      textarea.addEventListener("dragstart", (event) => {
+        event.preventDefault();
+      });
+      textarea.addEventListener("blur", () => commit());
       textarea.addEventListener("keydown", (keyboardEvent) => {
         if (keyboardEvent.key === "Enter") {
           keyboardEvent.preventDefault();
@@ -205,6 +241,7 @@ const LatexRun = TiptapNode.create({
           view.focus();
         }
       });
+      dom.draggable = false;
       dom.appendChild(textarea);
       syncTextarea();
       return {
@@ -941,6 +978,7 @@ function tiptapEditorStyle(font: Font, runs: TextRun[]) {
     `font-family:${cssFontFamilyStack(font.family ?? "Arial")}`,
     `font-size:${font.size ?? 18}px`,
     `color:${cssColor(font.color ?? "111827")}`,
+    "caret-color:currentColor",
     font.bold ? "font-weight:700" : "font-weight:400",
     font.italic ? "font-style:italic" : "font-style:normal",
     font.underline ? "text-decoration:underline" : "text-decoration:none",
@@ -964,15 +1002,6 @@ function cssColor(color: string) {
   return color.startsWith("#") ? color : `#${color}`;
 }
 
-export function cssFontFamilyStack(family: string) {
-  const escapedFamily = family
-    .trim()
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/[\r\n\f]/g, " ");
-  return `"${escapedFamily || "Arial"}", Helvetica, sans-serif`;
-}
-
 const TIPTAP_INLINE_EDITOR_CSS = `
 .template-v2-tiptap-inline-prosemirror p {
   line-height: inherit;
@@ -980,6 +1009,7 @@ const TIPTAP_INLINE_EDITOR_CSS = `
 }
 .template-v2-tiptap-inline-prosemirror * {
   box-sizing: border-box;
+  caret-color: currentColor;
 }
 .template-v2-table-cell-editor-content {
   width: 100%;

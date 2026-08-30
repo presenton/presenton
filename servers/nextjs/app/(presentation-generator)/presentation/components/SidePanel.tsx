@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
@@ -24,7 +24,6 @@ import {
   setPresentationData,
 } from "@/store/slices/presentationGeneration";
 import { SortableSlide } from "./SortableSlide";
-import { Separator } from "@/components/ui/separator";
 import { notify } from "@/components/ui/sonner";
 import { usePathname } from "next/navigation";
 import NewSlide from "./NewSlide";
@@ -61,6 +60,7 @@ const SidePanel = ({
 }: SidePanelProps) => {
   const pathname = usePathname();
   const [showNewSlideSelection, setShowNewSlideSelection] = useState(false);
+  const thumbnailScrollRef = useRef<HTMLDivElement | null>(null);
 
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
@@ -81,6 +81,7 @@ const SidePanel = ({
     : lastSlideLayoutGroup || lastSlideLayoutTemplateId;
   const isTemplateFree = isTemplateFreePresentation(presentationData);
   const isSmartPresentation =
+    presentationData?.type === "smart" ||
     presentationData?.generation_mode === "smart" ||
     presentationData?.slides?.some(
       (slide: any) =>
@@ -141,6 +142,16 @@ const SidePanel = ({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  useEffect(() => {
+    const activeThumbnail = thumbnailScrollRef.current?.querySelector(
+      `[data-slide-thumbnail-index="${selectedSlide}"]`,
+    );
+    activeThumbnail?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }, [selectedSlide]);
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
@@ -225,22 +236,28 @@ const SidePanel = ({
     : null;
 
   return (
-    <div className="px-4 w-[120px] h-full">
+    <aside
+      className="relative h-full w-[165px] bg-white px-4 py-5"
+      aria-label="Presentation slides"
+    >
       <div
         className={`
-          relative  h-full z-50 xl:z-auto 
+          relative h-full z-50 xl:z-auto
           transition-all duration-300 ease-in-out
         `}
       >
-        <div className="w-full h-full hide-scrollbar overflow-hidden slide-theme flex flex-col">
+        <div className="slide-theme flex h-full w-full flex-col overflow-hidden">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
             <div
+              ref={thumbnailScrollRef}
               data-slide-thumbnail-scroll-container="true"
-              className="overflow-y-auto w-full hide-scrollbar min-h-0 flex-1 space-y-3.5"
+              className={`hide-scrollbar min-h-0 w-full flex-1 space-y-[15px] overflow-y-auto ${
+                isSmartPresentation ? "" : "pb-[76px]"
+              }`}
             >
               {isStreaming ? (
                 presentationData &&
@@ -289,24 +306,23 @@ const SidePanel = ({
             </div>
           </DndContext>
           {!isSmartPresentation && (
-            <>
-              <Separator orientation="horizontal" />
+            <div className="absolute -bottom-5 -left-4 flex w-[150px] justify-center bg-[linear-gradient(to_top,#FEFEFF_76%,rgba(254,254,255,0)_100%)] py-5">
               <button
                 type="button"
                 onClick={handleAddSlideClick}
-                className="mx-auto flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg py-4 duration-300"
+                className="flex w-[70px] cursor-pointer flex-col items-center justify-center gap-2 px-3 text-black transition-opacity duration-200 hover:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5141E5] focus-visible:ring-offset-2"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span className="text-[11px] font-normal text-[#000000]">
-                  Add Slide
+                <span className="whitespace-nowrap text-[11px] font-normal leading-normal tracking-[0.11px]">
+                  Add Slides
                 </span>
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
       {newSlideModal}
-    </div>
+    </aside>
   );
 };
 

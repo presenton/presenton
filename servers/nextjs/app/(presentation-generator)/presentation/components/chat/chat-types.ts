@@ -30,6 +30,12 @@ export type ChatLayoutPreview = {
   slideIndex?: number | null;
 };
 
+export type ChatContextTag = {
+  id: string;
+  label: string;
+  title?: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "error";
@@ -38,6 +44,8 @@ export type ChatMessage = {
   activity?: AssistantActivity[];
   layoutPreview?: ChatLayoutPreview;
   editPreview?: ChatEditPreview;
+  /** Ephemeral UI-only context captured when the prompt is submitted. */
+  contextTags?: ChatContextTag[];
 };
 
 export type SubmitMessageOptions = {
@@ -66,14 +74,19 @@ export type ChatDocumentAttachment = {
 };
 
 export type ChatApiAdapter = {
-  listConversations: (resourceId: string) => Promise<ChatConversationSummary[]>;
+  listConversations: (
+    resourceId: string,
+    presentationType?: "standard" | "smart",
+  ) => Promise<ChatConversationSummary[]>;
   getHistory: (
     resourceId: string,
     conversationId: string,
+    presentationType?: "standard" | "smart",
   ) => Promise<{ messages: ChatHistoryMessage[] }>;
   deleteConversation: (
     resourceId: string,
     conversationId: string,
+    presentationType?: "standard" | "smart",
   ) => Promise<void>;
   streamMessage: (
     payload: {

@@ -32,6 +32,7 @@ from templates.v2.models.layouts import (
     SimilarComponentsList,
     SlideLayout,
     SlideLayouts,
+    slide_layout_llm_json_schema,
 )
 from templates.v2.models.elements import Image as SlideImageElement
 from templates.v2.models.elements import ImageFit
@@ -192,8 +193,10 @@ Convert the provided raw slide elements to components.
 - Detect infographic visuals by comparing the raw PPTX JSON with the reference slide image.
 - When an infographic is built from multiple raw elements, replace all elements that form the infographic with one `infographic` element.
 - If an infographic is represented as an `image` element in the raw slide layout, convert that image into an `infographic` element and remove the original `image` element.
-- Every infographic must include a valid `data` object with `type`, `min_value`, `max_value`, and `value`. Preserve meaningful values from the source when available; otherwise choose a valid representative value within the declared range. Never emit an infographic with missing required data.
-- Ensure `min_value <= value <= max_value`, use a non-zero range, and preserve or infer visible base/highlight colors from the reference in the `colors` list.
+- Use one of the supported nested `data.type` values: `progress_bar`, `gauge`, `gantt`, `timeline`, `roadmap`, `milestone_timeline`, `staircase`, `supply_chain`, `stair_step_blocks`, `maturity_model`, `pillar_framework`, `transformation_hub`, `diagonal_circles`, `risk_matrix`, `chevron_process`, `radial_cycle`, `conversion_funnel`, `pyramid`, `segmented_wheel`, `customer_journey`, `before_after`, `impact_effort_matrix`, `comparison_matrix`, `org_chart`, `decision_tree`, or `mind_map`.
+- Every infographic must include a valid `data` object matching the selected type. Meters use `min_value`, `max_value`, and `value`; structural infographics use their required `items`, hierarchy, matrix, Gantt, label, or axis fields. Never emit an infographic with missing required data.
+- For meters, ensure `min_value <= value <= max_value` and use a non-zero range. For structural infographics, preserve the visible sequence, hierarchy, labels, and relationships from the reference.
+- Preserve or infer the reference palette in `colors`: background/base first, followed by the ordered structural palette. Use `text_color` when the reference needs an explicit text color.
 - An `infographic` renders the graphic only; it does not render value text by default and has no show/hide-value field. Never emit unsupported value-label or visibility-toggle properties.
 - Add a separate editable `text` element for a visible value or label only when that text appears in the reference. Keep it adjacent to the infographic and inside the same repeatable item prototype or positioned item group.
 - Keep semantic infographics as `decorative=false` with a stable layout-derived name. If an infographic belongs to a repeated card or row, keep it inside the complete repeated-item prototype so it remains present at both minimum and maximum counts.
@@ -1108,7 +1111,7 @@ def _generate_preview_candidate(
                 "response_format": JSONSchemaResponse(
                     name="SlideLayoutResponse",
                     strict=False,
-                    json_schema=SlideLayout,
+                    json_schema=slide_layout_llm_json_schema(),
                 ),
             }
             if max_tokens is not None:
@@ -1350,7 +1353,7 @@ def _generate_with_validation_retries(
                 response_format=JSONSchemaResponse(
                     name=response_name,
                     strict=False,
-                    json_schema=output_model,
+                    json_schema=_llm_response_schema(output_model),
                 ),
                 max_tokens=max_tokens,
             )
@@ -1563,9 +1566,21 @@ def _model_validation_repair_prompt(
             _json_dumps_for_prompt(invalid_response),
             "",
             "required_json_schema:",
-            _json_dumps_for_prompt(output_model.model_json_schema()),
+            _json_dumps_for_prompt(_llm_output_json_schema(output_model)),
         ]
     )
+
+
+def _llm_output_json_schema(output_model: type[BaseModel]) -> dict[str, Any]:
+    if output_model is SlideLayout:
+        return slide_layout_llm_json_schema()
+    return output_model.model_json_schema()
+
+
+def _llm_response_schema(output_model: type[BaseModel]) -> Any:
+    if output_model is SlideLayout:
+        return slide_layout_llm_json_schema()
+    return output_model
 
 
 def _format_error_for_prompt(error: Exception) -> str:

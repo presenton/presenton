@@ -3,6 +3,32 @@
   "name": "Dynamic",
   "description": "Bold, high-contrast layouts with dark textured backgrounds and warm accents for impactful, story-driven presentations.",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#C24D12",
+      "background": "#171717",
+      "card": "#000000",
+      "stroke": "#FFFFFF",
+      "primary_text": "#FFFFFF",
+      "background_text": "#FFFFFF",
+      "graph_0": "#FF9257",
+      "graph_1": "#C24D12",
+      "graph_2": "#983608",
+      "graph_3": "#E26C2C",
+      "graph_4": "#111111",
+      "graph_5": "#FD7536",
+      "graph_6": "#F4511E",
+      "graph_7": "#000000",
+      "graph_8": "#FFFFFF",
+      "graph_9": "#242424"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Montserrat",
+        "url": "/vendor/fonts/sans_serif/montserrat/Montserrat[wght].ttf"
+      }
+    }
+  },
   "merged_components": [
     {
       "id": "full_bleed_background",
@@ -1368,7 +1394,7 @@
                 {
                   "type": "text",
                   "size": {
-                    "width": 568,
+                    "width": 661,
                     "height": 76.67
                   },
                   "font": {
@@ -1398,13 +1424,19 @@
                   ],
                   "decorative": false,
                   "name": "main_heading",
-                  "max_length": 12,
-                  "min_length": 6
+                  "max_length": 16,
+                  "min_length": 6,
+                  "position": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "rotation": 0,
+                  "__presenton_manual_position": true
                 },
                 {
                   "type": "text",
                   "size": {
-                    "width": 391.87,
+                    "width": 630.87,
                     "height": 126.27
                   },
                   "font": {
@@ -1432,8 +1464,14 @@
                   ],
                   "decorative": false,
                   "name": "supporting_copy",
-                  "max_length": 121,
-                  "min_length": 61
+                  "max_length": 163,
+                  "min_length": 61,
+                  "position": {
+                    "x": 0,
+                    "y": 82.03
+                  },
+                  "rotation": 0,
+                  "__presenton_manual_position": true
                 }
               ],
               "name": "upper_text_column",
@@ -1457,7 +1495,7 @@
                 "y": 0
               },
               "size": {
-                "width": 901.88,
+                "width": 1136.88,
                 "height": 80
               },
               "rotation": 0,
@@ -1488,7 +1526,7 @@
               ],
               "decorative": false,
               "name": "primary_title",
-              "max_length": 23,
+              "max_length": 31,
               "min_length": 8
             },
             {
@@ -1498,8 +1536,8 @@
                 "y": 99
               },
               "size": {
-                "width": 902.5,
-                "height": 63
+                "width": 733.5,
+                "height": 73
               },
               "rotation": 0,
               "font": {
@@ -1527,7 +1565,7 @@
               ],
               "decorative": false,
               "name": "supporting_summary",
-              "max_length": 103,
+              "max_length": 127,
               "min_length": 52
             }
           ]
@@ -1547,7 +1585,7 @@
                 "y": 0.33
               },
               "size": {
-                "width": 561.86,
+                "width": 786.86,
                 "height": 79.47
               },
               "rotation": 0,
@@ -1578,7 +1616,7 @@
               ],
               "decorative": false,
               "name": "primary_title",
-              "max_length": 13,
+              "max_length": 22,
               "min_length": 7
             },
             {
@@ -1967,18 +2005,18 @@
               ],
               "decorative": false,
               "name": "main_title",
-              "max_length": 16,
+              "max_length": 19,
               "min_length": 8
             },
             {
               "type": "text",
               "position": {
                 "x": 0,
-                "y": 74.15471167219427
+                "y": 74.15
               },
               "size": {
-                "width": 689.9827018539767,
-                "height": 104.78528832780569
+                "width": 689.98,
+                "height": 80.79
               },
               "font": {
                 "size": 21.33,
@@ -2009,8 +2047,9 @@
               ],
               "decorative": false,
               "name": "subtitle_text",
-              "max_length": 61,
-              "min_length": 31
+              "max_length": 123,
+              "min_length": 31,
+              "rotation": 0
             }
           ]
         },
@@ -2119,7 +2158,7 @@
                 "y": 0.33
               },
               "size": {
-                "width": 629.25,
+                "width": 829.25,
                 "height": 79.47
               },
               "font": {
@@ -2149,8 +2188,9 @@
               ],
               "decorative": false,
               "name": "primary_heading",
-              "max_length": 17,
-              "min_length": 8
+              "max_length": 20,
+              "min_length": 8,
+              "rotation": 0
             },
             {
               "type": "text",
@@ -2159,8 +2199,8 @@
                 "y": 85.02
               },
               "size": {
-                "width": 639.04,
-                "height": 62.27
+                "width": 831.04,
+                "height": 76.27
               },
               "font": {
                 "size": 21.33,
@@ -2187,8 +2227,9 @@
               ],
               "decorative": false,
               "name": "heading_support_text",
-              "max_length": 90,
-              "min_length": 52
+              "max_length": 151,
+              "min_length": 52,
+              "rotation": 0
             }
           ]
         }
@@ -2229,7 +2270,7 @@
                     "y": 0
                   },
                   "size": {
-                    "width": 549.96,
+                    "width": 171.42,
                     "height": 33.02
                   },
                   "rotation": 0,
@@ -2270,7 +2311,7 @@
                     "y": 39.77
                   },
                   "size": {
-                    "width": 540.7,
+                    "width": 171.42,
                     "height": 23.78
                   },
                   "rotation": 0,
@@ -2563,7 +2604,7 @@
                           ],
                           "decorative": false,
                           "name": "column_body",
-                          "max_length": 25,
+                          "max_length": 69,
                           "min_length": 26
                         }
                       ],
@@ -3507,7 +3548,7 @@
               ],
               "decorative": false,
               "name": "large_title_text",
-              "max_length": 24,
+              "max_length": 27,
               "min_length": 9
             }
           ]
@@ -3578,8 +3619,8 @@
                 "y": 0
               },
               "size": {
-                "width": 1132.5099999999998,
-                "height": 46.21136477454381
+                "width": 1132.51,
+                "height": 166.21
               },
               "rotation": 0,
               "font": {
@@ -3612,7 +3653,7 @@
               ],
               "decorative": false,
               "name": "primary_heading",
-              "max_length": 35,
+              "max_length": 56,
               "min_length": 19
             }
           ]
@@ -3686,7 +3727,7 @@
               },
               "size": {
                 "width": 492.82,
-                "height": 79.47
+                "height": 170.47
               },
               "font": {
                 "size": 64,
@@ -3715,8 +3756,9 @@
               ],
               "decorative": false,
               "name": "main_heading",
-              "max_length": 12,
-              "min_length": 6
+              "max_length": 24,
+              "min_length": 6,
+              "rotation": 0
             }
           ]
         },
@@ -4576,7 +4618,7 @@
               },
               "size": {
                 "width": 349.21,
-                "height": 168.09
+                "height": 248.09
               },
               "rotation": 0,
               "font": {
@@ -4606,7 +4648,7 @@
               ],
               "decorative": false,
               "name": "primary_heading",
-              "max_length": 17,
+              "max_length": 24,
               "min_length": 9
             }
           ]
@@ -4633,7 +4675,7 @@
               },
               "size": {
                 "width": 324.3,
-                "height": 96
+                "height": 275
               },
               "rotation": 0,
               "font": {
@@ -4665,7 +4707,7 @@
               ],
               "decorative": false,
               "name": "primary_heading",
-              "max_length": 17,
+              "max_length": 211,
               "min_length": 9
             }
           ]
@@ -5353,11 +5395,11 @@
             {
               "type": "text",
               "position": {
-                "x": 0,
+                "x": -29,
                 "y": 0
               },
               "size": {
-                "width": 926.08,
+                "width": 1000.08,
                 "height": 80
               },
               "font": {
@@ -5387,8 +5429,9 @@
               ],
               "decorative": false,
               "name": "upper_heading",
-              "max_length": 23,
-              "min_length": 8
+              "max_length": 25,
+              "min_length": 8,
+              "rotation": 0
             }
           ]
         }
@@ -5596,13 +5639,7 @@
               "min_children": 2
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "surrounding_text_blocks_part_2",
-      "description": "Ungrouped component element",
-      "variants": [
+        },
         {
           "id": "surrounding_text_blocks_part_2",
           "description": "Ungrouped component element",
@@ -5717,13 +5754,7 @@
               "min_children": 2
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "surrounding_text_blocks_part_3",
-      "description": "Ungrouped component element",
-      "variants": [
+        },
         {
           "id": "surrounding_text_blocks_part_3",
           "description": "Ungrouped component element",
@@ -5838,13 +5869,7 @@
               "min_children": 2
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "surrounding_text_blocks_part_4",
-      "description": "Ungrouped component element",
-      "variants": [
+        },
         {
           "id": "surrounding_text_blocks_part_4",
           "description": "Ungrouped component element",
@@ -6039,11 +6064,11 @@
                     {
                       "type": "text",
                       "position": {
-                        "x": 106.52,
+                        "x": 46.52,
                         "y": 146.77
                       },
                       "size": {
-                        "width": 134.84,
+                        "width": 264.84,
                         "height": 25.26
                       },
                       "rotation": 0,
@@ -6074,7 +6099,7 @@
                       ],
                       "decorative": false,
                       "name": "card_title",
-                      "max_length": 13,
+                      "max_length": 24,
                       "min_length": 4
                     },
                     {
@@ -6431,136 +6456,7 @@
               "min_children": 1
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "lower_left_chart",
-      "description": "Wide trend chart occupies the lower-left content area beneath the header, with subtle gridlines and orange series styling.",
-      "variants": [
-        {
-          "id": "lower_left_chart",
-          "description": "Wide trend chart occupies the lower-left content area beneath the header, with subtle gridlines and orange series styling.",
-          "position": {
-            "x": 84,
-            "y": 294
-          },
-          "elements": [
-            {
-              "type": "chart",
-              "position": {
-                "x": 0,
-                "y": 0
-              },
-              "size": {
-                "width": 645,
-                "height": 329
-              },
-              "chart_type": "line",
-              "colors": [
-                "#FF6B2A"
-              ],
-              "x_axis": true,
-              "y_axis": true,
-              "axis_color": "#D9D9D9",
-              "categories": [
-                "Jan 2021",
-                "Jul 2021",
-                "Jan 2022",
-                "Jul 2022",
-                "Jan 2023",
-                "Jul 2023",
-                "Jan 2024",
-                "Jul 2024",
-                "Jan 2025"
-              ],
-              "series": [
-                {
-                  "name": "Series 1",
-                  "values": [
-                    8,
-                    13,
-                    18,
-                    19,
-                    20,
-                    26,
-                    33,
-                    35,
-                    36
-                  ]
-                }
-              ],
-              "legend": false,
-              "x_axis_grid": false,
-              "y_axis_grid": true,
-              "grid_color": "#262626",
-              "source": "static/image24-02344c48b17e.png",
-              "decorative": false,
-              "name": "trend_line_chart"
-            }
-          ]
         },
-        {
-          "id": "wide_chart_area",
-          "description": "Large lower chart region spanning most of the slide width with category labels and horizontal value gridlines.",
-          "position": {
-            "x": 87.35602723787974,
-            "y": 355.21986260688305
-          },
-          "elements": [
-            {
-              "type": "chart",
-              "position": {
-                "x": 0,
-                "y": 0
-              },
-              "size": {
-                "width": 1100,
-                "height": 286
-              },
-              "chart_type": "bar",
-              "colors": [
-                "#E94213"
-              ],
-              "x_axis": true,
-              "y_axis": true,
-              "axis_color": "#FFFFFF",
-              "categories": [
-                "Sales",
-                "Finance",
-                "Marketing",
-                "HR",
-                "Operation",
-                "L&D"
-              ],
-              "series": [
-                {
-                  "name": "Values",
-                  "values": [
-                    50,
-                    40,
-                    45,
-                    30,
-                    40,
-                    25
-                  ]
-                }
-              ],
-              "legend": false,
-              "x_axis_grid": false,
-              "y_axis_grid": true,
-              "grid_color": "#333333",
-              "decorative": false,
-              "name": "primary_bar_chart"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "right_stacked_card",
-      "description": "A translucent right-side panel contains two vertically stacked text sections separated by a subtle horizontal divider.",
-      "variants": [
         {
           "id": "right_stacked_card",
           "description": "A translucent right-side panel contains two vertically stacked text sections separated by a subtle horizontal divider.",
@@ -6777,6 +6673,129 @@
               "name": "lower_card_body",
               "max_length": 82,
               "min_length": 55
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lower_left_chart",
+      "description": "Wide trend chart occupies the lower-left content area beneath the header, with subtle gridlines and orange series styling.",
+      "variants": [
+        {
+          "id": "lower_left_chart",
+          "description": "Wide trend chart occupies the lower-left content area beneath the header, with subtle gridlines and orange series styling.",
+          "position": {
+            "x": 84,
+            "y": 294
+          },
+          "elements": [
+            {
+              "type": "chart",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 645,
+                "height": 329
+              },
+              "chart_type": "line",
+              "colors": [
+                "#FF6B2A"
+              ],
+              "x_axis": true,
+              "y_axis": true,
+              "axis_color": "#D9D9D9",
+              "categories": [
+                "Jan 2021",
+                "Jul 2021",
+                "Jan 2022",
+                "Jul 2022",
+                "Jan 2023",
+                "Jul 2023",
+                "Jan 2024",
+                "Jul 2024",
+                "Jan 2025"
+              ],
+              "series": [
+                {
+                  "name": "Series 1",
+                  "values": [
+                    8,
+                    13,
+                    18,
+                    19,
+                    20,
+                    26,
+                    33,
+                    35,
+                    36
+                  ]
+                }
+              ],
+              "legend": false,
+              "x_axis_grid": false,
+              "y_axis_grid": true,
+              "grid_color": "#262626",
+              "source": "static/image24-02344c48b17e.png",
+              "decorative": false,
+              "name": "trend_line_chart"
+            }
+          ]
+        },
+        {
+          "id": "wide_chart_area",
+          "description": "Large lower chart region spanning most of the slide width with category labels and horizontal value gridlines.",
+          "position": {
+            "x": 87.35602723787974,
+            "y": 355.21986260688305
+          },
+          "elements": [
+            {
+              "type": "chart",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 1100,
+                "height": 286
+              },
+              "chart_type": "bar",
+              "colors": [
+                "#E94213"
+              ],
+              "x_axis": true,
+              "y_axis": true,
+              "axis_color": "#FFFFFF",
+              "categories": [
+                "Sales",
+                "Finance",
+                "Marketing",
+                "HR",
+                "Operation",
+                "L&D"
+              ],
+              "series": [
+                {
+                  "name": "Values",
+                  "values": [
+                    50,
+                    40,
+                    45,
+                    30,
+                    40,
+                    25
+                  ]
+                }
+              ],
+              "legend": false,
+              "x_axis_grid": false,
+              "y_axis_grid": true,
+              "grid_color": "#333333",
+              "decorative": false,
+              "name": "primary_bar_chart"
             }
           ]
         }
@@ -7608,12 +7627,12 @@
             {
               "type": "text",
               "position": {
-                "x": 0,
+                "x": -221,
                 "y": 0
               },
               "size": {
-                "width": 629.25,
-                "height": 159.47
+                "width": 1070.25,
+                "height": 246.47
               },
               "font": {
                 "size": 64,
@@ -7642,8 +7661,9 @@
               ],
               "decorative": false,
               "name": "main_title",
-              "max_length": 17,
-              "min_length": 9
+              "max_length": 84,
+              "min_length": 9,
+              "rotation": 0
             }
           ]
         },
@@ -7658,12 +7678,12 @@
             {
               "type": "text",
               "position": {
-                "x": 0,
+                "x": -110,
                 "y": 0
               },
               "size": {
-                "width": 629.25,
-                "height": 159.47
+                "width": 848.25,
+                "height": 176.47
               },
               "font": {
                 "size": 64,
@@ -7692,8 +7712,9 @@
               ],
               "decorative": false,
               "name": "main_heading",
-              "max_length": 30,
-              "min_length": 8
+              "max_length": 44,
+              "min_length": 8,
+              "rotation": 0
             }
           ]
         },
@@ -7708,12 +7729,12 @@
             {
               "type": "text",
               "position": {
-                "x": 0,
+                "x": -223,
                 "y": 0
               },
               "size": {
-                "width": 629.25,
-                "height": 159.47
+                "width": 1068.25,
+                "height": 242.47
               },
               "font": {
                 "size": 64,
@@ -7742,8 +7763,9 @@
               ],
               "decorative": false,
               "name": "main_heading",
-              "max_length": 21,
-              "min_length": 11
+              "max_length": 80,
+              "min_length": 11,
+              "rotation": 0
             }
           ]
         },
@@ -7792,7 +7814,7 @@
               ],
               "decorative": false,
               "name": "main_title_text",
-              "max_length": 34,
+              "max_length": 62,
               "min_length": 17
             }
           ]
@@ -8165,7 +8187,7 @@
                 "width": 516.75,
                 "height": 481.05
               },
-              "data": "/static/images/replaceable_template_image.png",
+              "data": "static/image-e437a42467b3c2a6.png",
               "fit": "fill",
               "decorative": false,
               "name": "tiered_visual",
@@ -8217,11 +8239,11 @@
             {
               "type": "text",
               "position": {
-                "x": 117.18,
-                "y": 0
+                "x": 119.18,
+                "y": 10
               },
               "size": {
-                "width": 263.11,
+                "width": 404.11,
                 "height": 33.02
               },
               "font": {
@@ -8251,8 +8273,9 @@
               ],
               "decorative": false,
               "name": "callout_heading",
-              "max_length": 7,
-              "min_length": 4
+              "max_length": 27,
+              "min_length": 4,
+              "rotation": 0
             },
             {
               "type": "text",
@@ -8261,7 +8284,7 @@
                 "y": 43.84
               },
               "size": {
-                "width": 292.22,
+                "width": 388.22,
                 "height": 112.8
               },
               "font": {
@@ -8290,7 +8313,8 @@
               "decorative": false,
               "name": "callout_body",
               "max_length": 109,
-              "min_length": 55
+              "min_length": 55,
+              "rotation": 0
             }
           ]
         },
@@ -8332,11 +8356,11 @@
             {
               "type": "text",
               "position": {
-                "x": 117.18,
-                "y": 0
+                "x": 115.18,
+                "y": 8
               },
               "size": {
-                "width": 263.11,
+                "width": 294.11,
                 "height": 33.02
               },
               "font": {
@@ -8366,8 +8390,9 @@
               ],
               "decorative": false,
               "name": "callout_heading",
-              "max_length": 7,
-              "min_length": 4
+              "max_length": 20,
+              "min_length": 4,
+              "rotation": 0
             },
             {
               "type": "text",
@@ -8376,7 +8401,7 @@
                 "y": 43.85
               },
               "size": {
-                "width": 228.76,
+                "width": 290.76,
                 "height": 170.13
               },
               "font": {
@@ -8405,7 +8430,8 @@
               "decorative": false,
               "name": "callout_body",
               "max_length": 109,
-              "min_length": 55
+              "min_length": 55,
+              "rotation": 0
             }
           ]
         },
@@ -8420,11 +8446,11 @@
             {
               "type": "text",
               "position": {
-                "x": 26.67,
-                "y": 0
+                "x": -5.33,
+                "y": 3
               },
               "size": {
-                "width": 263.11,
+                "width": 413.11,
                 "height": 33.02
               },
               "font": {
@@ -8454,8 +8480,9 @@
               ],
               "decorative": false,
               "name": "callout_heading",
-              "max_length": 7,
-              "min_length": 4
+              "max_length": 28,
+              "min_length": 4,
+              "rotation": 0
             },
             {
               "type": "text",
@@ -9231,7 +9258,7 @@
                 "y": 0
               },
               "size": {
-                "width": 926.5048131680721,
+                "width": 1133.5,
                 "height": 160
               },
               "font": {
@@ -9264,8 +9291,9 @@
               ],
               "decorative": false,
               "name": "main_title",
-              "max_length": 52,
-              "min_length": 8
+              "max_length": 66,
+              "min_length": 8,
+              "rotation": 0
             }
           ]
         }
@@ -9373,7 +9401,7 @@
                         "y": 77.42
                       },
                       "size": {
-                        "width": 286.93,
+                        "width": 345.93,
                         "height": 29.02
                       },
                       "font": {
@@ -9403,8 +9431,9 @@
                       ],
                       "decorative": false,
                       "name": "metric_heading",
-                      "max_length": 7,
-                      "min_length": 4
+                      "max_length": 24,
+                      "min_length": 4,
+                      "rotation": 0
                     },
                     {
                       "type": "text",
@@ -10785,7 +10814,7 @@
                 {
                   "type": "text",
                   "size": {
-                    "width": 568,
+                    "width": 661,
                     "height": 76.67
                   },
                   "font": {
@@ -10815,13 +10844,19 @@
                   ],
                   "decorative": false,
                   "name": "main_heading",
-                  "max_length": 12,
-                  "min_length": 6
+                  "max_length": 16,
+                  "min_length": 6,
+                  "position": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "rotation": 0,
+                  "__presenton_manual_position": true
                 },
                 {
                   "type": "text",
                   "size": {
-                    "width": 391.87,
+                    "width": 630.87,
                     "height": 126.27
                   },
                   "font": {
@@ -10849,8 +10884,14 @@
                   ],
                   "decorative": false,
                   "name": "supporting_copy",
-                  "max_length": 121,
-                  "min_length": 61
+                  "max_length": 163,
+                  "min_length": 61,
+                  "position": {
+                    "x": 0,
+                    "y": 82.03
+                  },
+                  "rotation": 0,
+                  "__presenton_manual_position": true
                 }
               ],
               "name": "upper_text_column",
@@ -10874,7 +10915,7 @@
                 "y": 0
               },
               "size": {
-                "width": 171.42,
+                "width": 474.3,
                 "height": 63.55
               },
               "direction": "column",
@@ -10890,7 +10931,7 @@
                     "y": 0
                   },
                   "size": {
-                    "width": 549.96,
+                    "width": 474.3,
                     "height": 33.02
                   },
                   "rotation": 0,
@@ -10931,7 +10972,7 @@
                     "y": 39.77
                   },
                   "size": {
-                    "width": 540.7,
+                    "width": 474.3,
                     "height": 23.78
                   },
                   "rotation": 0,
@@ -11207,7 +11248,7 @@
                           ],
                           "decorative": false,
                           "name": "column_body",
-                          "max_length": 25,
+                          "max_length": 69,
                           "min_length": 26
                         }
                       ],
@@ -11994,7 +12035,7 @@
               },
               "size": {
                 "width": 349.21,
-                "height": 168.09
+                "height": 248.09
               },
               "rotation": 0,
               "font": {
@@ -12024,7 +12065,7 @@
               ],
               "decorative": false,
               "name": "primary_heading",
-              "max_length": 17,
+              "max_length": 24,
               "min_length": 9
             }
           ]
@@ -12045,7 +12086,7 @@
               },
               "size": {
                 "width": 324.3,
-                "height": 96
+                "height": 275
               },
               "rotation": 0,
               "font": {
@@ -12077,7 +12118,7 @@
               ],
               "decorative": false,
               "name": "primary_heading",
-              "max_length": 17,
+              "max_length": 211,
               "min_length": 9
             }
           ]
@@ -12306,7 +12347,7 @@
               ],
               "decorative": false,
               "name": "large_title_text",
-              "max_length": 24,
+              "max_length": 27,
               "min_length": 9
             }
           ]
@@ -12884,11 +12925,11 @@
             {
               "type": "text",
               "position": {
-                "x": 0,
+                "x": -29,
                 "y": 0
               },
               "size": {
-                "width": 926.08,
+                "width": 1000.08,
                 "height": 80
               },
               "font": {
@@ -12918,8 +12959,9 @@
               ],
               "decorative": false,
               "name": "upper_heading",
-              "max_length": 23,
-              "min_length": 8
+              "max_length": 25,
+              "min_length": 8,
+              "rotation": 0
             }
           ]
         },
@@ -13653,11 +13695,11 @@
                     {
                       "type": "text",
                       "position": {
-                        "x": 106.52,
+                        "x": 46.52,
                         "y": 146.77
                       },
                       "size": {
-                        "width": 134.84,
+                        "width": 264.84,
                         "height": 25.26
                       },
                       "rotation": 0,
@@ -13688,7 +13730,7 @@
                       ],
                       "decorative": false,
                       "name": "card_title",
-                      "max_length": 13,
+                      "max_length": 24,
                       "min_length": 4
                     },
                     {
@@ -14209,7 +14251,7 @@
                 "y": 0
               },
               "size": {
-                "width": 901.88,
+                "width": 1136.88,
                 "height": 80
               },
               "rotation": 0,
@@ -14240,7 +14282,7 @@
               ],
               "decorative": false,
               "name": "primary_title",
-              "max_length": 23,
+              "max_length": 31,
               "min_length": 8
             },
             {
@@ -14250,8 +14292,8 @@
                 "y": 99
               },
               "size": {
-                "width": 902.5,
-                "height": 63
+                "width": 733.5,
+                "height": 73
               },
               "rotation": 0,
               "font": {
@@ -14279,7 +14321,7 @@
               ],
               "decorative": false,
               "name": "supporting_summary",
-              "max_length": 103,
+              "max_length": 127,
               "min_length": 52
             }
           ]
@@ -14613,7 +14655,7 @@
                 "y": 0.33
               },
               "size": {
-                "width": 561.86,
+                "width": 786.86,
                 "height": 79.47
               },
               "rotation": 0,
@@ -14644,7 +14686,7 @@
               ],
               "decorative": false,
               "name": "primary_title",
-              "max_length": 13,
+              "max_length": 22,
               "min_length": 7
             },
             {
@@ -15511,12 +15553,12 @@
             {
               "type": "text",
               "position": {
-                "x": 0,
+                "x": -221,
                 "y": 0
               },
               "size": {
-                "width": 629.25,
-                "height": 159.47
+                "width": 1070.25,
+                "height": 246.47
               },
               "font": {
                 "size": 64,
@@ -15545,8 +15587,9 @@
               ],
               "decorative": false,
               "name": "main_title",
-              "max_length": 17,
-              "min_length": 9
+              "max_length": 84,
+              "min_length": 9,
+              "rotation": 0
             }
           ]
         },
@@ -15835,8 +15878,8 @@
                 "y": 0
               },
               "size": {
-                "width": 1132.5099999999998,
-                "height": 46.21136477454381
+                "width": 1132.51,
+                "height": 166.21
               },
               "rotation": 0,
               "font": {
@@ -15869,7 +15912,7 @@
               ],
               "decorative": false,
               "name": "primary_heading",
-              "max_length": 35,
+              "max_length": 56,
               "min_length": 19
             }
           ]
@@ -16304,12 +16347,12 @@
             {
               "type": "text",
               "position": {
-                "x": 0,
+                "x": -110,
                 "y": 0
               },
               "size": {
-                "width": 629.25,
-                "height": 159.47
+                "width": 848.25,
+                "height": 176.47
               },
               "font": {
                 "size": 64,
@@ -16338,8 +16381,9 @@
               ],
               "decorative": false,
               "name": "main_heading",
-              "max_length": 30,
-              "min_length": 8
+              "max_length": 44,
+              "min_length": 8,
+              "rotation": 0
             }
           ]
         },
@@ -16543,7 +16587,7 @@
                 "width": 516.75,
                 "height": 481.05
               },
-              "data": "/static/images/replaceable_template_image.png",
+              "data": "static/image-e437a42467b3c2a6.png",
               "fit": "fill",
               "decorative": false,
               "name": "tiered_visual",
@@ -16589,11 +16633,11 @@
             {
               "type": "text",
               "position": {
-                "x": 117.18,
-                "y": 0
+                "x": 119.18,
+                "y": 10
               },
               "size": {
-                "width": 263.11,
+                "width": 404.11,
                 "height": 33.02
               },
               "font": {
@@ -16623,8 +16667,9 @@
               ],
               "decorative": false,
               "name": "callout_heading",
-              "max_length": 7,
-              "min_length": 4
+              "max_length": 27,
+              "min_length": 4,
+              "rotation": 0
             },
             {
               "type": "text",
@@ -16633,7 +16678,7 @@
                 "y": 43.84
               },
               "size": {
-                "width": 292.22,
+                "width": 388.22,
                 "height": 112.8
               },
               "font": {
@@ -16662,7 +16707,8 @@
               "decorative": false,
               "name": "callout_body",
               "max_length": 109,
-              "min_length": 55
+              "min_length": 55,
+              "rotation": 0
             }
           ]
         },
@@ -16704,11 +16750,11 @@
             {
               "type": "text",
               "position": {
-                "x": 117.18,
-                "y": 0
+                "x": 115.18,
+                "y": 8
               },
               "size": {
-                "width": 263.11,
+                "width": 294.11,
                 "height": 33.02
               },
               "font": {
@@ -16738,8 +16784,9 @@
               ],
               "decorative": false,
               "name": "callout_heading",
-              "max_length": 7,
-              "min_length": 4
+              "max_length": 20,
+              "min_length": 4,
+              "rotation": 0
             },
             {
               "type": "text",
@@ -16748,7 +16795,7 @@
                 "y": 43.85
               },
               "size": {
-                "width": 228.76,
+                "width": 290.76,
                 "height": 170.13
               },
               "font": {
@@ -16777,7 +16824,8 @@
               "decorative": false,
               "name": "callout_body",
               "max_length": 109,
-              "min_length": 55
+              "min_length": 55,
+              "rotation": 0
             }
           ]
         },
@@ -16792,11 +16840,11 @@
             {
               "type": "text",
               "position": {
-                "x": 26.67,
-                "y": 0
+                "x": -5.33,
+                "y": 3
               },
               "size": {
-                "width": 263.11,
+                "width": 413.11,
                 "height": 33.02
               },
               "font": {
@@ -16826,8 +16874,9 @@
               ],
               "decorative": false,
               "name": "callout_heading",
-              "max_length": 7,
-              "min_length": 4
+              "max_length": 28,
+              "min_length": 4,
+              "rotation": 0
             },
             {
               "type": "text",
@@ -17806,18 +17855,18 @@
               ],
               "decorative": false,
               "name": "main_title",
-              "max_length": 16,
+              "max_length": 19,
               "min_length": 8
             },
             {
               "type": "text",
               "position": {
                 "x": 0,
-                "y": 74.15471167219427
+                "y": 74.15
               },
               "size": {
-                "width": 689.9827018539767,
-                "height": 104.78528832780569
+                "width": 689.98,
+                "height": 80.79
               },
               "font": {
                 "size": 21.33,
@@ -17848,8 +17897,9 @@
               ],
               "decorative": false,
               "name": "subtitle_text",
-              "max_length": 61,
-              "min_length": 31
+              "max_length": 123,
+              "min_length": 31,
+              "rotation": 0
             }
           ]
         },
@@ -18520,7 +18570,7 @@
                 "y": 0
               },
               "size": {
-                "width": 926.5048131680721,
+                "width": 1133.5,
                 "height": 160
               },
               "font": {
@@ -18553,8 +18603,9 @@
               ],
               "decorative": false,
               "name": "main_title",
-              "max_length": 52,
-              "min_length": 8
+              "max_length": 66,
+              "min_length": 8,
+              "rotation": 0
             }
           ]
         },
@@ -18656,7 +18707,7 @@
                         "y": 77.42
                       },
                       "size": {
-                        "width": 286.93,
+                        "width": 345.93,
                         "height": 29.02
                       },
                       "font": {
@@ -18686,8 +18737,9 @@
                       ],
                       "decorative": false,
                       "name": "metric_heading",
-                      "max_length": 7,
-                      "min_length": 4
+                      "max_length": 24,
+                      "min_length": 4,
+                      "rotation": 0
                     },
                     {
                       "type": "text",
@@ -18824,7 +18876,7 @@
                 "y": 0.33
               },
               "size": {
-                "width": 629.25,
+                "width": 829.25,
                 "height": 79.47
               },
               "font": {
@@ -18854,8 +18906,9 @@
               ],
               "decorative": false,
               "name": "primary_heading",
-              "max_length": 17,
-              "min_length": 8
+              "max_length": 20,
+              "min_length": 8,
+              "rotation": 0
             },
             {
               "type": "text",
@@ -18864,8 +18917,8 @@
                 "y": 85.02
               },
               "size": {
-                "width": 639.04,
-                "height": 62.27
+                "width": 831.04,
+                "height": 76.27
               },
               "font": {
                 "size": 21.33,
@@ -18892,8 +18945,9 @@
               ],
               "decorative": false,
               "name": "heading_support_text",
-              "max_length": 90,
-              "min_length": 52
+              "max_length": 151,
+              "min_length": 52,
+              "rotation": 0
             }
           ]
         },
@@ -19578,12 +19632,12 @@
             {
               "type": "text",
               "position": {
-                "x": 0,
+                "x": -223,
                 "y": 0
               },
               "size": {
-                "width": 629.25,
-                "height": 159.47
+                "width": 1068.25,
+                "height": 242.47
               },
               "font": {
                 "size": 64,
@@ -19612,8 +19666,9 @@
               ],
               "decorative": false,
               "name": "main_heading",
-              "max_length": 21,
-              "min_length": 11
+              "max_length": 80,
+              "min_length": 11,
+              "rotation": 0
             }
           ]
         },
@@ -19851,7 +19906,7 @@
               },
               "size": {
                 "width": 492.82,
-                "height": 79.47
+                "height": 170.47
               },
               "font": {
                 "size": 64,
@@ -19880,8 +19935,9 @@
               ],
               "decorative": false,
               "name": "main_heading",
-              "max_length": 12,
-              "min_length": 6
+              "max_length": 24,
+              "min_length": 6,
+              "rotation": 0
             }
           ]
         },
@@ -20897,7 +20953,7 @@
               ],
               "decorative": false,
               "name": "main_title_text",
-              "max_length": 34,
+              "max_length": 62,
               "min_length": 17
             }
           ]

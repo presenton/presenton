@@ -2,6 +2,7 @@ import asyncio
 
 from models.sql.user import User
 from services.provider_settings import (
+    merge_provider_settings,
     migrate_provider_settings_from_file,
     sanitize_provider_settings,
 )
@@ -42,6 +43,32 @@ def test_provider_settings_exclude_all_legacy_auth_fields():
             "AUTH_SECRET_KEY": "jwt-secret",
         }
     ) == {"LLM": "openai"}
+
+
+def test_reset_advanced_settings_removes_only_optional_overrides():
+    existing = {
+        "LLM": "openrouter",
+        "OPENROUTER_API_KEY": "key",
+        "OPENROUTER_MODEL": "openai/gpt-4o",
+        "LLM_MAX_OUTPUT_TOKENS": 65536,
+        "LLM_REASONING_MODE": "enabled",
+        "OPENROUTER_PROVIDER_ORDER": ["groq"],
+    }
+
+    merged = merge_provider_settings(
+        existing,
+        {
+            "LLM_MAX_OUTPUT_TOKENS": "",
+            "LLM_REASONING_MODE": "",
+            "OPENROUTER_PROVIDER_ORDER": [],
+        },
+    )
+
+    assert merged == {
+        "LLM": "openrouter",
+        "OPENROUTER_API_KEY": "key",
+        "OPENROUTER_MODEL": "openai/gpt-4o",
+    }
 
 
 def test_startup_migrates_user_config_and_rewrites_compatibility_file(

@@ -6,6 +6,7 @@ import json
 import re
 import time
 from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import replace
 from typing import Any, Optional
 
 import llmai
@@ -21,8 +22,13 @@ from llmai.shared import (
     UserMessage,
 )
 
+from constants.presentation import MAX_NUMBER_OF_SLIDES
 from utils.llm_client_error_handler import handle_llm_client_exceptions
-from utils.llm_config import disable_thinking, get_llm_config
+from utils.llm_config import (
+    disable_thinking,
+    get_llm_config,
+    has_explicit_reasoning_settings,
+)
 from utils.llm_provider import get_llm_provider, get_model
 from utils.llm_utils import (
     TextGenerationMetrics,
@@ -37,7 +43,9 @@ from utils.llm_utils import (
 from utils.smart_slide_layout import inspect_smart_slide_layout
 
 DEFAULT_SMART_SLIDE_COUNT = 8
-MAX_SMART_SLIDE_COUNT = 20
+# Smart generation shares the same product-wide limit as every other deck path.
+# Keep this alias for callers that imported the older Smart-specific constant.
+MAX_SMART_SLIDE_COUNT = MAX_NUMBER_OF_SLIDES
 SMART_GENERATION_MAX_ATTEMPTS = 8
 SMART_GENERATION_METRICS_INTERVAL_SECONDS = 5.0
 SMART_TITLE_MAX_VISIBLE_CHARACTERS = 800
@@ -50,6 +58,7 @@ SMART_TOC_MAX_VISIBLE_CHARACTERS = 1900
 SMART_TOC_MAX_VISIBLE_WORDS = 220
 SmartSlideCallback = Callable[[int, dict[str, str]], Awaitable[None]]
 SmartMetricsCallback = Callable[[TextGenerationMetrics], Awaitable[None]]
+SmartRetryCallback = Callable[[int, str], Awaitable[None]]
 
 SMART_DECK_SYSTEM_PROMPT = (
     "You are an expert presentation designer and frontend engineer. Return the "
@@ -627,6 +636,7 @@ async def _stream_deck_response(
     messages: Sequence[Message],
     on_chunk: Callable[[str], Awaitable[None]],
     *,
+    max_output_tokens: int | None = None,
     reasoning: ReasoningConfig | None = None,
     on_thinking_chunk: Callable[[str], Awaitable[None]] | None = None,
     model_supports_thinking: bool = False,
@@ -640,6 +650,7 @@ async def _stream_deck_response(
         **get_generate_kwargs(
             model=model,
             messages=messages,
+            max_tokens=max_output_tokens,
             reasoning=reasoning,
             stream=True,
         ),
@@ -664,9 +675,19 @@ async def _stream_deck_response(
                 chunks.append(chunk)
                 await on_chunk(chunk)
     response = extract_text(getattr(completion, "content", None)) or "".join(chunks)
+    finish_reason = getattr(completion, "finish_reason", None)
     if not chunks and response:
         await on_chunk(response)
     if not response:
+        if finish_reason == "length":
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "The model reached its output-token limit before producing a "
+                    "complete Smart slide. Increase Max output tokens in Advanced "
+                    "text-provider settings or reduce the slide count/reasoning effort."
+                ),
+            )
         raise HTTPException(status_code=400, detail="LLM did not return any content")
     metrics = build_text_generation_metrics(
         model=model,
@@ -677,12 +698,13 @@ async def _stream_deck_response(
         started_at=started_at,
         model_supports_thinking=model_supports_thinking,
     )
+    metrics = replace(metrics, finish_reason=finish_reason)
     return response, metrics
 
 
 def get_smart_reasoning_config(model: str) -> tuple[ReasoningConfig | None, bool]:
     """Enable reasoning only when llmai knows the selected model supports it."""
-    if disable_thinking():
+    if disable_thinking() and not has_explicit_reasoning_settings():
         return None, False
 
     provider = get_llm_provider().value
@@ -690,6 +712,8 @@ def get_smart_reasoning_config(model: str) -> tuple[ReasoningConfig | None, bool
         supports_thinking = llmai.supports_thinking(model, provider=provider) is True
     except Exception:
         supports_thinking = False
+    if has_explicit_reasoning_settings():
+        return None, supports_thinking
     if not supports_thinking:
         return None, False
 
@@ -719,18 +743,53 @@ async def generate_smart_presentation(
     source_context: str = "",
     community_design_context: str = "",
     fonts: Optional[dict[str, str]] = None,
+    existing_slides: Optional[Sequence[dict[str, str]]] = None,
+    existing_title: Optional[str] = None,
     on_slide: SmartSlideCallback | None = None,
     on_metrics: SmartMetricsCallback | None = None,
+    on_retry: SmartRetryCallback | None = None,
 ) -> dict[str, Any]:
-    client = get_client(config=get_llm_config(use_openai_responses_api=True))
+    client_config = get_llm_config(use_openai_responses_api=True)
+    client = get_client(config=client_config)
     model = get_model()
+    configured_output_token_limit = getattr(
+        getattr(client_config, "generation", None),
+        "max_output_tokens",
+        None,
+    )
     reasoning, configured_thinking_support = get_smart_reasoning_config(model)
     accepted_slides: list[dict[str, str]] = []
-    title = ""
+    for index, saved_slide in enumerate(existing_slides or []):
+        normalized_slide = _slide_from_html(saved_slide.get("html"), index)
+        _validate_slide_position(
+            normalized_slide,
+            index,
+            include_title_slide=include_title_slide,
+            include_table_of_contents=include_table_of_contents,
+        )
+        accepted_slides.append(normalized_slide)
+    if len(accepted_slides) > n_slides:
+        raise HTTPException(
+            status_code=500,
+            detail="Saved Smart presentation checkpoint has too many slides",
+        )
+
+    title = (existing_title or "").strip()
+    if len(accepted_slides) >= n_slides:
+        return {
+            "title": title or accepted_slides[0]["title"],
+            "slides": accepted_slides[:n_slides],
+            "metrics": None,
+        }
     last_exception: Exception | None = None
     retry_error: str | None = None
 
     for _attempt in range(SMART_GENERATION_MAX_ATTEMPTS):
+        if _attempt > 0 and on_retry is not None:
+            await on_retry(
+                len(accepted_slides),
+                retry_error or "The prior generation attempt was incomplete.",
+            )
         messages = get_smart_messages(
             content=content,
             n_slides=n_slides,
@@ -789,14 +848,15 @@ async def generate_smart_presentation(
                     if streamed_thinking
                     else (0 if model_supports_thinking else None)
                 )
+                generated_tokens = output_tokens + (thinking_tokens or 0)
                 if on_metrics is not None:
                     await on_metrics(
                         TextGenerationMetrics(
                             model=model,
                             input_tokens=estimated_input_tokens,
                             output_tokens=output_tokens,
-                            total_tokens=estimated_input_tokens + output_tokens,
-                            tokens_per_second=output_tokens / duration,
+                            total_tokens=estimated_input_tokens + generated_tokens,
+                            tokens_per_second=generated_tokens / duration,
                             duration_seconds=duration,
                             estimated=True,
                             thinking_tokens=thinking_tokens,
@@ -817,6 +877,7 @@ async def generate_smart_presentation(
                     model,
                     messages,
                     handle_chunk,
+                    max_output_tokens=configured_output_token_limit,
                     reasoning=reasoning,
                     on_thinking_chunk=handle_thinking_chunk,
                     model_supports_thinking=model_supports_thinking,
@@ -864,6 +925,8 @@ async def generate_smart_presentation(
 
     if last_exception is not None and not isinstance(last_exception, HTTPException):
         raise handle_llm_client_exceptions(last_exception)
+    if isinstance(last_exception, HTTPException) and last_exception.status_code == 422:
+        raise last_exception
     raise HTTPException(
         status_code=500,
         detail=(

@@ -42,6 +42,11 @@ export interface LLMConfig {
   OPENROUTER_API_KEY?: string;
   OPENROUTER_MODEL?: string;
   OPENROUTER_BASE_URL?: string;
+  OPENROUTER_PROVIDER_ORDER?: string[];
+  OPENROUTER_ALLOW_FALLBACKS?: boolean;
+  OPENROUTER_REQUIRE_PARAMETERS?: boolean;
+  OPENROUTER_DATA_COLLECTION?: "allow" | "deny";
+  OPENROUTER_ZDR?: boolean;
 
   // Fireworks
   FIREWORKS_API_KEY?: string;
@@ -114,6 +119,19 @@ export interface LLMConfig {
   // Other Configs
   DISABLE_THINKING?: boolean;
   EXTENDED_REASONING?: boolean;
+  LLM_GENERATION_PROFILE?: "fast" | "balanced" | "deep" | "model_max";
+  LLM_MAX_OUTPUT_TOKENS?: number;
+  LLM_REASONING_MODE?: "auto" | "enabled" | "disabled";
+  LLM_REASONING_EFFORT?:
+    | "default"
+    | "none"
+    | "minimal"
+    | "low"
+    | "medium"
+    | "high"
+    | "xhigh"
+    | "max";
+  LLM_REASONING_BUDGET_TOKENS?: number;
   WEB_GROUNDING?: boolean;
   WEB_SEARCH_PROVIDER?: string;
   WEB_SEARCH_MAX_RESULTS?: string;

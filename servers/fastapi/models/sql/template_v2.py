@@ -38,6 +38,9 @@ class TemplateV2(SQLModel, table=True):
     layouts: Optional[dict] = Field(
         default=None, sa_column=Column(JSON, nullable=True)
     )
+    theme: Optional[dict] = Field(
+        default=None, sa_column=Column(JSON, nullable=True)
+    )
     assets: Optional[dict] = Field(
         default=None, sa_column=Column(JSON, nullable=True)
     )

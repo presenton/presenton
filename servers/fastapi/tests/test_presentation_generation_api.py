@@ -1,6 +1,6 @@
 import asyncio
-from types import SimpleNamespace
 import uuid
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -8,13 +8,17 @@ from fastapi import BackgroundTasks, HTTPException
 from pydantic import ValidationError
 
 from api.v1.ppt.endpoints.presentation import (
+    _presentation_response_data,
     check_async_presentation_generation_status,
     generate_presentation_async,
     generate_presentation_sync,
 )
 from models.generate_presentation_request import GeneratePresentationRequest
 from models.presentation_and_path import PresentationPathAndEditPath
+from models.presentation_with_slides import PresentationWithSlides
 from models.sql.async_task import AsyncTaskModel
+from models.sql.presentation import PresentationModel, PresentationVersion
+from utils.datetime_utils import get_current_utc_datetime
 
 
 class FakeRequest:
@@ -48,6 +52,29 @@ class FakeAsyncSession:
 
     async def refresh(self, *_args, **_kwargs):
         return None
+
+
+@pytest.mark.parametrize("generation_mode", ["standard", "smart"])
+def test_presentation_responses_include_cloud_compatible_type(generation_mode):
+    now = get_current_utc_datetime()
+    presentation = PresentationModel(
+        owner_id=uuid.uuid4(),
+        version=PresentationVersion.V2_STANDARD,
+        content="Build a deck",
+        n_slides=3,
+        language="English",
+        generation_mode=generation_mode,
+        created_at=now,
+        updated_at=now,
+    )
+
+    response = PresentationWithSlides(
+        **_presentation_response_data(presentation),
+        slides=[],
+    )
+
+    assert response.type == generation_mode
+    assert response.model_dump(mode="json")["type"] == generation_mode
 
 
 class TestPresentationGenerationAPI:
@@ -135,7 +162,11 @@ class TestPresentationGenerationAPI:
         assert task.type == "presentation.generate"
         assert task.status == "pending"
         assert task.message == "Queued for generation"
-        assert task.data == {"created_slides": 0, "remaining_slides": 5}
+        assert task.data["created_slides"] == 0
+        assert task.data["remaining_slides"] == 5
+        # Present from the moment the task is enqueued, so a polling caller
+        # can identify the presentation without waiting for completion.
+        assert uuid.UUID(task.data["presentation_id"])
         assert fake_session.added == [task]
         assert fake_session.commit_count == 1
         assert len(background_tasks.tasks) == 1
