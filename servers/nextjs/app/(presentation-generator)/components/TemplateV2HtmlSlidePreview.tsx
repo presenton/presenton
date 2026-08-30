@@ -219,12 +219,18 @@ export function TemplateV2HtmlSlidePreview({
   slide,
   fonts,
   fixedSize = false,
+  fitBounds,
+  fitPadding,
+  fitMaxScale,
   className = "",
   contentClassName = "",
 }: {
   slide: unknown;
   fonts?: unknown;
   fixedSize?: boolean;
+  fitBounds?: { left: number; top: number; right: number; bottom: number };
+  fitPadding?: { x: number; y: number };
+  fitMaxScale?: number;
   className?: string;
   contentClassName?: string;
 }) {
@@ -343,12 +349,51 @@ export function TemplateV2HtmlSlidePreview({
     };
   }, [html]);
 
-  const scale = fixedSize
+  const hasFitBounds = Boolean(
+    !fixedSize &&
+      fitBounds &&
+      fitBounds.right > fitBounds.left &&
+      fitBounds.bottom > fitBounds.top,
+  );
+  const naturalScale = fixedSize
     ? 1
     : containerWidth
       ? Math.min((containerWidth / TEMPLATE_V2_HTML_WIDTH) * 0.98, 1)
       : 0;
-  const previewHeight = TEMPLATE_V2_HTML_HEIGHT * (scale || 1);
+  const fittedViewport = useMemo(() => {
+    if (!hasFitBounds || !fitBounds || !containerWidth) return null;
+
+    const viewportHeight =
+      (containerWidth * TEMPLATE_V2_HTML_HEIGHT) / TEMPLATE_V2_HTML_WIDTH;
+    const paddingX = Math.max(0, Math.min(fitPadding?.x ?? 0.08, 0.4));
+    const paddingY = Math.max(0, Math.min(fitPadding?.y ?? 0.1, 0.4));
+    const contentWidth = fitBounds.right - fitBounds.left;
+    const contentHeight = fitBounds.bottom - fitBounds.top;
+    const scale = Math.min(
+      (containerWidth * (1 - paddingX * 2)) / contentWidth,
+      (viewportHeight * (1 - paddingY * 2)) / contentHeight,
+      fitMaxScale ?? Number.POSITIVE_INFINITY,
+    );
+
+    return {
+      height: viewportHeight,
+      offsetX:
+        (containerWidth - contentWidth * scale) / 2 - fitBounds.left * scale,
+      offsetY:
+        (viewportHeight - contentHeight * scale) / 2 - fitBounds.top * scale,
+      scale,
+    };
+  }, [
+    containerWidth,
+    fitBounds,
+    fitMaxScale,
+    fitPadding?.x,
+    fitPadding?.y,
+    hasFitBounds,
+  ]);
+  const renderScale = fittedViewport?.scale ?? naturalScale;
+  const previewHeight =
+    fittedViewport?.height ?? TEMPLATE_V2_HTML_HEIGHT * (naturalScale || 1);
 
   if (!html) {
     return (
@@ -380,23 +425,28 @@ export function TemplateV2HtmlSlidePreview({
             height: TEMPLATE_V2_HTML_HEIGHT,
           }
           : {
-            height: scale ? previewHeight : undefined,
-            aspectRatio: scale ? undefined : "16 / 9",
+            height: renderScale ? previewHeight : undefined,
+            aspectRatio: renderScale ? undefined : "16 / 9",
           }
       }
     >
       <div
         className={
-          fixedSize ? "absolute left-0 top-0" : "absolute left-1/2 top-0"
+          fixedSize || fittedViewport
+            ? "absolute left-0 top-0"
+            : "absolute left-1/2 top-0"
         }
         style={{
           width: TEMPLATE_V2_HTML_WIDTH,
           height: TEMPLATE_V2_HTML_HEIGHT,
           transform: fixedSize
             ? undefined
-            : `translateX(-50%) scale(${scale || 1})`,
-          transformOrigin: fixedSize ? undefined : "top center",
-          opacity: scale ? 1 : 0,
+            : fittedViewport
+              ? `translate(${fittedViewport.offsetX}px, ${fittedViewport.offsetY}px) scale(${fittedViewport.scale})`
+              : `translateX(-50%) scale(${naturalScale || 1})`,
+          transformOrigin:
+            fixedSize || fittedViewport ? "top left" : "top center",
+          opacity: renderScale ? 1 : 0,
         }}
       >
         <div

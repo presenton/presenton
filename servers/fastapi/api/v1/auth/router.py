@@ -25,10 +25,12 @@ from api.v1.auth.config import (
     persist_admin_credentials,
 )
 from api.v1.auth.token import TOKEN_ROUTER
+from api.v1.auth.presenton_oauth import PRESENTON_OAUTH_ROUTER
 
 
 API_V1_AUTH_ROUTER = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 API_V1_AUTH_ROUTER.include_router(TOKEN_ROUTER)
+API_V1_AUTH_ROUTER.include_router(PRESENTON_OAUTH_ROUTER)
 
 
 def normalize_username(username: str) -> str:

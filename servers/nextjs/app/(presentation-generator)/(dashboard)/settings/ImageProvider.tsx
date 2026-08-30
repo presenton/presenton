@@ -124,6 +124,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                             checked={!isImageGenerationDisabled}
                             className='data-[state=checked]:bg-[#4791FF] data-[state=unchecked]:bg-gray-400'
                             onCheckedChange={(checked) => handleChangeImageGenerationDisabled(!checked)}
+                            aria-label="Enable image generation"
                         />
                     </div>
 
@@ -320,7 +321,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                                         <input
                                                             type={showApiKey ? 'text' : 'password'}
                                                             placeholder={`Enter your ${provider.apiKeyFieldLabel}`}
-                                                            className="w-full px-4 py-2.5 h-12 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                                            className="w-full px-4 pr-12 py-2.5 h-12 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                                                             value={getFieldValue(provider.apiKeyField)}
                                                             onChange={(e) =>
                                                                 updateFieldValue(
@@ -332,9 +333,11 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowApiKey((prev) => !prev)}
-                                                            className='absolute right-2 top-1/2 -translate-y-1/2 bg-white px-2 py-1 cursor-pointer'
+                                                            className='absolute inset-y-0 right-0 flex w-12 cursor-pointer items-center justify-center rounded-r-lg text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500'
+                                                            aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                                                            aria-pressed={showApiKey}
                                                         >
-                                                            {showApiKey ? <Eye className='w-4 h-4 text-gray-500' /> : <EyeOff className='w-4 h-4 text-gray-500' />}
+                                                            {showApiKey ? <EyeOff className='w-4 h-4' aria-hidden="true" /> : <Eye className='w-4 h-4' aria-hidden="true" />}
                                                         </button>
                                                     </div>
 
@@ -357,7 +360,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                         <input
                                             type={showApiKey ? 'text' : 'password'}
                                             placeholder="API key"
-                                            className="w-full px-4 py-2.5 h-12 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                            className="w-full px-4 pr-12 py-2.5 h-12 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                                             value={llmConfig.OPEN_WEBUI_IMAGE_API_KEY || ""}
                                             onChange={(e) => {
                                                 input_field_changed(e.target.value, "OPEN_WEBUI_IMAGE_API_KEY");
@@ -366,9 +369,11 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                         <button
                                             type="button"
                                             onClick={() => setShowApiKey((prev) => !prev)}
-                                            className='absolute right-2 top-1/2 -translate-y-1/2 bg-white px-2 py-1 cursor-pointer'
+                                            className='absolute inset-y-0 right-0 flex w-12 cursor-pointer items-center justify-center rounded-r-lg text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500'
+                                            aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                                            aria-pressed={showApiKey}
                                         >
-                                            {showApiKey ? <Eye className='w-4 h-4 text-gray-500' /> : <EyeOff className='w-4 h-4 text-gray-500' />}
+                                            {showApiKey ? <EyeOff className='w-4 h-4' aria-hidden="true" /> : <Eye className='w-4 h-4' aria-hidden="true" />}
                                         </button>
                                     </div>
                                 </div>

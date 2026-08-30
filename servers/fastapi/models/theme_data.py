@@ -21,6 +21,24 @@ class ThemeData(BaseModel):
     graph_9: str
 
 
+class PresentationThemeTextFont(BaseModel):
+    name: str
+    url: str
+
+
+class PresentationThemeFonts(BaseModel):
+    textFont: PresentationThemeTextFont
+
+
+class PresentationThemeColors(ThemeData):
+    pass
+
+
+class PresentationThemeData(BaseModel):
+    colors: PresentationThemeColors
+    fonts: PresentationThemeFonts
+
+
 class GeneratedColorPalette(BaseModel):
     primary: str
     background: str
@@ -38,4 +56,3 @@ class GeneratedColorPalette(BaseModel):
     accent_2_lightness: float
     text_1_lightness: float
     text_2_lightness: float
-

@@ -11,6 +11,14 @@ import {
 } from "@/components/ui/popover";
 import { usePathname, useRouter } from "next/navigation";
 import { notify } from "@/components/ui/sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import SlideScale from "@/app/(presentation-generator)/components/PresentationRender";
 import {
@@ -38,11 +46,14 @@ export const PresentationCard = ({
   const router = useRouter();
   const pathname = usePathname();
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
+  const [showActions, setShowActions] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isDuplicating, setIsDuplicating] = React.useState(false);
   const isUnsupported = presentation?.version === "v1-standard";
   const presentationType =
-    presentation?.generation_mode === "smart" ? "smart" : "standard";
+    presentation?.type === "smart" || presentation?.generation_mode === "smart"
+      ? "smart"
+      : "standard";
 
   const handlePreview = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -114,17 +125,18 @@ export const PresentationCard = ({
     presentation?.version
   );
   return (
-    <Card
-      suppressHydrationWarning={true}
-      onClick={handlePreview}
-      aria-disabled={isUnsupported}
-      title={isUnsupported ? "Unsupported in this version of Presenton" : undefined}
-      className={`bg-[#F8FBFB] font-syne relative shadow-none sm:shadow-none presentation-card rounded-[12px] p-0 group transition-all duration-500 slide-theme overflow-hidden flex flex-col ${
-        isUnsupported
-          ? "cursor-not-allowed border-[#EDEEEF]"
-          : "cursor-pointer hover:shadow-md"
-      }`}
-    >
+    <>
+      <Card
+        suppressHydrationWarning={true}
+        onClick={handlePreview}
+        aria-disabled={isUnsupported}
+        title={isUnsupported ? "Unsupported in this version of Presenton" : undefined}
+        className={`bg-[#F8FBFB] font-syne relative shadow-none sm:shadow-none presentation-card rounded-[12px] p-0 group transition-all duration-500 slide-theme overflow-hidden flex flex-col ${
+          isUnsupported
+            ? "cursor-not-allowed border-[#EDEEEF]"
+            : "cursor-pointer hover:shadow-md"
+        }`}
+      >
      
       <div
         id={`dashboard-presentation-card-${id}`}
@@ -186,7 +198,7 @@ export const PresentationCard = ({
               </p>
 
             </div>
-            <Popover>
+            <Popover open={showActions} onOpenChange={setShowActions}>
               <PopoverTrigger className="w-6 h-6 hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700" onClick={(e) => e.stopPropagation()}>
                 <EllipsisVertical className="w-6 h-6 text-gray-500" />
               </PopoverTrigger>
@@ -198,6 +210,7 @@ export const PresentationCard = ({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      setShowActions(false);
                       void handleDuplicate();
                     }}
                   >
@@ -210,15 +223,16 @@ export const PresentationCard = ({
                   </button>
                 )}
                 <button
-                  className="flex items-center justify-between w-full px-2 py-1 hover:bg-gray-100"
+                  className="flex w-full items-center justify-between rounded-[6px] px-2 py-1 text-[#D92D20] transition-colors hover:bg-[#FEF3F2]"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    setShowActions(false);
                     setShowDeleteDialog(true);
                   }}
                 >
                   <p>Delete</p>
-                  <Trash className="w- h-4 text-red-500" />
+                  <Trash className="h-4 w-4" />
                 </button>
               </PopoverContent>
             </Popover>
@@ -226,63 +240,79 @@ export const PresentationCard = ({
 
         </div>
       </div>
-      {showDeleteDialog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center animate-[fadeIn_150ms_ease-out]"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (isDeleting) return;
-            setShowDeleteDialog(false);
-          }}
+      </Card>
+
+      <Dialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          if (isDeleting && !open) return;
+          setShowDeleteDialog(open);
+        }}
+      >
+        <DialogContent
+          hideDefaultClose
+          overlayClassName="z-[100] bg-[#101828]/55 backdrop-blur-[3px]"
+          className="z-[101] w-[calc(100vw-32px)] max-w-[420px] gap-0 overflow-hidden rounded-[24px] border-0 bg-white p-0 font-syne shadow-[0_28px_90px_rgba(15,23,42,0.24)] sm:max-w-[420px]"
         >
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-          <div
-            className="relative w-[360px] rounded-2xl bg-white shadow-2xl animate-[scaleIn_200ms_ease-out]"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <div className="flex flex-col items-center p-6 pb-4 text-center">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-                <AlertTriangle className="h-6 w-6 text-red-500" />
+          <DialogHeader className="items-center px-7 pb-6 pt-8 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FEE4E2] ring-8 ring-[#FEF3F2]">
+              <AlertTriangle
+                className="h-6 w-6 text-[#D92D20]"
+                strokeWidth={1.8}
+                aria-hidden="true"
+              />
+            </div>
+            <DialogTitle className="text-[22px] font-semibold leading-7 tracking-[-0.02em] text-[#B42318]">
+              Delete presentation?
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="w-full pt-2 text-sm leading-6 text-[#667085]">
+                <p>This will permanently delete the presentation below.</p>
+                <div
+                  className="mt-4 rounded-[12px] border border-[#FECDCA] bg-[#FFFBFA] px-4 py-3 text-left"
+                  title={title || "Untitled presentation"}
+                >
+                  <p className="line-clamp-2 break-words text-sm font-medium leading-5 text-[#7A271A]">
+                    {title || "Untitled presentation"}
+                  </p>
+                </div>
+                <p className="mt-3 text-[13px] font-medium text-[#D92D20]">
+                  This action cannot be undone.
+                </p>
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-[#191919]">
-                Delete Presentation?
-              </h3>
-              <p className="text-sm leading-relaxed text-gray-500">
-                You are about to delete{" "}
-                <span className="font-medium text-gray-700">&quot;{title}&quot;</span>.
-                This action cannot be undone.
-              </p>
-            </div>
-            <div className="flex border-t border-gray-100">
-              <button
-                onClick={() => setShowDeleteDialog(false)}
-                disabled={isDeleting}
-                className="flex-1 px-4 py-3.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void handleDelete()}
-                disabled={isDeleting}
-                className="flex flex-1 items-center justify-center gap-2 border-l border-gray-100 px-4 py-3.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </Card>
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="grid grid-cols-2 gap-3 border-t border-[#FEE4E2] bg-[#FFFBFA] p-4 sm:grid sm:space-x-0">
+            <button
+              type="button"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+              className="h-11 rounded-[10px] border border-[#D0D5DD] bg-white px-4 text-sm font-medium text-[#344054] shadow-sm transition-colors hover:bg-[#F9FAFB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={isDeleting}
+              className="flex h-11 items-center justify-center gap-2 rounded-[10px] bg-[#D92D20] px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#B42318] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D92D20]/30 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash className="h-4 w-4" aria-hidden="true" />
+                  Delete
+                </>
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

@@ -1,5 +1,6 @@
 import asyncio
-from types import SimpleNamespace
+
+from llmai.shared import ResponseStreamCompletionChunk
 
 from utils.llm_calls.generate_web_search_query import generate_web_search_query
 
@@ -11,7 +12,7 @@ class FakeClient:
 
     def generate(self, **kwargs):
         self.calls.append(kwargs)
-        return SimpleNamespace(content=self.content)
+        return iter([ResponseStreamCompletionChunk(content=self.content)])
 
 
 def test_generate_web_search_query_returns_normalized_query(monkeypatch):

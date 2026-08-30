@@ -2,12 +2,12 @@ import { PresentationChatApi } from "../../../services/api/chat";
 import type { ChatApiAdapter } from "./chat-types";
 
 export const presentationChatAdapter: ChatApiAdapter = {
-  listConversations: (resourceId) =>
-    PresentationChatApi.listConversations(resourceId),
-  getHistory: (resourceId, conversationId) =>
-    PresentationChatApi.getHistory(resourceId, conversationId),
-  deleteConversation: (resourceId, conversationId) =>
-    PresentationChatApi.deleteConversation(resourceId, conversationId),
+  listConversations: (resourceId, presentationType) =>
+    PresentationChatApi.listConversations(resourceId, presentationType),
+  getHistory: (resourceId, conversationId, presentationType) =>
+    PresentationChatApi.getHistory(resourceId, conversationId, presentationType),
+  deleteConversation: (resourceId, conversationId, presentationType) =>
+    PresentationChatApi.deleteConversation(resourceId, conversationId, presentationType),
   streamMessage: (payload, handlers, options) =>
     PresentationChatApi.streamMessage(
       {

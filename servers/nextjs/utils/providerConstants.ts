@@ -196,6 +196,12 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
 };
 
 export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
+  presenton: {
+    value: "presenton",
+    label: "Presenton",
+    description: "Generate with your connected Presenton Cloud account",
+    icon: "/providers/presenton.png",
+  },
   codex: {
     value: "codex",
     label: "ChatGPT",
@@ -215,7 +221,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     label: "DeepSeek",
     description: "DeepSeek models via DeepSeek API",
     url: "https://api.deepseek.com/v1",
-    icon: "/providers/openai.png",
+    icon: "/providers/deepseek-color.svg",
     getApiKeyUrl: "https://platform.deepseek.com/api_keys",
   },
   google: {
@@ -230,28 +236,28 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     value: "vertex",
     label: "Vertex AI",
     description: "Google Vertex AI models",
-    icon: "/providers/gemini-color.svg",
+    icon: "/providers/vertexai-color.svg",
     getApiKeyUrl: "https://www.google.com/search?q=how+to+get+vertex+ai+api+key",
   },
   azure: {
     value: "azure",
     label: "Azure OpenAI",
     description: "Azure-hosted OpenAI deployments",
-    icon: "/providers/openai.png",
+    icon: "/providers/azure-color.svg",
     getApiKeyUrl: "https://www.google.com/search?q=azure+openai+api+key",
   },
   bedrock: {
     value: "bedrock",
     label: "Amazon Bedrock",
     description: "AWS Bedrock foundation models",
-    icon: "/providers/custom.svg",
+    icon: "/providers/bedrock-color.svg",
   },
   openrouter: {
     value: "openrouter",
     label: "OpenRouter",
     description: "Many models through OpenRouter’s OpenAI-compatible API",
     url: "https://openrouter.ai/api/v1",
-    icon: "/providers/openai.png",
+    icon: "/providers/openrouter-color.svg",
     getApiKeyUrl: "https://openrouter.ai/keys",
   },
   cerebras: {
@@ -259,21 +265,21 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     label: "Cerebras",
     description: "Cerebras Cloud via OpenAI-compatible API",
     url: "https://api.cerebras.ai/v1",
-    icon: "/providers/openai.png",
+    icon: "/providers/cerebras-color.svg",
     getApiKeyUrl: "https://inference-docs.cerebras.ai",
   },
   litellm: {
     value: "litellm",
     label: "LiteLLM",
     description: "OpenAI-compatible LiteLLM proxy or gateway",
-    icon: "/providers/openai.png",
+    icon: "/providers/litellm-logo.svg",
   },
   fireworks: {
     value: "fireworks",
     label: "Fireworks",
     description: "Fireworks AI via OpenAI-compatible API",
     url: "https://api.fireworks.ai/inference/v1",
-    icon: "/providers/openai.png",
+    icon: "/providers/fireworks-color.svg",
     getApiKeyUrl: "https://fireworks.ai/account/api-keys",
   },
   together: {
@@ -281,7 +287,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     label: "Together AI",
     description: "Together AI via OpenAI-compatible API",
     url: "https://api.together.ai/v1",
-    icon: "/providers/openai.png",
+    icon: "/providers/together-color.svg",
     getApiKeyUrl: "https://api.together.xyz/settings/api-keys",
   },
   lmstudio: {

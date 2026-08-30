@@ -31,6 +31,9 @@ ALLOWED_FONT_EXTENSIONS = {
     ".woff2",
 }
 
+# Keep in sync with the slide-editor client upload guard (10 MB).
+MAX_FONT_UPLOAD_BYTES = 10 * 1024 * 1024
+
 FONT_CONTENT_TYPES = {
     ".eot": "application/vnd.ms-fontobject",
     ".fntdata": "application/octet-stream",
@@ -123,6 +126,40 @@ def is_allowed_font_filename(filename: str) -> bool:
 def safe_font_filename(filename: str) -> str:
     name = os.path.basename(filename or "font")
     return name.replace("/", "_").replace("\\", "_")
+
+
+def raise_if_font_upload_too_large(size: Optional[int]) -> None:
+    if size is not None and size > MAX_FONT_UPLOAD_BYTES:
+        limit_mb = MAX_FONT_UPLOAD_BYTES // (1024 * 1024)
+        raise HTTPException(
+            status_code=413,
+            detail=f"Font file exceeded max upload size of {limit_mb} MB",
+        )
+
+
+def remove_font_file_quietly(path: str) -> None:
+    try:
+        if path and os.path.isfile(path):
+            os.remove(path)
+    except OSError:
+        pass
+
+
+async def read_upload_with_size_limit(font_file: UploadFile) -> bytes:
+    raise_if_font_upload_too_large(getattr(font_file, "size", None))
+
+    chunks: List[bytes] = []
+    total = 0
+    chunk_size = 64 * 1024
+    while True:
+        chunk = await font_file.read(chunk_size)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_FONT_UPLOAD_BYTES:
+            raise_if_font_upload_too_large(total)
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def _font_upload_filesystem_path(font_upload: FontUpload) -> str:
@@ -264,24 +301,46 @@ async def backfill_font_uploads_from_disk() -> None:
             await session.commit()
 
 
+async def _persist_built_font_upload(
+    font_upload: FontUpload,
+) -> FontUpload:
+    """
+    Commit a font upload row.
+
+    Flush and refresh before commit so a refresh failure cannot leave a
+    committed database row without a matching file on disk.
+    """
+    async with async_session_maker() as session:
+        session.add(font_upload)
+        await session.flush()
+        await session.refresh(font_upload)
+        await session.commit()
+    return font_upload
+
+
 async def persist_font_file(
     src_path: str,
     filename: Optional[str] = None,
 ) -> Tuple[FontUpload, str]:
     source_filename = safe_font_filename(filename or os.path.basename(src_path))
     extension = validate_font_filename(source_filename)
+    raise_if_font_upload_too_large(os.path.getsize(src_path))
     unique_filename = (
         f"{Path(source_filename).stem}_{uuid.uuid4().hex[:8]}{extension}"
     )
     dest_path = os.path.join(get_fonts_directory(), unique_filename)
-    await _copy_file(src_path, dest_path)
+    committed = False
+    try:
+        await _copy_file(src_path, dest_path)
 
-    font_upload = _build_font_upload_from_path(dest_path, filename=unique_filename)
-    async with async_session_maker() as session:
-        session.add(font_upload)
-        await session.commit()
-        await session.refresh(font_upload)
-    return font_upload, dest_path
+        font_upload = _build_font_upload_from_path(dest_path, filename=unique_filename)
+        font_upload = await _persist_built_font_upload(font_upload)
+        committed = True
+        return font_upload, dest_path
+    except Exception:
+        if not committed:
+            remove_font_file_quietly(dest_path)
+        raise
 
 
 async def persist_upload_file(font_file: UploadFile) -> Tuple[FontUpload, str]:
@@ -291,15 +350,20 @@ async def persist_upload_file(font_file: UploadFile) -> Tuple[FontUpload, str]:
     unique_filename = f"{Path(filename).stem}_{uuid.uuid4().hex[:8]}{extension}"
     dest_path = os.path.join(get_fonts_directory(), unique_filename)
 
-    with open(dest_path, "wb") as file:
-        file.write(await font_file.read())
+    committed = False
+    try:
+        content = await read_upload_with_size_limit(font_file)
+        with open(dest_path, "wb") as file:
+            file.write(content)
 
-    font_upload = _build_font_upload_from_path(dest_path, filename=unique_filename)
-    async with async_session_maker() as session:
-        session.add(font_upload)
-        await session.commit()
-        await session.refresh(font_upload)
-    return font_upload, dest_path
+        font_upload = _build_font_upload_from_path(dest_path, filename=unique_filename)
+        font_upload = await _persist_built_font_upload(font_upload)
+        committed = True
+        return font_upload, dest_path
+    except Exception:
+        if not committed:
+            remove_font_file_quietly(dest_path)
+        raise
 
 
 async def list_font_uploads() -> FontUploadsResponse:

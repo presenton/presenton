@@ -85,3 +85,69 @@ def test_custom_disable_thinking_uses_legacy_payload(monkeypatch):
     extra_body = get_extra_body()
 
     assert extra_body == {"enable_thinking": False}
+
+
+def test_explicit_reasoning_overrides_legacy_deepseek_payload(monkeypatch):
+    monkeypatch.setenv("LLM", "deepseek")
+    monkeypatch.setenv("DISABLE_THINKING", "true")
+    monkeypatch.setenv("LLM_REASONING_MODE", "enabled")
+
+    assert get_extra_body() is None
+
+
+def test_explicit_reasoning_overrides_legacy_custom_payload(monkeypatch):
+    monkeypatch.setenv("LLM", "custom")
+    monkeypatch.setenv("DISABLE_THINKING", "true")
+    monkeypatch.setenv("LLM_REASONING_MODE", "enabled")
+
+    assert get_extra_body() is None
+
+
+def test_advanced_generation_defaults_apply_to_every_client(monkeypatch):
+    monkeypatch.setenv("LLM", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("LLM_GENERATION_PROFILE", "deep")
+    monkeypatch.setenv("LLM_MAX_OUTPUT_TOKENS", "65536")
+    monkeypatch.setenv("LLM_REASONING_MODE", "enabled")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "high")
+    monkeypatch.setenv("LLM_REASONING_BUDGET_TOKENS", "4096")
+
+    config = get_llm_config()
+
+    assert config.generation.profile.value == "deep"
+    assert config.generation.max_output_tokens == 65536
+    assert config.generation.reasoning.enabled is True
+    assert config.generation.reasoning.effort.value == "high"
+    assert config.generation.reasoning.budget_tokens == 4096
+
+
+def test_new_reasoning_mode_wins_over_legacy_disable(monkeypatch):
+    monkeypatch.setenv("LLM", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("DISABLE_THINKING", "true")
+    monkeypatch.setenv("LLM_REASONING_MODE", "enabled")
+
+    config = get_llm_config()
+
+    assert config.generation.reasoning.enabled is True
+
+
+def test_openrouter_routing_merges_optional_controls(monkeypatch):
+    monkeypatch.setenv("LLM", "openrouter")
+    monkeypatch.setenv("OPENROUTER_PROVIDER_ORDER", "groq, together")
+    monkeypatch.setenv("OPENROUTER_ALLOW_FALLBACKS", "false")
+    monkeypatch.setenv("OPENROUTER_REQUIRE_PARAMETERS", "true")
+    monkeypatch.setenv("OPENROUTER_DATA_COLLECTION", "deny")
+    monkeypatch.setenv("OPENROUTER_ZDR", "true")
+
+    extra_body = get_extra_body()
+
+    assert extra_body == {
+        "provider": {
+            "order": ["groq", "together"],
+            "allow_fallbacks": False,
+            "require_parameters": True,
+            "data_collection": "deny",
+            "zdr": True,
+        }
+    }

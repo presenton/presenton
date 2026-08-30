@@ -51,8 +51,11 @@ import {
 } from "@/components/slide-editor/state/state";
 import { ElementToolbar } from "@/components/slide-editor/toolbar/ElementToolbar";
 import { ChartDataEditorPopover } from "@/components/slide-editor/charts/ChartEditorContent";
+import { InfographicDataEditorPopover } from "@/components/slide-editor/infographics/InfographicEditorContent";
+import type { TemplateV2InfographicToolbarElement } from "@/components/slide-editor/layout/InfographicToolbarControls";
 import { TableInlineEditor } from "@/components/slide-editor/tables/TableInlineEditor";
 import { TemplateV2InlineEditor } from "@/components/slide-editor/text/TemplateV2InlineEditor";
+import { StaticHtmlTextLayer } from "@/components/slide-editor/text/StaticHtmlTextLayer";
 import {
   measureWordWrappedTextRunsHeight,
   type TemplateV2InlineEditBox,
@@ -101,6 +104,14 @@ import {
 } from "@/components/slide-editor/selection/layering";
 import { TemplateV2SelectionTransformers } from "@/components/slide-editor/selection/SelectionTransformers";
 import { useFontLoadState } from "@/components/slide-editor/surface/fontLoading";
+import {
+  MAX_ALIGNMENT_SCENE_PIXEL_RATIO,
+  MAX_BACKGROUND_SCENE_PIXEL_RATIO,
+  MIN_ALIGNMENT_SCENE_PIXEL_RATIO,
+  MIN_BACKGROUND_SCENE_PIXEL_RATIO,
+  calculateContentScenePixelRatio,
+  calculateScenePixelRatio,
+} from "@/components/slide-editor/surface/pixelRatio";
 import {
   createAlignmentSnapTargets,
   snapBoxToAlignmentGuides,
@@ -212,24 +223,11 @@ function canEditVectorPointsForSelection(ui: RawUi, selection: ElementSelection)
   return elements.length === 1;
 }
 
-const MIN_EDITING_SCENE_PIXEL_RATIO = 1;
-const MAX_EDITING_SCENE_PIXEL_RATIO = 2;
-
-function syncEditingScenePixelRatio(
+function syncScenePixelRatio(
   layer: Konva.Layer | null,
-  displayScale: number,
+  pixelRatio: number,
 ) {
   if (!layer || typeof window === "undefined") return;
-  const safeDisplayScale = Number.isFinite(displayScale)
-    ? Math.max(0, displayScale)
-    : 1;
-  const pixelRatio = Math.min(
-    MAX_EDITING_SCENE_PIXEL_RATIO,
-    Math.max(
-      MIN_EDITING_SCENE_PIXEL_RATIO,
-      (window.devicePixelRatio || 1) * safeDisplayScale,
-    ),
-  );
   const canvas = layer.getCanvas();
   if (Math.abs(canvas.getPixelRatio() - pixelRatio) < 0.01) return;
   canvas.setPixelRatio(pixelRatio);
@@ -287,8 +285,12 @@ type ElementAlignmentDragState = {
   targets: AlignmentSnapTargets;
 };
 
-const ALIGNMENT_GUIDE_COLOR = "#D946EF";
-const ALIGNMENT_GUIDE_SNAP_DISTANCE_PX = 5;
+const ALIGNMENT_GUIDE_COLOR = "#7A5AF8";
+const ALIGNMENT_GUIDE_HALO_COLOR = "rgba(255, 255, 255, 0.72)";
+const ALIGNMENT_GUIDE_SNAP_DISTANCE_PX = 8;
+const ALIGNMENT_GUIDE_STROKE_WIDTH_PX = 1.25;
+const ALIGNMENT_GUIDE_HALO_WIDTH_PX = 2.5;
+const ALIGNMENT_GUIDE_DASH_PX = [5, 5] as const;
 
 function renderedNodeBox(node: Konva.Node, fallback: Box): Box {
   const stage = node.getStage();
@@ -361,6 +363,8 @@ function TemplateV2KonvaSlideComponent({
   const alignmentGuideLayerRef = useRef<Konva.Layer | null>(null);
   const verticalAlignmentGuideRef = useRef<Konva.Line | null>(null);
   const horizontalAlignmentGuideRef = useRef<Konva.Line | null>(null);
+  const verticalAlignmentGuideHaloRef = useRef<Konva.Line | null>(null);
+  const horizontalAlignmentGuideHaloRef = useRef<Konva.Line | null>(null);
   const imageUploadInputRef = useRef<HTMLInputElement | null>(null);
   const pendingImageUploadRef = useRef<ElementSelection | null>(null);
   const undoStackRef = useRef<RawUi[]>([]);
@@ -382,7 +386,20 @@ function TemplateV2KonvaSlideComponent({
       horizontalAlignmentGuideRef.current,
       horizontal,
     );
-    if (verticalChanged || horizontalChanged) {
+    const verticalHaloChanged = syncAlignmentGuideNode(
+      verticalAlignmentGuideHaloRef.current,
+      vertical,
+    );
+    const horizontalHaloChanged = syncAlignmentGuideNode(
+      horizontalAlignmentGuideHaloRef.current,
+      horizontal,
+    );
+    if (
+      verticalChanged ||
+      horizontalChanged ||
+      verticalHaloChanged ||
+      horizontalHaloChanged
+    ) {
       alignmentGuideLayerRef.current?.batchDraw();
     }
   }, []);
@@ -432,6 +449,8 @@ function TemplateV2KonvaSlideComponent({
   const [iconEditorSelection, setIconEditorSelection] =
     useState<ElementSelection | null>(null);
   const [chartEditorSelection, setChartEditorSelection] =
+    useState<ElementSelection | null>(null);
+  const [infographicEditorSelection, setInfographicEditorSelection] =
     useState<ElementSelection | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [imageCropActive, setImageCropActive] = useState(false);
@@ -658,6 +677,7 @@ function TemplateV2KonvaSlideComponent({
     inlineEdit ||
     iconEditorSelection ||
     chartEditorSelection ||
+    infographicEditorSelection ||
     selectedTableCell ||
     editingTableCell,
   );
@@ -695,6 +715,24 @@ function TemplateV2KonvaSlideComponent({
   const chartEditorElement = chartEditorSelection
     ? getElementAtSelection(uiDraft, chartEditorSelection)
     : null;
+  const infographicEditorElement = infographicEditorSelection
+    ? getElementAtSelection(uiDraft, infographicEditorSelection)
+    : null;
+  const chartEditorBox = chartEditorSelection
+    ? absoluteBoxForSelection(uiDraft, chartEditorSelection)
+    : null;
+  const chartEditorBase =
+    chartEditorElement && readString(chartEditorElement.type) === "chart"
+      ? rawChartToEditorChart(chartEditorElement)
+      : null;
+  const chartEditorChart = chartEditorBase
+    ? {
+        ...chartEditorBase,
+        size: chartEditorBox
+          ? { width: chartEditorBox.width, height: chartEditorBox.height }
+          : chartEditorBase.size,
+      }
+    : null;
   const surfaceSlideIndex = useMemo(() => {
     const index = typeof renderIndex === "number" ? renderIndex : slideIndex;
     return Number.isFinite(index) ? index : null;
@@ -724,21 +762,47 @@ function TemplateV2KonvaSlideComponent({
   useEffect(() => {
     if (!isRenderActive || !fontLoadState.ready) return;
     contentLayerRef.current?.batchDraw();
-  }, [fontLoadState.ready, fontLoadState.revision, isRenderActive]);
+  }, [
+    fontLoadState.ready,
+    fontLoadState.revision,
+    isRenderActive,
+  ]);
 
   useEffect(() => {
-    if (!isEditMode || !isRenderActive || typeof window === "undefined") {
+    if (!isRenderActive || typeof window === "undefined") {
       return;
     }
     const refreshPixelRatio = () => {
-      syncEditingScenePixelRatio(backgroundLayerRef.current, displayScale);
-      syncEditingScenePixelRatio(contentLayerRef.current, displayScale);
-      syncEditingScenePixelRatio(alignmentGuideLayerRef.current, displayScale);
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const navigatorWithMemory = window.navigator as Navigator & {
+        deviceMemory?: number;
+      };
+      const contentPixelRatio = calculateContentScenePixelRatio({
+        devicePixelRatio,
+        displayScale,
+        deviceMemory: navigatorWithMemory.deviceMemory,
+        hardwareConcurrency: navigatorWithMemory.hardwareConcurrency,
+      });
+      const backgroundPixelRatio = calculateScenePixelRatio({
+        devicePixelRatio,
+        displayScale,
+        minimum: MIN_BACKGROUND_SCENE_PIXEL_RATIO,
+        maximum: MAX_BACKGROUND_SCENE_PIXEL_RATIO,
+      });
+      const alignmentPixelRatio = calculateScenePixelRatio({
+        devicePixelRatio,
+        displayScale,
+        minimum: MIN_ALIGNMENT_SCENE_PIXEL_RATIO,
+        maximum: MAX_ALIGNMENT_SCENE_PIXEL_RATIO,
+      });
+      syncScenePixelRatio(backgroundLayerRef.current, backgroundPixelRatio);
+      syncScenePixelRatio(contentLayerRef.current, contentPixelRatio);
+      syncScenePixelRatio(alignmentGuideLayerRef.current, alignmentPixelRatio);
     };
     refreshPixelRatio();
     window.addEventListener("resize", refreshPixelRatio);
     return () => window.removeEventListener("resize", refreshPixelRatio);
-  }, [displayScale, isEditMode, isRenderActive]);
+  }, [displayScale, isRenderActive]);
 
   useEffect(() => {
     selectedComponentIndexesRef.current = selectedComponentIndexes;
@@ -759,6 +823,7 @@ function TemplateV2KonvaSlideComponent({
     setVectorEditSelection(null);
     setIconEditorSelection(null);
     setChartEditorSelection(null);
+    setInfographicEditorSelection(null);
     undoStackRef.current = [];
     redoStackRef.current = [];
     publishHistoryAvailability();
@@ -911,6 +976,7 @@ function TemplateV2KonvaSlideComponent({
       setVectorEditSelection(null);
       setIconEditorSelection(null);
       setChartEditorSelection(null);
+      setInfographicEditorSelection(null);
       if (options?.clearActiveSurface) {
         clearSurface();
       }
@@ -1473,6 +1539,10 @@ function TemplateV2KonvaSlideComponent({
     setChartEditorSelection(null);
   }, []);
 
+  const closeInfographicEditor = useCallback(() => {
+    setInfographicEditorSelection(null);
+  }, []);
+
   const deleteComponentAtIndex = useCallback(
     (componentIndex: number) => {
       const components = [...readArray(currentUiRef.current.components)];
@@ -1809,6 +1879,13 @@ function TemplateV2KonvaSlideComponent({
           change_source: "layout_toolbar",
         }),
       });
+      if (readString(layoutToolbarTarget.element.type) === "infographic") {
+        updateElement(layoutToolbarTarget.selection, (current) => ({
+          ...current,
+          ...changes,
+        }));
+        return;
+      }
       if (
         layoutToolbarTarget.selection.componentIndex ===
         ROOT_ELEMENTS_COMPONENT_INDEX
@@ -1848,7 +1925,13 @@ function TemplateV2KonvaSlideComponent({
         ),
       );
     },
-    [commitUi, editorAnalyticsProps, layoutToolbarTarget, updateComponent],
+    [
+      commitUi,
+      editorAnalyticsProps,
+      layoutToolbarTarget,
+      updateComponent,
+      updateElement,
+    ],
   );
 
   const applyChartToolbarElementChange = useCallback(
@@ -2198,7 +2281,26 @@ function TemplateV2KonvaSlideComponent({
       clearInlineEdit();
       setVectorEditSelection(null);
       setIconEditorSelection(null);
+      setInfographicEditorSelection(null);
       setChartEditorSelection(elementSelection);
+    },
+    [activateSurface, clearInlineEdit],
+  );
+
+  const openInfographicEditor = useCallback(
+    (elementSelection: ElementSelection) => {
+      const element = getElementAtSelection(
+        currentUiRef.current,
+        elementSelection,
+      );
+      if (!element || readString(element.type) !== "infographic") return;
+      activateSurface(elementSelection);
+      setSelection(elementSelection);
+      clearInlineEdit();
+      setVectorEditSelection(null);
+      setIconEditorSelection(null);
+      setChartEditorSelection(null);
+      setInfographicEditorSelection(elementSelection);
     },
     [activateSurface, clearInlineEdit],
   );
@@ -2531,6 +2633,7 @@ function TemplateV2KonvaSlideComponent({
               parentBox={STAGE_BOX}
               layoutManaged={false}
               fontRevision={fontLoadState.revision}
+              renderTextAsHtml
             />
           ))}
           {components.map((component, componentIndex) => (
@@ -2561,6 +2664,7 @@ function TemplateV2KonvaSlideComponent({
               onElementDragMove={handleElementAlignmentDragMove}
               onElementDragComplete={handleElementAlignmentDragComplete}
               fontRevision={fontLoadState.revision}
+              renderTextAsHtml
             />
           ))}
           {isEditMode ? (
@@ -2588,15 +2692,44 @@ function TemplateV2KonvaSlideComponent({
         {isEditMode ? (
           <Layer ref={alignmentGuideLayerRef} listening={false}>
             <Line
+              ref={verticalAlignmentGuideHaloRef}
+              points={[0, 0, 0, 0]}
+              visible={false}
+              stroke={ALIGNMENT_GUIDE_HALO_COLOR}
+              strokeWidth={ALIGNMENT_GUIDE_HALO_WIDTH_PX / effectiveDisplayScale}
+              dash={ALIGNMENT_GUIDE_DASH_PX.map(
+                (value) => value / effectiveDisplayScale,
+              )}
+              lineCap="round"
+              listening={false}
+              perfectDrawEnabled={false}
+              shadowForStrokeEnabled={false}
+            />
+            <Line
+              ref={horizontalAlignmentGuideHaloRef}
+              points={[0, 0, 0, 0]}
+              visible={false}
+              stroke={ALIGNMENT_GUIDE_HALO_COLOR}
+              strokeWidth={ALIGNMENT_GUIDE_HALO_WIDTH_PX / effectiveDisplayScale}
+              dash={ALIGNMENT_GUIDE_DASH_PX.map(
+                (value) => value / effectiveDisplayScale,
+              )}
+              lineCap="round"
+              listening={false}
+              perfectDrawEnabled={false}
+              shadowForStrokeEnabled={false}
+            />
+            <Line
               ref={verticalAlignmentGuideRef}
               points={[0, 0, 0, 0]}
               visible={false}
               stroke={ALIGNMENT_GUIDE_COLOR}
-              strokeWidth={1.5 / effectiveDisplayScale}
-              dash={[
-                0.1 / effectiveDisplayScale,
-                5 / effectiveDisplayScale,
-              ]}
+              strokeWidth={
+                ALIGNMENT_GUIDE_STROKE_WIDTH_PX / effectiveDisplayScale
+              }
+              dash={ALIGNMENT_GUIDE_DASH_PX.map(
+                (value) => value / effectiveDisplayScale,
+              )}
               lineCap="round"
               listening={false}
               perfectDrawEnabled={false}
@@ -2607,11 +2740,12 @@ function TemplateV2KonvaSlideComponent({
               points={[0, 0, 0, 0]}
               visible={false}
               stroke={ALIGNMENT_GUIDE_COLOR}
-              strokeWidth={1.5 / effectiveDisplayScale}
-              dash={[
-                0.1 / effectiveDisplayScale,
-                5 / effectiveDisplayScale,
-              ]}
+              strokeWidth={
+                ALIGNMENT_GUIDE_STROKE_WIDTH_PX / effectiveDisplayScale
+              }
+              dash={ALIGNMENT_GUIDE_DASH_PX.map(
+                (value) => value / effectiveDisplayScale,
+              )}
               lineCap="round"
               listening={false}
               perfectDrawEnabled={false}
@@ -2620,6 +2754,14 @@ function TemplateV2KonvaSlideComponent({
           </Layer>
         ) : null}
         </Stage>
+      ) : null}
+      {isRenderActive ? (
+        <StaticHtmlTextLayer
+          editingKey={editingKey}
+          nodeRefs={nodeRefs}
+          revision={fontLoadState.revision}
+          ui={uiDraft}
+        />
       ) : null}
       <TemplateV2SelectionToolbar
         anchorBox={floatingToolbarAnchorBox}
@@ -2642,6 +2784,14 @@ function TemplateV2KonvaSlideComponent({
         onChartEdit={() => {
           if (chartToolbarTarget) {
             openChartEditor(chartToolbarTarget.selection);
+          }
+        }}
+        onInfographicEdit={() => {
+          if (
+            layoutToolbarTarget &&
+            readString(layoutToolbarTarget.element.type) === "infographic"
+          ) {
+            openInfographicEditor(layoutToolbarTarget.selection);
           }
         }}
         onDeleteSelection={deleteSelection}
@@ -2733,11 +2883,10 @@ function TemplateV2KonvaSlideComponent({
       ) : null}
       {isEditMode &&
         chartEditorSelection &&
-        chartEditorElement &&
-        readString(chartEditorElement.type) === "chart" ? (
+        chartEditorChart ? (
         <ChartDataEditorPopover
           key={keyForSelection(chartEditorSelection)}
-          chart={rawChartToEditorChart(chartEditorElement)}
+          chart={chartEditorChart}
           chartPath={keyForSelection(chartEditorSelection)}
           onChange={(chart) =>
             updateElement(chartEditorSelection, (element) =>
@@ -2748,6 +2897,24 @@ function TemplateV2KonvaSlideComponent({
             )
           }
           onClose={closeChartEditor}
+        />
+      ) : null}
+      {isEditMode &&
+        infographicEditorSelection &&
+        infographicEditorElement &&
+        readString(infographicEditorElement.type) === "infographic" ? (
+        <InfographicDataEditorPopover
+          key={keyForSelection(infographicEditorSelection)}
+          element={
+            infographicEditorElement as TemplateV2InfographicToolbarElement
+          }
+          onChange={(nextElement) =>
+            updateElement(
+              infographicEditorSelection,
+              () => nextElement as RawElement,
+            )
+          }
+          onClose={closeInfographicEditor}
         />
       ) : null}
       {isEditMode &&

@@ -4,13 +4,15 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  Ellipsis,
   FileText,
+  History,
   Image as ImageIcon,
   Link as LinkIcon,
   Loader2,
   Plus,
-  RefreshCw,
   Square,
+  Trash2,
   X,
   UserRound,
 } from "lucide-react";
@@ -54,6 +56,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { LLM_PROVIDERS } from "@/utils/providerConstants";
 import type { AppDispatch, RootState } from "@/store/store";
 import {
@@ -77,6 +85,7 @@ import {
 import { presentationChatAdapter } from "./chat/chat-adapter";
 import type {
   AssistantActivity,
+  ChatContextTag,
   AssistantPromptMetrics,
   ChatDocumentAttachment,
   ChatEditPreview,
@@ -128,6 +137,344 @@ export type { ChatApiAdapter } from "./chat/chat-types";
 
 const MAX_SELECTED_HTML_CONTEXT_CHARS = 3500;
 
+type DisplayContextTag = ChatContextTag & {
+  onRemove?: () => void;
+};
+
+type ChatConversationListItem = ChatConversationSummary & {
+  title?: string;
+};
+
+const describeHtmlSelection = (selection: ChatHtmlSelection) => {
+  const tag = selection.elementTag?.toLowerCase();
+  const elementLabel =
+    tag && /^h[1-6]$/.test(tag)
+      ? "Heading"
+      : tag === "p"
+        ? "Paragraph"
+        : tag === "img"
+          ? "Image"
+          : tag
+            ? tag.toUpperCase()
+            : "Element";
+  const selectedText = selection.selectedText?.replace(/\s+/g, " ").trim();
+  return selectedText ? `${elementLabel} · ${selectedText}` : elementLabel;
+};
+
+const describeTemplateV2Target = (
+  target: NonNullable<ChatProps["selectedTemplateV2Target"]>,
+) =>
+  target.kind === "multi-component"
+    ? target.targetLabel || `${target.components.length} components selected`
+    : target.targetLabel ||
+      target.componentLabel ||
+      target.elementName ||
+      target.elementType ||
+      target.componentId ||
+      target.kind;
+
+const buildMessageContextTags = ({
+  currentSlide,
+  htmlSelection,
+  templateTarget,
+}: {
+  currentSlide?: number;
+  htmlSelection: ChatHtmlSelection | null;
+  templateTarget: ChatProps["selectedTemplateV2Target"];
+}): ChatContextTag[] => {
+  const tags: ChatContextTag[] = [];
+  if (typeof currentSlide === "number") {
+    tags.push({
+      id: "slide",
+      label: `Slide ${currentSlide + 1}`,
+      title: `Slide ${currentSlide + 1}`,
+    });
+  }
+  if (templateTarget) {
+    const label = describeTemplateV2Target(templateTarget);
+    tags.push({ id: "target", label, title: label });
+  } else if (htmlSelection) {
+    const label = describeHtmlSelection(htmlSelection);
+    tags.push({
+      id: "target",
+      label,
+      title: `${label}. The selected element HTML is sent with the prompt.`,
+    });
+  }
+  return tags;
+};
+
+const ContextTags = ({
+  tags,
+  ariaLabel = "Current editor selection",
+}: {
+  tags: DisplayContextTag[];
+  ariaLabel?: string;
+}) => {
+  if (tags.length === 0) return null;
+
+  return (
+    <div
+      className="mb-2 flex max-w-full items-center gap-1.5 overflow-hidden"
+      aria-label={ariaLabel}
+    >
+      {tags.map((tag) => (
+        <span
+          key={tag.id}
+          className={cn(
+            "inline-flex h-7 min-w-0 items-center gap-1 rounded-full border pl-2.5 font-manrope text-[11px] font-semibold text-[#6941C6]",
+            tag.id === "slide"
+              ? "max-w-[86px] shrink-0 border-[#E8E3FF] bg-[#F8F6FF] shadow-[0_1px_2px_rgba(105,65,198,0.06)]"
+              : "max-w-[138px] border-[#DDD6FE] bg-[#F5F3FF] shadow-[0_1px_2px_rgba(105,65,198,0.08)]",
+            tag.onRemove ? "pr-1" : "pr-2.5",
+          )}
+          title={tag.title || tag.label}
+        >
+          <span className="truncate">{tag.label}</span>
+          {tag.onRemove ? (
+            <button
+              type="button"
+              onClick={tag.onRemove}
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[#8069C5] transition-colors hover:bg-[#E4DFFF] hover:text-[#5235A8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/40"
+              aria-label={`Remove ${tag.label} from context`}
+              title={`Remove ${tag.label} from context`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          ) : null}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+const historyMatchesVariant = (
+  rows: ChatHistoryMessage[],
+  variant: ChatProps["variant"],
+) => {
+  const hasOutlineContext = rows.some(
+    (message) =>
+      message.role === "user" &&
+      typeof message.content === "string" &&
+      message.content.toLowerCase().includes("editing the outline draft"),
+  );
+  return variant === "outline" ? hasOutlineContext : !hasOutlineContext;
+};
+
+const mapHistoryMessages = (rows: ChatHistoryMessage[]): ChatMessage[] =>
+  rows.map((message) => ({
+    id: createMessageId(),
+    role: message.role === "assistant" ? "assistant" : "user",
+    content:
+      message.role === "user"
+        ? stripBackendContextFromUserMessage(message.content)
+        : message.content,
+  }));
+
+const getHistoryConversationTitle = (rows: ChatHistoryMessage[]) => {
+  const firstUserMessage = rows.find((message) => message.role === "user");
+  const title = stripBackendContextFromUserMessage(firstUserMessage?.content ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!title) return undefined;
+  return title.length > 80 ? `${title.slice(0, 80).trimEnd()}…` : title;
+};
+
+const CONVERSATION_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+const getConversationTitle = (conversation: ChatConversationListItem) => {
+  if (conversation.title?.trim()) return conversation.title;
+  const preview = stripBackendContextFromUserMessage(
+    conversation.last_message_preview ?? "",
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!preview) return "Untitled conversation";
+  return preview.length > 54 ? `${preview.slice(0, 54).trimEnd()}…` : preview;
+};
+
+const formatConversationDate = (value?: string | null) => {
+  if (!value) return "";
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return "";
+  return CONVERSATION_DATE_FORMATTER.format(timestamp);
+};
+
+const ConversationControls = ({
+  conversations,
+  activeConversationId,
+  isOpen,
+  isBusy,
+  deletingConversationId,
+  showNewChatLabel = false,
+  onOpenChange,
+  onSelect,
+  onDelete,
+  onNewChat,
+}: {
+  conversations: ChatConversationListItem[];
+  activeConversationId: string | null;
+  isOpen: boolean;
+  isBusy: boolean;
+  deletingConversationId: string | null;
+  showNewChatLabel?: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (conversationId: string) => void;
+  onDelete: (conversationId: string) => void;
+  onNewChat: () => void;
+}) => (
+  <div className="flex items-center gap-1.5">
+    <Popover open={isOpen} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={isBusy}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#E5E5E8] bg-white px-2.5 font-manrope text-xs font-medium text-[#55555F] shadow-sm transition-colors hover:border-[#D7D7DC] hover:bg-[#F7F7F8] hover:text-[#252529] disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Open saved chats"
+          title="Saved chats"
+        >
+          <History className="h-3.5 w-3.5" />
+          Chats
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="end"
+        sideOffset={8}
+        className="z-[130] w-[280px] rounded-[12px] border border-[#EDEEEF] bg-white p-2 shadow-[0_12px_32px_rgba(16,24,40,0.14)]"
+      >
+        <div className="flex items-center justify-between px-2 pb-2 pt-1">
+          <div>
+            <p className="font-manrope text-xs font-semibold text-[#252529]">
+              Conversations
+            </p>
+            <p className="mt-0.5 font-manrope text-[10px] text-[#98A2B3]">
+              {conversations.length} saved
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onNewChat}
+            disabled={isBusy}
+            className="inline-flex h-7 items-center gap-1 rounded-full bg-[#F4F3FF] px-2.5 font-manrope text-[11px] font-semibold text-[#6941C6] transition-colors hover:bg-[#EBE9FE] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus className="h-3 w-3" />
+            New
+          </button>
+        </div>
+        <div className="max-h-[320px] space-y-1 overflow-y-auto overscroll-contain pr-0.5 [scrollbar-color:#D7D9DF_transparent] [scrollbar-width:thin]">
+          {conversations.length === 0 ? (
+            <div className="rounded-[8px] bg-[#FAFAFA] px-3 py-5 text-center font-manrope text-[11px] leading-4 text-[#98A2B3]">
+              No saved conversations yet.
+              <br />
+              Start a new chat to create one.
+            </div>
+          ) : (
+            conversations.map((conversation) => {
+              const isActive =
+                conversation.conversation_id === activeConversationId;
+              const isDeleting =
+                conversation.conversation_id === deletingConversationId;
+              const updatedAt = formatConversationDate(conversation.updated_at);
+              return (
+                <div
+                  key={conversation.conversation_id}
+                  className={cn(
+                    "group flex items-center rounded-[8px] border transition-colors",
+                    isActive
+                      ? "border-[#DDD6FE] bg-[#F5F3FF]"
+                      : "border-transparent hover:bg-[#F8F8FA]",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelect(conversation.conversation_id)}
+                    disabled={isBusy || isDeleting}
+                    className="min-w-0 flex-1 px-2.5 py-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                    title={conversation.conversation_id}
+                    aria-current={isActive ? "true" : undefined}
+                  >
+                    <span
+                      className={cn(
+                        "block truncate font-manrope text-[11px] font-semibold leading-4",
+                        isActive ? "text-[#6941C6]" : "text-[#344054]",
+                      )}
+                    >
+                      {getConversationTitle(conversation)}
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] leading-3 text-[#98A2B3]">
+                      <span className="truncate">
+                        ID {conversation.conversation_id.slice(0, 8)}…
+                      </span>
+                      {updatedAt ? (
+                        <>
+                          <span aria-hidden="true">•</span>
+                          <span className="shrink-0 font-manrope">{updatedAt}</span>
+                        </>
+                      ) : null}
+                    </span>
+                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        disabled={isBusy || isDeleting}
+                        onClick={(event) => event.stopPropagation()}
+                        className="mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#98A2B3] opacity-70 transition-colors hover:bg-white hover:text-[#344054] group-hover:opacity-100 data-[state=open]:bg-white data-[state=open]:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label={`Conversation options for ${getConversationTitle(conversation)}`}
+                        title="Conversation options"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Ellipsis className="h-4 w-4" />
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      side="left"
+                      align="start"
+                      sideOffset={6}
+                      className="z-[140] min-w-[132px] rounded-[8px] border border-[#EDEEEF] bg-white p-1 shadow-[0_8px_24px_rgba(16,24,40,0.14)]"
+                    >
+                      <DropdownMenuItem
+                        onSelect={() => onDelete(conversation.conversation_id)}
+                        className="cursor-pointer rounded-[6px] px-2 py-2 font-manrope text-xs font-medium text-[#D92D20] focus:bg-[#FEF3F2] focus:text-[#B42318]"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+    <button
+      type="button"
+      onClick={onNewChat}
+      disabled={isBusy}
+      className={cn(
+        "inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#E5E5E8] bg-white font-manrope text-xs font-medium text-[#55555F] shadow-sm transition-colors hover:border-[#D7D7DC] hover:bg-[#F7F7F8] hover:text-[#252529] disabled:cursor-not-allowed disabled:opacity-50",
+        showNewChatLabel ? "px-3" : "w-8",
+      )}
+      aria-label="Start a new chat"
+      title="Start a new chat"
+    >
+      <Plus className="h-3.5 w-3.5" />
+      {showNewChatLabel ? "New chat" : null}
+    </button>
+  </div>
+);
+
 const Chat = ({
   presentationId,
   presentationType = "standard",
@@ -165,6 +512,13 @@ const Chat = ({
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<
+    ChatConversationListItem[]
+  >([]);
+  const [isConversationListOpen, setIsConversationListOpen] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState<
+    string | null
+  >(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isFollowAgentEnabled, setIsFollowAgentEnabled] = useState(true);
@@ -248,6 +602,9 @@ const Chat = ({
     setMessages([]);
     setInput("");
     setConversationId(null);
+    setConversations([]);
+    setIsConversationListOpen(false);
+    setDeletingConversationId(null);
     setIsSending(false);
     setHasChatMutationStarted(false);
     setActiveAssistantMessageId(null);
@@ -279,20 +636,53 @@ const Chat = ({
           presentationType,
         );
         const storedId = readStoredConversationId(sKey);
-        let conversations: ChatConversationSummary[] | null = null;
+        let listedConversations: ChatConversationListItem[] = [];
         let conversationListError: unknown = null;
+        let historyError: unknown = null;
+        const historyByConversationId = new Map<
+          string,
+          ChatHistoryMessage[]
+        >();
 
         try {
-          const listedConversations =
-            await chatAdapter.listConversations(activeResourceId);
-          conversations = Array.isArray(listedConversations)
-            ? listedConversations
-            : [];
+          const list =
+            await chatAdapter.listConversations(activeResourceId, presentationType);
+          const summaries = Array.isArray(list) ? list : [];
+          const enrichedConversations = await Promise.all(
+            summaries.map(async (conversation) => {
+              try {
+                const data = await chatAdapter.getHistory(
+                  activeResourceId,
+                  conversation.conversation_id,
+                  presentationType,
+                );
+                const rows = Array.isArray(data?.messages) ? data.messages : [];
+                historyByConversationId.set(conversation.conversation_id, rows);
+                if (rows.length > 0 && !historyMatchesVariant(rows, variant)) {
+                  return null;
+                }
+                return {
+                  ...conversation,
+                  title: getHistoryConversationTitle(rows),
+                };
+              } catch (error) {
+                historyError = error;
+                return conversation;
+              }
+            }),
+          );
+          listedConversations = enrichedConversations.filter(
+            (
+              conversation,
+            ): conversation is ChatConversationListItem =>
+              conversation !== null,
+          );
+          if (!cancelled) setConversations(listedConversations);
         } catch (error) {
           conversationListError = error;
         }
 
-        const listedIds = (conversations ?? [])
+        const listedIds = listedConversations
           .map((conversation) => conversation.conversation_id)
           .filter((id): id is string => typeof id === "string" && id.length > 0);
         const candidateIds = Array.from(
@@ -307,22 +697,25 @@ const Chat = ({
           return;
         }
 
-        let historyError: unknown = null;
         let loadedHistory:
           | { conversationId: string; messages: ChatHistoryMessage[] }
           | null = null;
 
         for (const candidateId of candidateIds) {
           try {
-            const data = await chatAdapter.getHistory(
-              activeResourceId,
-              candidateId
-            );
+            let rows = historyByConversationId.get(candidateId);
+            if (!rows) {
+              const data = await chatAdapter.getHistory(
+                activeResourceId,
+                candidateId,
+                presentationType,
+              );
+              rows = Array.isArray(data?.messages) ? data.messages : [];
+            }
             if (cancelled) {
               return;
             }
-            const rows = Array.isArray(data?.messages) ? data.messages : [];
-            if (rows.length > 0) {
+            if (rows.length > 0 && historyMatchesVariant(rows, variant)) {
               loadedHistory = {
                 conversationId: candidateId,
                 messages: rows,
@@ -347,21 +740,28 @@ const Chat = ({
         }
         storeConversationId(sKey, loadedHistory.conversationId);
         setConversationId(loadedHistory.conversationId);
-        setMessages(
-          loadedHistory.messages.map((m) => ({
-            id: createMessageId(),
-            role:
-              m.role === "assistant"
-                ? "assistant"
-                : m.role === "user"
-                  ? "user"
-                  : "user",
-            content:
-              m.role === "user"
-                ? stripBackendContextFromUserMessage(m.content)
-                : m.content,
-          }))
-        );
+        setMessages(mapHistoryMessages(loadedHistory.messages));
+        setConversations((previous) => {
+          if (
+            previous.some(
+              (conversation) =>
+                conversation.conversation_id === loadedHistory.conversationId,
+            )
+          ) {
+            return previous;
+          }
+          return [
+            {
+              conversation_id: loadedHistory.conversationId,
+              last_message_preview:
+                loadedHistory.messages.find((message) => message.role === "user")
+                  ?.content ?? null,
+              updated_at: null,
+              title: getHistoryConversationTitle(loadedHistory.messages),
+            },
+            ...previous,
+          ];
+        });
       } catch (error) {
         console.error("Failed to load chat history:", error);
         const detail =
@@ -384,17 +784,16 @@ const Chat = ({
     chatAdapter,
     conversationStorageScope,
     presentationType,
+    variant,
   ]);
 
   useEffect(() => {
     const activePreview = activeEditPreviewRef.current;
     if (!activePreview?.mutationObserved) return;
-    const modifiedSlides = activePreview.mutatedSlideIndices
-      .map((slideIndex) =>
-        clonePreviewSlide(getPresentationSlide(presentationData, slideIndex)),
-      )
-      .filter(Boolean);
-    if (modifiedSlides.length === 0) return;
+    const modifiedSlides = activePreview.mutatedSlideIndices.map((slideIndex) =>
+      clonePreviewSlide(getPresentationSlide(presentationData, slideIndex)),
+    );
+    if (!modifiedSlides.some(Boolean)) return;
 
     setMessages((previous) =>
       previous.map((message) =>
@@ -402,12 +801,9 @@ const Chat = ({
           ? {
             ...message,
             editPreview: {
-              originalSlides: activePreview.mutatedSlideIndices
-                .map(
-                  (slideIndex) =>
-                    activePreview.originalSlidesByIndex[slideIndex],
-                )
-                .filter(Boolean),
+              originalSlides: activePreview.mutatedSlideIndices.map(
+                (slideIndex) => activePreview.originalSlidesByIndex[slideIndex],
+              ),
               modifiedSlides,
               slideIndices: activePreview.mutatedSlideIndices,
               changeCount: Math.max(1, activePreview.changeCount),
@@ -699,21 +1095,40 @@ const Chat = ({
     return [...contextLines, `User message: ${message}`].join("\n");
   };
 
-  const clearChatUi = () => {
+  const clearConversationComposer = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setMessages([]);
     setInput("");
     setPastedImages([]);
     setAttachedDocuments([]);
     setChatLinks([]);
+    setIsUploadingPastedImage(false);
+    setIsDraggingAttachment(false);
+    setIsQuickPromptsOpen(false);
     setConversationId(null);
     setHasChatMutationStarted(false);
+    setActiveAssistantMessageId(null);
     setErrorMessage(null);
     setExpandedActivityByMessage({});
     setHiddenOverlaySlideReference(null);
     setExpandedEditPreviewByMessage({});
     setSelectedEditVersionByMessage({});
     setApplyingEditPreviewMessageId(null);
+    promptMetricsRef.current = null;
+    activeEditPreviewRef.current = null;
     dispatch(clearChatHtmlSelection());
+  };
+
+  const startNewConversation = () => {
+    trackEvent(MixpanelEvent.AI_Assistant_Chat_Reset, {
+      ...baseAnalyticsProps(),
+      delete_saved_conversation: false,
+      previous_message_count: messages.length,
+      had_active_conversation: Boolean(conversationId),
+    });
+    clearConversationComposer();
+    setIsConversationListOpen(false);
     if (activeResourceId) {
       removeStoredConversationId(
         conversationStorageKey(
@@ -726,43 +1141,138 @@ const Chat = ({
     inputRef.current?.focus();
   };
 
-  const resetChat = async () => {
-    const conversationIdToDelete = conversationId;
-    trackEvent(MixpanelEvent.AI_Assistant_Chat_Reset, {
-      ...baseAnalyticsProps(),
-      delete_saved_conversation: true,
-    });
-    clearChatUi();
-
-    if (activeResourceId) {
-      const conversationIdsToDelete = new Set<string>();
-      if (conversationIdToDelete) {
-        conversationIdsToDelete.add(conversationIdToDelete);
-      }
-
-      try {
-        const savedConversations =
-          await chatAdapter.listConversations(activeResourceId);
-        savedConversations.forEach((savedConversation) => {
-          conversationIdsToDelete.add(savedConversation.conversation_id);
-        });
-        await Promise.all(
-          Array.from(conversationIdsToDelete, (savedConversationId) =>
-            chatAdapter.deleteConversation(
-              activeResourceId,
-              savedConversationId
-            )
-          )
-        );
-      } catch (error) {
-        console.error("Failed to delete chat conversations:", error);
-        const detail =
-          error instanceof Error
-            ? error.message
-            : "Could not delete the saved chat conversations";
-        notify.error("Could not delete chat", detail);
-      }
+  const loadConversation = async (nextConversationId: string) => {
+    if (
+      !activeResourceId ||
+      isSending ||
+      isHistoryLoading ||
+      nextConversationId === conversationId
+    ) {
+      setIsConversationListOpen(false);
+      return;
     }
+
+    setIsHistoryLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await chatAdapter.getHistory(
+        activeResourceId,
+        nextConversationId,
+        presentationType,
+      );
+      const rows = Array.isArray(data?.messages) ? data.messages : [];
+      if (rows.length > 0 && !historyMatchesVariant(rows, variant)) {
+        notify.error(
+          "Could not open chat",
+          variant === "outline"
+            ? "This conversation belongs to the presentation editor."
+            : "This conversation belongs to the outline editor.",
+        );
+        return;
+      }
+
+      clearConversationComposer();
+      setConversationId(nextConversationId);
+      setMessages(mapHistoryMessages(rows));
+      setConversations((previous) =>
+        previous.map((conversation) =>
+          conversation.conversation_id === nextConversationId
+            ? {
+                ...conversation,
+                title:
+                  conversation.title || getHistoryConversationTitle(rows),
+              }
+            : conversation,
+        ),
+      );
+      storeConversationId(
+        conversationStorageKey(
+          conversationStorageScope,
+          activeResourceId,
+          presentationType,
+        ),
+        nextConversationId,
+      );
+      setIsConversationListOpen(false);
+    } catch (error) {
+      notify.error(
+        "Could not open chat",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  const deleteConversation = async (conversationIdToDelete: string) => {
+    if (!activeResourceId || deletingConversationId) return;
+
+    setDeletingConversationId(conversationIdToDelete);
+    try {
+      await chatAdapter.deleteConversation(
+        activeResourceId,
+        conversationIdToDelete,
+        presentationType,
+      );
+      setConversations((previous) =>
+        previous.filter(
+          (conversation) =>
+            conversation.conversation_id !== conversationIdToDelete,
+        ),
+      );
+      if (conversationIdToDelete === conversationId) {
+        startNewConversation();
+      }
+      notify.success("Conversation deleted");
+    } catch (error) {
+      notify.error(
+        "Could not delete chat",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setDeletingConversationId(null);
+    }
+  };
+
+  const rememberConversation = (
+    nextConversationId: string,
+    preview: string,
+  ) => {
+    setConversationId(nextConversationId);
+    if (activeResourceId) {
+      storeConversationId(
+        conversationStorageKey(
+          conversationStorageScope,
+          activeResourceId,
+          presentationType,
+        ),
+        nextConversationId,
+      );
+    }
+    setConversations((previous) => {
+      const existing = previous.find(
+        (conversation) =>
+          conversation.conversation_id === nextConversationId,
+      );
+      const normalizedPreview = preview.replace(/\s+/g, " ").trim();
+      return [
+        {
+          conversation_id: nextConversationId,
+          updated_at: new Date().toISOString(),
+          last_message_preview:
+            existing?.last_message_preview || preview || null,
+          title:
+            existing?.title ||
+            (normalizedPreview.length > 80
+              ? `${normalizedPreview.slice(0, 80).trimEnd()}…`
+              : normalizedPreview || undefined),
+        },
+        ...previous.filter(
+          (conversation) =>
+            conversation.conversation_id !== nextConversationId,
+        ),
+      ];
+    });
   };
 
   const applyEditPreviewVersion = async (
@@ -1154,6 +1664,11 @@ const Chat = ({
       role: "user",
       content: outboundMessage,
       layoutPreview: options.layoutPreview,
+      contextTags: buildMessageContextTags({
+        currentSlide,
+        htmlSelection: selectionContext,
+        templateTarget: selectedTemplateV2Target,
+      }),
     };
 
     const assistantMessageId = createMessageId();
@@ -1297,12 +1812,10 @@ const Chat = ({
                     ? {
                       ...message,
                       editPreview: {
-                        originalSlides: activePreview.mutatedSlideIndices
-                          .map(
-                            (slideIndex) =>
-                              activePreview.originalSlidesByIndex[slideIndex],
-                          )
-                          .filter(Boolean),
+                        originalSlides: activePreview.mutatedSlideIndices.map(
+                          (slideIndex) =>
+                            activePreview.originalSlidesByIndex[slideIndex],
+                        ),
                         slideIndices: activePreview.mutatedSlideIndices,
                         changeCount: activePreview.changeCount,
                       },
@@ -1353,23 +1866,13 @@ const Chat = ({
         delete next[assistantMessageId];
         return next;
       });
-      setConversationId((previous) => {
-        const next =
-          typeof response.conversation_id === "string"
-            ? response.conversation_id
-            : previous;
-        if (next && activeResourceId) {
-          storeConversationId(
-            conversationStorageKey(
-              conversationStorageScope,
-              activeResourceId,
-              presentationType,
-            ),
-            next
-          );
-        }
-        return next;
-      });
+      const nextConversationId =
+        typeof response.conversation_id === "string"
+          ? response.conversation_id
+          : conversationId;
+      if (nextConversationId) {
+        rememberConversation(nextConversationId, outboundMessage);
+      }
 
       await refreshPresentationIfNeeded(
         Array.isArray(response.tool_calls) ? response.tool_calls : []
@@ -1710,25 +2213,37 @@ const Chat = ({
       ? `Slide ${currentSlide + 1}`
       : "";
   const chatTargetReference = selectedTemplateV2Target
-    ? selectedTemplateV2Target.kind === "multi-component"
-      ? selectedTemplateV2Target.targetLabel ||
-      `${selectedTemplateV2Target.components.length} components selected`
-      : selectedTemplateV2Target.targetLabel ||
-      selectedTemplateV2Target.componentLabel ||
-      selectedTemplateV2Target.elementName ||
-      selectedTemplateV2Target.elementType ||
-      selectedTemplateV2Target.componentId ||
-      selectedTemplateV2Target.kind
+    ? describeTemplateV2Target(selectedTemplateV2Target)
     : chatHtmlSelection
-      ? `Slide ${chatHtmlSelection.slideNumber}: ${
-          chatHtmlSelection.selectedText ||
-          chatHtmlSelection.elementTag ||
-          "Selected element"
-        }`
+      ? describeHtmlSelection(chatHtmlSelection)
       : "";
   const clearChatTargetReference = chatHtmlSelection
     ? () => dispatch(clearChatHtmlSelection())
     : onClearChatTargetReference;
+  const composerContextTags: DisplayContextTag[] = [
+    ...(chatSlideReference
+      ? [
+          {
+            id: "slide",
+            label: chatSlideReference,
+            title: chatSlideReference,
+            onRemove: onClearChatSlideReference,
+          },
+        ]
+      : []),
+    ...(chatTargetReference
+      ? [
+          {
+            id: "target",
+            label: chatTargetReference,
+            title: chatHtmlSelection
+              ? `${chatTargetReference}. The selected element HTML is sent with the prompt.`
+              : chatTargetReference,
+            onRemove: clearChatTargetReference,
+          },
+        ]
+      : []),
+  ];
 
   if (usesEditorLayout) {
     const previewFonts = getPresentationFonts(presentationData);
@@ -1746,17 +2261,22 @@ const Chat = ({
         />
 
         <div className="sticky top-0 z-20 flex shrink-0 items-center justify-end border-b border-[#F1F1F3] bg-white/90 px-3 py-2 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={() => void resetChat()}
-            disabled={isSending || isHistoryLoading}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#E5E5E8] bg-white px-3 font-manrope text-xs font-medium text-[#55555F] shadow-sm transition-colors hover:border-[#D7D7DC] hover:bg-[#F7F7F8] hover:text-[#252529] disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Start a new chat"
-            title="Start a new chat"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New chat
-          </button>
+          <ConversationControls
+            conversations={conversations}
+            activeConversationId={conversationId}
+            isOpen={isConversationListOpen}
+            isBusy={isSending || isHistoryLoading}
+            deletingConversationId={deletingConversationId}
+            showNewChatLabel
+            onOpenChange={setIsConversationListOpen}
+            onSelect={(nextConversationId) =>
+              void loadConversation(nextConversationId)
+            }
+            onDelete={(conversationIdToDelete) =>
+              void deleteConversation(conversationIdToDelete)
+            }
+            onNewChat={startNewConversation}
+          />
         </div>
 
         <div className="relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-color:#D7D9DF_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#D7D9DF] [&::-webkit-scrollbar-track]:bg-transparent">
@@ -1783,6 +2303,12 @@ const Chat = ({
                             />
                           </div>
                         )}
+                        {message.contextTags?.length ? (
+                          <ContextTags
+                            tags={message.contextTags}
+                            ariaLabel="Context sent with prompt"
+                          />
+                        ) : null}
                         <div className="flex min-h-[30px] w-fit max-w-full items-center gap-2.5 rounded-[8px] bg-[#F3F4F7] px-3 py-1.5 font-manrope text-[13px] font-medium leading-[normal] text-[#333333] [overflow-wrap:anywhere] [word-break:break-word]">
                           <p className="min-w-0 whitespace-pre-wrap">
                             {stripBackendContextFromUserMessage(message.content)}
@@ -2007,51 +2533,7 @@ const Chat = ({
               tabIndex={-1}
             />
 
-            {(chatSlideReference || chatTargetReference) && (
-              <div
-                className="mb-2 flex max-w-full items-center gap-1.5 overflow-hidden"
-                aria-label="Current editor selection"
-              >
-                {chatSlideReference && (
-                  <span
-                    className="inline-flex h-7 max-w-[86px] shrink-0 items-center gap-1 rounded-full border border-[#E8E3FF] bg-[#F8F6FF] pl-2.5 pr-1 font-manrope text-[11px] font-semibold text-[#6941C6] shadow-[0_1px_2px_rgba(105,65,198,0.06)]"
-                    title={chatSlideReference}
-                  >
-                    <span className="truncate">{chatSlideReference}</span>
-                    {onClearChatSlideReference && (
-                      <button
-                        type="button"
-                        onClick={onClearChatSlideReference}
-                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[#8069C5] transition-colors hover:bg-[#E4DFFF] hover:text-[#5235A8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/40"
-                        aria-label={`Remove ${chatSlideReference} from context`}
-                        title={`Remove ${chatSlideReference} from context`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </span>
-                )}
-                {chatTargetReference && (
-                  <span
-                    className="inline-flex h-7 min-w-0 max-w-[138px] items-center gap-1 rounded-full border border-[#DDD6FE] bg-[#F5F3FF] pl-2.5 pr-1 font-manrope text-[11px] font-semibold text-[#6941C6] shadow-[0_1px_2px_rgba(105,65,198,0.08)]"
-                    title={chatTargetReference}
-                  >
-                    <span className="truncate">{chatTargetReference}</span>
-                    {clearChatTargetReference && (
-                      <button
-                        type="button"
-                        onClick={clearChatTargetReference}
-                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[#8069C5] transition-colors hover:bg-[#E4DFFF] hover:text-[#5235A8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/40"
-                        aria-label="Remove selected element from context"
-                        title="Remove selected element from context"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </span>
-                )}
-              </div>
-            )}
+            <ContextTags tags={composerContextTags} />
 
             {(pastedImages.length > 0 ||
               attachedDocuments.length > 0 ||
@@ -2342,17 +2824,22 @@ const Chat = ({
               </span>
             )}
           </div>
-          {!isOutlineVariant && messages.length > 0 && (
-            <button
-              type="button"
-              onClick={() => void resetChat()}
-              disabled={isSending || isHistoryLoading}
-              className="rounded-full p-1 text-[#8C8C8C] transition-colors hover:bg-[#F7F7F7] hover:text-[#191919] disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Reset chat"
-              title="Reset chat"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </button>
+          {!isOutlineVariant && (
+            <ConversationControls
+              conversations={conversations}
+              activeConversationId={conversationId}
+              isOpen={isConversationListOpen}
+              isBusy={isSending || isHistoryLoading}
+              deletingConversationId={deletingConversationId}
+              onOpenChange={setIsConversationListOpen}
+              onSelect={(nextConversationId) =>
+                void loadConversation(nextConversationId)
+              }
+              onDelete={(conversationIdToDelete) =>
+                void deleteConversation(conversationIdToDelete)
+              }
+              onNewChat={startNewConversation}
+            />
           )}
         </div>
       )}
@@ -2491,6 +2978,12 @@ const Chat = ({
                         </p>
                       </div>
                     )}
+                    {message.contextTags?.length ? (
+                      <ContextTags
+                        tags={message.contextTags}
+                        ariaLabel="Context sent with prompt"
+                      />
+                    ) : null}
                     <div className="w-fit max-w-full rounded-[18px] bg-[#7C3AED] px-4 py-3 text-[13px] font-medium leading-5 text-white shadow-sm [overflow-wrap:anywhere] [word-break:break-word]">
                       <p className="whitespace-pre-wrap">
                         {stripBackendContextFromUserMessage(message.content)}
@@ -2608,51 +3101,7 @@ const Chat = ({
           aria-hidden="true"
           tabIndex={-1}
         />
-        {(chatSlideReference || chatTargetReference) && (
-          <div
-            className="mb-2 flex max-w-full items-center gap-1.5 overflow-hidden"
-            aria-label="Current editor selection"
-          >
-            {chatSlideReference && (
-              <span
-                className="inline-flex h-7 max-w-[86px] shrink-0 items-center gap-1 rounded-full border border-[#E8E3FF] bg-[#F8F6FF] pl-2.5 pr-1 font-manrope text-[11px] font-semibold text-[#6941C6] shadow-[0_1px_2px_rgba(105,65,198,0.06)]"
-                title={chatSlideReference}
-              >
-                <span className="truncate">{chatSlideReference}</span>
-                {onClearChatSlideReference && (
-                  <button
-                    type="button"
-                    onClick={onClearChatSlideReference}
-                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[#8069C5] transition-colors hover:bg-[#E4DFFF] hover:text-[#5235A8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/40"
-                    aria-label={`Remove ${chatSlideReference} from context`}
-                    title={`Remove ${chatSlideReference} from context`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </span>
-            )}
-            {chatTargetReference && (
-              <span
-                className="inline-flex h-7 min-w-0 max-w-[138px] items-center gap-1 rounded-full border border-[#DDD6FE] bg-[#F5F3FF] pl-2.5 pr-1 font-manrope text-[11px] font-semibold text-[#6941C6] shadow-[0_1px_2px_rgba(105,65,198,0.08)]"
-                title={chatTargetReference}
-              >
-                <span className="truncate">{chatTargetReference}</span>
-                {clearChatTargetReference && (
-                  <button
-                    type="button"
-                    onClick={clearChatTargetReference}
-                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[#8069C5] transition-colors hover:bg-[#E4DFFF] hover:text-[#5235A8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/40"
-                    aria-label="Remove selected element from context"
-                    title="Remove selected element from context"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </span>
-            )}
-          </div>
-        )}
+        <ContextTags tags={composerContextTags} />
         {(pastedImages.length > 0 ||
           attachedDocuments.length > 0 ||
           chatLinks.length > 0 ||

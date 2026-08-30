@@ -18,6 +18,7 @@ export const defaultNavItems = [
 ];
 export const BelongingNavItems = [
     { key: "settings" as const, label: "Settings", icon: Settings },
+    
 ]
 
 const DashboardSidebar = () => {
@@ -97,6 +98,14 @@ const DashboardSidebar = () => {
             </div>
 
             <div className="border-t border-[#E1E1E5] pt-5 font-syne">
+                  <Link
+                    href="/settings"
+                    className="flex flex-col items-center gap-2 transition-colors"
+                >
+                    <Settings className="h-4 w-4" />
+                    <span className="text-[11px] text-slate-800">Settings</span>
+                </Link>
+                <div className="py-2"/>
                 <Link
                     href="https://docs.presenton.ai/help"
                     target="_blank"

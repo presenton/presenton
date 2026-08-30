@@ -22,10 +22,12 @@ from models.sql.user import User
 from models.sql.key_value import KeyValueSqlModel
 from services.database import get_async_session
 from services.provider_settings import get_provider_settings, save_provider_settings
+from services.presenton_cloud import get_presenton_provider, has_cloud_credentials
 from utils.get_env import (
     get_app_data_directory_env,
     get_can_change_keys_env,
     get_temp_directory_env,
+    get_presenton_oauth_issuer,
     is_disable_auth_enabled,
 )
 from utils.user_config import update_env_with_user_config
@@ -61,7 +63,13 @@ async def read_provider_settings(
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, Any]:
     _ensure_settings_are_mutable()
-    return await get_provider_settings(session)
+    settings = await get_provider_settings(session)
+    provider = await get_presenton_provider(session, get_presenton_oauth_issuer())
+    return {
+        **settings,
+        "PRESENTON_CONNECTED": has_cloud_credentials(provider),
+        "PRESENTON_EMAIL": provider.email if provider is not None else None,
+    }
 
 
 @API_V1_ADMIN_ROUTER.put("/provider-settings")

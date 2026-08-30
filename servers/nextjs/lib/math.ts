@@ -1,6 +1,7 @@
 import katex from "katex";
 
 export const MAX_MATH_LATEX_LENGTH = 4000;
+const MATH_RENDER_PIXEL_RATIO = 3;
 
 const mathMeasurementCache = new Map<string, { width: number; height: number }>();
 
@@ -119,7 +120,13 @@ export function mathSvgDataUri({
   const safeWidth = Math.max(1, Math.round(width));
   const safeHeight = Math.max(1, Math.round(height));
   const safeFontSize = Math.max(1, Math.min(512, fontSize));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="box-sizing:border-box;display:flex;align-items:${alignItems};justify-content:${justifyContent};width:100%;height:100%;overflow:hidden;color:${escapeXmlAttribute(color)};font-size:${safeFontSize}px;line-height:1.2"><style>math{color:inherit;font-size:1em}.katex{color:inherit;font-size:1em}</style>${mathml}</div></foreignObject></svg>`;
+  // Browsers rasterize an SVG containing a foreignObject at its intrinsic
+  // pixel size before Konva paints it. Give that intermediate bitmap extra
+  // pixels while keeping the logical viewBox unchanged so equations remain
+  // sharp on scaled and high-density canvases.
+  const renderWidth = safeWidth * MATH_RENDER_PIXEL_RATIO;
+  const renderHeight = safeHeight * MATH_RENDER_PIXEL_RATIO;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="box-sizing:border-box;display:flex;align-items:${alignItems};justify-content:${justifyContent};width:100%;height:100%;overflow:hidden;color:${escapeXmlAttribute(color)};font-size:${safeFontSize}px;line-height:1.2"><style>math{color:inherit;font-size:1em}.katex{color:inherit;font-size:1em}</style>${mathml}</div></foreignObject></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 

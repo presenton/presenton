@@ -31,10 +31,17 @@ class SSETraceResponse(BaseModel):
 
 class SSEErrorResponse(BaseModel):
     detail: str
+    source: str | None = None
+    status_code: int | None = None
+    error_type: str | None = None
+    retryable: bool | None = None
+    completed_slides: int | None = None
+    total_slides: int | None = None
 
     def to_string(self):
+        payload = {"type": "error", **self.model_dump(exclude_none=True)}
         return SSEResponse(
-            event="response", data=json.dumps({"type": "error", "detail": self.detail})
+            event="response", data=json.dumps(payload)
         ).to_string()
 
 

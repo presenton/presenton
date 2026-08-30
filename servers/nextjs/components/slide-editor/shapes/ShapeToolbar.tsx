@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  ArrowLeftRight,
   Circle,
   Cloud,
   Scan,
@@ -15,6 +16,7 @@ import type { ShapeSlideElement } from "@/components/slide-editor/state/state";
 import type {
   VectorCurve,
   VectorElement,
+  VectorMarker,
 } from "@/components/slide-editor/types";
 import { DeferredColorInput } from "@/components/slide-editor/toolbar/DeferredColorInput";
 import {
@@ -38,6 +40,7 @@ type ShapePanel =
   | "fill"
   | "stroke"
   | "radius"
+  | "markers"
   | "vector"
   | "shadow"
   | "opacity"
@@ -73,6 +76,16 @@ type ShadowFallback = {
 };
 
 type CurveMode = "none" | "smooth";
+
+const VECTOR_MARKER_OPTIONS: Array<{ label: string; value: VectorMarker }> = [
+  { label: "None", value: "none" },
+  { label: "Arrow", value: "arrow" },
+  { label: "Stealth arrow", value: "stealth" },
+  { label: "Filled arrow", value: "triangle" },
+  { label: "Circle", value: "circle" },
+  { label: "Square", value: "square" },
+  { label: "Diamond", value: "diamond" },
+];
 
 export function ShapeToolbar({
   anchorBox,
@@ -118,7 +131,11 @@ export function ShapeToolbar({
     Math.min(128, box.w / 2, box.h / 2),
   );
   const radius = Math.min(maxRadius, averageCornerRadii(element.corner_radii));
-  const vectorClosed = vectorShape === "ellipse" || vectorElement.closed !== false;
+  const vectorClosed =
+    vectorShape === "ellipse" || vectorElement.closed !== false;
+  const canUseLineMarkers = vectorShape === "polygon" && !vectorClosed;
+  const startMarker = vectorElement.start_marker ?? "none";
+  const endMarker = vectorElement.end_marker ?? "none";
   const vectorCurveMode = curveMode(vectorElement.curve);
   const vectorSegments = normalizedSegments(vectorElement.curve?.segments);
   const vectorTension = normalizedTension(vectorElement.curve?.tension);
@@ -324,6 +341,39 @@ export function ShapeToolbar({
           </Panel>
         ) : null}
       </div>
+
+      {canUseLineMarkers ? (
+        <div className="relative">
+          <ToolbarButton
+            title="Line start and end"
+            pressed={
+              openPanel === "markers" ||
+              startMarker !== "none" ||
+              endMarker !== "none"
+            }
+            onClick={() => togglePanel("markers")}
+          >
+            <ArrowLeftRight size={16} aria-hidden="true" />
+          </ToolbarButton>
+          {openPanel === "markers" ? (
+            <Panel className="w-[260px] space-y-3 p-3">
+              <MarkerSelect
+                label="Start"
+                value={startMarker}
+                onChange={(start_marker) => updateVector({ start_marker })}
+              />
+              <MarkerSelect
+                label="End"
+                value={endMarker}
+                onChange={(end_marker) => updateVector({ end_marker })}
+              />
+              <p className="text-[11px] leading-4 text-[#6B7280]">
+                Double-click the line to drag its vector endpoints.
+              </p>
+            </Panel>
+          ) : null}
+        </div>
+      ) : null}
 
       {canRoundCorners ? (
         <div className="relative">
@@ -718,6 +768,34 @@ export function ColorField({
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         />
       </span>
+    </label>
+  );
+}
+
+function MarkerSelect({
+  label,
+  onChange,
+  value,
+}: {
+  label: string;
+  onChange: (value: VectorMarker) => void;
+  value: VectorMarker;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 text-xs text-[#4B5563]">
+      <span>{label}</span>
+      <select
+        aria-label={`${label} line marker`}
+        value={value}
+        onChange={(event) => onChange(event.target.value as VectorMarker)}
+        className="h-8 min-w-[150px] rounded-md border border-[#EDEEEF] bg-white px-2 text-xs text-[#191919] outline-none focus:border-[#7C51F8]"
+      >
+        {VECTOR_MARKER_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

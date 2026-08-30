@@ -112,6 +112,11 @@ export default function CodexConfig({
   };
 
   const handleSignIn = async () => {
+    trackEvent(MixpanelEvent.Provider_Login_Clicked, {
+      provider: "chatgpt",
+      implementation: "codex",
+      source: "onboarding",
+    });
     try {
 
       trackEvent(MixpanelEvent.Codex_SignIn_API_Call);
@@ -138,6 +143,12 @@ export default function CodexConfig({
 
           if (pollData.status === "success") {
             trackEvent(MixpanelEvent.Codex_SignIn_Completed, { method: "browser_poll" });
+            trackEvent(MixpanelEvent.Provider_Connection_Completed, {
+              provider: "chatgpt",
+              implementation: "codex",
+              source: "onboarding",
+              method: "browser_poll",
+            });
             stopPolling();
             setAuthStatus("authenticated");
             applyProfile(pollData);
@@ -189,6 +200,12 @@ export default function CodexConfig({
       }
       const data = await res.json();
       trackEvent(MixpanelEvent.Codex_SignIn_Completed, { method: "manual_exchange" });
+      trackEvent(MixpanelEvent.Provider_Connection_Completed, {
+        provider: "chatgpt",
+        implementation: "codex",
+        source: "onboarding",
+        method: "manual_exchange",
+      });
       stopPolling();
       setAuthStatus("authenticated");
       applyProfile(data);
@@ -221,10 +238,25 @@ export default function CodexConfig({
   };
 
   const handleSignOut = async () => {
+    trackEvent(MixpanelEvent.Provider_Logout_Clicked, {
+      provider: "chatgpt",
+      implementation: "codex",
+      source: "onboarding",
+    });
     setIsLoggingOut(true);
     try {
-      await fetch(getApiUrl("/api/v1/ppt/codex/auth/logout"), { method: "POST" });
+      const response = await fetch(getApiUrl("/api/v1/ppt/codex/auth/logout"), {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error(`Codex logout returned ${response.status}`);
+      }
       trackEvent(MixpanelEvent.Codex_Signed_Out);
+      trackEvent(MixpanelEvent.Provider_Connection_Deleted, {
+        provider: "chatgpt",
+        implementation: "codex",
+        source: "onboarding",
+      });
       setAuthStatus("unauthenticated");
       setAccountId(null);
       setUsername(null);

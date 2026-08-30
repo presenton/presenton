@@ -30,7 +30,7 @@ export type TemplateV2TextEditStyle = {
   lineHeight: number;
   letterSpacing: number;
   opacity: number;
-  horizontal: "left" | "center" | "right";
+  horizontal: "left" | "center" | "right" | "justify";
   vertical: "top" | "middle" | "bottom";
 };
 

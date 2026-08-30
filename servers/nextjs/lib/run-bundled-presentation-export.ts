@@ -37,42 +37,18 @@ function extractSessionTokenFromCookieHeader(cookieHeader?: string): string | un
 }
 
 async function resolveExportEntrypoint(exportRoot: string): Promise<string> {
-  const indexCjs = path.join(exportRoot, "index.cjs");
-  const indexJs = path.join(exportRoot, "index.js");
-
-  try {
-    await fs.access(indexCjs);
-    return indexCjs;
-  } catch {
-    await fs.access(indexJs);
-    await fs.copyFile(indexJs, indexCjs);
-    return indexCjs;
-  }
-}
-
-function bundledConverterPath(exportRoot: string): string {
-  const fromEnv = process.env.BUILT_PYTHON_MODULE_PATH?.trim();
-  if (fromEnv) {
-    return fromEnv;
-  }
-  if (process.platform === "linux") {
-    if (process.arch === "x64") {
-      return path.join(exportRoot, "py", "convert-linux-x64");
-    }
-    if (process.arch === "arm64") {
-      return path.join(exportRoot, "py", "convert-linux-arm64");
-    }
-  }
-  throw new Error(
-    `No bundled export converter for ${process.platform}/${process.arch}. Set BUILT_PYTHON_MODULE_PATH.`
-  );
+  const runner = path.join(exportRoot, "runner.mjs");
+  await fs.access(runner);
+  return runner;
 }
 
 export async function bundledExportPackageAvailable(): Promise<boolean> {
   try {
     const root = getExportPackageRoot();
     await resolveExportEntrypoint(root);
-    await fs.access(bundledConverterPath(root));
+    await fs.access(
+      path.join(root, "node_modules", "@presenton", "export-core", "dist", "index.js")
+    );
     return true;
   } catch {
     return false;
@@ -156,8 +132,7 @@ async function ensureExportFileReadable(filePath: string): Promise<void> {
 }
 
 /**
- * Runs the bundled export entrypoint (`presentation-export/index.js`) with
- * `BUILT_PYTHON_MODULE_PATH` pointing at the PyInstaller converter binary.
+ * Runs the bundled @presenton/export-core task runner in an isolated process.
  */
 export async function runBundledPresentationExport(params: {
   presentationId: string;
@@ -177,10 +152,7 @@ async function runBundledPresentationExportLocked(params: {
   const { presentationId, title, format, cookieHeader } = params;
   const exportRoot = getExportPackageRoot();
   const entrypoint = await resolveExportEntrypoint(exportRoot);
-  const converter = bundledConverterPath(exportRoot);
   const appRoot = getPresentonAppRoot();
-
-  await fs.access(converter);
 
   const nextjsUrl =
     process.env.NEXT_PUBLIC_URL?.trim() || "http://127.0.0.1";
@@ -227,10 +199,7 @@ async function runBundledPresentationExportLocked(params: {
       const child = spawn(process.execPath, [entrypoint, exportTaskPath], {
         cwd: appRoot,
         stdio: ["ignore", "pipe", "pipe"],
-        env: {
-          ...process.env,
-          BUILT_PYTHON_MODULE_PATH: converter,
-        },
+        env: process.env,
       });
       const stderr = new BoundedTextBuffer();
       const stdout = new BoundedTextBuffer();

@@ -23,6 +23,7 @@ const LayoutPreview = () => {
     customTemplates,
     processingTemplateTasks,
     loading,
+    error,
   } = useTemplateSummaries({ includeProcessingTemplateTasks: true });
 
   useEffect(() => {
@@ -91,6 +92,8 @@ const LayoutPreview = () => {
         <section className="my-12">
           {loading ? (
             <TemplateListLoadingState />
+          ) : error ? (
+            <TemplateListEmptyState message={`Templates could not be loaded: ${error}`} />
           ) : tab === "custom" ? (
             <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               <CreateCustomTemplate />

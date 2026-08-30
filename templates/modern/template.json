@@ -3,6 +3,32 @@
   "name": "Modern",
   "description": "Clean, contemporary layouts with generous whitespace, confident typography, and bold visual accents for a polished presentation.",
   "thumbnail": "static/thumbnail.png",
+  "theme": {
+    "colors": {
+      "primary": "#F59E0B",
+      "background": "#F5F8FE",
+      "card": "#FFFFFF",
+      "stroke": "#E5E7EB",
+      "primary_text": "#334155",
+      "background_text": "#234CD9",
+      "graph_0": "#3B82F6",
+      "graph_1": "#F59E0B",
+      "graph_2": "#234CD9",
+      "graph_3": "#3182BD",
+      "graph_4": "#E4EAF3",
+      "graph_5": "#CBE3CC",
+      "graph_6": "#334155",
+      "graph_7": "#E5E7EB",
+      "graph_8": "#6B7280",
+      "graph_9": "#FFFFFF"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Montserrat",
+        "url": "/vendor/fonts/sans_serif/montserrat/Montserrat[wght].ttf"
+      }
+    }
+  },
   "icon_type": "bold",
   "merged_components": [
     {

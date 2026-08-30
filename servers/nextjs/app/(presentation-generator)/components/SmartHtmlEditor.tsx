@@ -8,7 +8,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Sparkles } from "lucide-react";
 
 import IconsEditor from "@/components/slide-editor/images/IconsEditor";
 import { useTailwindRuntimeReady } from "@/components/runtime/TailwindBrowserRuntime";
@@ -20,6 +19,9 @@ import {
 import type { RootState } from "@/store/store";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import ImageEditor from "./ImageEditor";
+import SmartHtmlSelectionOverlay, {
+  type SmartSelectionRect,
+} from "./SmartHtmlSelectionOverlay";
 import SmartHtmlSlide from "./SmartHtmlSlide";
 import { useSmartChartInjection } from "./useSmartChartInjection";
 
@@ -29,12 +31,21 @@ type ActiveMedia = {
   query: string;
 };
 
-type SelectionRect = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
+const RECT_POSITION_EPSILON = 0.25;
+
+function selectionRectsMatch(
+  current: SmartSelectionRect | null,
+  next: SmartSelectionRect | null,
+) {
+  if (current === next) return true;
+  if (!current || !next) return false;
+  return (
+    Math.abs(current.left - next.left) < RECT_POSITION_EPSILON &&
+    Math.abs(current.top - next.top) < RECT_POSITION_EPSILON &&
+    Math.abs(current.width - next.width) < RECT_POSITION_EPSILON &&
+    Math.abs(current.height - next.height) < RECT_POSITION_EPSILON
+  );
+}
 
 const EXCLUDED_TEXT_TAGS = new Set([
   "SCRIPT",
@@ -106,8 +117,9 @@ export default function SmartHtmlEditor({
   const [activeMedia, setActiveMedia] = useState<ActiveMedia | null>(null);
   const hoveredElementRef = useRef<HTMLElement | null>(null);
   const selectedElementRef = useRef<HTMLElement | null>(null);
-  const [hoverRect, setHoverRect] = useState<SelectionRect | null>(null);
-  const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
+  const [hoverRect, setHoverRect] = useState<SmartSelectionRect | null>(null);
+  const [selectionRect, setSelectionRect] =
+    useState<SmartSelectionRect | null>(null);
 
   const slideIndex = Number.isFinite(Number(renderIndex))
     ? Number(renderIndex)
@@ -115,18 +127,21 @@ export default function SmartHtmlEditor({
       ? Number(slide.index)
       : 0;
 
-  const elementRect = useCallback((element: HTMLElement): SelectionRect | null => {
-    const container = containerRef.current;
-    if (!container || !container.contains(element)) return null;
-    const elementBox = element.getBoundingClientRect();
-    const containerBox = container.getBoundingClientRect();
-    const left = Math.max(elementBox.left - 4, containerBox.left);
-    const top = Math.max(elementBox.top - 4, containerBox.top);
-    const right = Math.min(elementBox.right + 4, containerBox.right);
-    const bottom = Math.min(elementBox.bottom + 4, containerBox.bottom);
-    if (right <= left || bottom <= top) return null;
-    return { left, top, width: right - left, height: bottom - top };
-  }, []);
+  const elementRect = useCallback(
+    (element: HTMLElement): SmartSelectionRect | null => {
+      const container = containerRef.current;
+      if (!container || !container.contains(element)) return null;
+      const elementBox = element.getBoundingClientRect();
+      const containerBox = container.getBoundingClientRect();
+      const left = Math.max(elementBox.left, containerBox.left);
+      const top = Math.max(elementBox.top, containerBox.top);
+      const right = Math.min(elementBox.right, containerBox.right);
+      const bottom = Math.min(elementBox.bottom, containerBox.bottom);
+      if (right <= left || bottom <= top) return null;
+      return { left, top, width: right - left, height: bottom - top };
+    },
+    []
+  );
 
   const normalizeSelectableElement = useCallback(
     (target: HTMLElement): HTMLElement | null => {
@@ -334,10 +349,21 @@ export default function SmartHtmlEditor({
     }
 
     const refreshRects = () => {
-      const hovered = hoveredElementRef.current;
       const selected = selectedElementRef.current;
-      setHoverRect(hovered ? elementRect(hovered) : null);
-      setSelectionRect(selected ? elementRect(selected) : null);
+      const hovered =
+        hoveredElementRef.current === selected
+          ? null
+          : hoveredElementRef.current;
+      const nextHoverRect = hovered ? elementRect(hovered) : null;
+      const nextSelectionRect = selected ? elementRect(selected) : null;
+      setHoverRect((current) =>
+        selectionRectsMatch(current, nextHoverRect) ? current : nextHoverRect
+      );
+      setSelectionRect((current) =>
+        selectionRectsMatch(current, nextSelectionRect)
+          ? current
+          : nextSelectionRect
+      );
     };
     const handleMouseOver = (event: MouseEvent) => {
       const target =
@@ -345,6 +371,10 @@ export default function SmartHtmlEditor({
           ? normalizeSelectableElement(event.target)
           : null;
       hoveredElementRef.current = target;
+      if (target === selectedElementRef.current) {
+        setHoverRect(null);
+        return;
+      }
       setHoverRect(target ? elementRect(target) : null);
     };
     const handleMouseLeave = () => {
@@ -374,6 +404,7 @@ export default function SmartHtmlEditor({
       const selectedHtml = cleanSelectedHtml(target);
       if (!selectedHtml) return;
       selectedElementRef.current = target;
+      setHoverRect(null);
       setSelectionRect(elementRect(target));
       dispatch(
         setChatHtmlSelection({
@@ -410,7 +441,19 @@ export default function SmartHtmlEditor({
     window.addEventListener("scroll", refreshRects, true);
     window.addEventListener("resize", refreshRects);
     window.addEventListener("keydown", handleKeyDown);
+
+    // The assistant panel changes the slide's position and scale without
+    // always emitting a window resize. Track the live DOM bounds so fixed
+    // overlays remain attached throughout those layout transitions.
+    let animationFrameId = 0;
+    const trackLiveRects = () => {
+      refreshRects();
+      animationFrameId = window.requestAnimationFrame(trackLiveRects);
+    };
+    animationFrameId = window.requestAnimationFrame(trackLiveRects);
+
     return () => {
+      window.cancelAnimationFrame(animationFrameId);
       container.removeEventListener("mouseover", handleMouseOver, true);
       container.removeEventListener("mouseleave", handleMouseLeave, true);
       container.removeEventListener("click", handleClick, true);
@@ -525,43 +568,10 @@ export default function SmartHtmlEditor({
       {enableHtmlSelector &&
         typeof document !== "undefined" &&
         createPortal(
-          <>
-            {hoverRect && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none fixed z-[80] rounded-[8px] border-2 border-dotted border-[#7A5AF8]"
-                style={{
-                  ...hoverRect,
-                  backgroundColor: "rgba(122, 90, 248, 0.07)",
-                  backgroundImage:
-                    "radial-gradient(rgba(122, 90, 248, 0.38) 1px, transparent 1px)",
-                  backgroundSize: "8px 8px",
-                  boxShadow:
-                    "0 0 0 1px rgba(255,255,255,0.9), 0 0 0 5px rgba(122,90,248,0.12)",
-                }}
-              />
-            )}
-            {selectionRect && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none fixed z-[81] rounded-[8px] border-2 border-dotted border-[#6941C6]"
-                style={{
-                  ...selectionRect,
-                  backgroundColor: "rgba(105, 65, 198, 0.08)",
-                  backgroundImage:
-                    "radial-gradient(rgba(105, 65, 198, 0.42) 1px, transparent 1px)",
-                  backgroundSize: "8px 8px",
-                  boxShadow:
-                    "0 0 0 1px rgba(255,255,255,0.95), 0 0 0 5px rgba(105,65,198,0.16)",
-                }}
-              >
-                <span className="absolute -top-8 left-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-[#6941C6] px-2 py-1.5 font-syne text-[11px] font-semibold text-white shadow-sm">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Selected for AI
-                </span>
-              </div>
-            )}
-          </>,
+          <SmartHtmlSelectionOverlay
+            hoverRect={hoverRect}
+            selectionRect={selectionRect}
+          />,
           document.body
         )}
       {activeMedia?.kind === "image" && (

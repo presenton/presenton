@@ -9,11 +9,13 @@ from fastapi import HTTPException
 
 from api.v1.ppt.endpoints import presentation as presentation_endpoint
 from constants.presentation import MAX_NUMBER_OF_SLIDES
+from enums.async_task_status import AsyncTaskStatus
 from models.generate_presentation_request import GeneratePresentationRequest
 from models.presentation_and_path import PresentationAndPath
 from models.presentation_from_template import EditPresentationRequest, SlideContentUpdate
 from models.presentation_outline_model import SlideOutlineModel
 from models.presentation_structure_model import PresentationStructureModel
+from models.sql.async_task import AsyncTaskModel
 from models.sql.presentation import PresentationModel, PresentationVersion
 from models.sql.slide import SlideModel
 from models.sql.template_v2 import TemplateV2
@@ -65,6 +67,26 @@ def _template_layout_payload() -> dict:
                 ],
             }
         ]
+    }
+
+
+def _template_theme_data() -> dict:
+    return {
+        "colors": {
+            "primary": "#2563EB",
+            "background": "#F8FAFC",
+            "card": "#FFFFFF",
+            "stroke": "#CBD5E1",
+            "background_text": "#111827",
+            "primary_text": "#FFFFFF",
+            **{f"graph_{index}": f"#{index + 1:06X}" for index in range(10)},
+        },
+        "fonts": {
+            "textFont": {
+                "name": "Inter",
+                "url": "https://example.com/inter.css",
+            }
+        },
     }
 
 
@@ -164,6 +186,116 @@ def test_generate_presentation_handler_full_flow_uses_mocked_dependencies():
     assert get_slide_content.call_args_list[1].kwargs["slide_number"] == 2
 
 
+def test_async_task_data_carries_presentation_ref_for_polling_callers():
+    request = GeneratePresentationRequest(
+        content="Create a two-slide deck about renewable energy.",
+        n_slides=2,
+        language="English",
+        export_as="pptx",
+        template="general",
+    )
+    presentation_id = uuid.uuid4()
+    template_id = "general"
+    template = TemplateV2(
+        id=template_id,
+        name="General",
+        layouts=_template_layout_payload(),
+        is_default=True,
+    )
+    session = FakeAsyncSession(get_results={template_id: template})
+    async_status = AsyncTaskModel(
+        type=presentation_endpoint.ASYNC_TASK_TYPE_PRESENTATION_GENERATE,
+        status=AsyncTaskStatus.PENDING,
+        message="Queued for generation",
+    )
+
+    async def fake_outline_stream(*_args, **_kwargs):
+        yield '{"slides":[{"content":"## Intro"},{"content":"## Action Plan"}]}'
+
+    with patch.object(
+        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+        "store_generation_context",
+        new=AsyncMock(),
+    ), patch.object(
+        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+        "store_generated_outlines",
+        new=AsyncMock(),
+    ), patch.object(
+        presentation_endpoint,
+        "generate_ppt_outline",
+        side_effect=fake_outline_stream,
+    ), patch.object(
+        presentation_endpoint,
+        "generate_presentation_structure",
+        new=AsyncMock(return_value=PresentationStructureModel(slides=[0, 1])),
+    ), patch.object(
+        presentation_endpoint,
+        "get_slide_content_from_type_and_outline",
+        new=AsyncMock(return_value={"title": "Intro", "points": ["A"]}),
+    ), patch.object(
+        presentation_endpoint,
+        "process_slide_and_fetch_assets",
+        new=AsyncMock(return_value=[]),
+    ), patch.object(
+        presentation_endpoint,
+        "get_images_directory",
+        return_value="/tmp",
+    ), patch.object(
+        presentation_endpoint,
+        "ImageGenerationService",
+        return_value=Mock(),
+    ), patch.object(
+        presentation_endpoint,
+        "export_presentation",
+        new=AsyncMock(
+            return_value=PresentationAndPath(
+                presentation_id=presentation_id,
+                path="/tmp/generated/deck.pptx",
+            )
+        ),
+    ), patch.object(
+        presentation_endpoint.CONCURRENT_SERVICE,
+        "run_task",
+        new=Mock(),
+    ), patch.object(
+        presentation_endpoint,
+        "random",
+        new=Mock(randint=Mock(return_value=0)),
+    ):
+        response = _run(
+            presentation_endpoint.generate_presentation_handler(
+                request=request,
+                presentation_id=presentation_id,
+                async_status=async_status,
+                sql_session=session,
+            )
+        )
+
+    assert async_status.status == AsyncTaskStatus.COMPLETED
+    # A caller that only ever polls the task must be able to reach the file.
+    assert async_status.data["presentation_id"] == str(presentation_id)
+    assert async_status.data["path"] == response.path
+    assert async_status.data["edit_path"] == response.edit_path
+    # Progress fields are still reported alongside them.
+    assert async_status.data["created_slides"] == 2
+    assert async_status.data["remaining_slides"] == 0
+
+
+def test_async_task_data_carries_presentation_ref_before_completion():
+    """The id is present from creation, so a failed task is still identifiable."""
+    data = presentation_endpoint._presentation_task_progress_data(
+        created_slides=0,
+        remaining_slides=12,
+        presentation_id=uuid.UUID("11111111-2222-3333-4444-555555555555"),
+    )
+
+    assert data == {
+        "created_slides": 0,
+        "remaining_slides": 12,
+        "presentation_id": "11111111-2222-3333-4444-555555555555",
+    }
+
+
 def test_generate_presentation_handler_uses_template_layout():
     template_id = str(uuid.uuid4())
     presentation_id = uuid.uuid4()
@@ -171,6 +303,7 @@ def test_generate_presentation_handler_uses_template_layout():
         id=template_id,
         name="Custom V2",
         layouts=_template_layout_payload(),
+        theme=_template_theme_data(),
         assets={"fonts": {"Inter": "https://example.com/inter.css"}},
     )
     session = FakeAsyncSession(get_results={template_id: template})
@@ -257,6 +390,13 @@ def test_generate_presentation_handler_uses_template_layout():
         "template_id": template_id,
     }
     assert presentation.fonts == {"Inter": "https://example.com/inter.css"}
+    assert presentation.theme == {
+        "name": "Custom V2 Theme",
+        "description": "Theme generated from the template",
+        "data": _template_theme_data(),
+        "source": "template",
+        "template_id": template_id,
+    }
     assert slide.layout_group == template_id
     assert slide.ui["components"][0]["elements"][0]["runs"][0]["text"] == "V2 headline"
 
@@ -272,7 +412,7 @@ def test_default_template_name_resolves_bundled_template_without_schema_page():
     )
     session = FakeAsyncSession(get_results={template_id: template})
 
-    layout_payload, layout_model, fonts = _run(
+    layout_payload, layout_model, fonts, theme = _run(
         presentation_endpoint._resolve_generation_layout("general", session)
     )
 
@@ -281,6 +421,7 @@ def test_default_template_name_resolves_bundled_template_without_schema_page():
     assert layout_payload["template_id"] == template_id
     assert layout_model.slides[0].id == "template-layout-1"
     assert fonts == {"Inter": "/app_data/templates/general/inter.ttf"}
+    assert theme is None
 
 
 def test_create_presentation_stores_current_version(fake_async_session):
@@ -666,6 +807,71 @@ def test_prepare_presentation_accepts_template_layout_id():
     assert structure_layout.slides[0].id == "template-layout-1"
 
 
+def test_prepare_presentation_normalizes_incomplete_and_invalid_layout_indexes():
+    presentation_id = uuid.uuid4()
+    template_id = "strategy-template"
+    presentation = PresentationModel(
+        id=presentation_id,
+        version=PresentationVersion.V2_STANDARD,
+        content="deck",
+        n_slides=3,
+        language="English",
+        tone="default",
+        verbosity="standard",
+        instructions=None,
+    )
+    template = TemplateV2(
+        id=template_id,
+        name="Custom V2",
+        layouts={
+            "layouts": [
+                {
+                    "id": "layout-1",
+                    "description": "First layout",
+                    "components": [],
+                },
+                {
+                    "id": "layout-2",
+                    "description": "Second layout",
+                    "components": [],
+                },
+            ]
+        },
+    )
+    session = FakeAsyncSession(
+        get_results={presentation_id: presentation, template_id: template}
+    )
+
+    with patch.object(
+        presentation_endpoint,
+        "generate_presentation_structure",
+        new=AsyncMock(return_value=PresentationStructureModel(slides=[-1])),
+    ), patch.object(
+        presentation_endpoint.random,
+        "randrange",
+        side_effect=[1, 0, 1],
+    ), patch.object(
+        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+        "store_generated_outlines",
+        new=AsyncMock(),
+    ):
+        response = _run(
+            presentation_endpoint.prepare_presentation(
+                presentation_id=presentation_id,
+                outlines=[
+                    SlideOutlineModel(content="## First"),
+                    SlideOutlineModel(content="## Second"),
+                    SlideOutlineModel(content="## Third"),
+                ],
+                layout=template_id,
+                sql_session=session,
+            )
+        )
+
+    assert response.presentation_id == presentation_id
+    assert presentation.structure == {"slides": [1, 1, 0]}
+
+
 def test_get_presentation_preserves_template_detail_payload():
     presentation_id = uuid.uuid4()
     now = datetime.now()
@@ -767,7 +973,7 @@ def test_get_presentation_preserves_template_detail_payload():
     assert response.version == PresentationVersion.V2_STANDARD
     assert not hasattr(response, "layout")
     assert not hasattr(response, "structure")
-    assert not hasattr(response, "theme")
+    assert response.theme is presentation.theme
     assert not hasattr(response, "components")
     assert not hasattr(response, "merged_components")
     assert response.fonts == {
@@ -811,7 +1017,7 @@ def test_stream_presentation_uses_template_schema_for_content_generation():
         title="Deck",
         outlines={"slides": [{"content": "## Causes"}]},
         layout=template_layouts,
-        structure={"slides": [0]},
+        structure={"slides": [-1]},
         tone="default",
         verbosity="standard",
         instructions=None,
@@ -856,10 +1062,15 @@ def test_stream_presentation_uses_template_schema_for_content_generation():
         presentation_endpoint,
         "ImageGenerationService",
         return_value=Mock(),
+    ), patch.object(
+        presentation_endpoint.random,
+        "randrange",
+        return_value=0,
     ):
         chunks = _run(consume_stream())
 
     assert chunks
+    assert presentation.structure == {"slides": [0]}
     assert len(generated_layouts) == 1
     assert generated_slide_numbers == [1]
     generated_layout = generated_layouts[0]
@@ -951,6 +1162,139 @@ def test_generate_presentation_handler_rejects_invalid_llm_json(fake_async_sessi
 
     assert exc.value.status_code == 400
     assert "Failed to generate presentation outlines" in exc.value.detail
+
+
+def test_generate_presentation_handler_rejects_too_few_outlines(fake_async_session):
+    """Undershooting cannot be satisfied -- there is nothing to pad with."""
+    request = GeneratePresentationRequest(
+        content="Generate a deck",
+        n_slides=4,
+        language="English",
+        export_as="pptx",
+        template="general",
+    )
+
+    async def fake_outline_stream(*_args, **_kwargs):
+        yield '{"slides":[{"content":"## One"},{"content":"## Two"}]}'
+
+    with patch.object(
+        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+        "store_generation_context",
+        new=AsyncMock(),
+    ), patch.object(
+        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+        "store_generated_outlines",
+        new=AsyncMock(),
+    ), patch.object(
+        presentation_endpoint,
+        "generate_ppt_outline",
+        side_effect=fake_outline_stream,
+    ), patch.object(
+        presentation_endpoint.CONCURRENT_SERVICE,
+        "run_task",
+        new=Mock(),
+    ):
+        with pytest.raises(HTTPException) as exc:
+            _run(
+                presentation_endpoint.generate_presentation_handler(
+                    request=request,
+                    presentation_id=uuid.uuid4(),
+                    async_status=None,
+                    sql_session=fake_async_session,
+                )
+            )
+
+    assert exc.value.status_code == 400
+    assert "requested" in exc.value.detail
+
+
+def test_generate_presentation_handler_trims_extra_outlines():
+    """Overshooting is trimmed rather than failed: the deck still gets n."""
+    request = GeneratePresentationRequest(
+        content="Generate a deck",
+        n_slides=2,
+        language="English",
+        export_as="pptx",
+        template="general",
+    )
+    presentation_id = uuid.uuid4()
+    template = TemplateV2(
+        id="general",
+        name="General",
+        layouts=_template_layout_payload(),
+        is_default=True,
+    )
+    session = FakeAsyncSession(get_results={"general": template})
+
+    async def fake_outline_stream(*_args, **_kwargs):
+        # Four outlines for a two-slide request.
+        yield (
+            '{"slides":[{"content":"## One"},{"content":"## Two"},'
+            '{"content":"## Three"},{"content":"## Four"}]}'
+        )
+
+    with patch.object(
+        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+        "store_generation_context",
+        new=AsyncMock(),
+    ), patch.object(
+        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+        "store_generated_outlines",
+        new=AsyncMock(),
+    ), patch.object(
+        presentation_endpoint,
+        "generate_ppt_outline",
+        side_effect=fake_outline_stream,
+    ), patch.object(
+        presentation_endpoint,
+        "generate_presentation_structure",
+        new=AsyncMock(return_value=PresentationStructureModel(slides=[0, 1])),
+    ), patch.object(
+        presentation_endpoint,
+        "get_slide_content_from_type_and_outline",
+        new=AsyncMock(return_value={"title": "T", "points": ["A"]}),
+    ), patch.object(
+        presentation_endpoint,
+        "process_slide_and_fetch_assets",
+        new=AsyncMock(return_value=[]),
+    ), patch.object(
+        presentation_endpoint,
+        "get_images_directory",
+        return_value="/tmp",
+    ), patch.object(
+        presentation_endpoint,
+        "ImageGenerationService",
+        return_value=Mock(),
+    ), patch.object(
+        presentation_endpoint,
+        "export_presentation",
+        new=AsyncMock(
+            return_value=PresentationAndPath(
+                presentation_id=presentation_id,
+                path="/tmp/generated/deck.pptx",
+            )
+        ),
+    ), patch.object(
+        presentation_endpoint.CONCURRENT_SERVICE,
+        "run_task",
+        new=Mock(),
+    ), patch.object(
+        presentation_endpoint,
+        "random",
+        new=Mock(randint=Mock(return_value=0)),
+    ):
+        response = _run(
+            presentation_endpoint.generate_presentation_handler(
+                request=request,
+                presentation_id=presentation_id,
+                async_status=None,
+                sql_session=session,
+            )
+        )
+
+    assert response.path.endswith(".pptx")
+    # Exactly the requested count reached the deck, not the four generated.
+    assert len(session.added_all) == 2
 
 
 class _SlidesAsyncSession(FakeAsyncSession):
@@ -1082,3 +1426,63 @@ def test_derive_presentation_hydrates_template_slide_ui():
     assert new_presentation.version == PresentationVersion.V2_STANDARD
     assert new_slide.presentation == new_presentation.id
     assert title_element["runs"][0]["text"] == "Derived headline"
+
+
+def test_export_existing_presentation_returns_path_without_regenerating():
+    """A presentation that already exists can be exported on its own.
+
+    Regression cover for the gap this endpoint closes: export used to happen
+    only as a side effect of /generate, /edit and /derive, so an interrupted
+    request left a stored presentation whose file could never be retrieved.
+    """
+    presentation_id = uuid.uuid4()
+    presentation = PresentationModel(
+        id=presentation_id,
+        version=PresentationVersion.V2_STANDARD,
+        content="deck",
+        n_slides=1,
+        language="English",
+        layout=_template_layout_payload(),
+        tone="default",
+        verbosity="standard",
+        instructions=None,
+        title="Existing deck",
+    )
+    session = FakeAsyncSession(get_results={presentation_id: presentation})
+
+    with patch.object(
+        presentation_endpoint,
+        "export_presentation",
+        new=_fake_export_presentation,
+    ):
+        response = _run(
+            presentation_endpoint.export_existing_presentation(
+                id=presentation_id,
+                request_http=FakeRequest(),
+                export_as="pptx",
+                sql_session=session,
+            )
+        )
+
+    assert response.presentation_id == presentation_id
+    assert response.path == "/tmp/generated/deck.pptx"
+    assert response.edit_path == f"/presentation?id={presentation_id}"
+    # Nothing may be mutated or re-created — this only exports what exists.
+    assert session.added == []
+    assert session.commit_count == 0
+
+
+def test_export_existing_presentation_404s_for_unknown_id():
+    session = FakeAsyncSession(get_results={})
+
+    with pytest.raises(HTTPException) as exc_info:
+        _run(
+            presentation_endpoint.export_existing_presentation(
+                id=uuid.uuid4(),
+                request_http=FakeRequest(),
+                export_as="pptx",
+                sql_session=session,
+            )
+        )
+
+    assert exc_info.value.status_code == 404

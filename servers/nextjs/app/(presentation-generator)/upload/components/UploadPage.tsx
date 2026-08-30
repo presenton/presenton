@@ -49,7 +49,6 @@ const FILE_TYPE_IMAGE = new Set([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff
 const FILE_MIME_IMAGE = new Set(["image/jpeg", "image/png", "image/gif", "image/bmp", "image/tiff", "image/webp"]);
 const FILE_TYPE_PDF = new Set([".pdf"]);
 const FILE_TYPE_TEXT = new Set([".txt"]);
-
 // Types for loading state
 interface LoadingState {
   isLoading: boolean;
@@ -388,14 +387,14 @@ const UploadPage = () => {
       });
     }
 
-    const isStockProviderReady =
-      generationMode === "smart" || (await ensureStockImageProviderReady());
-    if (!isStockProviderReady) {
-      trackUploadValidationFailure("stock_image_provider_unreachable");
-      return;
-    }
-
     try {
+      const isStockProviderReady =
+        generationMode === "smart" || (await ensureStockImageProviderReady());
+      if (!isStockProviderReady) {
+        trackUploadValidationFailure("stock_image_provider_unreachable");
+        return;
+      }
+
       const hasUploadedAssets = files.length > 0;
 
       if (hasUploadedAssets) {
@@ -592,30 +591,12 @@ const UploadPage = () => {
       >
         <div className="flex min-h-[34px] w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <div
-              className="inline-flex items-center rounded-lg border border-[#EDEEEF] bg-white p-1 font-syne"
-              role="tablist"
-              aria-label="Generation mode"
-            >
-              {(["smart", "standard"] as GenerationMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  role="tab"
-                  aria-selected={generationMode === mode}
-                  onClick={() => handleGenerationModeChange(mode)}
-                  className={`rounded-md px-3 py-1 text-xs font-medium capitalize leading-6 text-[#191919] transition-colors ${
-                    generationMode === mode ? "bg-[#F6F6F9]" : "hover:bg-[#FAFAFC]"
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
             <CurrentConfig webSearchEnabled={config.webSearch} />
           </div>
           <ConfigurationSelects
             compact
+            mode={generationMode}
+            onModeChange={handleGenerationModeChange}
             config={config}
             onConfigChange={handleConfigChange}
           />
