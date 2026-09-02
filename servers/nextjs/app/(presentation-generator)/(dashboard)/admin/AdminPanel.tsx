@@ -432,7 +432,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
     >
       <div className={embedded ? "max-w-5xl" : "mx-auto max-w-5xl"}>
         {!embedded ? (
-          <h1 className="font-syne font-medium text-[28px] font-normal tracking-[-0.84px] text-black">
+          <h1 className="font-syne font-medium text-[28px]  tracking-[-0.84px] text-black">
             Admin
           </h1>
         ) : null}

@@ -1,18 +1,4 @@
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url("/vendor/fonts/sans_serif/inter/Inter[opsz,wght].ttf") format("truetype");
-}
 
-@font-face {
-  font-family: "Inter";
-  font-style: italic;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url("/vendor/fonts/sans_serif/inter/Inter-Italic[opsz,wght].ttf") format("truetype");
-}
 
 @font-face {
   font-family: "Manrope";

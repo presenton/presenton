@@ -133,7 +133,7 @@ const DEFAULT_CHART_COLORS = [
   "#64748B",
 ];
 
-const CHART_FONT_FAMILY = "Inter, Arial, sans-serif";
+const CHART_FONT_FAMILY = "Manrope, Arial, sans-serif";
 const TEMPLATE_V2_MATH_CSS = `
 .presenton-math{line-height:normal;overflow:visible}
 .presenton-math>.katex{color:inherit;font:inherit;line-height:inherit;white-space:nowrap}

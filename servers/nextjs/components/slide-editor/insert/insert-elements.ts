@@ -182,7 +182,7 @@ function makeTableCell({
 function makeBulletListElement(marker: Marker): SlideElement {
   const baseFont = {
     size: 18,
-    family: "Inter",
+    family: "manrope",
     color: "#111111",
     bold: false,
     italic: false,
@@ -1544,7 +1544,7 @@ function createDefaultInfographicInsertElements(kind?: string): SlideElement[] {
 
 function makeSimpleTableElement(): SlideElement {
   const baseFont: Font = {
-    family: "Inter",
+    family: "manrope",
     size: 14,
     color: "#344054",
     line_height: 1.2,

@@ -61,7 +61,7 @@ test("the local font catalog points to checked-in vendor assets", async () => {
 
   await Promise.all(
     [
-      "sans_serif/inter/Inter[opsz,wght].ttf",
+    
       "sans_serif/manrope/Manrope[wght].ttf",
       "sans_serif/montserrat/Montserrat[wght].ttf",
       "serif/playfairdisplay/PlayfairDisplay[wght].ttf",
