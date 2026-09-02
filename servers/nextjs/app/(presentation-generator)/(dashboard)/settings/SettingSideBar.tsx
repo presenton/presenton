@@ -1,10 +1,10 @@
 import React from 'react'
-import { LogOut, Search, Shield, ShieldCheck } from 'lucide-react'
+import { LogOut, Search, Shield, ShieldCheck, Mic } from 'lucide-react'
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from '@/utils/providerConstants'
 import { useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
 
-export type SettingsSection = 'text-provider' | 'image-provider' | 'web-search-provider' | 'privacy' | 'admin' | 'session'
+export type SettingsSection = 'text-provider' | 'image-provider' | 'web-search-provider' | 'video-narration' | 'privacy' | 'admin' | 'session'
 
 const SettingSideBar = ({ selectedProvider, setSelectedProvider, presentonSelected = false }: { selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void, presentonSelected?: boolean }) => {
     const { llm_config } = useSelector((state: RootState) => state.userConfig)
@@ -36,6 +36,12 @@ const SettingSideBar = ({ selectedProvider, setSelectedProvider, presentonSelect
                                     <Search className='w-3 h-3 text-[#5146E5]' />
                                 </div>
                                 <p className='text-[#191919] text-xs font-medium'>Web Search Provider</p>
+                            </button>
+                            <button className={` w-full rounded-[6px] px-3 py-4 flex items-center gap-1.5 border  ${selectedProvider === 'video-narration' ? 'bg-[#F4F3FF] border-[#D9D6FE]' : 'bg-white border-[#EDEEEF]'}`} onClick={() => setSelectedProvider('video-narration')}>
+                                <div className='relative w-[18px] h-[18px] rounded-full overflow-hidden border border-[#EDEEEF] flex items-center justify-center bg-white'>
+                                    <Mic className='w-3 h-3 text-[#5146E5]' />
+                                </div>
+                                <p className='text-[#191919] text-xs font-medium'>Video Narration</p>
                             </button>
                         </>
                     ) : null}

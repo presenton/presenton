@@ -60,10 +60,10 @@ const MAX_EXPORT_TITLE_LENGTH = 40;
 
 const buildSafeExportFileName = (
   rawTitle: string | null | undefined,
-  extension: "pdf" | "pptx"
+  extension: "pdf" | "pptx" | "mp4"
 ) => {
   const normalizedTitle = (rawTitle || "presentation").trim();
-  const titleWithoutExtension = normalizedTitle.replace(/\.(pdf|pptx)$/i, "");
+  const titleWithoutExtension = normalizedTitle.replace(/\.(pdf|pptx|mp4)$/i, "");
 
   let safeBase = titleWithoutExtension
     // Replace all punctuation/special chars (including dots) with dashes
@@ -382,6 +382,137 @@ const PresentationHeader = ({
       setIsExporting(false);
     }
   };
+
+  const handleExportVideo = async () => {
+    if (isStreaming) return;
+
+    const exportId = uuidv4();
+    const exportStartedAt = Date.now();
+    const exportRuntime: "electron" | "browser_api" = "browser_api"; // video export always runs server-side, never via Electron IPC
+    let exportToastId: string | number | undefined;
+    try {
+      exportToastId = notify.loading(
+        "Exporting Video",
+        "Generating narration and assembling your video. This can take a while for longer decks."
+      );
+      setIsExporting(true);
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Started,
+        "mp4",
+        exportRuntime,
+        exportId,
+        exportStartedAt
+      );
+
+      const kickoffResponse = await fetch("/api/export-presentation-video", {
+        method: "POST",
+        body: JSON.stringify({ id: presentation_id }),
+      });
+      if (!kickoffResponse.ok) {
+        throw new Error("Failed to start video export");
+      }
+      const startedTask = await kickoffResponse.json();
+      const taskId: string | undefined = startedTask?.id;
+      if (!taskId) {
+        throw new Error("No task id returned from video export");
+      }
+
+      let finalTask = startedTask;
+      const pollIntervalMs = 3000;
+      const maxAttempts = 400; // ~20 minute ceiling
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+        const statusResponse = await fetch(
+          `/api/export-presentation-video/status?taskId=${encodeURIComponent(
+            taskId
+          )}`,
+          { cache: "no-store" }
+        );
+        if (!statusResponse.ok) {
+          throw new Error("Failed to check video export status");
+        }
+        finalTask = await statusResponse.json();
+
+        if (finalTask?.status === "completed") break;
+        if (finalTask?.status === "error") {
+          throw new Error(
+            finalTask?.error?.detail || finalTask?.message || "Video export failed"
+          );
+        }
+
+        const completedSlides = finalTask?.data?.completed_slides;
+        const totalSlides = finalTask?.data?.total_slides;
+        const progressMessage =
+          typeof completedSlides === "number" &&
+          typeof totalSlides === "number" &&
+          totalSlides > 0
+            ? `${finalTask?.message || "Working"} (${completedSlides}/${totalSlides} slides)`
+            : finalTask?.message ||
+              "Generating narration and assembling your video.";
+        notify.loading("Exporting Video", progressMessage, {
+          id: exportToastId,
+        });
+      }
+
+      if (finalTask?.status !== "completed") {
+        throw new Error("Video export timed out");
+      }
+
+      const videoPath: string | undefined = finalTask?.data?.path;
+      const relativeVideoPath: string | undefined =
+        finalTask?.data?.relative_path;
+      if (!videoPath && !relativeVideoPath) {
+        throw new Error("No video path returned from export");
+      }
+
+      const safeVideoFileName = buildSafeExportFileName(
+        presentationData?.title,
+        "mp4"
+      );
+      // Prefer the path relative to the (unscoped) videos root, since the
+      // file actually lives under a per-owner "users/<id>/" subdirectory --
+      // falling back to the bare filename only for older task payloads.
+      const videoUrlName =
+        relativeVideoPath || videoPath?.split("/").pop() || "";
+      downloadLink(
+        `/api/export-presentation-video/file?name=${encodeURIComponent(
+          videoUrlName
+        )}`,
+        safeVideoFileName
+      );
+
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Completed,
+        "mp4",
+        exportRuntime,
+        exportId,
+        exportStartedAt
+      );
+      notify.success(
+        "Export complete",
+        "Your narrated video has been downloaded.",
+        { id: exportToastId }
+      );
+    } catch (error) {
+      console.error("Video export failed:", error);
+      await trackExportLifecycle(
+        MixpanelEvent.Presentation_Export_Failed,
+        "mp4",
+        exportRuntime,
+        exportId,
+        exportStartedAt,
+        error
+      );
+      notify.error(
+        "Export failed",
+        "We are having trouble exporting your video. Please try again.",
+        exportToastId !== undefined ? { id: exportToastId } : undefined
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleReGenerate = () => {
     setIsRegenerateConfirmOpen(false);
     dispatch(clearPresentationData());
@@ -421,7 +552,7 @@ const PresentationHeader = ({
       | MixpanelEvent.Presentation_Export_Started
       | MixpanelEvent.Presentation_Export_Completed
       | MixpanelEvent.Presentation_Export_Failed,
-    format: "pptx" | "pdf",
+    format: "pptx" | "pdf" | "mp4",
     exportRuntime: "electron" | "browser_api",
     exportId: string,
     exportStartedAt: number,
@@ -478,6 +609,18 @@ const PresentationHeader = ({
             }`}
         >
           PPTX
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          onClick={() => {
+            handleExportVideo();
+            setOpen(false);
+          }}
+          variant="ghost"
+          className={`w-full flex px-0 justify-start text-xs text-black hover:bg-transparent  ${mobile ? "bg-white py-6" : ""
+            }`}
+        >
+          Video
           <ArrowUpRight className="w-3.5 h-3.5" />
         </Button>
       </div>

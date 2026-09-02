@@ -379,6 +379,42 @@ def get_comfyui_workflow_env():
     return os.getenv("COMFYUI_WORKFLOW")
 
 
+# ComfyUI TTS (slide-notes narration). Falls back to the image-generation
+# COMFYUI_URL when a dedicated narration server isn't configured, since most
+# setups run one ComfyUI instance serving multiple workflow types.
+def get_comfyui_tts_url_env():
+    return os.getenv("COMFYUI_TTS_URL") or get_comfyui_url_env()
+
+
+def get_comfyui_tts_workflow_env():
+    return os.getenv("COMFYUI_TTS_WORKFLOW")
+
+
+def get_disable_video_narration_env():
+    return os.getenv("DISABLE_VIDEO_NARRATION")
+
+
+def get_video_narration_provider_env():
+    return os.getenv("VIDEO_NARRATION_PROVIDER")
+
+
+def get_ffmpeg_binary_env():
+    return os.getenv("FFMPEG_BINARY", "ffmpeg")
+
+
+def get_ffprobe_binary_env():
+    return os.getenv("FFPROBE_BINARY", "ffprobe")
+
+
+def get_video_narration_max_concurrency_env() -> int:
+    raw = os.getenv("VIDEO_NARRATION_MAX_CONCURRENCY", "2")
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return 2
+    return value if value > 0 else 2
+
+
 # Dalle 3 Quality
 def get_dall_e_3_quality_env():
     return os.getenv("DALL_E_3_QUALITY")

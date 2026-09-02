@@ -89,7 +89,7 @@ ENV APP_DATA_DIRECTORY=/app_data \
 RUN set -eux; \
     printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99snapshot; \
     printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$CHROMIUM_SNAPSHOT" > /etc/apt/sources.list.d/chromium-snapshot.list; \
-    packages="ca-certificates curl nginx fontconfig imagemagick zstd \
+    packages="ca-certificates curl nginx fontconfig imagemagick zstd ffmpeg \
     fonts-liberation fonts-noto-core fonts-noto-extra fonts-noto-mono fonts-noto-ui-core fonts-noto-ui-extra \
     fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji xdg-utils \
     libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libatspi2.0-0t64 \
@@ -115,7 +115,7 @@ RUN find /usr/share/fonts -type f ! -iname 'Noto*' -delete \
     && fc-cache -fsv
 
 RUN mkdir -p /app/scripts /app/servers/fastapi /app/servers/nextjs
-RUN mkdir -p /app_data/exports /app_data/images /app_data/uploads /app_data/fonts /app_data/templates /app_data/pptx-to-html /app_data/pptx-to-json \
+RUN mkdir -p /app_data/exports /app_data/images /app_data/uploads /app_data/fonts /app_data/templates /app_data/pptx-to-html /app_data/pptx-to-json /app_data/narration /app_data/videos \
     && chmod -R a+rX /app_data
 
 COPY --from=fastapi-builder /opt/venv /opt/venv

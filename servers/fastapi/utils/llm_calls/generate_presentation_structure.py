@@ -1,4 +1,5 @@
 from typing import Optional
+import logging
 
 from llmai import get_client
 from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
@@ -11,6 +12,32 @@ from utils.llm_provider import get_model
 from utils.get_dynamic_models import get_presentation_structure_model_with_n_slides
 from utils.schema_utils import prepare_schema_for_validation
 from models.presentation_structure_model import PresentationStructureModel
+
+LOGGER = logging.getLogger(__name__)
+
+# Keyword tiers used to identify which layout(s) in a template are meant for
+# the opening/title slide, most-specific first. Models -- especially
+# smaller/local ones -- don't reliably follow instruction-only guidance for
+# this on a single-shot structured output (no reasoning step to correct
+# itself), so this backs the prompt with a deterministic check rather than
+# relying on compliance alone.
+#
+# "title" is deliberately last and treated as low-confidence: many
+# real-world templates prefix nearly every layout id/name with "title_"
+# (meaning "this layout has a title field"), which makes the word "title"
+# alone non-discriminating -- see _MAX_MATCH_FRACTION below.
+_TITLE_LAYOUT_KEYWORD_TIERS = ("intro", "cover", "opening", "welcome", "hero", "title")
+
+# If a keyword matches more than this fraction of the whole layout catalog,
+# it's almost certainly a naming-convention artifact for this template (e.g.
+# every layout id happens to start with "title_") rather than a real signal
+# that a specific layout is the opening slide -- skip it and fall through to
+# a more specific/rarer keyword instead of trusting a near-universal match.
+# Deliberately high: small templates can legitimately have two or three
+# layouts that are genuinely title-ish, and that shouldn't get thrown out --
+# this is meant to catch only the extreme "basically the whole catalog
+# matched" case.
+_MAX_MATCH_FRACTION = 0.75
 
 
 STRUCTURE_FROM_SLIDES_MARKDOWN_SYSTEM_PROMPT = """
@@ -35,6 +62,15 @@ You need to select a layout for each slide based on the mentioned guidelines.
 - Don't select table layout if content does not contain table.
 - You are allowed to select same layout for multiple slides.
 
+# Title Slide Rule (highest priority -- apply before all other rules)
+- The first slide in the presentation is the opening/title slide.
+- Check every available layout's name and description for words indicating it is a
+  title, cover, or opening layout.
+- If any such layout exists among the available layouts, the first slide MUST use it.
+- Do not use a title/cover/opening layout for any slide other than the first slide
+  (or a dedicated closing slide, if the content explicitly calls for one), even if it
+  seems visually appealing for a content slide.
+
 # Table Layout Selection Rules
 - Must select table layout if the content contains table with text data.
 - Must only select a layout with table if the table only contains text data.
@@ -56,8 +92,9 @@ You need to select a layout for each slide based on the mentioned guidelines.
 - Treat a numeric table on a chart-requested slide as chart data, not a request for a table-only layout.
 
 # Output Rules: 
-- One layout index for each slide.
-- Example: [0, 1, 2, 3, 4]
+- One layout option number for each slide, in slide order.
+- Layout option numbers do NOT need to match slide positions -- the same option can
+  repeat, and options are typically used out of order. Example: [2, 0, 4, 0, 1]
 
 {presentation_layout}
 """
@@ -70,9 +107,18 @@ You're a professional presentation designer with creative freedom to design enga
 - Create visually compelling and varied presentations
 - Match layout to content purpose and audience needs
 
+# Title Slide Rule (highest priority -- apply before all other guidelines)
+- The first slide in the presentation is the opening/title slide.
+- Check every available layout's name and description for words indicating it is a
+  title, cover, or opening layout.
+- If any such layout exists among the available layouts, the first slide MUST use it.
+- Do not use a title/cover/opening layout for any slide other than the first slide
+  (or a dedicated closing slide, if the content explicitly calls for one), even if it
+  seems visually appealing for a content slide.
+
 # Layout Selection Guidelines
 1. **Content-driven choices**: Let the slide's purpose guide layout selection
-- Opening/closing → Title layouts
+- Opening/closing → Title layouts (see Title Slide Rule above for the first slide)
 - Processes/workflows → Visual process layouts  
 - Comparisons/contrasts → Side-by-side layouts
 - Data/metrics → Chart/graph layouts
@@ -154,6 +200,96 @@ def get_messages_for_slides_markdown(
     return [SystemMessage(content=system_prompt), UserMessage(content=data)]
 
 
+def _find_title_layout_indices(presentation_layout: PresentationLayoutModel) -> list[int]:
+    """
+    Find layout(s) in the template whose name/description mark them as an
+    opening/title/cover layout, most-specific keyword tier first. A tier is
+    skipped (falling through to the next, less-specific one) if it matches
+    more of the catalog than _MAX_MATCH_FRACTION allows, since that means
+    the keyword isn't actually discriminating for this template. Returns
+    all matches at the first usable tier found (usually just one), or an
+    empty list if nothing in the template confidently reads as a title
+    layout.
+    """
+    total = len(presentation_layout.slides)
+    if total == 0:
+        return []
+
+    matches_by_tier: dict[int, list[int]] = {}
+    for index, slide in enumerate(presentation_layout.slides):
+        name = (slide.name or slide.json_schema.get("title") or "") or ""
+        haystack = f"{name} {slide.description or ''}".lower()
+        for tier, keyword in enumerate(_TITLE_LAYOUT_KEYWORD_TIERS):
+            if keyword in haystack:
+                matches_by_tier.setdefault(tier, []).append(index)
+                break
+
+    for tier in range(len(_TITLE_LAYOUT_KEYWORD_TIERS)):
+        candidates = matches_by_tier.get(tier)
+        if not candidates:
+            continue
+        if len(candidates) / total > _MAX_MATCH_FRACTION:
+            LOGGER.info(
+                "[title_layout_correction] keyword '%s' matched %s/%s layouts "
+                "-- too broad to be a real signal for this template, skipping",
+                _TITLE_LAYOUT_KEYWORD_TIERS[tier],
+                len(candidates),
+                total,
+            )
+            continue
+        return candidates
+    return []
+
+
+def _ensure_title_layout_for_first_slide(
+    structure: PresentationStructureModel,
+    presentation_layout: PresentationLayoutModel,
+) -> PresentationStructureModel:
+    """
+    Deterministic safety net for the model's layout choice for the first
+    slide. If the template has a layout clearly meant for the opening/title
+    slide but the model picked something else for slide 0, override it --
+    this is too structurally important to leave entirely to model
+    compliance, particularly with smaller/local models.
+    """
+    if not structure.slides:
+        LOGGER.info("[title_layout_correction] called with an empty slide list -- nothing to check")
+        return structure
+
+    catalog_summary = [
+        f"{index}:{slide.name or slide.json_schema.get('title') or '(no name)'}"
+        for index, slide in enumerate(presentation_layout.slides)
+    ]
+    title_layout_indices = _find_title_layout_indices(presentation_layout)
+    LOGGER.info(
+        "[title_layout_correction] first slide check -- model chose layout %s; "
+        "title/cover/opening candidates found: %s; layout catalog: %s",
+        structure.slides[0],
+        title_layout_indices,
+        catalog_summary,
+    )
+
+    if not title_layout_indices:
+        LOGGER.info(
+            "[title_layout_correction] no layout in this template's catalog matched "
+            "title/cover/opening keywords in its name or description -- nothing to enforce"
+        )
+        return structure
+
+    if structure.slides[0] in title_layout_indices:
+        return structure
+
+    corrected_index = title_layout_indices[0]
+    LOGGER.info(
+        "[title_layout_correction] model chose layout %s for the first "
+        "slide; overriding to %s (detected title/cover/opening layout)",
+        structure.slides[0],
+        corrected_index,
+    )
+    structure.slides[0] = corrected_index
+    return structure
+
+
 async def generate_presentation_structure(
     presentation_outline: PresentationOutlineModel,
     presentation_layout: PresentationLayoutModel,
@@ -206,6 +342,7 @@ async def generate_presentation_structure(
             validate_schema=True,
             disconnect_checker=disconnect_checker,
         )
-        return PresentationStructureModel(**content)
+        structure = PresentationStructureModel(**content)
+        return _ensure_title_layout_for_first_slide(structure, presentation_layout)
     except Exception as e:
         raise handle_llm_client_exceptions(e)

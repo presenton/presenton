@@ -205,3 +205,21 @@ def get_exports_directory():
 
 def get_uploads_directory():
     return _owned_directory("uploads")
+
+
+def get_narration_directory():
+    return _owned_directory("narration")
+
+
+def get_videos_directory():
+    return _owned_directory("videos")
+
+
+def get_videos_root_directory():
+    """
+    Unscoped root of the videos directory (no per-owner subfolder), used to
+    compute a relative "users/<id>/filename.mp4"-style path for building
+    download URLs -- mirrors how the Next.js PDF/PPTX export route computes
+    paths relative to its unscoped exports root.
+    """
+    return os.path.join(get_app_data_directory_env(), "videos")

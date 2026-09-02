@@ -1,7 +1,7 @@
 import React from 'react'
 import { MixpanelEvent, trackEvent } from '@/utils/mixpanel'
 
-const STEPS = ["Text Provider", "Image Provider", "Web Search", "Finish Setup"];
+const STEPS = ["Text Provider", "Image Provider", "Web Search", "Video Narration", "Finish Setup"];
 
 const OnBoardingHeader = ({
     currentStep,
@@ -14,7 +14,7 @@ const OnBoardingHeader = ({
     setStep: (step: number) => void,
     setProviderStep: (step: number) => void,
 }) => {
-    const activeStep = currentStep === 3 ? 4 : providerStep;
+    const activeStep = currentStep === 3 ? 5 : providerStep;
 
     const goToStep = (target: number) => {
         if (target >= activeStep) return;
