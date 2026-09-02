@@ -494,8 +494,12 @@ def get_extra_body(*, uses_tool_choice: bool = False) -> Optional[dict]:
         use_legacy_disable or uses_tool_choice
     ):
         extra_body["thinking"] = {"type": "disabled"}
-    if llm_provider == LLMProvider.CUSTOM and use_legacy_disable:
-        extra_body["enable_thinking"] = False
+    if llm_provider == LLMProvider.CUSTOM:
+        explicit_mode = (get_llm_reasoning_mode_env() or "").strip().lower()
+        if use_legacy_disable:
+            extra_body["enable_thinking"] = False
+        elif explicit_mode == "enabled":
+            extra_body["enable_thinking"] = True
     if llm_provider == LLMProvider.OPENROUTER:
         provider: dict = {}
         order = [

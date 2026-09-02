@@ -100,6 +100,26 @@ def test_explicit_reasoning_overrides_legacy_custom_payload(monkeypatch):
     monkeypatch.setenv("DISABLE_THINKING", "true")
     monkeypatch.setenv("LLM_REASONING_MODE", "enabled")
 
+    # Unlike OpenAI-style providers, custom (OpenAI-compatible) chat-completions
+    # backends such as vLLM don't accept an OpenAI "reasoning_effort" param, so
+    # explicitly enabling reasoning has to be expressed as extra_body's
+    # enable_thinking flag rather than relaxing back to no extra_body at all.
+    assert get_extra_body() == {"enable_thinking": True}
+
+
+def test_custom_explicit_reasoning_enabled_without_legacy_disable(monkeypatch):
+    monkeypatch.setenv("LLM", "custom")
+    monkeypatch.setenv("LLM_REASONING_MODE", "enabled")
+
+    extra_body = get_extra_body()
+
+    assert extra_body == {"enable_thinking": True}
+
+
+def test_custom_reasoning_mode_auto_keeps_thinking_default(monkeypatch):
+    monkeypatch.setenv("LLM", "custom")
+    monkeypatch.setenv("LLM_REASONING_MODE", "auto")
+
     assert get_extra_body() is None
 
 
