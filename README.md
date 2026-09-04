@@ -353,7 +353,7 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **CAN_CHANGE_KEYS**=[true/false]: Set to **false** if you want to keep API keys hidden and make them unmodifiable.
 - **PRESENTON_PUBLIC_URL**: Optional browser-reachable Presenton origin, for example `http://localhost:5001` or `https://slides.example.com`. Set this when an MCP client reaches Presenton through a Docker-internal hostname; generated download, edit, and preview links use this origin instead.
 - **PRESENTATION_GENERATION_MODE**=[both/standard/smart]: Controls which presentation generation mode is available in the UI and which generation tools the MCP server exposes. Defaults to **both**. A single-mode value hides the mode selector and forces that mode; `smart` also hides template and custom-template features and tools. See the **[presentation generation modes guide](docs/presentation-generation-modes.md)** for configuration examples and mode behavior.
-- **LLM**=[openai/deepseek/google/vertex/azure/bedrock/openrouter/fireworks/together/cerebras/anthropic/litellm/lmstudio/ollama/custom/codex]: Select the text **LLM**.
+- **LLM**=[openai/deepseek/google/vertex/azure/bedrock/openrouter/conifer/fireworks/together/cerebras/anthropic/litellm/lmstudio/ollama/custom/codex]: Select the text **LLM**.
 - **OPENAI_API_KEY**: Required if **LLM** is **openai**.
 - **OPENAI_MODEL**: Required if **LLM** is **openai** (default: `gpt-4.1`).
 - **DEEPSEEK_API_KEY**: Required if **LLM** is **deepseek**.
@@ -384,6 +384,9 @@ Other optional variables exist in code (for example advanced Mem0 paths, LitePar
 - **OPENROUTER_REQUIRE_PARAMETERS**=[true/false]: Only route to providers supporting every request parameter.
 - **OPENROUTER_DATA_COLLECTION**=[allow/deny]: Optional OpenRouter data-collection policy.
 - **OPENROUTER_ZDR**=[true/false]: Optional OpenRouter zero-data-retention requirement.
+- **CONIFER_API_KEY**: Required if **LLM** is **conifer**. Mint one at [conifer.build/console](https://conifer.build/console#/keys).
+- **CONIFER_MODEL**: Optional if **LLM** is **conifer** (default: `claude-haiku-4-5`).
+- **CONIFER_BASE_URL**: Optional if **LLM** is **conifer** (default: `https://api.conifer.build/v1`).
 - **FIREWORKS_API_KEY**: Required if **LLM** is **fireworks**.
 - **FIREWORKS_MODEL**: Required if **LLM** is **fireworks** (example: `accounts/fireworks/models/llama-v3p1-8b-instruct`).
 - **FIREWORKS_BASE_URL**: Optional if **LLM** is **fireworks** (default: `https://api.fireworks.ai/inference/v1`).
@@ -654,6 +657,9 @@ Same variables as compose; use `-e` instead of `.env` when running `docker run` 
 
 - Using Amazon Bedrock (inference profile ARN, e.g. Claude Sonnet 4.6)
     <pre><code class="language-bash">docker run -it --name presenton -p 5001:80 -e LLM="bedrock" -e BEDROCK_REGION="us-east-1" -e BEDROCK_AWS_ACCESS_KEY_ID="******" -e BEDROCK_AWS_SECRET_ACCESS_KEY="******" -e BEDROCK_MODEL="arn:aws:bedrock:us-east-1:YOUR_ACCOUNT_ID:inference-profile/us.anthropic.claude-sonnet-4-6" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
+
+- Using Conifer
+    <pre><code class="language-bash">docker run -it --name presenton -p 5001:80 -e LLM="conifer" -e CONIFER_API_KEY="******" -e CONIFER_MODEL="claude-haiku-4-5" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
 - Using Fireworks
     <pre><code class="language-bash">docker run -it --name presenton -p 5001:80 -e LLM="fireworks" -e FIREWORKS_API_KEY="******" -e FIREWORKS_MODEL="accounts/fireworks/models/llama-v3p1-8b-instruct" -e IMAGE_PROVIDER="pexels" -e PEXELS_API_KEY="******" -e CAN_CHANGE_KEYS="false" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>

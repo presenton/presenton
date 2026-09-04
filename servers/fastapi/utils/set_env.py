@@ -153,6 +153,18 @@ def set_openrouter_zdr_env(value):
     os.environ["OPENROUTER_ZDR"] = value
 
 
+def set_conifer_api_key_env(value):
+    os.environ["CONIFER_API_KEY"] = value
+
+
+def set_conifer_model_env(value):
+    os.environ["CONIFER_MODEL"] = value
+
+
+def set_conifer_base_url_env(value):
+    os.environ["CONIFER_BASE_URL"] = value
+
+
 def set_fireworks_api_key_env(value):
     os.environ["FIREWORKS_API_KEY"] = value
 
