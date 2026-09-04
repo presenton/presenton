@@ -48,6 +48,11 @@ export interface LLMConfig {
   OPENROUTER_DATA_COLLECTION?: "allow" | "deny";
   OPENROUTER_ZDR?: boolean;
 
+  // Conifer
+  CONIFER_API_KEY?: string;
+  CONIFER_MODEL?: string;
+  CONIFER_BASE_URL?: string;
+
   // Fireworks
   FIREWORKS_API_KEY?: string;
   FIREWORKS_MODEL?: string;

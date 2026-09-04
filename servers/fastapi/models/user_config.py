@@ -47,6 +47,11 @@ class UserConfig(BaseModel):
     OPENROUTER_DATA_COLLECTION: Optional[Literal["allow", "deny"]] = None
     OPENROUTER_ZDR: Optional[bool] = None
 
+    # Conifer
+    CONIFER_API_KEY: Optional[str] = None
+    CONIFER_MODEL: Optional[str] = None
+    CONIFER_BASE_URL: Optional[str] = None
+
     # Fireworks
     FIREWORKS_API_KEY: Optional[str] = None
     FIREWORKS_MODEL: Optional[str] = None

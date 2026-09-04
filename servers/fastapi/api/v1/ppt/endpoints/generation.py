@@ -8,6 +8,7 @@ GENERATION_ROUTER = APIRouter(prefix="/generation", tags=["Generation"])
 
 PROVIDER_ALIASES = {
     "codex": "chatgpt",
+    "conifer": "openai",
     "custom": "openai",
     "ollama": "openai",
     "together": "togetherai",

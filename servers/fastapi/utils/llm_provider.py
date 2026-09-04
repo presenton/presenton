@@ -8,6 +8,7 @@ from constants.llm import (
     DEFAULT_BEDROCK_MODEL,
     DEFAULT_CEREBRAS_MODEL,
     DEFAULT_CODEX_MODEL,
+    DEFAULT_CONIFER_MODEL,
     DEFAULT_DEEPSEEK_MODEL,
     DEFAULT_FIREWORKS_MODEL,
     DEFAULT_LITELLM_MODEL,
@@ -26,6 +27,7 @@ from utils.get_env import (
     get_anthropic_model_env,
     get_bedrock_model_env,
     get_codex_model_env,
+    get_conifer_model_env,
     get_custom_model_env,
     get_deepseek_model_env,
     get_fireworks_model_env,
@@ -53,7 +55,7 @@ def get_llm_provider():
             detail=(
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
-                "fireworks, together, cerebras, anthropic, litellm, "
+                "conifer, fireworks, together, cerebras, anthropic, litellm, "
                 "lmstudio, ollama, custom, codex"
             ),
         )
@@ -103,6 +105,10 @@ def is_openrouter_selected():
     return get_llm_provider() == LLMProvider.OPENROUTER
 
 
+def is_conifer_selected():
+    return get_llm_provider() == LLMProvider.CONIFER
+
+
 def is_fireworks_selected():
     return get_llm_provider() == LLMProvider.FIREWORKS
 
@@ -143,6 +149,8 @@ def get_model():
         return get_bedrock_model_env() or DEFAULT_BEDROCK_MODEL
     elif selected_llm == LLMProvider.OPENROUTER:
         return get_openrouter_model_env() or DEFAULT_OPENROUTER_MODEL
+    elif selected_llm == LLMProvider.CONIFER:
+        return get_conifer_model_env() or DEFAULT_CONIFER_MODEL
     elif selected_llm == LLMProvider.FIREWORKS:
         return get_fireworks_model_env() or DEFAULT_FIREWORKS_MODEL
     elif selected_llm == LLMProvider.TOGETHER:
@@ -168,7 +176,7 @@ def get_model():
             detail=(
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
-                "fireworks, together, cerebras, anthropic, litellm, "
+                "conifer, fireworks, together, cerebras, anthropic, litellm, "
                 "lmstudio, ollama, custom, codex"
             ),
         )

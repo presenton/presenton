@@ -79,6 +79,7 @@ const MODEL_FIELDS: Partial<Record<string, keyof LLMConfig>> = {
   bedrock: "BEDROCK_MODEL",
   cerebras: "CEREBRAS_MODEL",
   codex: "CODEX_MODEL",
+  conifer: "CONIFER_MODEL",
   custom: "CUSTOM_MODEL",
   deepseek: "DEEPSEEK_MODEL",
   fireworks: "FIREWORKS_MODEL",
