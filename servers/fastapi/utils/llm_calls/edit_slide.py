@@ -162,9 +162,7 @@ async def get_edited_slide_content(
             json_schema=response_schema,
             strict=False,
             validate_schema=True,
-            content_validator=lambda content: get_content_quality_errors(
-                response_schema, content
-            ),
+            content_validator=lambda content: get_content_quality_errors(response_schema, content),
         )
 
     except Exception as e:

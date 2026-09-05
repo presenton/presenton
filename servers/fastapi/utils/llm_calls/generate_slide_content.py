@@ -372,9 +372,7 @@ async def get_slide_content_from_type_and_outline(
             json_schema=response_schema,
             strict=False,
             validate_schema=True,
-            content_validator=lambda content: get_content_quality_errors(
-                response_schema, content
-            ),
+            content_validator=lambda content: get_content_quality_errors(response_schema, content),
             disconnect_checker=disconnect_checker,
         )
 

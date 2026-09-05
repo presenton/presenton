@@ -291,9 +291,7 @@ def structured_validation_feedback_user_message(
     def _format_errors(errors: list[str]) -> list[str]:
         formatted = errors[:max_error_count]
         if len(errors) > max_error_count:
-            formatted.append(
-                f"...and {len(errors) - max_error_count} more validation errors."
-            )
+            formatted.append(f"...and {len(errors) - max_error_count} more validation errors.")
         return formatted
 
     sections: list[str] = []
@@ -304,9 +302,9 @@ def structured_validation_feedback_user_message(
             + "\n".join(f"- {error}" for error in _format_errors(content_errors))
             + "\n\nReplace every flagged value with meaningful content about the "
             "slide topic in the slide language. Never use response-schema field "
-            "names or keywords (e.g. \"minLength\", \"type object\"), internal "
-            "identifiers (e.g. \"__tablecard\"), generation meta-commentary, "
-            "placeholder punctuation (e.g. \"...\"), or glued/truncated words."
+            'names or keywords (e.g. "minLength", "type object"), internal '
+            'identifiers (e.g. "__tablecard"), generation meta-commentary, '
+            'placeholder punctuation (e.g. "..."), or glued/truncated words.'
         )
     if validation_errors:
         sections.append(

@@ -161,8 +161,7 @@ async def generate_slide_content_with_quality_retry(
                 raise HTTPException(
                     status_code=error.status_code,
                     detail=(
-                        f"Slide {slide_number} content failed quality "
-                        f"validation: {error.detail}"
+                        f"Slide {slide_number} content failed quality validation: {error.detail}"
                     ),
                 ) from error
             logger.warning(

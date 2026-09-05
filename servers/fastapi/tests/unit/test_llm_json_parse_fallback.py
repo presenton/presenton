@@ -146,9 +146,7 @@ def _patch_outline_llm(
     collected: list = []
     monkeypatch.setattr(generate_presentation_outlines, "get_model", lambda: "test-model")
     monkeypatch.setattr(generate_presentation_outlines, "get_client", lambda config=None: object())
-    monkeypatch.setattr(
-        generate_presentation_outlines, "get_llm_config", lambda **_kwargs: None
-    )
+    monkeypatch.setattr(generate_presentation_outlines, "get_llm_config", lambda **_kwargs: None)
     monkeypatch.setattr(
         generate_presentation_outlines, "get_web_search_route", lambda: ("none", None)
     )
@@ -203,9 +201,7 @@ async def test_outline_upstream_error_still_yields_http_exception(
     """Не-parse-ошибки идут в общий обработчик (HTTPException), как раньше."""
     from fastapi import HTTPException
 
-    _patch_outline_llm(
-        monkeypatch, [], LLMRateLimitError(429, "rate limit exceeded")
-    )
+    _patch_outline_llm(monkeypatch, [], LLMRateLimitError(429, "rate limit exceeded"))
 
     chunks = await _collect_outline()
     assert len(chunks) == 1
