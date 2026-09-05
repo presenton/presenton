@@ -152,9 +152,9 @@ def get_content_quality_errors(
 
     Обходит все строковые значения ``content``, включая вложенные массивы и
     ``__speaker_note__``; имена полей ``response_schema`` нужны детектору
-    schema-эха.
+    schema-эха, enum-значения схемы образуют allowlist легитимных значений.
     """
-    terms = _collect_schema_terms(response_schema)
+    terms, enum_values = _collect_schema_terms(response_schema)
     errors: list[str] = []
 
     def walk(node: Any, path: list[Any]) -> None:
@@ -167,7 +167,7 @@ def get_content_quality_errors(
             for index, value in enumerate(node):
                 walk(value, [*path, index])
         elif isinstance(node, str):
-            reason = _string_issue(node, terms)
+            reason = _string_issue(node, terms, enum_values)
             if reason:
                 errors.append(f"{format_json_path(path)}: {reason}")
 
@@ -175,7 +175,11 @@ def get_content_quality_errors(
     return errors
 
 
-def _string_issue(value: str, terms: frozenset[str]) -> str | None:
+def _string_issue(
+    value: str,
+    terms: frozenset[str],
+    enum_values: frozenset[str],
+) -> str | None:
     if not value.strip():
         return None
     leak = _leak_reason(value)
@@ -195,7 +199,7 @@ def _string_issue(value: str, terms: frozenset[str]) -> str | None:
     head = value.lstrip()[:1]
     if head in {"{", "["} and _RAW_JSON_RE.search(value):
         return "raw JSON fragment in content value"
-    return _schema_echo_reason(value, terms)
+    return _schema_echo_reason(value, terms, enum_values)
 
 
 def _leak_reason(value: str) -> str | None:
@@ -209,23 +213,36 @@ def _leak_reason(value: str) -> str | None:
     return None
 
 
-def _schema_echo_reason(value: str, terms: frozenset[str]) -> str | None:
+def _schema_echo_reason(
+    value: str,
+    terms: frozenset[str],
+    enum_values: frozenset[str],
+) -> str | None:
     stripped = value.strip().strip(":;,.")
     if not stripped:
+        return None
+    tokens = [token for token in re.split(r"[\s_\-]+", stripped) if token]
+    if not tokens:
+        return None
+    # Значения enum'ов схемы — легитимный доменный контент по определению
+    # (chart_type: "line", icon_type: "bold"): они никогда не эхо, даже если
+    # совпадают с частями имён полей (прод-инцидент 2026-09-06: chart_type
+    # "line" при свойстве panel_line_chart ронял генерацию).
+    normalized_value_tokens = {_normalize_term(token) for token in tokens}
+    if _normalize_term(stripped) in enum_values or normalized_value_tokens <= enum_values:
         return None
     # Целое значение с другим разделителем («additional_properties») может
     # совпадать с термином схемы, который сам по себе составной.
     compact = _normalize_term(stripped)
     if len(compact) >= 4 and compact in terms and compact not in _COMMON_ECHO_WORDS:
         return "value echoes a response-schema field name"
-    tokens = [token for token in re.split(r"[\s_\-]+", stripped) if token]
-    if not tokens:
-        return None
     if len(tokens) == 1:
         token = _normalize_term(tokens[0])
         # Одиночное слово-термин честно помечаем, только если оно не из
-        # числа обычных слов контента и достаточно длинное, чтобы быть
-        # схемным («enum» — да, «type» — нет).
+        # числа обычных слов контента, достаточно длинное, чтобы быть
+        # схемным («enum» — да, «type» — нет), и является ПОЛНЫМ именем
+        # поля/ключевым словом: суб-токены имён («line» из
+        # «panel_line_chart») легитимным значениям не запрещены.
         if len(token) >= 4 and token in terms and token not in _COMMON_ECHO_WORDS:
             return "value echoes a response-schema field name"
         return None
@@ -238,22 +255,32 @@ def _normalize_term(value: str) -> str:
     return re.sub(r"[\s_\-]+", "", value).lower()
 
 
-def _collect_schema_terms(response_schema: dict | None) -> frozenset[str]:
-    """Имена полей схемы (и их части) плюс ключевые слова JSON Schema."""
+def _collect_schema_terms(
+    response_schema: dict | None,
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Полные имена полей схемы + ключевые слова JSON Schema и enum-значения.
+
+    Суб-токены имён (panel_line_chart -> «panel», «line») в термины эха не
+    входят: они совпадают с легитимными короткими значениями
+    (chart_type: "line") и роняли генерацию ложными срабатываниями
+    (прод-инцидент 2026-09-06). Составные имена всё равно ловятся
+    компактной проверкой целого значения в _schema_echo_reason.
+    """
     terms: set[str] = set(_JSON_SCHEMA_KEYWORDS)
+    enum_values: set[str] = set()
 
     def walk(node: Any) -> None:
         if isinstance(node, dict):
+            options = node.get("enum")
+            if isinstance(options, list):
+                for option in options:
+                    if isinstance(option, str):
+                        enum_values.add(_normalize_term(option))
             properties = node.get("properties")
             if isinstance(properties, dict):
                 for name in properties:
-                    if not isinstance(name, str) or not name:
-                        continue
-                    terms.add(_normalize_term(name))
-                    for part in re.split(r"[\s_\-]+", name):
-                        part = part.strip().lower()
-                        if len(part) >= 3:
-                            terms.add(part)
+                    if isinstance(name, str) and name:
+                        terms.add(_normalize_term(name))
                 for value in properties.values():
                     walk(value)
             for key, value in node.items():
@@ -264,4 +291,4 @@ def _collect_schema_terms(response_schema: dict | None) -> frozenset[str]:
                 walk(item)
 
     walk(response_schema)
-    return frozenset(terms)
+    return frozenset(terms), frozenset(enum_values)
