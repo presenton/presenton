@@ -153,3 +153,96 @@ def test_works_without_schema() -> None:
     assert _errors({"title": "__tablecard"}, schema=None)
     assert _errors({"title": "minLength"}, schema=None)
     assert not _errors({"title": "customfield"}, schema=None)
+
+
+# ---------------------------------------------------------------------------
+# Ложные срабатывания на enum-значениях (прод-инцидент 2026-09-06)
+# ---------------------------------------------------------------------------
+
+CHART_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "right_chart_panel": {
+            "type": "object",
+            "properties": {
+                "panel_line_chart": {
+                    "type": "object",
+                    "properties": {
+                        "chart_type": {"type": "string", "enum": ["line", "bar", "area"]},
+                        "series": {"type": "array"},
+                    },
+                }
+            },
+        },
+        "left_visual_card": {
+            "type": "object",
+            "properties": {
+                "line_chart_area": {
+                    "type": "object",
+                    "properties": {
+                        "chart_type": {"type": "string", "enum": ["line", "bar", "area"]},
+                    },
+                },
+                "alignment": {"type": "string", "enum": ["left", "center", "right"]},
+            },
+        },
+    },
+}
+
+
+def test_legitimate_chart_type_values_pass() -> None:
+    """Прод-инцидент: chart_type "line"/"area" при свойствах panel_line_chart
+    и line_chart_area — легитимный контент, не schema-эхо."""
+    content = {
+        "right_chart_panel": {"panel_line_chart": {"chart_type": "line"}},
+        "left_visual_card": {"line_chart_area": {"chart_type": "area"}},
+    }
+    assert _errors(content, CHART_SCHEMA) == []
+
+
+def test_subtoken_words_in_values_pass() -> None:
+    """Слова, совпадающие с суб-токенами имён полей («left» из left_visual_card),
+    не запрещены легитимным значениям."""
+    content = {
+        "left_visual_card": {"alignment": "left"},
+        "right_chart_panel": {"panel_line_chart": {"chart_type": "bar"}},
+    }
+    assert _errors(content, CHART_SCHEMA) == []
+
+
+def test_enum_values_never_flagged_even_matching_field_name() -> None:
+    schema = {
+        "type": "object",
+        "properties": {
+            "line": {"type": "string", "enum": ["line"]},
+        },
+    }
+    assert _errors({"line": "line"}, schema) == []
+
+
+def test_compound_schema_names_still_flagged() -> None:
+    """Составные имена ловятся компактной проверкой целого значения даже
+    после отказа от суб-токенов."""
+    content = {
+        "title": "Состав полей",
+        "rows": [["panel_line_chart"], ["line chart area"], ["line_chart"]],
+    }
+    errors = _errors(content, CHART_SCHEMA)
+    assert len(errors) == 2, errors
+
+
+def test_clean_chart_content_with_free_text_passes() -> None:
+    content = {
+        "right_chart_panel": {
+            "panel_line_chart": {
+                "chart_type": "line",
+                "series": [{"name": "Продажи 2025", "values": [1, 2, 3]}],
+            }
+        },
+        "left_visual_card": {
+            "line_chart_area": {"chart_type": "bar"},
+            "alignment": "center",
+            "heading": "Выручка по кварталам",
+        },
+    }
+    assert _errors(content, CHART_SCHEMA) == []
