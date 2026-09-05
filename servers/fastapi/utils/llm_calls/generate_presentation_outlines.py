@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 import logging
@@ -23,6 +24,8 @@ from utils.llm_provider import get_model
 from utils.llm_utils import (
     DisconnectChecker,
     get_generate_kwargs,
+    is_retryable_llm_error,
+    retry_after_seconds,
     serialize_structured_content,
     stream_generate_events,
 )
@@ -375,21 +378,40 @@ async def generate_ppt_outline(
                     include_title_slide,
                     include_table_of_contents,
                 ),
-                response_format=response_format,
-                tools=([WebSearchTool()] if use_search_tool else None),
-                stream=True,
-            ),
-        ):
-            if getattr(event, "type", None) == "content":
-                chunk = getattr(event, "chunk", None)
-                if chunk:
-                    emitted_content = True
-                    yield chunk
-            elif (
-                isinstance(event, ResponseStreamCompletionChunk) and not emitted_content
             ):
-                final_content = serialize_structured_content(event.content)
-                if final_content:
-                    yield final_content
-    except Exception as e:
-        yield handle_llm_client_exceptions(e)
+                if getattr(event, "type", None) == "content":
+                    chunk = getattr(event, "chunk", None)
+                    if chunk:
+                        emitted_content = True
+                        yield chunk
+                elif (
+                    isinstance(event, ResponseStreamCompletionChunk)
+                    and not emitted_content
+                ):
+                    final_content = serialize_structured_content(event.content)
+                    if final_content:
+                        emitted_content = True
+                        yield final_content
+            return
+        except Exception as e:
+            if (
+                not emitted_content
+                and outline_attempt < max_outline_attempts - 1
+                and is_retryable_llm_error(e)
+            ):
+                wait = min(
+                    max(retry_after_seconds(e) + 1.0 if retry_after_seconds(e) else 0.0, 1.0),
+                    65.0,
+                )
+                LOGGER.warning(
+                    "Outline generation attempt %s/%s failed (retryable), "
+                    "waiting %.1fs then retrying: %s",
+                    outline_attempt + 1,
+                    max_outline_attempts,
+                    wait,
+                    e,
+                )
+                await asyncio.sleep(wait)
+                continue
+            yield handle_llm_client_exceptions(e)
+            return
