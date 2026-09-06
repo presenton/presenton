@@ -46,25 +46,19 @@ def _text(font: Font | None) -> Text:
 
 
 def test_bumps_small_element_font() -> None:
-    layout = _enforce_minimum_font_sizes(
-        _layout([_text(Font(size=9, color="#111111"))])
-    )
+    layout = _enforce_minimum_font_sizes(_layout([_text(Font(size=9, color="#111111"))]))
     element = layout.components[0].elements[0]
     assert element.font.size == 12.0
 
 
 def test_bumps_small_run_fonts() -> None:
-    layout = _enforce_minimum_font_sizes(
-        _layout([_text(None)])
-    )
+    layout = _enforce_minimum_font_sizes(_layout([_text(None)]))
     element = layout.components[0].elements[0]
     assert element.runs[0].font.size == 12.0
 
 
 def test_keeps_normal_fonts_untouched() -> None:
-    layout = _enforce_minimum_font_sizes(
-        _layout([_text(Font(size=16, color="#111111"))])
-    )
+    layout = _enforce_minimum_font_sizes(_layout([_text(Font(size=16, color="#111111"))]))
     element = layout.components[0].elements[0]
     assert element.font.size == 16.0
     # ран с мелким шрифтом поднят, крупный не тронут
@@ -146,7 +140,5 @@ def test_layout_without_fonts_is_unchanged() -> None:
 
 @pytest.mark.parametrize("size", [11.9, 1, 0.5])
 def test_boundary_sizes_are_bumped(size: float) -> None:
-    layout = _enforce_minimum_font_sizes(
-        _layout([_text(Font(size=size, color="#111111"))])
-    )
+    layout = _enforce_minimum_font_sizes(_layout([_text(Font(size=size, color="#111111"))]))
     assert layout.components[0].elements[0].font.size == 12.0

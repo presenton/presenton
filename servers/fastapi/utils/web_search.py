@@ -41,14 +41,21 @@ def supports_native_web_search(provider: LLMProvider | None = None) -> bool:
 
 
 def get_selected_web_search_provider() -> WebSearchProvider:
+    """Выбранный провайдер поиска; невалидное значение не роняет генерацию.
+
+    Битое значение (легаси-провайдер, опечатка в env/user-config) раньше
+    бросало HTTP 400 и убивало конвейер генерации — теперь деградируем
+    к ``UNKNOWN``: поиск недоступен, генерация идёт без него.
+    """
     value = (get_web_search_provider_env() or WebSearchProvider.AUTO.value).strip().lower()
     try:
         return WebSearchProvider(value)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported web search provider: {value}",
-        ) from exc
+    except ValueError:
+        LOGGER.warning(
+            "Unsupported WEB_SEARCH_PROVIDER=%r — search disabled, generation continues",
+            value,
+        )
+        return WebSearchProvider.UNKNOWN
 
 
 def should_use_native_web_search() -> bool:
@@ -63,15 +70,19 @@ def should_expose_external_web_search_tool(
     native_search_available: bool = True,
 ) -> bool:
     selected = get_selected_web_search_provider()
-    if selected == WebSearchProvider.NATIVE:
-        return False
-    return selected != WebSearchProvider.AUTO
+    return selected not in {
+        WebSearchProvider.AUTO,
+        WebSearchProvider.NATIVE,
+        WebSearchProvider.UNKNOWN,
+    }
 
 
 def get_web_search_route(
     provider: LLMProvider | None = None,
 ) -> tuple[str, WebSearchProvider | None]:
     selected = get_selected_web_search_provider()
+    if selected is WebSearchProvider.UNKNOWN:
+        return "unavailable", None
     if selected in {WebSearchProvider.AUTO, WebSearchProvider.NATIVE}:
         try:
             native_search_supported = supports_native_web_search(provider)
@@ -92,7 +103,7 @@ def _get_max_results() -> int:
 
 def resolve_external_web_search_provider() -> WebSearchProvider | None:
     selected = get_selected_web_search_provider()
-    if selected in {WebSearchProvider.AUTO, WebSearchProvider.NATIVE}:
+    if selected in {WebSearchProvider.AUTO, WebSearchProvider.NATIVE, WebSearchProvider.UNKNOWN}:
         return None
     return selected
 

@@ -59,6 +59,7 @@ async def test_garbage_content_raises_instead_of_returning(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Мусор, валидный по схеме, после всех попыток роняет вызов, а не сохраняется."""
+
     async def fake_generate(_client=None, **_kwargs):
         return dict(GARBAGE_CONTENT)
 
@@ -140,6 +141,7 @@ async def test_without_validator_legacy_fallback_kept(
 ) -> None:
     """Без валидатора (outline/structure) прежний фолбэк сохранён: последний
     невалидный ответ возвращается с warning'ом."""
+
     async def fake_generate(_client=None, **_kwargs):
         return {"title": 12345}  # нарушение типа: string ожидался бы
 
@@ -169,14 +171,10 @@ async def test_slide_retry_recovers_after_garbage() -> None:
     async def generate():
         calls.append(1)
         if len(calls) == 1:
-            raise SlideContentQualityError(
-                ["$.title: value echoes a response-schema field name"]
-            )
+            raise SlideContentQualityError(["$.title: value echoes a response-schema field name"])
         return dict(CLEAN_CONTENT)
 
-    result = await generate_slide_content_with_quality_retry(
-        generate, slide_number=10
-    )
+    result = await generate_slide_content_with_quality_retry(generate, slide_number=10)
     assert result == CLEAN_CONTENT
     assert len(calls) == 2
 
@@ -186,9 +184,7 @@ async def test_slide_retry_exhausted_raises_with_slide_number() -> None:
     """Обе попытки мусорные — наверх HTTPException с номером слайда."""
 
     async def generate():
-        raise SlideContentQualityError(
-            ["$.title: value echoes a response-schema field name"]
-        )
+        raise SlideContentQualityError(["$.title: value echoes a response-schema field name"])
 
     with pytest.raises(HTTPException) as exc_info:
         await generate_slide_content_with_quality_retry(generate, slide_number=10)

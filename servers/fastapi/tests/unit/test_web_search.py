@@ -37,6 +37,18 @@ def test_get_web_search_route_reports_unavailable_without_configured_external_pr
     assert web_search.get_web_search_route() == ("unavailable", None)
 
 
+def test_invalid_provider_value_degrades_to_unavailable_instead_of_raising(monkeypatch):
+    """Легаси/битое значение конфига не должно ронять генерацию HTTP 400."""
+    monkeypatch.setenv("LLM", LLMProvider.OPENAI.value)
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", "duckduckgo")
+
+    assert web_search.get_selected_web_search_provider() is WebSearchProvider.UNKNOWN
+    assert web_search.should_use_native_web_search() is False
+    assert web_search.should_expose_external_web_search_tool() is False
+    assert web_search.resolve_external_web_search_provider() is None
+    assert web_search.get_web_search_route() == ("unavailable", None)
+
+
 def test_explicit_external_search_overrides_native_llm(monkeypatch):
     monkeypatch.setenv("LLM", LLMProvider.OPENAI.value)
     monkeypatch.setenv("WEB_SEARCH_PROVIDER", WebSearchProvider.TAVILY.value)

@@ -4,6 +4,16 @@
 
 No active task.
 
+Последняя закрытая: P20 — tolerant web-search роутинг. Битое значение
+`WEB_SEARCH_PROVIDER` (легаси-провайдер в user-config) бросало HTTP 400
+в `generate_ppt_outline` и SSE `/outlines` и валило генерацию целиком.
+Теперь `get_selected_web_search_provider()` возвращает новый член
+`UNKNOWN` с warning-логом, все маршрутизаторы (native/external/route/
+resolve) трактуют его как «поиск недоступен» — генерация продолжается
+без поиска. Тест на легаси-`duckduckgo` в test_web_search.py. Ветка
+`fix/web-search-tolerant`, `make check` exit 0. Подробности:
+docs/progress/P20-web-search-tolerant-routing.md.
+
 Последняя закрытая: P19 — ретраи transient-флеймов провайдера. Прод-кейс
 после отключения reasoning: «Expecting value: line 1 column 1 (char 0)»
 (пустой JSON модели в structured-вызове, не ретраился) + недобор аутлайнов
