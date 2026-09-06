@@ -262,7 +262,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   // Pause while the chat assistant is mutating the deck: the assistant edits
   // slide.ui directly in the database, so a debounced autosave firing with the
   // pre-edit Redux state would overwrite (revert) the assistant's change.
-  const { isSaving } = useAutoSave({
+  const { isSaving, saveError, retrySave } = useAutoSave({
     debounceMs: 2000,
     enabled:
       !!presentationData &&
@@ -857,6 +857,13 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
         id="presentation-slides-wrapper"
         className="relative flex h-full flex-col overflow-hidden"
       >
+        {saveError && (
+          <div role="alert" data-testid="save-error" className="fixed top-20 left-4 right-4 z-[100] rounded border border-red-600 bg-white p-3 text-red-900">
+            <strong>Changes are not saved.</strong> {saveError}
+            <button type="button" className="ml-4 underline" onClick={retrySave}>Retry save</button>
+            <span className="ml-4">Keep a copy of your changes before reloading.</span>
+          </div>
+        )}
         <PresentationHeader
           presentation_id={presentation_id}
           isPresentationSaving={isSaving}
