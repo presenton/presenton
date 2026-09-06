@@ -71,6 +71,7 @@ class PresentationModel(SQLModel, table=True):
     include_title_slide: bool = Field(sa_column=Column(Boolean), default=True)
     web_search: bool = Field(sa_column=Column(Boolean), default=False)
     theme: Optional[dict] = Field(sa_column=Column(JSON), default=None)
+    revision: int = Field(sa_column=Column(__import__("sqlalchemy").Integer, nullable=False, default=1, server_default="1"))
     fonts: Optional[dict] = Field(sa_column=Column(JSON), default=None)
     generation_mode: Literal["standard", "smart"] = Field(
         sa_column=Column(String, nullable=False, default="standard"),

@@ -2443,98 +2443,26 @@ async def stream_presentation(
 
 @PRESENTATION_ROUTER.patch("/update", response_model=PresentationWithSlides)
 async def update_presentation(
+    request: Request,
     id: Annotated[uuid.UUID, Body()],
-    n_slides: Annotated[Optional[int], Body()] = None,
-    title: Annotated[Optional[str], Body()] = None,
-    theme: Annotated[Optional[dict], Body()] = None,
-    slides: Annotated[Optional[List[SlideModel]], Body()] = None,
+    base_document: Annotated[Optional[dict], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
-    presentation = await sql_session.get(PresentationModel, id)
-    if not presentation:
-        raise HTTPException(status_code=404, detail="Presentation not found")
-
-    presentation_update_dict = {}
-    if n_slides is not None:
-        if n_slides < 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Number of slides must be greater than 0",
-            )
-        if n_slides > MAX_NUMBER_OF_SLIDES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Number of slides cannot be greater than {MAX_NUMBER_OF_SLIDES}",
-            )
-        presentation_update_dict["n_slides"] = n_slides
-    if title:
-        presentation_update_dict["title"] = title
-    if theme or theme is None:
-        presentation_update_dict["theme"] = theme
-
-    if presentation_update_dict:
-        presentation.sqlmodel_update(presentation_update_dict)
-    if slides:
-        if len(slides) > MAX_NUMBER_OF_SLIDES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Number of slides cannot be greater than {MAX_NUMBER_OF_SLIDES}",
-            )
-        # Just to make sure id is UUID
-        for slide in slides:
-            slide.presentation = uuid.UUID(slide.presentation)
-            slide.id = uuid.UUID(slide.id)
-
-        await sql_session.execute(
-            delete(SlideModel).where(
-                SlideModel.presentation == presentation.id,
-                SlideModel.owner_id == get_current_owner_id(),
-            )
-        )
-        sql_session.add_all(slides)
-
-    await sql_session.commit()
-
-    response_slides = slides or []
-    return PresentationWithSlides(
-        **_presentation_response_data(presentation),
-        slides=response_slides,
-    )
+    from services.document_compare_and_swap import save_document_if_unchanged
+    payload = await request.json()
+    changes = {key: payload[key] for key in ("slides", "title", "theme", "n_slides") if key in payload}
+    presentation, slides = await save_document_if_unchanged(sql_session, id, base_document, changes)
+    return PresentationWithSlides(**_presentation_response_data(presentation), slides=slides)
 
 
 @PRESENTATION_ROUTER.patch("/slide_update", response_model=SlideModel)
 async def update_presentation_slide(
     slide: Annotated[SlideModel, Body(embed=True)],
+    base_slide: Annotated[Optional[SlideModel], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
-    try:
-        slide_id = uuid.UUID(str(slide.id))
-        presentation_id = uuid.UUID(str(slide.presentation))
-    except (AttributeError, TypeError, ValueError) as exc:
-        raise HTTPException(
-            status_code=422,
-            detail="Slide and presentation IDs must be valid UUIDs",
-        ) from exc
-
-    stored_slide = await sql_session.get(SlideModel, slide_id)
-    if not stored_slide:
-        raise HTTPException(status_code=404, detail="Slide not found")
-
-    if stored_slide.presentation != presentation_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Slide does not belong to the supplied presentation",
-        )
-
-    stored_slide.sqlmodel_update(
-        slide.model_dump(
-            exclude={"id", "presentation", "index"},
-        )
-    )
-    sql_session.add(stored_slide)
-    await sql_session.commit()
-    await sql_session.refresh(stored_slide)
-    return stored_slide
+    from services.slide_compare_and_swap import save_slide_if_unchanged
+    return await save_slide_if_unchanged(sql_session, slide, base_slide)
 
 
 async def check_if_api_request_is_valid(
