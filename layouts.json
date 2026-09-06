@@ -2471,7 +2471,7 @@
           },
           {
             "id": "earnings_bar_chart",
-            "description": "Right-side vertical bar chart with five yearly earnings values, light horizontal gridlines, dark rounded bars, and x/y axis labels.",
+            "description": "Right-side line chart with five yearly earnings values, light horizontal gridlines, and x/y axis labels.",
             "position": {
               "x": 572,
               "y": 176
@@ -2491,7 +2491,7 @@
                   "width": 585,
                   "height": 465
                 },
-                "chart_type": "bar",
+                "chart_type": "line",
                 "data": [
                   {
                     "label": "2018",

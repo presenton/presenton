@@ -6,6 +6,7 @@ import math
 import re
 from typing import Any
 
+from utils.chart_semantics import coerce_chart_type_for_categories
 from utils.infographic_catalog import (
     INFOGRAPHIC_BY_TYPE,
     normalize_infographic_data,
@@ -147,6 +148,11 @@ def _normalize_chart_element(
     _validate_chart_shape(chart_type, categories, series)
     category_count = max(1, len(categories), _max_chart_value_length(series))
     categories = _normalize_chart_categories(categories, category_count)
+    # Временные ряды (годы/даты) не рисуются столбцами/кругами.
+    temporal_chart_type = coerce_chart_type_for_categories(chart_type, categories)
+    if temporal_chart_type:
+        chart_type = temporal_chart_type
+        element["chart_type"] = chart_type
     for item in series:
         item["values"] = _pad_chart_values(
             item.get("values"),

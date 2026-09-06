@@ -2,7 +2,9 @@ import { resolveBackendAssetUrl } from "@/utils/api";
 import { markdownToPlainChartText } from "@/components/slide-editor/charts/chart-data";
 import { normalizeRawTextMarkdownElement } from "@/components/slide-editor/text/template-v2-text";
 import { isLatexTextRun } from "@/components/slide-editor/text/text-runs";
+import { coerceTemporalChartKind } from "@/lib/chart-semantics";
 import { normalizeMathLatex, renderMathHtml } from "@/lib/math";
+import { renderTextFitScript } from "@/lib/text-fit";
 import { buildSvgUpdateUrl } from "@/lib/svg-color";
 import { normalizeInfographicIcon } from "@/components/slide-editor/infographics/infographic-editing";
 import {
@@ -154,6 +156,11 @@ export const TEMPLATE_V2_HTML_HEIGHT = 720;
 // шаблонам; авторинг новых дополнительно ограничен правилами промпта.
 export const TEMPLATE_V2_MIN_FONT_SIZE_PX = 12;
 
+// Спокойный нейтральный градиент вместо белого дефолта: старые деки без
+// явного фона и ui без палитры не должны выглядеть «бумагой».
+export const DEFAULT_SLIDE_BACKGROUND =
+  "linear-gradient(150deg, #f7f8fa 0%, #f1f3f7 55%, #e9edf4 100%)";
+
 export function templateV2UiToHtml(
   ui: unknown,
   options: TemplateV2HtmlOptions = {}
@@ -203,7 +210,9 @@ function templateV2RenderPayload(
 
   const width = options.width ?? TEMPLATE_V2_HTML_WIDTH;
   const height = options.height ?? TEMPLATE_V2_HTML_HEIGHT;
-  const background = normalizeCssColor(readString(record.background) ?? "#FFFFFF");
+  const background = normalizeCssColor(
+    readString(record.background) ?? DEFAULT_SLIDE_BACKGROUND
+  );
 
   return {
     items,
@@ -249,7 +258,7 @@ function jsonToHtml(
   width: number,
   height: number,
   fonts: unknown = {},
-  background = "#FFFFFF"
+  background = DEFAULT_SLIDE_BACKGROUND
 ): string {
   const records = items.map(readRecord);
   const chartScripts = records.some(hasChartItem) ? renderChartScripts() : "";
@@ -263,7 +272,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:${bg}}
 body{font-family:Arial,Helvetica,sans-serif}
 *,*::before,*::after{box-sizing:border-box}
 ${TEMPLATE_V2_MATH_CSS}
-</style></head><body>${slideRoot}${chartScripts}</body></html>`;
+</style></head><body>${slideRoot}${chartScripts}${renderTextFitScript()}</body></html>`;
 }
 
 function jsonToHtmlFragment(
@@ -271,7 +280,7 @@ function jsonToHtmlFragment(
   width: number,
   height: number,
   fonts: unknown = {},
-  background = "#FFFFFF"
+  background = DEFAULT_SLIDE_BACKGROUND
 ): string {
   const records = items.map(readRecord);
   const bg = escapeCssColor(background);
@@ -555,7 +564,7 @@ function renderText(item: JsonRecord, mode: RenderMode): string {
     })
     .join("");
 
-  return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(font, {
+  return `<div data-presenton-text="true" style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(font, {
     includeLineHeight: false,
     includeTextDecoration: false,
   })}${textShadowStyle(item)}display:flex;align-items:${verticalAlign(
@@ -584,7 +593,7 @@ function renderTextList(item: JsonRecord, mode: RenderMode): string {
   const listStyle = `margin:0;padding-left:${marker === "none" ? 0 : 24}px;${marker === "none" ? "list-style-type:none;" : ""
     }`;
 
-  return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(
+  return `<div data-presenton-text="true" style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(
     font,
     { includeTextDecoration: false }
   )}${textOverflowStyle()}"><${tag} style="${listStyle}">${entries}</${tag}></div>`;
@@ -2149,8 +2158,15 @@ function mindMapHtmlTextBox(position: { x: number; y: number }, radius: number, 
 }
 
 function chartConfig(item: JsonRecord, height: number): JsonRecord {
-  const chartKind = chartKindFromValue(readString(item.chartType ?? item.chart_type));
-  const data = normalizeChartData(item, chartKind);
+  let chartKind = chartKindFromValue(readString(item.chartType ?? item.chart_type));
+  let data = normalizeChartData(item, chartKind);
+  // Временные ряды не рисуются столбцами/кругами: страховка на старых деках,
+  // сервер уже коерсирует новые (utils/chart_semantics.py).
+  const temporalKind = coerceTemporalChartKind(chartKind, data.categories);
+  if (temporalKind && temporalKind !== chartKind) {
+    chartKind = temporalKind as ChartKind;
+    data = normalizeChartData(item, chartKind);
+  }
   const primaryColor = safeChartColor(readString(item.color), DEFAULT_CHART_COLORS[0]);
   const colors = data.colors.length > 0 ? data.colors : [primaryColor];
   const axisColor = safeChartColor(
@@ -3472,7 +3488,11 @@ function tableCellStyle(
 }
 
 function textOverflowStyle(): string {
-  return "overflow:visible;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;";
+  // `overflow-wrap:anywhere` + `word-break:break-word` рвали слова посередине
+  // даже когда строка влезала (anywhere влияет на min-content в flex/grid).
+  // `break-word` рвёт слово только когда оно и есть строка; переносы —
+  // по словам.
+  return "overflow:visible;white-space:pre-wrap;overflow-wrap:break-word;word-break:normal;";
 }
 
 function tableCellFont(cellValue: unknown, tableFont: JsonRecord): JsonRecord {

@@ -79,8 +79,13 @@ from templates.v2.content import hydrate_repeated_top_level_groups
 from templates.v2.schema import get_template_schema
 from templates.v2.theme import template_theme_for_presentation
 from utils.asset_directory_utils import get_images_directory
+from utils.chart_semantics import apply_chart_semantics, apply_chart_semantics_to_content
 from utils.dict_utils import deep_update
 from utils.export_utils import export_presentation
+from utils.fallback_slide import (
+    build_fallback_slide_content,
+    build_fallback_speaker_note,
+)
 from utils.get_env import get_slide_llm_concurrency
 from utils.icon_weights import DEFAULT_ICON_TYPE, extract_icon_type_from_settings
 from utils.llm_calls.generate_presentation_outlines import (
@@ -120,6 +125,7 @@ from utils.process_slides import (
     process_slide_add_placeholder_assets,
     process_slide_and_fetch_assets,
 )
+from utils.slide_background import apply_slide_background
 from utils.sse import safe_sse_stream
 from utils.template_text_runs import template_text_runs_from_markdown
 from utils.web_search import (
@@ -353,13 +359,16 @@ async def _resolve_generation_layout(
 def _hydrate_template_slide_ui(
     slide: SlideModel,
     layout_payload: Any = None,
+    *,
+    theme: Any = None,
+    slide_index: int = 0,
 ) -> None:
     if not _is_template_layout_payload(layout_payload):
         return
 
     ui = slide.ui
     if not isinstance(ui, dict):
-        ui = _template_slide_ui(layout_payload, slide.layout)
+        ui = _template_slide_ui(layout_payload, slide.layout, theme=theme, slide_index=slide_index)
     slide.ui = _apply_template_content_to_ui(ui, slide.content)
 
 
@@ -511,13 +520,19 @@ def _is_template_layout_payload(layout_payload: Any) -> bool:
 def _template_slide_ui(
     layout_payload: Any,
     layout_id: str,
+    *,
+    theme: Any = None,
+    slide_index: int = 0,
 ) -> dict[str, Any] | None:
     if not _is_template_layout_payload(layout_payload):
         return None
 
     for layout in layout_payload["layouts"]:
         if isinstance(layout, dict) and str(layout.get("id")) == str(layout_id):
-            return copy.deepcopy(layout)
+            ui = copy.deepcopy(layout)
+            # Фон из палитры: если лейаут не задаёт фон явно, слайд получает
+            # градиент палитры вместо белого дефолта рендера.
+            return apply_slide_background(ui, theme, slide_index=slide_index)
     return None
 
 
@@ -1189,6 +1204,9 @@ def _apply_template_chart_content(
     for source_key in ("dataLabels", "data_labels"):
         if source_key in value:
             updated["data_labels"] = _read_template_data_labels(value.get(source_key))
+    # Шаблон мог зашить bar-график, а сгенерированные категории — временной
+    # ряд: семантика данных важнее исходного оформления шаблона.
+    apply_chart_semantics(updated)
     return updated
 
 
@@ -2074,7 +2092,12 @@ async def stream_presentation(
                 index=i,
                 speaker_note=slide_content.get("__speaker_note__", ""),
                 content=slide_content,
-                ui=_template_slide_ui(presentation.layout, slide_layout.id),
+                ui=_template_slide_ui(
+                    presentation.layout,
+                    slide_layout.id,
+                    theme=presentation.theme,
+                    slide_index=i,
+                ),
             )
             slides.append(slide)
 
@@ -2710,25 +2733,61 @@ async def generate_presentation_handler(
         slide_concurrency = get_slide_llm_concurrency()
         slide_llm_semaphore = asyncio.Semaphore(slide_concurrency)
         completed_slides = 0
+        fallback_slides_count = 0
+        # Дека, наполовину собранная из fallback-слайдов, хуже честной ошибки:
+        # пользователь получил бы мусор без единого сигнала. Превышение порога
+        # роняет генерацию с исходной ошибкой слайда.
+        max_fallback_slides = max(1, int(total_slides_to_create * 0.3))
         progress_wakeup = asyncio.Event()
         stop_progress_reporter = asyncio.Event()
 
         async def generate_slide(i: int) -> SlideModel:
             nonlocal completed_slides
+            nonlocal fallback_slides_count
+            used_fallback = False
             async with slide_llm_semaphore:
                 await raise_if_client_disconnected()
-                slide_content: dict = await generate_slide_content_with_quality_retry(
-                    lambda: get_slide_content_from_type_and_outline(
+                try:
+                    slide_content: dict = await generate_slide_content_with_quality_retry(
+                        lambda: get_slide_content_from_type_and_outline(
+                            slide_layouts[i],
+                            presentation_outlines.slides[i],
+                            language_to_use,
+                            request.tone.value,
+                            request.verbosity.value,
+                            request.instructions,
+                            slide_number=i + 1,
+                            disconnect_checker=disconnect_checker,
+                        ),
+                        slide_number=i + 1,
+                    )
+                except Exception as error:
+                    # Отказоустойчивость: сбой одного слайда не должен
+                    # хоронить всю деку. CancelledError (дисконнект/отмена)
+                    # пробрасывается выше — это не контентный сбой.
+                    fallback_slides_count += 1
+                    if fallback_slides_count > max_fallback_slides:
+                        raise
+                    logger.warning(
+                        "[presentation.generate] slide %d generation failed, "
+                        "using fallback content: %s",
+                        i + 1,
+                        error,
+                    )
+                    used_fallback = True
+                    slide_content = build_fallback_slide_content(
                         slide_layouts[i],
                         presentation_outlines.slides[i],
-                        language_to_use,
-                        request.tone.value,
-                        request.verbosity.value,
-                        request.instructions,
-                        slide_number=i + 1,
-                        disconnect_checker=disconnect_checker,
-                    ),
-                    slide_number=i + 1,
+                    )
+
+            # Семантическая валидация графиков перед отрисовкой: временные
+            # ряды (годы/даты) не должны попадать в bar/pie.
+            chart_fixes = apply_chart_semantics_to_content(slide_content)
+            for fix in chart_fixes:
+                logger.info(
+                    "[presentation.generate] slide %d chart semantics: %s",
+                    i + 1,
+                    fix,
                 )
 
             slide_layout = slide_layouts[i]
@@ -2737,9 +2796,21 @@ async def generate_presentation_handler(
                 layout_group=layout_model.name,
                 layout=slide_layout.id,
                 index=i,
-                speaker_note=slide_content.get("__speaker_note__"),
+                speaker_note=(
+                    slide_content.get("__speaker_note__")
+                    if not used_fallback
+                    else (
+                        slide_content.get("__speaker_note__")
+                        or build_fallback_speaker_note(presentation_outlines.slides[i])
+                    )
+                ),
                 content=slide_content,
-                ui=_template_slide_ui(layout_payload, slide_layout.id),
+                ui=_template_slide_ui(
+                    layout_payload,
+                    slide_layout.id,
+                    theme=template_theme,
+                    slide_index=i,
+                ),
             )
 
             if using_slides_markdown:
@@ -2834,11 +2905,19 @@ async def generate_presentation_handler(
             await sql_session.commit()
 
         # Ассеты (иконки/картинки) уже гоняются параллельно с LLM-вызовами
-        # контента — здесь просто дожидаемся их всех.
-        generated_assets_list = await asyncio.gather(*async_assets_generation_tasks)
+        # контента — здесь просто дожидаемся их всех. Провал ассета не валим
+        # деку: у слайда остаётся placeholder-картинка/иконка.
+        asset_results = await asyncio.gather(*async_assets_generation_tasks, return_exceptions=True)
         generated_assets = []
-        for assets_list in generated_assets_list:
-            generated_assets.extend(assets_list)
+        for index, result in enumerate(asset_results):
+            if isinstance(result, BaseException):
+                logger.warning(
+                    "[presentation.generate] asset task %d failed: %s",
+                    index,
+                    result,
+                )
+                continue
+            generated_assets.extend(result)
         for warning in image_warnings:
             logger.warning(
                 "Slide image generation warning: presentation_id=%s detail=%s",
@@ -2848,7 +2927,12 @@ async def generate_presentation_handler(
 
         log_stage_done("assets")
         for slide in slides:
-            _hydrate_template_slide_ui(slide, layout_payload)
+            _hydrate_template_slide_ui(
+                slide,
+                layout_payload,
+                theme=template_theme,
+                slide_index=slide.index,
+            )
 
         # 8. Save PresentationModel and Slides
         sql_session.add(presentation)
@@ -3065,7 +3149,12 @@ async def edit_presentation_with_new_content(
         if new_slide_data:
             updated_content = deep_update(each_slide.content, new_slide_data[0].content)
             new_slide = each_slide.get_new_slide(presentation.id, updated_content)
-            _hydrate_template_slide_ui(new_slide, presentation.layout)
+            _hydrate_template_slide_ui(
+                new_slide,
+                presentation.layout,
+                theme=presentation.theme,
+                slide_index=new_slide.index,
+            )
             new_slides.append(new_slide)
             slides_to_delete.append(each_slide.id)
 
@@ -3114,7 +3203,12 @@ async def derive_presentation_from_existing_one(
         if new_slide_data:
             updated_content = deep_update(each_slide.content, new_slide_data[0].content)
         new_slide = each_slide.get_new_slide(new_presentation.id, updated_content)
-        _hydrate_template_slide_ui(new_slide, new_presentation.layout)
+        _hydrate_template_slide_ui(
+            new_slide,
+            new_presentation.layout,
+            theme=new_presentation.theme,
+            slide_index=new_slide.index,
+        )
         new_slides.append(new_slide)
 
     sql_session.add(new_presentation)

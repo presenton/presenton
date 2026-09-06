@@ -8,8 +8,22 @@ import {
   type RawUi,
 } from "@/components/slide-editor/model/core";
 
+// Нейтральная подложка для деков без фона и палитры (в HTML-рендере тот же
+// случай даёт градиент; Konva принимает только сплошной цвет).
+const DEFAULT_SLIDE_BACKGROUND_SOLID = "#f1f3f7";
+
 export function backgroundColor(ui: RawUi) {
-  return withHash(readString(ui.background) ?? "#FFFFFF");
+  return withHash(backgroundSolidColor(readString(ui.background)));
+}
+
+/** Сплошной цвет для Konva: из строки фона (может быть градиентом). */
+export function backgroundSolidColor(background: string | null | undefined) {
+  if (!background) return DEFAULT_SLIDE_BACKGROUND_SOLID;
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(background.trim())) {
+    return background.trim();
+  }
+  const firstHex = background.match(/#[0-9a-fA-F]{6}/)?.[0];
+  return firstHex ?? DEFAULT_SLIDE_BACKGROUND_SOLID;
 }
 
 export function fillColor(fill: unknown) {

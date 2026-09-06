@@ -7,6 +7,10 @@ from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 from models.presentation_layout import SlideLayoutModel
 from models.presentation_outline_model import SlideOutlineModel
 from utils.content_quality import get_content_quality_errors
+from utils.language_validation import (
+    get_language_mismatch_errors,
+    resolve_prompt_language,
+)
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_config import get_llm_config
 from utils.llm_provider import get_model
@@ -91,20 +95,6 @@ English
 """
 
 ASSET_ONLY_FIELDS = ["__image_url__", "__icon_url__"]
-AUTO_DETECT_LANGUAGE_INSTRUCTION = (
-    "auto-detect from the slide content and use the same language as the slide content"
-)
-
-
-def _resolve_prompt_language(language: str | None) -> str:
-    if language is None:
-        return AUTO_DETECT_LANGUAGE_INSTRUCTION
-    s = str(language).strip()
-    if not s:
-        return AUTO_DETECT_LANGUAGE_INSTRUCTION
-    if s.lower() in {"auto", "auto-detect"}:
-        return AUTO_DETECT_LANGUAGE_INSTRUCTION
-    return s
 
 
 _MAX_SCHEMA_DESCRIPTION_LINES = 60
@@ -264,7 +254,7 @@ def _get_slide_number_section(slide_number: int | None) -> str:
 def get_user_prompt(outline: str, language: str | None, slide_number: int | None = None):
     return SLIDE_CONTENT_USER_PROMPT.format(
         current_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        language=_resolve_prompt_language(language),
+        language=resolve_prompt_language(language),
         slide_number_section=_get_slide_number_section(slide_number),
         content=outline,
     )
@@ -330,6 +320,23 @@ def _prepare_response_schema(json_schema: dict | None) -> dict | None:
     return ensure_array_schemas_have_items(response_schema)
 
 
+def _content_validator(response_schema: dict, language: str | None):
+    """Контент-QC + языковая валидация для ретрай-цикла.
+
+    Language Detection как промежуточный шаг перед рендерингом: текст не на
+    запрошенном языке уходит модели на переделку вместе с качественными
+    ошибками, а не доезжает до слайда.
+    """
+
+    def validate(content: dict) -> list[str]:
+        return [
+            *get_content_quality_errors(response_schema, content),
+            *get_language_mismatch_errors(content, language),
+        ]
+
+    return validate
+
+
 async def get_slide_content_from_type_and_outline(
     slide_layout: SlideLayoutModel,
     outline: SlideOutlineModel,
@@ -372,7 +379,7 @@ async def get_slide_content_from_type_and_outline(
             json_schema=response_schema,
             strict=False,
             validate_schema=True,
-            content_validator=lambda content: get_content_quality_errors(response_schema, content),
+            content_validator=_content_validator(response_schema, language),
             disconnect_checker=disconnect_checker,
         )
 

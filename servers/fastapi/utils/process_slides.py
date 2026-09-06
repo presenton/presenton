@@ -177,7 +177,13 @@ async def process_slide_and_fetch_assets(
             continue
 
         if isinstance(result, BaseException):
-            raise result
+            # Иконка — украшение, а не контент: сбой поиска даёт placeholder
+            # вместо исключения, которое раньше валило весь слайд (а через
+            # него — и всю деку).
+            if not allow_image_fallback:
+                raise result
+            if image_warnings is not None and isinstance(result, Exception):
+                image_warnings.append(image_generation_warning(result))
         icon_dict = get_dict_at_path(slide.content, asset_path)
         # ICON_FINDER_SERVICE.search_icons returns a list of URLs
         if isinstance(result, list) and result:

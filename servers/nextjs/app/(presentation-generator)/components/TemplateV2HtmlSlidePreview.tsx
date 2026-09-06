@@ -12,6 +12,7 @@ import {
   TEMPLATE_V2_HTML_WIDTH,
   templateV2UiToHtmlFragment,
 } from "@/lib/template-v2-json-to-html";
+import { runTextFit } from "@/lib/text-fit";
 
 type PresentonChartGlobalState = {
   status: "pending" | "ready" | "error";
@@ -270,6 +271,15 @@ export function TemplateV2HtmlSlidePreview({
     const charts: ChartInstance[] = [];
     let completed = false;
     let registeredPendingCount = 0;
+
+    // Автоподгонка текста под рамки до и после загрузки шрифтов (метрики
+    // меняются при swap).
+    runTextFit(element);
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      void document.fonts.ready.then(() => {
+        if (!disposed) runTextFit(element);
+      });
+    }
 
     const finishReady = () => {
       if (completed) return;

@@ -15,6 +15,7 @@ import {
   normalizeChartTypeName,
 } from "@/components/slide-editor/charts/chart-data";
 import type { DataLabelPosition } from "@/components/slide-editor/types";
+import { coerceTemporalChartKind } from "@/lib/chart-semantics";
 import {
   asRecord,
   clamp,
@@ -231,7 +232,7 @@ function createChartJsConfig(
   height: number,
   pixelRatio: number,
 ): ChartConfiguration {
-  const kind = rawChartJsKind(element.chart_type ?? element.chartType);
+  const rawKind = rawChartJsKind(element.chart_type ?? element.chartType);
   const primaryColor = safeChartColor(
     readString(element.color),
     DEFAULT_CHART_COLORS[0],
@@ -240,6 +241,13 @@ function createChartJsConfig(
     safeChartColor(String(value)),
   );
   const rawColors = sourceColors.length > 0 ? sourceColors : [primaryColor];
+  // Временные ряды (годы/даты) не рисуются столбцами/кругами: страховка
+  // старых деков, сервер коерсирует новые (utils/chart_semantics.py).
+  const coercedKind = coerceTemporalChartKind(
+    rawKind.chartJsType,
+    readArray(element.categories),
+  );
+  const kind = coercedKind ? rawChartJsKind(coercedKind) : rawKind;
   const categories = rawChartCategories(element, kind.pieLike);
   const datasets = rawChartDatasets(
     element,

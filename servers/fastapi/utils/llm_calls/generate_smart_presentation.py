@@ -68,7 +68,11 @@ SMART_DECK_SYSTEM_PROMPT = (
     "entire production-ready deck in the requested delimiter format. Use real "
     "Chart.js charts for quantitative evidence whenever they communicate the "
     "story better than text; never substitute generated chart images. Treat "
-    "overflow-free layout as a hard validation requirement."
+    "overflow-free layout as a hard validation requirement. The Language setting "
+    "in the user message is authoritative: write every audience-facing string "
+    "(titles, body text, labels, speaker notes) in exactly that language, even "
+    "if the source content is in a different language; keep icon queries and "
+    "image prompts in English."
 )
 
 SMART_OVERFLOW_PREVENTION_PROMPT = """

@@ -15,6 +15,7 @@ from llmai.shared import (
 from constants.presentation import MAX_NUMBER_OF_SLIDES, MAX_OUTLINE_CONTENT_WORDS
 from models.presentation_outline_model import PresentationOutlineModel
 from utils.get_dynamic_models import get_presentation_outline_model_with_n_slides
+from utils.language_validation import resolve_prompt_language
 from utils.llm_calls.generate_web_search_query import generate_web_search_query
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_config import get_llm_config
@@ -166,14 +167,9 @@ def get_system_prompt(
 
 
 def _resolve_prompt_language(language: str | None) -> str:
-    if language is None:
-        return "auto-detect"
-    s = str(language).strip()
-    if not s:
-        return "auto-detect"
-    if s.lower() in {"auto", "auto-detect"}:
-        return "auto-detect"
-    return s
+    # Общий резолвер сводит любые auto-варианты (включая «Auto (English)»
+    # из фронтенда) к нейтральному авто-детекту без английской подсказки.
+    return resolve_prompt_language(language)
 
 
 def _resolve_prompt_n_slides(n_slides: int | None) -> str:

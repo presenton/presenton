@@ -71,6 +71,7 @@ async def _generate_structured_content(
     *,
     disconnect_checker: DisconnectChecker | None,
     text_chunk_callback: TextChunkCallback | None = None,
+    finish_reason_out: list[str] | None = None,
     **kwargs: Any,
 ) -> dict | None:
     # Always stream, even with nothing to stream *to*. Structured generation
@@ -92,6 +93,8 @@ async def _generate_structured_content(
         ):
             if isinstance(event, ResponseStreamCompletionChunk):
                 completion_content = event.content
+                if finish_reason_out is not None and getattr(event, "finish_reason", None):
+                    finish_reason_out.append(str(event.finish_reason))
             elif getattr(event, "type", None) == "content":
                 chunk = getattr(event, "chunk", None)
                 if isinstance(chunk, str):
@@ -488,6 +491,7 @@ async def generate_structured_with_schema_retries(
 
     for validation_attempt in range(max_validation_loops):
         content: dict | None = None
+        finish_reasons: list[str] = []
         empty_attempts = 0
         while content is None:
             await _raise_if_client_disconnected(disconnect_checker)
@@ -499,6 +503,7 @@ async def generate_structured_with_schema_retries(
                     text_chunk_callback=(
                         text_chunk_callback if validation_attempt == 0 and first_call else None
                     ),
+                    finish_reason_out=finish_reasons,
                     **get_generate_kwargs(
                         model=model,
                         messages=working_messages,
@@ -583,6 +588,20 @@ async def generate_structured_with_schema_retries(
         # («ячейки повторяют имена полей схемы») полезнее голого списка
         # нарушений и не должен срезаться лимитом ошибок в фидбеке.
         content_errors = list(content_validator(content)) if content_validator else []
+        # Обрыв по лимиту токенов: JSON при structured outputs остаётся
+        # валидным, но текст заканчивается на полуслове. Отдаём модели
+        # фидбек на укорачивание, а не обрывок в деку.
+        if "length" in finish_reasons or "max_tokens" in finish_reasons:
+            content_errors.append(
+                "response was truncated by the token limit "
+                "(finish_reason=length): shorten the text values so the "
+                "complete JSON fits, do not clip mid-sentence"
+            )
+            LOGGER.warning(
+                "[llm.truncation] structured response hit token limit "
+                "(finish_reason=%s), feeding shorten-feedback",
+                ",".join(finish_reasons),
+            )
         # Контентные ошибки вперёд: фидбек обрезается до 10 строк.
         all_validation_errors = content_errors + validation_errors
 

@@ -2,7 +2,11 @@
 
 ## Активная задача
 
-No active task.
+P21 — hardening генерации: локализация (Language Detection), градиентные
+фоны вместо белых, семантика графиков (timeseries → line), per-slide
+fallback, текстовые bounding box. Аудит пяти прод-багов генерации и
+исправления в `servers/fastapi` + `servers/nextjs`; ветка
+`fix/generation-quality-hardening`.
 
 Последняя закрытая: P20 — tolerant web-search роутинг. Битое значение
 `WEB_SEARCH_PROVIDER` (легаси-провайдер в user-config) бросало HTTP 400

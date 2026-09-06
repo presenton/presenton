@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from utils.chart_semantics import coerce_chart_type_for_categories
 from utils.infographic_catalog import normalize_infographic_data
 
 
@@ -356,6 +357,19 @@ class Chart(BaseModel):
             and len(self.series) > 1
         ):
             self.series = self.series[:1]
+        return self
+
+    @model_validator(mode="after")
+    def _temporal_categories_require_line_chart(self) -> Chart:
+        # Bar/pie по временным рядам (годы, даты, месяцы) — частая ошибка
+        # генерации и зашитых шаблонов; семантический анализатор переводит
+        # такой график в line на границе схемы.
+        corrected = coerce_chart_type_for_categories(
+            self.chart_type.value,
+            self.categories,
+        )
+        if corrected:
+            self.chart_type = ChartType(corrected)
         return self
 
     @field_validator("data_labels", mode="before")
