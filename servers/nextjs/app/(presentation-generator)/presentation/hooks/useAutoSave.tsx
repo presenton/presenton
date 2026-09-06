@@ -13,6 +13,13 @@ import {
     getAutoSaveChanges,
 } from '../utils/autoSaveDiff';
 
+const savedDocumentFromSnapshot = (snapshot: AutoSaveSnapshot) => ({
+    id: snapshot.presentationId,
+    ...JSON.parse(snapshot.persistedMetadataFingerprint),
+    n_slides: snapshot.slideOrder.length,
+    slides: snapshot.slideOrder.map(id => JSON.parse(snapshot.slideFingerprints[id])),
+});
+
 interface UseAutoSaveOptions {
     debounceMs?: number;
     enabled?: boolean;
@@ -37,6 +44,7 @@ export const useAutoSave = ({
     const saveLatestRef = useRef<() => Promise<void>>(async () => undefined);
     const isSavingRef = useRef(false);
     const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     const autoSavePaused =
         !enabled || isStreaming || isLoading || isLayoutLoading;
@@ -70,15 +78,18 @@ export const useAutoSave = ({
         try {
             isSavingRef.current = true;
             setIsSaving(true);
+            setSaveError(null);
             console.log('🔄 Auto-saving presentation data...');
 
             if (changes.structuralChange) {
                 // Serialize once after the debounce window. The API accepts the
                 // serialized body and avoids a second whole-deck stringify.
                 await PresentationGenerationApi.updatePresentationContent(
-                    JSON.stringify(data)
+                    JSON.stringify({ ...data, ...(!changes.metadataChanged ? JSON.parse(acknowledged.persistedMetadataFingerprint) : {}), base_document: savedDocumentFromSnapshot(acknowledged) })
                 );
-                acknowledgedDataRef.current = createAutoSaveSnapshot(data);
+                const next = createAutoSaveSnapshot(data);
+                next.persistedMetadataFingerprint = changes.metadataChanged ? fingerprintValue({title:data.title,theme:data.theme}) : acknowledged.persistedMetadataFingerprint;
+                acknowledgedDataRef.current = next;
             } else {
                 let firstError: unknown = null;
                 const nextAcknowledged: AutoSaveSnapshot = {
@@ -90,6 +101,7 @@ export const useAutoSave = ({
                     try {
                         await PresentationGenerationApi.updatePresentationContent({
                             id: data.id,
+                            base_document: savedDocumentFromSnapshot(acknowledged),
                             title: data.title,
                             theme: data.theme,
                         });
@@ -97,6 +109,7 @@ export const useAutoSave = ({
                             title: data.title,
                             theme: data.theme,
                         });
+                        nextAcknowledged.persistedMetadataFingerprint = nextAcknowledged.metadataFingerprint;
                         acknowledgedDataRef.current = nextAcknowledged;
                     } catch (error) {
                         firstError = error;
@@ -106,7 +119,8 @@ export const useAutoSave = ({
                 for (const slide of changes.changedSlides) {
                     try {
                         await PresentationGenerationApi.updatePresentationSlide(
-                            slide as Slide
+                            slide as Slide,
+                            JSON.parse(acknowledged.slideFingerprints[slide.id]) as Slide
                         );
                         nextAcknowledged.slideFingerprints[slide.id] =
                             fingerprintValue(slide);
@@ -117,12 +131,15 @@ export const useAutoSave = ({
                 }
 
                 if (firstError) throw firstError;
-                acknowledgedDataRef.current = createAutoSaveSnapshot(data);
+                const next = createAutoSaveSnapshot(data);
+                next.persistedMetadataFingerprint = nextAcknowledged.persistedMetadataFingerprint;
+                acknowledgedDataRef.current = next;
             }
 
             console.log('✅ Auto-save successful');
         } catch (error) {
             console.error('❌ Auto-save failed:', error);
+            setSaveError(error instanceof Error ? error.message : 'Save failed. Your changes are not saved.');
         } finally {
             isSavingRef.current = false;
             setIsSaving(false);
@@ -139,6 +156,21 @@ export const useAutoSave = ({
     useEffect(() => {
         saveLatestRef.current = saveLatest;
     }, [saveLatest]);
+
+    useEffect(() => {
+        const warn = (event: BeforeUnloadEvent) => {
+            const data = latestDataRef.current;
+            const baseline = acknowledgedDataRef.current;
+            if (!data || !baseline) return;
+            const changes = getAutoSaveChanges(baseline, data);
+            if (isSavingRef.current || changes.structuralChange || changes.metadataChanged || changes.changedSlides.length) {
+                event.preventDefault();
+                event.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', warn);
+        return () => window.removeEventListener('beforeunload', warn);
+    }, []);
 
     // Effect to trigger auto-save when presentation data changes
     useEffect(() => {
@@ -209,5 +241,7 @@ export const useAutoSave = ({
     
     return {
         isSaving,
+        saveError,
+        retrySave: () => void saveLatestRef.current(),
     };
 };

@@ -16,6 +16,8 @@ export interface PresentationData {
   title: string;
   slides: any;
   theme: Theme | TemplateTheme | null;
+  /** Raw server theme, before render-only template defaults. */
+  persistedTheme?: Theme | TemplateTheme | null;
   template_id?: string | null;
   design_v2_id?: string | null;
   version?: string;
