@@ -1,8 +1,13 @@
 import os
 from pathlib import Path
-from typing import Optional
-from urllib.parse import urlparse, unquote
+from urllib.parse import unquote, urlparse
 
+from api.v1.auth.assets import (
+    SHARED_APP_DATA_ROOTS,
+    is_app_data_path_authorized,
+    normalized_app_data_parts,
+)
+from api.v1.auth.context import get_current_owner_id, get_current_owner_is_admin
 from utils.get_env import (
     get_app_data_directory_env,
     get_fastapi_public_base_url,
@@ -10,12 +15,6 @@ from utils.get_env import (
     is_disable_auth_enabled,
 )
 from utils.path_helpers import get_resource_path
-from api.v1.auth.assets import (
-    SHARED_APP_DATA_ROOTS,
-    is_app_data_path_authorized,
-    normalized_app_data_parts,
-)
-from api.v1.auth.context import get_current_owner_id, get_current_owner_is_admin
 
 
 def _owned_directory(root_name: str) -> str:
@@ -31,7 +30,7 @@ def _owned_directory(root_name: str) -> str:
 def absolute_fastapi_asset_url(path: str) -> str:
     """
     Turn a FastAPI-served path (/app_data/..., /static/...) into a full URL when the public
-    base is configured (split Next + FastAPI, e.g. Electron); otherwise return the path.
+    base is configured (split Next + FastAPI deployment); otherwise return the path.
     """
     p = (path or "").strip()
     if not p:
@@ -65,7 +64,7 @@ def filesystem_image_path_to_app_data_url(path_or_url: str) -> str:
     Raw absolute paths (Linux/macOS/Windows) are interpreted by the browser as paths on the
     web origin (e.g. Next.js), so AI-generated images break while https stock URLs work.
     Map known app-data image files to FastAPI's /app_data/images/... mount, as an absolute
-    URL when NEXT_PUBLIC_FAST_API is set (Electron).
+    URL when NEXT_PUBLIC_FAST_API is set (split deployment).
     """
     if not path_or_url or not isinstance(path_or_url, str):
         return path_or_url
@@ -83,7 +82,7 @@ def filesystem_image_path_to_app_data_url(path_or_url: str) -> str:
         abs_root = os.path.normpath(os.path.abspath(images_root))
     except (OSError, ValueError):
         return stripped
-    abs_image_key = os.path.normcase(abs_image)
+    os.path.normcase(abs_image)
     abs_root_key = os.path.normcase(abs_root)
     try:
         common = os.path.commonpath([abs_root, abs_image])
@@ -97,7 +96,7 @@ def filesystem_image_path_to_app_data_url(path_or_url: str) -> str:
     return absolute_fastapi_asset_url("/app_data/images/" + rel.replace(os.sep, "/"))
 
 
-def resolve_app_path_to_filesystem(path_or_url: str) -> Optional[str]:
+def resolve_app_path_to_filesystem(path_or_url: str) -> str | None:
     """
     Resolve an app-served path or URL to an actual filesystem path.
 
@@ -127,11 +126,11 @@ def resolve_app_path_to_filesystem(path_or_url: str) -> Optional[str]:
         app_data = get_app_data_directory_env()
         if not app_data or not _app_data_url_allowed(path):
             return None
-        relative = path[len("/app_data/"):]
+        relative = path[len("/app_data/") :]
         return _existing_file_within(os.path.join(app_data, relative), app_data)
 
     if path.startswith("/static/"):
-        relative = path[len("/static/"):]
+        relative = path[len("/static/") :]
         static_root = get_resource_path("static")
         return _existing_file_within(os.path.join(static_root, relative), static_root)
 
@@ -154,7 +153,7 @@ def resolve_app_path_to_filesystem(path_or_url: str) -> Optional[str]:
     )
 
 
-def _existing_file_within(candidate: str, root: str) -> Optional[str]:
+def _existing_file_within(candidate: str, root: str) -> str | None:
     try:
         resolved_candidate = os.path.realpath(candidate)
         resolved_root = os.path.realpath(root)
@@ -169,13 +168,7 @@ def _app_data_url_allowed(path: str) -> bool:
     owner_id = get_current_owner_id()
     if owner_id is None:
         parts = normalized_app_data_parts(path)
-        return bool(
-            parts
-            and (
-                is_disable_auth_enabled()
-                or parts[0] in SHARED_APP_DATA_ROOTS
-            )
-        )
+        return bool(parts and (is_disable_auth_enabled() or parts[0] in SHARED_APP_DATA_ROOTS))
     return is_app_data_path_authorized(
         path,
         user_id=owner_id,
@@ -183,7 +176,7 @@ def _app_data_url_allowed(path: str) -> bool:
     )
 
 
-def _resolve_allowed_absolute_file(path: str) -> Optional[str]:
+def _resolve_allowed_absolute_file(path: str) -> str | None:
     app_data = get_app_data_directory_env()
     if app_data:
         candidate = _existing_file_within(path, app_data)
@@ -205,7 +198,7 @@ def _resolve_allowed_absolute_file(path: str) -> Optional[str]:
     return _existing_file_within(path, static_root)
 
 
-def resolve_image_path_to_filesystem(path_or_url: str) -> Optional[str]:
+def resolve_image_path_to_filesystem(path_or_url: str) -> str | None:
     return resolve_app_path_to_filesystem(path_or_url)
 
 
@@ -215,6 +208,7 @@ def get_images_directory():
 
 def get_exports_directory():
     return _owned_directory("exports")
+
 
 def get_uploads_directory():
     return _owned_directory("uploads")

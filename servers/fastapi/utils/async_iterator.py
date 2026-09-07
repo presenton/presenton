@@ -1,5 +1,6 @@
 import asyncio
-from typing import AsyncGenerator, Callable, Iterator, TypeVar
+from collections.abc import AsyncGenerator, Callable, Iterator
+from typing import TypeVar
 
 T = TypeVar("T")
 

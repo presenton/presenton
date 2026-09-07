@@ -2,8 +2,8 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.chat.chat_memory_store import CHAT_MEMORY_STORE
 from services.chat import sql_chat_history
+from services.chat.chat_memory_store import CHAT_MEMORY_STORE
 
 
 class ChatConversationStore:

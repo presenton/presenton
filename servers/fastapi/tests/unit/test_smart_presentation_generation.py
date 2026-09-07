@@ -57,12 +57,8 @@ def test_smart_slide_stream_parser_emits_delimited_slides_incrementally():
 def test_smart_deck_parser_uses_cloud_delimiters_and_validates_count():
     response = (
         "<!-- PRESENTATION_TITLE: Deck -->"
-        "<!-- SLIDE_START -->"
-        + _smart_slide_html("Cover", "title")
-        + "<!-- SLIDE_END -->"
-        "<!-- SLIDE_START -->"
-        + _smart_slide_html("Agenda", "toc")
-        + "<!-- SLIDE_END -->"
+        "<!-- SLIDE_START -->" + _smart_slide_html("Cover", "title") + "<!-- SLIDE_END -->"
+        "<!-- SLIDE_START -->" + _smart_slide_html("Agenda", "toc") + "<!-- SLIDE_END -->"
     )
 
     title, slides = parse_smart_presentation_html(
@@ -306,15 +302,11 @@ def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
     monkeypatch,
 ):
     first_response = (
-        "<!-- SLIDE_START -->"
-        + _smart_slide_html("Cover", "title")
-        + "<!-- SLIDE_END -->"
+        "<!-- SLIDE_START -->" + _smart_slide_html("Cover", "title") + "<!-- SLIDE_END -->"
     )
     final_response = (
         "<!-- PRESENTATION_TITLE: Resumed deck -->"
-        "<!-- SLIDE_START -->"
-        + _smart_slide_html("Conclusion", "closing")
-        + "<!-- SLIDE_END -->"
+        "<!-- SLIDE_START -->" + _smart_slide_html("Conclusion", "closing") + "<!-- SLIDE_END -->"
     )
     calls = 0
     output_token_limits = []
@@ -358,9 +350,7 @@ def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
     )
     monkeypatch.setattr(
         "utils.llm_calls.generate_smart_presentation.get_llm_config",
-        lambda **_kwargs: SimpleNamespace(
-            generation=SimpleNamespace(max_output_tokens=4_000)
-        ),
+        lambda **_kwargs: SimpleNamespace(generation=SimpleNamespace(max_output_tokens=4_000)),
     )
     monkeypatch.setattr(
         "utils.llm_calls.generate_smart_presentation.get_model",
@@ -404,9 +394,7 @@ def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
 def test_smart_generation_resumes_from_existing_checkpoint(monkeypatch):
     response = (
         "<!-- PRESENTATION_TITLE: Saved deck -->"
-        "<!-- SLIDE_START -->"
-        + _smart_slide_html("Conclusion", "closing")
-        + "<!-- SLIDE_END -->"
+        "<!-- SLIDE_START -->" + _smart_slide_html("Conclusion", "closing") + "<!-- SLIDE_END -->"
     )
     captured_prompt = ""
     streamed_indices = []
@@ -617,10 +605,7 @@ def test_smart_html_normalization_rejects_chart_canvas_without_initializer():
         normalize_smart_slide_html(
             _smart_slide_html(
                 "Incomplete chart",
-                body=(
-                    '<canvas id="chart-a1b2c3" width="600" height="300">'
-                    "</canvas>"
-                ),
+                body=('<canvas id="chart-a1b2c3" width="600" height="300"></canvas>'),
             )
         )
 
@@ -655,9 +640,7 @@ def test_smart_api_parser_returns_complete_chart_html():
     )
     response = (
         "<!-- PRESENTATION_TITLE: Metrics -->"
-        "<!-- SLIDE_START -->"
-        + chart_slide
-        + "<!-- SLIDE_END -->"
+        "<!-- SLIDE_START -->" + chart_slide + "<!-- SLIDE_END -->"
     )
 
     _, slides = parse_smart_presentation_html(
@@ -682,18 +665,14 @@ def test_smart_api_parser_returns_complete_chart_html():
 )
 def test_smart_html_normalization_rejects_overflow_hiding_patterns(unsafe_layout):
     with pytest.raises(HTTPException, match="scrolling or text clipping"):
-        normalize_smart_slide_html(
-            _smart_slide_html("Unsafe layout", body=unsafe_layout)
-        )
+        normalize_smart_slide_html(_smart_slide_html("Unsafe layout", body=unsafe_layout))
 
 
 def test_smart_html_normalization_rejects_text_density_that_cannot_fit():
     dense_copy = " ".join(["overflowing"] * 221)
 
     with pytest.raises(HTTPException, match="too text-dense"):
-        normalize_smart_slide_html(
-            _smart_slide_html("Dense layout", body=f"<p>{dense_copy}</p>")
-        )
+        normalize_smart_slide_html(_smart_slide_html("Dense layout", body=f"<p>{dense_copy}</p>"))
 
 
 def test_smart_html_normalization_allows_richer_text_led_slide():

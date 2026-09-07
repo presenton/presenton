@@ -5,6 +5,7 @@ pi-mono-main/packages/ai/src/utils/oauth/openai-codex.ts
 Handles PKCE authorization, local callback server, token exchange and refresh.
 No FastAPI dependencies; all HTTP is done with the standard library + httpx.
 """
+
 import base64
 import json
 import secrets
@@ -12,7 +13,6 @@ import threading
 import time
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Optional
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
@@ -112,7 +112,7 @@ SUCCESS_HTML = """<!doctype html>
     <p class="hint">This window can be safely closed.</p>
   </main>
 </body>
-</html>""".encode("utf-8")
+</html>""".encode()
 
 STATE_MISMATCH_HTML = """<!doctype html>
 <html lang="en">
@@ -232,19 +232,20 @@ STATE_MISMATCH_HTML = """<!doctype html>
     <p class="hint">You can also safely close this window and try again from the app.</p>
   </main>
 </body>
-</html>""".encode("utf-8")
+</html>""".encode()
 
 
 # ---------------------------------------------------------------------------
 # Data types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class TokenSuccess:
     access: str
     refresh: str
     expires: int  # Unix ms timestamp when the token expires
-    id_token: Optional[str] = None
+    id_token: str | None = None
 
 
 @dataclass
@@ -264,17 +265,18 @@ class AuthorizationFlow:
 
 @dataclass
 class CodexAccountProfile:
-    account_id: Optional[str] = None
-    username: Optional[str] = None
-    email: Optional[str] = None
-    is_pro: Optional[bool] = None
+    account_id: str | None = None
+    username: str | None = None
+    email: str | None = None
+    is_pro: bool | None = None
 
 
 # ---------------------------------------------------------------------------
 # JWT helpers
 # ---------------------------------------------------------------------------
 
-def _decode_jwt_payload(token: str) -> Optional[dict]:
+
+def _decode_jwt_payload(token: str) -> dict | None:
     """Decode the payload segment of a JWT without verifying the signature."""
     try:
         parts = token.split(".")
@@ -291,7 +293,7 @@ def _decode_jwt_payload(token: str) -> Optional[dict]:
         return None
 
 
-def get_account_id(access_token: str) -> Optional[str]:
+def get_account_id(access_token: str) -> str | None:
     """Extract the ChatGPT account ID from an access token JWT."""
     payload = _decode_jwt_payload(access_token)
     if not payload:
@@ -305,14 +307,14 @@ def get_account_id(access_token: str) -> Optional[str]:
     return None
 
 
-def _as_non_empty_str(value) -> Optional[str]:
+def _as_non_empty_str(value) -> str | None:
     if isinstance(value, str):
         stripped = value.strip()
         return stripped or None
     return None
 
 
-def get_account_profile(access_token: str, id_token: Optional[str] = None) -> CodexAccountProfile:
+def get_account_profile(access_token: str, id_token: str | None = None) -> CodexAccountProfile:
     """Extract profile from exact observed JWT paths in access/id tokens."""
     access_payload = _decode_jwt_payload(access_token) or {}
     access_auth = access_payload.get(JWT_CLAIM_PATH)
@@ -354,6 +356,7 @@ def get_account_profile(access_token: str, id_token: Optional[str] = None) -> Co
 # Authorization URL + PKCE
 # ---------------------------------------------------------------------------
 
+
 def create_authorization_flow(originator: str = "pi") -> AuthorizationFlow:
     """Generate PKCE verifier/challenge, state, and the full authorization URL."""
     verifier, challenge = generate_pkce()
@@ -378,6 +381,7 @@ def create_authorization_flow(originator: str = "pi") -> AuthorizationFlow:
 # ---------------------------------------------------------------------------
 # Local callback server
 # ---------------------------------------------------------------------------
+
 
 class _CallbackHandler(BaseHTTPRequestHandler):
     """Minimal HTTP handler that captures the OAuth callback code."""
@@ -442,8 +446,8 @@ class OAuthCallbackServer:
 
     def __init__(self, state: str):
         self._state = state
-        self._server: Optional[HTTPServer] = None
-        self._thread: Optional[threading.Thread] = None
+        self._server: HTTPServer | None = None
+        self._thread: threading.Thread | None = None
         self._started = threading.Event()
         self._cancelled = False
 
@@ -469,13 +473,13 @@ class OAuthCallbackServer:
         except OSError:
             return False
 
-    def get_code_nowait(self) -> Optional[str]:
+    def get_code_nowait(self) -> str | None:
         """Non-blocking peek — returns the captured code or None immediately."""
         if self._server is None:
             return None
         return self._server.captured_code  # type: ignore[attr-defined]
 
-    def wait_for_code(self, timeout_seconds: int = 120) -> Optional[str]:
+    def wait_for_code(self, timeout_seconds: int = 120) -> str | None:
         """
         Block until the callback delivers a code or timeout / cancellation.
         Returns the authorization code or None.
@@ -504,6 +508,7 @@ class OAuthCallbackServer:
 # ---------------------------------------------------------------------------
 # Token exchange / refresh (sync — called from thread or FastAPI background)
 # ---------------------------------------------------------------------------
+
 
 def exchange_authorization_code(
     code: str,
@@ -566,7 +571,9 @@ def refresh_access_token(refresh_token: str) -> TokenResult:
         expires_in = body.get("expires_in")
 
         if not access or not refresh or not isinstance(expires_in, (int, float)):
-            return TokenFailure(reason=f"Token refresh response missing fields: {list(body.keys())}")
+            return TokenFailure(
+                reason=f"Token refresh response missing fields: {list(body.keys())}"
+            )
 
         expires_ms = int(time.time() * 1000) + int(expires_in) * 1000
         return TokenSuccess(access=access, refresh=refresh, expires=expires_ms)
@@ -577,6 +584,7 @@ def refresh_access_token(refresh_token: str) -> TokenResult:
 # ---------------------------------------------------------------------------
 # Parsing helpers (for manual code paste / redirect URL fallback)
 # ---------------------------------------------------------------------------
+
 
 def parse_authorization_input(raw: str) -> dict:
     """
@@ -595,11 +603,7 @@ def parse_authorization_input(raw: str) -> dict:
         parsed = urlparse(value)
         if parsed.scheme in ("http", "https"):
             qs = parse_qs(parsed.query)
-            return {
-                k: qs[k][0]
-                for k in ("code", "state")
-                if k in qs
-            }
+            return {k: qs[k][0] for k in ("code", "state") if k in qs}
     except Exception:
         pass
 

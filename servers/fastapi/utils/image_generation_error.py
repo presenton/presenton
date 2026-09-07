@@ -7,9 +7,7 @@ from utils.provider_error_messages import safe_provider_error_detail
 
 
 class ImageGenerationHTTPException(HTTPException):
-    def __init__(
-        self, *, status_code: int, detail: str, provider_code: str | None = None
-    ):
+    def __init__(self, *, status_code: int, detail: str, provider_code: str | None = None):
         super().__init__(status_code=status_code, detail=detail)
         self.provider_code = provider_code
 
@@ -49,9 +47,7 @@ def openai_error_detail(error: OpenAIAPIError, *, operation: str) -> str:
         status_code=getattr(error, "status_code", None),
         code=_openai_error_code(error),
         error_type=_openai_error_type(error),
-        message=getattr(error, "body", None)
-        or getattr(error, "message", None)
-        or str(error),
+        message=getattr(error, "body", None) or getattr(error, "message", None) or str(error),
     )
 
 

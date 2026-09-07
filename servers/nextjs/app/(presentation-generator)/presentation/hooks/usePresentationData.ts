@@ -33,7 +33,7 @@ export const usePresentationData = (
       if (data?.version === "v1-standard") {
         notify.warning(
           "Unsupported presentation",
-          "This deck was created in an older Presenton version. Downgrade to a compatible version to open it."
+          "This deck was created in an older version. Downgrade to a compatible version to open it."
         );
         setLoading(false);
         router.replace("/dashboard");

@@ -15,8 +15,8 @@ from api.v1.ppt.endpoints.presentation import (
     generate_presentation_sync,
 )
 from api.v2.ppt.endpoints.presentation import (
-    generate_smart_presentation_sync,
     generate_smart_presentation_async,
+    generate_smart_presentation_sync,
     run_generate_smart_presentation_task,
 )
 from models.generate_presentation_request import (

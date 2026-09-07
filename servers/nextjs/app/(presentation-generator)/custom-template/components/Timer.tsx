@@ -62,7 +62,7 @@ const Timer = ({ duration }: TimerProps) => {
           className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-100 ease-out"
           style={{
             width: `${progressValue * 100}%`,
-            background: 'linear-gradient(90deg, #7A5AF8, #9B8AFB, #7A5AF8)',
+            background: 'linear-gradient(90deg, #2563EB, #9B8AFB, #2563EB)',
             backgroundSize: '200% 100%',
             animation: 'shimmer 2s linear infinite',
           }}

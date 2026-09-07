@@ -1,12 +1,11 @@
-from typing import Optional
 from pydantic import BaseModel
 
 
 class OllamaModelStatus(BaseModel):
     name: str
-    parameters: Optional[str] = None
-    size: Optional[int] = None
-    downloaded: Optional[int] = None
+    parameters: str | None = None
+    size: int | None = None
+    downloaded: int | None = None
     status: str
     done: bool
-    error: Optional[str] = None
+    error: str | None = None

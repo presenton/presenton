@@ -1,11 +1,12 @@
 import asyncio
 import warnings
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 from fastapi import HTTPException, Request
-from sqlalchemy import Enum as SQLAlchemyEnum, String
+from sqlalchemy import Enum as SQLAlchemyEnum
+from sqlalchemy import String
 from sqlalchemy.dialects import sqlite
 
 from api.v1.async_tasks.router import (
@@ -189,9 +190,9 @@ def test_list_async_tasks_filters_and_orders_tasks():
         list_async_tasks(
             task_type="template.create",
             status="completed",
-            created_at=datetime(2026, 6, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 6, 1, tzinfo=UTC),
             created_at_from=None,
-            created_at_to=datetime(2026, 6, 30, tzinfo=timezone.utc),
+            created_at_to=datetime(2026, 6, 30, tzinfo=UTC),
             order_by="updated_at",
             order="asc",
             limit=25,

@@ -630,7 +630,7 @@ const HtmlSelectionEditor = ({
               aria-label="Open AI Editor"
               title="AI Edit"
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
               <span>AI Edit</span>
             </button>
           )}
@@ -672,7 +672,7 @@ const HtmlSelectionEditor = ({
                   data-inspector-overlay="1"
                   className="inline-flex items-center bg-white/80 rounded-md px-2 py-1 gap-2 text-xs font-medium text-gray-900"
                 >
-                  <Edit className="w-3.5 h-3.5 text-indigo-600" />
+                  <Edit className="w-3.5 h-3.5 text-blue-600" />
                   <span>Double-click for AI edit</span>
                 </div>
               </div>
@@ -719,7 +719,7 @@ const HtmlSelectionEditor = ({
           }}
         >
           <div className="text-black rounded-xl p-4 w-[440px] shadow-xl bg-white ring-1 ring-gray-200 overflow-hidden">
-            <div className="h-1 -mx-4 -mt-4 mb-3 bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-purple-500" />
+            <div className="h-1 -mx-4 -mt-4 mb-3 bg-gradient-to-r from-blue-500 via-sky-500 to-cyan-400" />
             <div className="flex items-center gap-3">
               <p className="text-sm text-black font-syne font-semibold">
                 Edit selection
@@ -735,7 +735,7 @@ const HtmlSelectionEditor = ({
                 name="selection-editor-prompt"
                 onChange={(e) => setPromptValue(e.target.value)}
                 placeholder="Explain the changes you want to make to the selection eg. make the heading larger"
-                className="w-full p-2 rounded-md border border-gray-200 bg-white text-black placeholder-gray-400 outline-none resize-y focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                className="w-full p-2 rounded-md border border-gray-200 bg-white text-black placeholder-gray-400 outline-none resize-y focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -764,7 +764,7 @@ const HtmlSelectionEditor = ({
                 onClick={handleSubmitEdit}
                 style={{ cursor: "pointer" }}
                 disabled={updatingSelection}
-                className="px-4 py-1 rounded-md bg-[#5141e5] text-white hover:bg-[#4336c9] disabled:opacity-50 "
+                className="px-4 py-1 rounded-md bg-[#1D4ED8] text-white hover:bg-[#4336c9] disabled:opacity-50 "
               >
                 {updatingSelection ? "Updating..." : "Apply"}
               </button>

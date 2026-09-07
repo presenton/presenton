@@ -1,14 +1,13 @@
 import asyncio
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
+from alembic import command
 from utils.db_utils import get_database_url_and_connect_args, to_sync_sqlalchemy_url
 from utils.get_env import get_migrate_database_on_startup_env
-
 
 LEGACY_BASELINE_REVISION = "00b3c27a13bc"
 # Revision before 95b5127e93cd (template_create_infos); used when DB has theme but not that table.
@@ -34,7 +33,8 @@ REVISION_PRESENTON_CLOUD_PROVIDER = "c6e8f1a3b5d7"
 REVISION_SMART_MODE_BACKFILL = "d2f4a6b8c0e1"
 REVISION_TEMPLATE_V2_THEME = "e4c7a9b2d6f1"
 REVISION_UNIFIED_API_KEYS = "026c0ba8b35c"
-REVISION_HEAD = REVISION_UNIFIED_API_KEYS
+REVISION_GENERATION_QUOTA = "d5e6f7a8b9c2"
+REVISION_HEAD = REVISION_GENERATION_QUOTA
 
 
 async def migrate_database_on_startup() -> None:
@@ -134,19 +134,14 @@ def _infer_revision_from_schema(
         "webhook_subscriptions",
     }
     ownership_ready = all(
-        table not in tables or _has_column(inspector, table, "owner_id")
-        for table in owned_tables
+        table not in tables or _has_column(inspector, table, "owner_id") for table in owned_tables
     )
     if "provider_settings" in tables and "user" in tables and ownership_ready:
-        if "template_v2" in tables and _has_column(
-            inspector, "template_v2", "theme"
-        ):
+        if "template_v2" in tables and _has_column(inspector, "template_v2", "theme"):
             return REVISION_TEMPLATE_V2_THEME
         if "presenton_cloud_provider" in tables:
             return REVISION_PRESENTON_CLOUD_PROVIDER
-        if "presentations" in tables and _has_column(
-            inspector, "presentations", "generation_mode"
-        ):
+        if "presentations" in tables and _has_column(inspector, "presentations", "generation_mode"):
             return REVISION_SMART_GENERATION
         if _has_column(inspector, "user", "admin_slot"):
             return REVISION_PRIMARY_ADMIN_SLOT
@@ -163,27 +158,21 @@ def _infer_revision_from_schema(
             "assets",
         }
         presentation_version_ready = (
-            "presentations" not in tables
-            or _has_presentation_version_column(inspector, tables)
+            "presentations" not in tables or _has_presentation_version_column(inspector, tables)
         )
-        slide_ui_ready = "slides" not in tables or _has_column(
-            inspector, "slides", "ui"
-        )
+        slide_ui_ready = "slides" not in tables or _has_column(inspector, "slides", "ui")
         presentation_fonts_ready = "presentations" not in tables or _has_column(
             inspector, "presentations", "fonts"
         )
-        template_v2_chat_scope_ready = (
-            "chat_history_messages" not in tables
-            or _has_column(inspector, "chat_history_messages", "template_v2_id")
+        template_v2_chat_scope_ready = "chat_history_messages" not in tables or _has_column(
+            inspector, "chat_history_messages", "template_v2_id"
         )
         font_uploads_ready = "font_uploads" in tables
         template_v2_id_strings_ready = _has_template_v2_id_string_columns(
             inspector,
             tables,
         )
-        template_v2_is_default_ready = _has_column(
-            inspector, "template_v2", "is_default"
-        )
+        template_v2_is_default_ready = _has_column(inspector, "template_v2", "is_default")
         async_tasks_ready = "async_tasks" in tables
         if (
             final_template_columns.issubset(cols)
@@ -198,9 +187,7 @@ def _infer_revision_from_schema(
                 if not template_v2_is_default_ready:
                     return REVISION_TEMPLATE_V2_ID_STRINGS
                 return (
-                    REVISION_ASYNC_TASKS
-                    if async_tasks_ready
-                    else REVISION_TEMPLATE_V2_IS_DEFAULT
+                    REVISION_ASYNC_TASKS if async_tasks_ready else REVISION_TEMPLATE_V2_IS_DEFAULT
                 )
             if slide_ui_ready and presentation_fonts_ready:
                 return REVISION_PRESENTATION_FONTS

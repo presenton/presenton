@@ -237,7 +237,7 @@ function ItemsControl({
         onClick={() => onToggle("items")}
         className={cn(
           "grid h-7 w-7 place-items-center rounded-md border-0 bg-transparent text-[#05070A] hover:bg-[#F8F8FA]",
-          open && "bg-[#F4F1FF] text-[#7C3AED]",
+          open && "bg-[#EFF6FF] text-[#7C3AED]",
         )}
       >
         <PlusCircle size={16} strokeWidth={1} aria-hidden />

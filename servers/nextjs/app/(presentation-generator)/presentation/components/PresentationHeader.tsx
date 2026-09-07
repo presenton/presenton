@@ -1,4 +1,5 @@
 "use client";
+import { YarexMark } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import {
   Play,
@@ -203,31 +204,11 @@ const PresentationHeader = ({
     titleBlurIntentRef.current = "cancel";
   };
 
-  const exportViaIpc = async (
-    format: "pptx" | "pdf",
-    title: string
-  ): Promise<void> => {
-    if (!window.electron?.exportPresentation) {
-      throw new Error("Electron export bridge is unavailable");
-    }
-    const result = await window.electron.exportPresentation(
-      presentation_id,
-      title,
-      format
-    );
-    if (!result?.success) {
-      throw new Error(result?.message || "Export failed");
-    }
-  };
-
   const handleExportPptx = async () => {
     if (isStreaming) return;
 
     const exportId = uuidv4();
     const exportStartedAt = Date.now();
-    const exportRuntime = window.electron?.exportPresentation
-      ? "electron"
-      : "browser_api";
     let exportToastId: string | number | undefined;
     try {
       exportToastId = notify.loading(
@@ -238,7 +219,6 @@ const PresentationHeader = ({
       await trackExportLifecycle(
         MixpanelEvent.Presentation_Export_Started,
         "pptx",
-        exportRuntime,
         exportId,
         exportStartedAt
       );
@@ -247,33 +227,28 @@ const PresentationHeader = ({
         "pptx"
       );
       const safePptxTitle = safePptxFileName.replace(/\.pptx$/i, "");
-      if (exportRuntime === "electron") {
-        await exportViaIpc("pptx", safePptxTitle);
-      } else {
-        const response = await fetch("/api/export-presentation", {
-          method: "POST",
-          body: JSON.stringify({
-            format: "pptx",
-            id: presentation_id,
-            title: safePptxTitle,
-          }),
-        });
+      const response = await fetch("/api/export-presentation", {
+        method: "POST",
+        body: JSON.stringify({
+          format: "pptx",
+          id: presentation_id,
+          title: safePptxTitle,
+        }),
+      });
 
-        if (!response.ok) {
-          throw new Error("Failed to export PPTX");
-        }
-
-        const { path: pptxPath } = await response.json();
-        if (!pptxPath) {
-          throw new Error("No path returned from export");
-        }
-
-        downloadLink(pptxPath, safePptxFileName);
+      if (!response.ok) {
+        throw new Error("Failed to export PPTX");
       }
+
+      const { path: pptxPath } = await response.json();
+      if (!pptxPath) {
+        throw new Error("No path returned from export");
+      }
+
+      downloadLink(pptxPath, safePptxFileName);
       await trackExportLifecycle(
         MixpanelEvent.Presentation_Export_Completed,
         "pptx",
-        exportRuntime,
         exportId,
         exportStartedAt
       );
@@ -287,7 +262,6 @@ const PresentationHeader = ({
       await trackExportLifecycle(
         MixpanelEvent.Presentation_Export_Failed,
         "pptx",
-        exportRuntime,
         exportId,
         exportStartedAt,
         error
@@ -307,9 +281,6 @@ const PresentationHeader = ({
 
     const exportId = uuidv4();
     const exportStartedAt = Date.now();
-    const exportRuntime = window.electron?.exportPresentation
-      ? "electron"
-      : "browser_api";
     let exportToastId: string | number | undefined;
     try {
       exportToastId = notify.loading(
@@ -320,7 +291,6 @@ const PresentationHeader = ({
       await trackExportLifecycle(
         MixpanelEvent.Presentation_Export_Started,
         "pdf",
-        exportRuntime,
         exportId,
         exportStartedAt
       );
@@ -329,32 +299,28 @@ const PresentationHeader = ({
         "pdf"
       );
       const safePdfTitle = safePdfFileName.replace(/\.pdf$/i, "");
-      if (exportRuntime === "electron") {
-        await exportViaIpc("pdf", safePdfTitle);
-      } else {
-        const response = await fetch("/api/export-presentation", {
-          method: "POST",
-          body: JSON.stringify({
-            format: "pdf",
-            id: presentation_id,
-            title: safePdfTitle,
-          }),
-        });
+      const response = await fetch("/api/export-presentation", {
+        method: "POST",
+        body: JSON.stringify({
+          format: "pdf",
+          id: presentation_id,
+          title: safePdfTitle,
+        }),
+      });
 
-        if (response.ok) {
-          const { path: pdfPath } = await response.json();
-          if (!pdfPath) {
-            throw new Error("No path returned from export");
-          }
-          downloadLink(pdfPath, safePdfFileName);
-        } else {
-          throw new Error("Failed to export PDF");
-        }
+      if (!response.ok) {
+        throw new Error("Failed to export PDF");
       }
+
+      const { path: pdfPath } = await response.json();
+      if (!pdfPath) {
+        throw new Error("No path returned from export");
+      }
+
+      downloadLink(pdfPath, safePdfFileName);
       await trackExportLifecycle(
         MixpanelEvent.Presentation_Export_Completed,
         "pdf",
-        exportRuntime,
         exportId,
         exportStartedAt
       );
@@ -368,7 +334,6 @@ const PresentationHeader = ({
       await trackExportLifecycle(
         MixpanelEvent.Presentation_Export_Failed,
         "pdf",
-        exportRuntime,
         exportId,
         exportStartedAt,
         error
@@ -422,7 +387,6 @@ const PresentationHeader = ({
       | MixpanelEvent.Presentation_Export_Completed
       | MixpanelEvent.Presentation_Export_Failed,
     format: "pptx" | "pdf",
-    exportRuntime: "electron" | "browser_api",
     exportId: string,
     exportStartedAt: number,
     error?: unknown
@@ -434,7 +398,6 @@ const PresentationHeader = ({
         export_id: exportId,
         format,
         slide_count: presentationData?.slides?.length || 0,
-        export_runtime: exportRuntime,
         generation_mode: generationMode,
         ...(event !== MixpanelEvent.Presentation_Export_Started
           ? { duration_ms: Date.now() - exportStartedAt }
@@ -492,7 +455,7 @@ const PresentationHeader = ({
       )}
     >
       {isEditingTitle ? (
-        <div className="flex items-stretch w-[450px]  gap-0.5 rounded-[14px] border border-[#E4E2EB] bg-white pl-3.5 pr-1 py-1 shadow-[0_2px_12px_rgba(17,3,31,0.06)] ring-2 ring-[#5141e5]/15">
+        <div className="flex items-stretch w-[450px]  gap-0.5 rounded-[14px] border border-[#E4E2EB] bg-white pl-3.5 pr-1 py-1 shadow-[0_2px_12px_rgba(17,3,31,0.06)] ring-2 ring-[#1D4ED8]/15">
           <input
             ref={titleInputRef}
             value={draftTitle}
@@ -519,7 +482,7 @@ const PresentationHeader = ({
                 type="button"
                 onMouseDown={onTitleSaveMouseDown}
                 onClick={commitTitleEdit}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#5141e5] hover:bg-[#5141e5]/10 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#1D4ED8] hover:bg-[#1D4ED8]/10 transition-colors"
                 aria-label="Save title"
               >
                 <Check className="h-4 w-4" strokeWidth={2.25} />
@@ -545,7 +508,7 @@ const PresentationHeader = ({
           disabled={isStreaming || !presentationData}
           className={cn(
             "group/title flex w-full min-w-0 items-center gap-2.5 rounded-[14px] px-3 py-2 text-left -mx-3 transition-colors",
-            "hover:bg-[#F6F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5141e5] focus-visible:ring-offset-2",
+            "hover:bg-[#F6F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2",
             "disabled:pointer-events-none disabled:opacity-100 disabled:hover:bg-transparent"
           )}
         >
@@ -557,7 +520,7 @@ const PresentationHeader = ({
           </h2>
           {presentationData && !isStreaming && (
             <Pencil
-              className="h-3.5 w-3.5 shrink-0 text-[#101323]/40 transition-all duration-200 group-hover/title:text-[#5141e5] opacity-80 sm:opacity-0 sm:group-hover/title:opacity-100 group-hover/title:opacity-100"
+              className="h-3.5 w-3.5 shrink-0 text-[#101323]/40 transition-all duration-200 group-hover/title:text-[#1D4ED8] opacity-80 sm:opacity-0 sm:group-hover/title:opacity-100 group-hover/title:opacity-100"
               aria-hidden
             />
           )}
@@ -570,14 +533,14 @@ const PresentationHeader = ({
     <>
       <div className="py-[18px] px-4 sticky top-0 bg-white z-50 shadow-sm font-syne flex justify-between items-center gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <img
+          <span
             onClick={() => {
               router.push("/dashboard");
             }}
-            src="/logo-with-bg.png"
-            alt=""
-            className="w-10 h-10 cursor-pointer object-contain"
-          />
+            className="inline-flex cursor-pointer"
+          >
+            <YarexMark size={40} />
+          </span>
           {presentationData && !isStreaming && !isEditingTitle ? (
             <ToolTip content="Rename presentation">{titleBlock}</ToolTip>
           ) : (
@@ -611,8 +574,8 @@ const PresentationHeader = ({
                 className={cn(
                   "hidden h-[38px] items-center gap-2 rounded-xl border px-3 font-syne text-xs font-semibold shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6D5DFB] focus-visible:ring-offset-2 xl:inline-flex",
                   enableHtmlSelector
-                    ? "border-[#CEC6FF] bg-[#F3F0FF] text-[#5141E5]"
-                    : "border-[#E4E4E8] bg-white text-[#3D3D48] hover:border-[#D7D2F5] hover:bg-[#FAF9FF] hover:text-[#5141E5]"
+                    ? "border-[#CEC6FF] bg-[#F3F0FF] text-[#1D4ED8]"
+                    : "border-[#E4E4E8] bg-white text-[#3D3D48] hover:border-[#D7D2F5] hover:bg-[#FAF9FF] hover:text-[#1D4ED8]"
                 )}
               >
                 <span
@@ -644,7 +607,7 @@ const PresentationHeader = ({
                 onClick={() => setIsRegenerateConfirmOpen(true)}
                 className="group"
               >
-                <RotateCcw className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#5141e5] duration-300" />
+                <RotateCcw className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#1D4ED8] duration-300" />
               </button>
             </ToolTip>
             <Separator orientation="vertical" className="h-4" />
@@ -656,7 +619,7 @@ const PresentationHeader = ({
                   onUndo();
                 }}
               >
-                <Undo2 className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#5141e5] duration-300" />
+                <Undo2 className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#1D4ED8] duration-300" />
               </button>
             </ToolTip>
             <Separator orientation="vertical" className="h-4" />
@@ -668,7 +631,7 @@ const PresentationHeader = ({
                   onRedo();
                 }}
               >
-                <Redo2 className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#5141e5] duration-300" />
+                <Redo2 className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#1D4ED8] duration-300" />
               </button>
             </ToolTip>
             <Separator orientation="vertical" className="h-4 w-[2px]" />
@@ -695,7 +658,7 @@ const PresentationHeader = ({
                 }
                 className="cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
               >
-                <Play className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#5141e5] duration-300" />
+                <Play className="w-3.5 h-3.5 text-[#101323] group-hover:text-[#1D4ED8] duration-300" />
               </button>
             </ToolTip>
           </div>
@@ -709,7 +672,7 @@ const PresentationHeader = ({
               aria-expanded={shortcutsDialogOpen}
               aria-keyshortcuts="?"
               data-testid="keyboard-shortcuts-btn"
-              className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[#EDECEC] bg-[#F6F6F9] text-[#101323] transition-colors hover:border-[#D8D3FE] hover:bg-[#F0EDFF] hover:text-[#6847F4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2"
+              className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[#EDECEC] bg-[#F6F6F9] text-[#101323] transition-colors hover:border-[#D8D3FE] hover:bg-[#F0EDFF] hover:text-[#6847F4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
               onClick={() => setShortcutsDialogOpen(true)}
             >
               <Keyboard

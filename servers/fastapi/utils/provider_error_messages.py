@@ -2,15 +2,12 @@ import json
 import re
 from typing import Any
 
-
 INVALID_API_KEY_MESSAGE = "Invalid API key. Please verify your API key and try again."
 IMAGE_MODERATION_MESSAGE = (
     "An image request was blocked by the safety system. "
     "A placeholder image was used for that slide."
 )
-GENERIC_PROVIDER_ERROR_MESSAGE = (
-    "The AI provider returned an error. Please try again."
-)
+GENERIC_PROVIDER_ERROR_MESSAGE = "The AI provider returned an error. Please try again."
 
 
 _INVALID_API_KEY_PATTERNS = (
@@ -79,9 +76,7 @@ def _looks_like_moderation_block(
     )
 
 
-def _looks_like_model_access_error(
-    *, code: Any = None, message: Any = None
-) -> bool:
+def _looks_like_model_access_error(*, code: Any = None, message: Any = None) -> bool:
     normalized_code = _normalize_code(code)
     if normalized_code in {"model_not_found", "model_not_available"}:
         return True

@@ -174,9 +174,7 @@ def test_get_slide_elements_reports_editable_layout():
     paths = {element["path"] for element in payload["elements"]}
     assert "components[0].elements[0]" in paths
     title = next(
-        element
-        for element in payload["elements"]
-        if element["path"] == "components[0].elements[0]"
+        element for element in payload["elements"] if element["path"] == "components[0].elements[0]"
     )
     assert title["style"] == {"font": {"size": 20, "family": "Inter"}}
 
@@ -1397,9 +1395,7 @@ def test_update_component_ungroups_container_child():
         "height": 104.0,
     }
     assert slide.ui["components"][0]["elements"][0]["type"] == "text"
-    assert slide.ui["components"][0]["elements"][0]["runs"] == [
-        {"text": "Nested title"}
-    ]
+    assert slide.ui["components"][0]["elements"][0]["runs"] == [{"text": "Nested title"}]
     assert session.commit_count == 1
 
 
@@ -1579,10 +1575,9 @@ def test_update_component_ungroups_grid_immediate_children_only():
     ]
     assert slide.ui["components"][0]["elements"][0]["type"] == "flex"
     assert slide.ui["components"][0]["elements"][0]["children"][0]["type"] == "container"
-    assert (
-        slide.ui["components"][0]["elements"][0]["children"][1]["children"][0]["runs"]
-        == [{"text": "Fine PM2.5"}]
-    )
+    assert slide.ui["components"][0]["elements"][0]["children"][1]["children"][0]["runs"] == [
+        {"text": "Fine PM2.5"}
+    ]
     assert session.commit_count == 1
 
 
@@ -1782,10 +1777,7 @@ def test_add_slide_element_converts_data_only_chart_on_first_insert():
     assert result["ok"] is True
     assert added_chart["categories"] == ["Messi", "Ronaldo"]
     assert added_chart["series"] == [{"name": "Goals", "values": [600, 800]}]
-    assert [
-        {key: item[key] for key in ("label", "value")}
-        for item in added_chart["data"]
-    ] == [
+    assert [{key: item[key] for key in ("label", "value")} for item in added_chart["data"]] == [
         {"label": "Messi", "value": 600},
         {"label": "Ronaldo", "value": 800},
     ]
@@ -1846,10 +1838,7 @@ def test_add_slide_element_repairs_fenced_jsonish_element_payload():
     added_chart = slide.ui["components"][-1]["elements"][0]
     assert result["ok"] is True
     assert result["repair"]["applied"] is True
-    assert any(
-        "Repaired JSON string field element" in note
-        for note in result["repair"]["notes"]
-    )
+    assert any("Repaired JSON string field element" in note for note in result["repair"]["notes"])
     assert added_chart["categories"] == ["Messi", "Ronaldo"]
     assert added_chart["series"] == [{"name": "Goals", "values": [600, 800]}]
     assert session.commit_count == 1
@@ -2321,7 +2310,7 @@ def _template_presentation(presentation_id: uuid.UUID) -> PresentationModel:
                         }
                     ],
                 }
-            ]
+            ],
         },
     )
 
@@ -2370,16 +2359,20 @@ def test_save_slide_for_template_payload_persists_renderable_ui():
     session = _FakeSaveSlideSession(presentation)
     memory = PresentationChatMemoryLayer(session, presentation_id)
 
-    with patch.object(
-        memory,
-        "_get_presentation_icon_weight",
-        new=AsyncMock(return_value="regular"),
-    ), patch(
-        "services.chat.memory_layer.get_images_directory",
-        return_value="/tmp",
-    ), patch(
-        "services.chat.memory_layer.MEM0_PRESENTATION_MEMORY_SERVICE.store_slide_edit",
-        new=AsyncMock(),
+    with (
+        patch.object(
+            memory,
+            "_get_presentation_icon_weight",
+            new=AsyncMock(return_value="regular"),
+        ),
+        patch(
+            "services.chat.memory_layer.get_images_directory",
+            return_value="/tmp",
+        ),
+        patch(
+            "services.chat.memory_layer.MEM0_PRESENTATION_MEMORY_SERVICE.store_slide_edit",
+            new=AsyncMock(),
+        ),
     ):
         result = _run(
             memory.save_slide(
@@ -2405,10 +2398,7 @@ def test_chat_add_outline_refuses_more_than_max_slides():
     presentation_id = uuid.uuid4()
     presentation = _template_presentation(presentation_id)
     presentation.outlines = {
-        "slides": [
-            {"content": f"## Slide {index}"}
-            for index in range(MAX_NUMBER_OF_SLIDES)
-        ]
+        "slides": [{"content": f"## Slide {index}"} for index in range(MAX_NUMBER_OF_SLIDES)]
     }
     session = _FakeSaveSlideSession(presentation)
     memory = PresentationChatMemoryLayer(session, presentation_id)
@@ -2427,9 +2417,7 @@ def test_chat_update_outline_trims_content_to_word_limit():
     presentation.outlines = {"slides": [{"content": "## Existing"}]}
     session = _FakeSaveSlideSession(presentation)
     memory = PresentationChatMemoryLayer(session, presentation_id)
-    content = " ".join(
-        f"word{i}" for i in range(MAX_OUTLINE_CONTENT_WORDS + 4)
-    )
+    content = " ".join(f"word{i}" for i in range(MAX_OUTLINE_CONTENT_WORDS + 4))
 
     with patch(
         "services.chat.memory_layer.MEM0_PRESENTATION_MEMORY_SERVICE.store_generated_outlines",
@@ -2525,13 +2513,16 @@ def test_chat_save_slide_refuses_new_slide_at_max_slides():
     ]
     memory = PresentationChatMemoryLayer(session, presentation_id)
 
-    with patch.object(
-        memory,
-        "_get_presentation_icon_weight",
-        new=AsyncMock(return_value="regular"),
-    ), patch(
-        "services.chat.memory_layer.get_images_directory",
-        return_value="/tmp",
+    with (
+        patch.object(
+            memory,
+            "_get_presentation_icon_weight",
+            new=AsyncMock(return_value="regular"),
+        ),
+        patch(
+            "services.chat.memory_layer.get_images_directory",
+            return_value="/tmp",
+        ),
     ):
         result = _run(
             memory.save_slide(

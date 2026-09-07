@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 
 FROM python:3.11-slim-trixie AS fastapi-builder
 
@@ -48,10 +47,6 @@ FROM node:22-bookworm-slim AS assets-builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY package.json /app/
 
 RUN mkdir -p /app/document-extraction-liteparse \
@@ -59,11 +54,13 @@ RUN mkdir -p /app/document-extraction-liteparse \
     && npm init -y \
     && npm install @llamaindex/liteparse@1.5.2 --omit=dev
 
-COPY electron/resources/document-extraction/liteparse_runner.mjs /app/document-extraction-liteparse/liteparse_runner.mjs
+COPY resources/document-extraction/liteparse_runner.mjs /app/document-extraction-liteparse/liteparse_runner.mjs
 COPY scripts/sync-presentation-export.cjs /app/scripts/sync-presentation-export.cjs
 COPY scripts/run-presentation-export.mjs /app/scripts/run-presentation-export.mjs
+COPY scripts/pptx-svg-fallback.mjs /app/scripts/pptx-svg-fallback.mjs
 RUN rm -rf /app/presentation-export \
-    && node /app/scripts/sync-presentation-export.cjs --force
+    && node /app/scripts/sync-presentation-export.cjs --force \
+    && cp /app/scripts/pptx-svg-fallback.mjs /app/presentation-export/pptx-svg-fallback.mjs
 
 
 FROM python:3.11-slim-trixie AS runtime
@@ -74,7 +71,7 @@ ARG INSTALL_TESSERACT=true
 ARG CHROMIUM_VERSION=149.0.7827.196-1~deb13u1
 ARG CHROMIUM_SNAPSHOT=20260625T180000Z
 
-# LiteParse uses Node + @llamaindex/liteparse (same runner as Electron); OCR uses Tesseract.
+# LiteParse uses Node + @llamaindex/liteparse; OCR uses Tesseract.
 ENV APP_DATA_DIRECTORY=/app_data \
     TEMP_DIRECTORY=/tmp/presenton \
     EXPORT_PACKAGE_ROOT=/app/presentation-export \
@@ -88,6 +85,7 @@ ENV APP_DATA_DIRECTORY=/app_data \
 
 RUN set -eux; \
     printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99snapshot; \
+    printf 'Acquire::Retries "8";\n' >> /etc/apt/apt.conf.d/99snapshot; \
     printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$CHROMIUM_SNAPSHOT" > /etc/apt/sources.list.d/chromium-snapshot.list; \
     packages="ca-certificates curl nginx fontconfig imagemagick zstd \
     fonts-liberation fonts-noto-core fonts-noto-extra fonts-noto-mono fonts-noto-ui-core fonts-noto-ui-extra \

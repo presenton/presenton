@@ -10,7 +10,6 @@ from models.sql.async_task import AsyncTaskModel
 from services.database import get_async_session
 from utils.mcp_public_urls import absolute_mcp_result_links
 
-
 API_V1_ASYNC_TASKS_ROUTER = APIRouter(
     prefix="/api/v1/async-tasks",
     tags=["Async Tasks"],
@@ -27,8 +26,7 @@ async def list_async_tasks(
     created_at: datetime | None = Query(
         default=None,
         description=(
-            "Only include tasks created at or after this timestamp. "
-            "Alias for created_at_from."
+            "Only include tasks created at or after this timestamp. Alias for created_at_from."
         ),
     ),
     created_at_from: datetime | None = Query(
@@ -57,9 +55,7 @@ async def list_async_tasks(
         statement = statement.where(AsyncTaskModel.created_at <= created_at_to)
 
     order_column = getattr(AsyncTaskModel, order_by)
-    statement = statement.order_by(
-        order_column.asc() if order == "asc" else order_column.desc()
-    )
+    statement = statement.order_by(order_column.asc() if order == "asc" else order_column.desc())
     statement = statement.offset(offset).limit(limit)
 
     result = await sql_session.execute(statement)

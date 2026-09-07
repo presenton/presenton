@@ -4,11 +4,12 @@ import json
 import logging
 import mimetypes
 import re
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
 from json import JSONDecodeError
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 
 from llmai import get_client
 from llmai.shared import (
@@ -24,6 +25,8 @@ from llmai.shared import (
 from pydantic import BaseModel, ValidationError
 
 from templates.v2 import certified_generation as _certified_generation
+from templates.v2.models.elements import Image as SlideImageElement
+from templates.v2.models.elements import ImageFit
 from templates.v2.models.layouts import (
     Component,
     MergedComponent,
@@ -35,12 +38,11 @@ from templates.v2.models.layouts import (
     SlideLayouts,
     slide_layout_llm_json_schema,
 )
-from templates.v2.models.elements import Image as SlideImageElement
-from templates.v2.models.elements import ImageFit
 from templates.v2.tools import PREVIEW_SLIDE_TOOL_NAME, PreviewSlideTool
 from utils.asset_directory_utils import resolve_image_path_to_filesystem
-from utils.llm_config import get_llm_config
+from utils.llm_config import get_llm_config, llm_structured_outputs_enabled
 from utils.llm_provider import get_model
+from utils.llm_utils import extract_structured_content
 
 DEFAULT_VALIDATION_RETRIES = 5
 MAX_PARALLEL_SLIDE_LAYOUTS = 10
@@ -134,9 +136,7 @@ def _ensure_unique_slide_layout_ids(layouts: list[SlideLayout]) -> list[SlideLay
             suffix += 1
             candidate_id = f"{layout.id}_{suffix}"
         used_ids.add(candidate_id)
-        unique_layouts.append(
-            layout.model_copy(deep=True, update={"id": candidate_id})
-        )
+        unique_layouts.append(layout.model_copy(deep=True, update={"id": candidate_id}))
 
     if duplicate_count:
         LOGGER.warning(
@@ -208,6 +208,10 @@ def generate_template(
 
 
 def merge_similar_components(layouts: SlideLayouts) -> MergedComponents:
+    # Апстрим вынес кластеризацию в certified_generation (расширенный payload:
+    # editable_schema/position/content_bounds/element_hierarchy); клиент
+    # резолвится через public_generation, так что monkeypatch-интеграции
+    # (templates.v2.generation.get_client) продолжают работать.
     return _certified_generation.merge_similar_components(layouts)
 
 
@@ -220,9 +224,7 @@ def _validate_similarity_groups(
     for group in clusters.similar_components:
         for index in group.indices:
             if index >= component_count:
-                raise ValueError(
-                    f"similar component index {index} is outside the available range"
-                )
+                raise ValueError(f"similar component index {index} is outside the available range")
             if index in seen:
                 raise ValueError(
                     f"component index {index} appears in more than one similarity group"
@@ -234,9 +236,7 @@ def _build_merged_components(
     components: list[Component],
     similar_groups: list[list[int]],
 ) -> MergedComponents:
-    group_by_index = {
-        index: sorted(group) for group in similar_groups for index in group
-    }
+    group_by_index = {index: sorted(group) for group in similar_groups for index in group}
     used_indices: set[int] = set()
     used_ids: set[str] = set()
     merged_components: list[MergedComponent] = []
@@ -307,9 +307,7 @@ def _deduplicate_merged_components(merged: MergedComponents) -> MergedComponents
             for duplicate_index in duplicate_indices
             for variant in merged.components[duplicate_index].variants
         ]
-        deduplicated.append(
-            component_group.model_copy(deep=True, update={"variants": variants})
-        )
+        deduplicated.append(component_group.model_copy(deep=True, update={"variants": variants}))
 
     return MergedComponents(components=deduplicated)
 
@@ -385,9 +383,7 @@ def _element_duplicate_signature(
                 )
             )
             continue
-        if not decorative and key in _CONTENT_VALUE_KEYS_BY_ELEMENT_TYPE.get(
-            element_type, set()
-        ):
+        if not decorative and key in _CONTENT_VALUE_KEYS_BY_ELEMENT_TYPE.get(element_type, set()):
             continue
         if not decorative and element_type == "table" and key in {"columns", "rows"}:
             items.append((key, _normalize_signature_value(_strip_table_text(value))))
@@ -403,9 +399,7 @@ def _component_content_size(component_data: dict[str, Any]) -> dict[str, float] 
     if not isinstance(elements, list):
         return None
     bounds = _merge_bounds(
-        _element_bounds(element)
-        for element in elements
-        if isinstance(element, dict)
+        _element_bounds(element) for element in elements if isinstance(element, dict)
     )
     if bounds is None:
         return None
@@ -512,11 +506,7 @@ def _merge_bounds(
 
 def _strip_table_text(value: Any) -> Any:
     if isinstance(value, dict):
-        return {
-            key: _strip_table_text(child)
-            for key, child in value.items()
-            if key != "runs"
-        }
+        return {key: _strip_table_text(child) for key, child in value.items() if key != "runs"}
     if isinstance(value, list):
         return [_strip_table_text(item) for item in value]
     return value
@@ -550,10 +540,7 @@ def _axis_signature(value: Any, root_size: Any, axis_key: str) -> Any:
         axis_size = _coerce_number(root_size.get(axis_key))
     if axis_size is not None and axis_size > 0:
         normalized = (number / axis_size) * 1000
-        return (
-            round(normalized / _DUPLICATE_POSITION_GRID_UNITS)
-            * _DUPLICATE_POSITION_GRID_UNITS
-        )
+        return round(normalized / _DUPLICATE_POSITION_GRID_UNITS) * _DUPLICATE_POSITION_GRID_UNITS
     return round(number, 1)
 
 
@@ -575,8 +562,7 @@ def _normalize_signature_value(value: Any) -> Any:
         return value.strip()
     if isinstance(value, dict):
         return tuple(
-            (key, _normalize_signature_value(child))
-            for key, child in sorted(value.items())
+            (key, _normalize_signature_value(child)) for key, child in sorted(value.items())
         )
     if isinstance(value, list):
         return tuple(_normalize_signature_value(item) for item in value)
@@ -614,12 +600,17 @@ def generate_slide_layout(
     *,
     max_tokens: int | None = None,
 ) -> SlideLayout:
-    return _certified_generation.generate_slide_layout(
-        source_layout,
-        slide_index,
-        slide_image_url,
-        fonts,
-        max_tokens=max_tokens,
+    # Апстрим: certified multi-pass генерация (visual-data → semantic manifest
+    # → flexible regions → text capacity → compile). Наш форк поверх
+    # результата применяет жёсткий минимум 12px — certified этого не делает.
+    return _enforce_minimum_font_sizes(
+        _certified_generation.generate_slide_layout(
+            source_layout,
+            slide_index,
+            slide_image_url,
+            fonts,
+            max_tokens=max_tokens,
+        )
     )
 
 
@@ -647,13 +638,9 @@ def generate_prompted_slide_layout(
 
     def validate_generated_layout(layout: SlideLayout) -> None:
         if not PROMPTED_LAYOUT_ID_PATTERN.fullmatch(layout.id):
-            raise ValueError(
-                "layout.id must be snake_case and begin with a lowercase letter"
-            )
+            raise ValueError("layout.id must be snake_case and begin with a lowercase letter")
         if layout.id in existing_layout_ids:
-            raise ValueError(
-                f"layout.id '{layout.id}' already exists; create a unique layout id"
-            )
+            raise ValueError(f"layout.id '{layout.id}' already exists; create a unique layout id")
         if not layout.components:
             raise ValueError("layout.components must contain at least one component")
         if not _contains_editable_template_content(
@@ -685,7 +672,9 @@ def generate_prompted_slide_layout(
         extra_validator=validate_generated_layout,
         max_tokens=16_000,
     )
-    return _replace_content_image_urls(SlideLayout.model_validate(generated))
+    return _enforce_minimum_font_sizes(
+        _replace_content_image_urls(SlideLayout.model_validate(generated))
+    )
 
 
 def _prompted_layout_context(
@@ -705,10 +694,7 @@ def _prompted_layout_context(
                 prompt_terms,
                 item[1].id,
                 item[1].description,
-                *(
-                    component.description
-                    for component in item[1].components
-                ),
+                *(component.description for component in item[1].components),
             ),
             item[0],
         ),
@@ -737,9 +723,7 @@ def _prompted_layout_context(
         )
     selected_components = [
         component.model_dump(mode="json", exclude_none=True)
-        for _, _, component in ranked_components[
-            :PROMPTED_LAYOUT_MAX_REUSABLE_COMPONENTS
-        ]
+        for _, _, component in ranked_components[:PROMPTED_LAYOUT_MAX_REUSABLE_COMPONENTS]
     ]
 
     context: dict[str, Any] = {
@@ -747,18 +731,13 @@ def _prompted_layout_context(
             "name": template_name,
             "description": template_description,
             "fonts": sorted((fonts or {}).keys()),
-            "existing_layout_ids": [
-                layout.id for layout in template_layouts.layouts
-            ],
+            "existing_layout_ids": [layout.id for layout in template_layouts.layouts],
         },
         "reference_layouts": selected_layouts,
         "reusable_components": selected_components,
     }
 
-    while (
-        len(json.dumps(context, ensure_ascii=False))
-        > PROMPTED_LAYOUT_MAX_CONTEXT_CHARS
-    ):
+    while len(json.dumps(context, ensure_ascii=False)) > PROMPTED_LAYOUT_MAX_CONTEXT_CHARS:
         if context["reusable_components"]:
             context["reusable_components"].pop()
             continue
@@ -771,11 +750,7 @@ def _prompted_layout_context(
 
 
 def _search_terms(value: str) -> set[str]:
-    return {
-        term
-        for term in re.findall(r"[a-z0-9]+", value.lower())
-        if len(term) > 2
-    }
+    return {term for term in re.findall(r"[a-z0-9]+", value.lower()) if len(term) > 2}
 
 
 def _template_context_match_score(
@@ -788,14 +763,9 @@ def _template_context_match_score(
 
 def _contains_editable_template_content(value: Any) -> bool:
     if isinstance(value, dict):
-        if value.get("decorative") is False and isinstance(
-            value.get("type"), str
-        ):
+        if value.get("decorative") is False and isinstance(value.get("type"), str):
             return True
-        return any(
-            _contains_editable_template_content(child)
-            for child in value.values()
-        )
+        return any(_contains_editable_template_content(child) for child in value.values())
     if isinstance(value, list):
         return any(_contains_editable_template_content(child) for child in value)
     return False
@@ -808,6 +778,68 @@ def _replace_content_image_urls(layout: SlideLayout) -> SlideLayout:
     return normalized
 
 
+#: Пол размеров шрифта при авторинге шаблонов. Рендер
+#: (template-v2-json-to-html.ts) применяет тот же пол на выдаче; здесь мы
+#: фиксируем его в сохраняемом шаблоне, чтобы превью совпадало с экспортом.
+#: На уровне Font-модели пол не ставим: она парсит и сохранённые шаблоны
+#: старых дек, жёсткий reject сломал бы их загрузку.
+MIN_TEMPLATE_FONT_SIZE_PX = 12.0
+
+
+def _enforce_minimum_font_sizes(layout: SlideLayout) -> SlideLayout:
+    normalized = layout.model_copy(deep=True)
+    for component in normalized.components:
+        _enforce_minimum_font_sizes_in_elements(component.elements)
+    return normalized
+
+
+def _enforce_minimum_font_sizes_in_elements(elements: list[Any]) -> None:
+    for element in elements:
+        _enforce_minimum_font_size_in_element(element)
+
+
+def _bump_element_font(element: Any) -> None:
+    minimum = MIN_TEMPLATE_FONT_SIZE_PX
+    font = getattr(element, "font", None)
+    if font is not None and font.size is not None and font.size < minimum:
+        font.size = minimum
+    runs = getattr(element, "runs", None)
+    if isinstance(runs, list):
+        for run in runs:
+            run_font = getattr(run, "font", None)
+            if run_font is not None and run_font.size is not None and run_font.size < minimum:
+                run_font.size = minimum
+
+
+def _enforce_minimum_font_size_in_element(element: Any) -> None:
+    _bump_element_font(element)
+
+    child = getattr(element, "child", None)
+    if child is not None:
+        _enforce_minimum_font_size_in_element(child)
+
+    children = getattr(element, "children", None)
+    if isinstance(children, list):
+        _enforce_minimum_font_sizes_in_elements(children)
+
+    columns = getattr(element, "columns", None)
+    if isinstance(columns, list):
+        _enforce_minimum_font_sizes_in_elements(columns)
+
+    rows = getattr(element, "rows", None)
+    if isinstance(rows, list):
+        for row in rows:
+            if isinstance(row, list):
+                _enforce_minimum_font_sizes_in_elements(row)
+
+    items = getattr(element, "items", None)
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, list):
+                for run in item:
+                    _bump_element_font(run)
+
+
 def _replace_content_image_urls_in_elements(elements: list[Any]) -> None:
     for element in elements:
         _replace_content_image_url_in_element(element)
@@ -816,9 +848,7 @@ def _replace_content_image_urls_in_elements(elements: list[Any]) -> None:
 def _replace_content_image_url_in_element(element: Any) -> None:
     if isinstance(element, SlideImageElement) and element.decorative is False:
         element.data = (
-            CONTENT_ICON_PLACEHOLDER_URL
-            if element.is_icon
-            else CONTENT_IMAGE_PLACEHOLDER_URL
+            CONTENT_ICON_PLACEHOLDER_URL if element.is_icon else CONTENT_IMAGE_PLACEHOLDER_URL
         )
         if not element.is_icon and element.fit != ImageFit.COVER:
             element.fit = ImageFit.COVER
@@ -875,12 +905,13 @@ def _generate_preview_candidate(
             generate_kwargs = {
                 "model": model,
                 "messages": attempt_messages,
-                "response_format": JSONSchemaResponse(
+            }
+            if llm_structured_outputs_enabled():
+                generate_kwargs["response_format"] = JSONSchemaResponse(
                     name="SlideLayoutResponse",
                     strict=False,
                     json_schema=slide_layout_llm_json_schema(),
-                ),
-            }
+                )
             if max_tokens is not None:
                 generate_kwargs["max_tokens"] = max_tokens
             if preview_tool_available:
@@ -940,8 +971,7 @@ def _generate_preview_candidate(
             )
             preview_image = preview_tool.render(candidate_layout)
             LOGGER.info(
-                "[templates.v2.llm] %s: preview slide rendered attempt=%d/%d "
-                "duration_ms=%.1f",
+                "[templates.v2.llm] %s: preview slide rendered attempt=%d/%d duration_ms=%.1f",
                 label,
                 attempt,
                 max_attempts,
@@ -985,8 +1015,7 @@ def _generate_preview_candidate(
                 ),
             ]
             LOGGER.info(
-                "[templates.v2.llm] %s: asking LLM to review rendered preview "
-                "attempt=%d/%d",
+                "[templates.v2.llm] %s: asking LLM to review rendered preview attempt=%d/%d",
                 label,
                 attempt,
                 max_attempts,
@@ -1067,8 +1096,7 @@ def _preview_feedback_instruction(preview_call_count: int) -> str:
             "even when no changes are needed."
         )
     return (
-        base
-        + "Return the complete final SlideLayout JSON, or call previewSlide one more time "
+        base + "Return the complete final SlideLayout JSON, or call previewSlide one more time "
         "only if another visual check is needed."
     )
 
@@ -1114,16 +1142,18 @@ def _generate_with_validation_retries(
             len(attempt_messages),
         )
         try:
-            response = client.generate(
-                model=model,
-                messages=attempt_messages,
-                response_format=JSONSchemaResponse(
+            generate_kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": attempt_messages,
+                "max_tokens": max_tokens,
+            }
+            if llm_structured_outputs_enabled():
+                generate_kwargs["response_format"] = JSONSchemaResponse(
                     name=response_name,
                     strict=False,
                     json_schema=_llm_response_schema(output_model),
-                ),
-                max_tokens=max_tokens,
-            )
+                )
+            response = client.generate(**generate_kwargs)
         except Exception as exc:
             last_error = exc
             LOGGER.warning(
@@ -1205,10 +1235,22 @@ def _validate_output_model(
 
 def _parse_json_content(content: Any) -> dict[str, Any]:
     text_content = _text_from_content(content)
-    parsed = json.loads(text_content) if text_content is not None else content
-    if not isinstance(parsed, dict):
+    if text_content is not None:
+        try:
+            parsed = json.loads(text_content)
+        except (json.JSONDecodeError, TypeError):
+            # Models may wrap JSON in code fences or prose when
+            # response_format is not requested (LLM_STRUCTURED_OUTPUTS=false).
+            parsed = extract_structured_content(text_content)
+            if parsed is None:
+                raise ValueError("LLM response must be a JSON object")
+            return parsed
+        if not isinstance(parsed, dict):
+            raise ValueError("LLM response must be a JSON object")
+        return parsed
+    if not isinstance(content, dict):
         raise ValueError("LLM response must be a JSON object")
-    return parsed
+    return content
 
 
 def _text_from_content(content: Any) -> str | None:
@@ -1305,9 +1347,7 @@ def _json_repair_prompt(
         _format_error_for_prompt(error),
     ]
     if invalid_response is not None:
-        parts.extend(
-            ["", "invalid_response:", _json_dumps_for_prompt(invalid_response)]
-        )
+        parts.extend(["", "invalid_response:", _json_dumps_for_prompt(invalid_response)])
     return "\n".join(parts)
 
 

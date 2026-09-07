@@ -1,8 +1,8 @@
 import asyncio
-from datetime import datetime, timezone
 import logging
 import os
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from services.mem0_oss_memory import (
@@ -20,9 +20,7 @@ class ChatMemoryStore:
         self._enabled = self._to_bool(os.getenv("MEM0_ENABLED"), default=True)
         self._runtime_enabled = True
         self._top_k = self._to_int(os.getenv("MEM0_TOP_K"), default=8)
-        self._max_context_chars = self._to_int(
-            os.getenv("MEM0_MAX_CONTEXT_CHARS"), default=6000
-        )
+        self._max_context_chars = self._to_int(os.getenv("MEM0_MAX_CONTEXT_CHARS"), default=6000)
         self._max_stored_turns = self._to_int(
             os.getenv("CHAT_MAX_STORED_TURNS"), default=DEFAULT_MAX_STORED_TURNS
         )
@@ -33,13 +31,13 @@ class ChatMemoryStore:
         ).strip() or "presentation"
 
     @staticmethod
-    def _to_bool(value: Optional[str], default: bool = False) -> bool:
+    def _to_bool(value: str | None, default: bool = False) -> bool:
         if value is None:
             return default
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
     @staticmethod
-    def _to_int(value: Optional[str], default: int) -> int:
+    def _to_int(value: str | None, default: int) -> int:
         try:
             parsed = int(value) if value is not None else default
             return max(1, parsed)
@@ -55,10 +53,7 @@ class ChatMemoryStore:
         return isinstance(exc, (Exception, SystemExit))
 
     def _scope_user_id(self, presentation_id: UUID, conversation_id: UUID) -> str:
-        return (
-            f"{self._namespace_prefix}:{presentation_id}:"
-            f"conversation:{conversation_id}"
-        )
+        return f"{self._namespace_prefix}:{presentation_id}:conversation:{conversation_id}"
 
     def _truncate(self, text: str, limit: int = 20000) -> str:
         if len(text) <= limit:
@@ -86,7 +81,7 @@ class ChatMemoryStore:
     def _build_turn_payload(self, *, user_text: str, assistant_text: str) -> str:
         memory_lines = [
             CHAT_TURN_TAG,
-            f"turn_created_at={datetime.now(timezone.utc).isoformat()}",
+            f"turn_created_at={datetime.now(UTC).isoformat()}",
         ]
         if user_text:
             memory_lines.append(f"user={user_text}")
@@ -102,10 +97,7 @@ class ChatMemoryStore:
     def _collect_results(self, response: Any) -> list[dict[str, Any]]:
         if isinstance(response, dict):
             raw_results = (
-                response.get("results")
-                or response.get("memories")
-                or response.get("items")
-                or []
+                response.get("results") or response.get("memories") or response.get("items") or []
             )
             if isinstance(raw_results, list):
                 return [item for item in raw_results if isinstance(item, dict)]
@@ -122,7 +114,7 @@ class ChatMemoryStore:
         try:
             parsed = datetime.fromisoformat(value)
             if parsed.tzinfo is None:
-                return parsed.replace(tzinfo=timezone.utc)
+                return parsed.replace(tzinfo=UTC)
             return parsed
         except Exception:
             return None
@@ -195,10 +187,7 @@ class ChatMemoryStore:
                 self._disable_runtime("mem0 runtime failed while storing chat turns", exc=exc)
                 return
             LOGGER.exception(
-                (
-                    "Failed to add chat mem0 memory "
-                    "(presentation_id=%s, conversation_id=%s)"
-                ),
+                ("Failed to add chat mem0 memory (presentation_id=%s, conversation_id=%s)"),
                 presentation_id,
                 conversation_id,
             )
@@ -246,10 +235,7 @@ class ChatMemoryStore:
                 )
                 return ""
             LOGGER.exception(
-                (
-                    "Failed to search chat mem0 memory "
-                    "(presentation_id=%s, conversation_id=%s)"
-                ),
+                ("Failed to search chat mem0 memory (presentation_id=%s, conversation_id=%s)"),
                 presentation_id,
                 conversation_id,
             )
@@ -307,10 +293,7 @@ class ChatMemoryStore:
                 self._disable_runtime("mem0 runtime failed while loading chat history", exc=exc)
                 return []
             LOGGER.exception(
-                (
-                    "Failed to load chat mem0 history "
-                    "(presentation_id=%s, conversation_id=%s)"
-                ),
+                ("Failed to load chat mem0 history (presentation_id=%s, conversation_id=%s)"),
                 presentation_id,
                 conversation_id,
             )
@@ -333,8 +316,8 @@ class ChatMemoryStore:
                 or self._safe_parse_datetime(item.get("updated_at"))
                 or self._safe_parse_datetime(item.get("event_at"))
             )
-            timestamp = embedded_timestamp or item_created_at or datetime.fromtimestamp(
-                index, tz=timezone.utc
+            timestamp = (
+                embedded_timestamp or item_created_at or datetime.fromtimestamp(index, tz=UTC)
             )
             ordered_turns.append((timestamp, user_text or "", assistant_text or ""))
 

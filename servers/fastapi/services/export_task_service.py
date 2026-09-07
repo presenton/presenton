@@ -7,14 +7,15 @@ import os
 import shutil
 import subprocess
 import tempfile
-from typing import Any, Literal, Mapping
+from collections.abc import Mapping
+from typing import Any, Literal
 from urllib.parse import unquote, urlparse
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ValidationError
 
-from services.liteparse_service import _command_str, _snippet
 from api.v1.auth.context import get_current_owner_id
+from services.liteparse_service import _command_str, _snippet
 from utils.asset_directory_utils import (
     get_exports_directory,
     resolve_app_path_to_filesystem,
@@ -43,9 +44,7 @@ def _localize_json_image_assets(
     if not isinstance(value, dict):
         return value
 
-    localized = {
-        key: _localize_json_image_assets(item, cache) for key, item in value.items()
-    }
+    localized = {key: _localize_json_image_assets(item, cache) for key, item in value.items()}
     if localized.get("type") != "image":
         return localized
 
@@ -138,7 +137,9 @@ class ExportTaskService:
             os.path.abspath(os.path.join(cwd, "..", "..", "presentation-export")),
             os.path.abspath(os.path.join(cwd, "..", "presentation-export")),
             os.path.abspath(os.path.join(service_dir, "..", "..", "..", "presentation-export")),
-            os.path.abspath(os.path.join(service_dir, "..", "..", "..", "..", "presentation-export")),
+            os.path.abspath(
+                os.path.join(service_dir, "..", "..", "..", "..", "presentation-export")
+            ),
         ]
 
         for candidate in candidates:
@@ -171,8 +172,8 @@ class ExportTaskService:
         os.makedirs(temp_directory, exist_ok=True)
         env["TEMP_DIRECTORY"] = temp_directory
 
-        puppeteer_temp_directory = (
-            env.get("PUPPETEER_TMP_DIR") or os.path.join(temp_directory, "puppeteer")
+        puppeteer_temp_directory = env.get("PUPPETEER_TMP_DIR") or os.path.join(
+            temp_directory, "puppeteer"
         )
         os.makedirs(puppeteer_temp_directory, exist_ok=True)
         env["PUPPETEER_TMP_DIR"] = puppeteer_temp_directory
@@ -183,20 +184,9 @@ class ExportTaskService:
         os.makedirs(puppeteer_cache_directory, exist_ok=True)
         env["PUPPETEER_CACHE_DIR"] = puppeteer_cache_directory
 
-        if env.get("PRESENTON_ELECTRON", "").lower() == "true":
-            chromium_executable = (env.get("PUPPETEER_EXECUTABLE_PATH") or "").strip()
-            if not chromium_executable or not os.path.isfile(chromium_executable):
-                raise HTTPException(
-                    status_code=500,
-                    detail=(
-                        "The pinned Electron Chromium runtime is unavailable. "
-                        "Refusing to download or launch a different browser version."
-                    ),
-                )
-
         # The export runtime consumes app-data paths relative to the page it is
         # rendering. Docker intentionally leaves NEXT_PUBLIC_FAST_API unset so
-        # nginx remains the public origin; Electron supplies its dynamic origin.
+        # nginx remains the public origin.
         env["ASSETS_BASE_URL"] = "/app_data"
         return env
 
@@ -257,10 +247,9 @@ class ExportTaskService:
                 if not root:
                     continue
                 resolved_root = os.path.realpath(root)
-                if (
-                    os.path.commonpath([resolved, resolved_root]) == resolved_root
-                    and os.path.isfile(resolved)
-                ):
+                if os.path.commonpath(
+                    [resolved, resolved_root]
+                ) == resolved_root and os.path.isfile(resolved):
                     return resolved
         except (OSError, ValueError):
             return None
@@ -279,9 +268,7 @@ class ExportTaskService:
 
     @staticmethod
     def _create_task_paths() -> tuple[str, str, str]:
-        temp_root = get_temp_directory_env() or os.path.join(
-            tempfile.gettempdir(), "presenton"
-        )
+        temp_root = get_temp_directory_env() or os.path.join(tempfile.gettempdir(), "presenton")
         owner_id = get_current_owner_id()
         if owner_id is not None:
             temp_root = os.path.join(temp_root, str(owner_id))
@@ -336,7 +323,7 @@ class ExportTaskService:
                     detail=response_error_detail,
                 )
 
-            with open(response_path, "r", encoding="utf-8") as response_file:
+            with open(response_path, encoding="utf-8") as response_file:
                 return json.load(response_file)
         except json.JSONDecodeError as exc:
             raise HTTPException(
@@ -397,7 +384,7 @@ class ExportTaskService:
                 asyncio.gather(process.wait(), stdout_task, stderr_task),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             process.kill()
             await process.wait()
             await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
@@ -469,7 +456,7 @@ class ExportTaskService:
             )
 
             output_path = self._resolve_output_path(response_data)
-            with open(output_path, "r", encoding="utf-8") as output_file:
+            with open(output_path, encoding="utf-8") as output_file:
                 output_data = json.load(output_file)
 
             # export-core intentionally writes slide asset references relative to
@@ -482,14 +469,11 @@ class ExportTaskService:
                 if not isinstance(directory, str) or not directory:
                     continue
                 resolved_directory = os.path.realpath(
-                    directory
-                    if os.path.isabs(directory)
-                    else os.path.join(artifact_dir, directory)
+                    directory if os.path.isabs(directory) else os.path.join(artifact_dir, directory)
                 )
                 try:
                     is_artifact_directory = (
-                        os.path.commonpath([resolved_directory, artifact_dir])
-                        == artifact_dir
+                        os.path.commonpath([resolved_directory, artifact_dir]) == artifact_dir
                     )
                 except ValueError:
                     is_artifact_directory = False
@@ -662,9 +646,7 @@ class ExportTaskService:
                 )
             else:
                 raise
-            results = [
-                await self.render_html_to_image(html, width, height) for html in htmls
-            ]
+            results = [await self.render_html_to_image(html, width, height) for html in htmls]
             return HtmlToImagesTaskResult(paths=[result.path for result in results])
 
         raw_paths = response_data.get("file_paths")
@@ -698,7 +680,7 @@ class ExportTaskService:
             )
 
             output_path = self._resolve_output_path(response_data)
-            with open(output_path, "r", encoding="utf-8") as output_file:
+            with open(output_path, encoding="utf-8") as output_file:
                 output_data = json.load(output_file)
             output_data = self._absolutize_conversion_asset_urls(
                 output_path,
@@ -820,9 +802,7 @@ class ExportTaskService:
                 detail="APP_DATA_DIRECTORY is required for conversion artifacts",
             )
         source_root = os.path.realpath(os.path.join(app_data, root_name))
-        owner_root = os.path.realpath(
-            os.path.join(source_root, "users", str(owner_id))
-        )
+        owner_root = os.path.realpath(os.path.join(source_root, "users", str(owner_id)))
         source_parent = os.path.dirname(source_dir)
         if source_parent not in {source_root, owner_root} or session_id == "users":
             raise HTTPException(
@@ -838,9 +818,7 @@ class ExportTaskService:
             shutil.move(source_dir, target_dir)
 
         source_url = f"/app_data/{root_name}/{session_id}"
-        target_url = (
-            f"/app_data/{root_name}/users/{owner_id}/{session_id}"
-        )
+        target_url = f"/app_data/{root_name}/users/{owner_id}/{session_id}"
 
         def rewrite(value: Any) -> Any:
             if isinstance(value, str):
@@ -855,5 +833,6 @@ class ExportTaskService:
             return value
 
         return rewrite(output_data)
+
 
 EXPORT_TASK_SERVICE = ExportTaskService()

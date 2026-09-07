@@ -1,11 +1,9 @@
 from pathlib import Path
-from typing import List
-from fastapi import HTTPException
 
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 
 
-def _is_accepted_file_type(file: UploadFile, accepted_types: List[str]) -> bool:
+def _is_accepted_file_type(file: UploadFile, accepted_types: list[str]) -> bool:
     accepted_mime_types = {t.lower() for t in accepted_types if not t.startswith(".")}
     accepted_extensions = {t.lower() for t in accepted_types if t.startswith(".")}
 
@@ -25,11 +23,11 @@ def validate_files(
     nullable: bool,
     multiple: bool,
     max_size: int,
-    accepted_types: List[str],
+    accepted_types: list[str],
 ):
 
     if field:
-        files: List[UploadFile] = field if multiple else [field]
+        files: list[UploadFile] = field if multiple else [field]
         for each_file in files:
             file_size = each_file.size or 0
 

@@ -59,14 +59,20 @@ def test_presenton_provider_connection_requires_local_admin(monkeypatch, tmp_pat
     monkeypatch.setenv("USER_CONFIG_PATH", str(tmp_path / "userConfig.json"))
     client, engine, _session_maker = _build_client(tmp_path)
 
-    assert client.post(
-        "/api/v1/auth/presenton/device/start",
-        json={"device_name": "Test device"},
-    ).status_code == 401
-    assert client.post(
-        "/api/v1/auth/presenton/device/poll",
-        json={"device_code": "device-code-secret-12345"},
-    ).status_code == 401
+    assert (
+        client.post(
+            "/api/v1/auth/presenton/device/start",
+            json={"device_name": "Test device"},
+        ).status_code
+        == 401
+    )
+    assert (
+        client.post(
+            "/api/v1/auth/presenton/device/poll",
+            json={"device_code": "device-code-secret-12345"},
+        ).status_code
+        == 401
+    )
     assert client.post("/api/v1/auth/presenton/logout").status_code == 401
     asyncio.run(engine.dispose())
 
@@ -135,9 +141,7 @@ def test_auth_disabled_runtime_can_manage_presenton_provider(monkeypatch, tmp_pa
     asyncio.run(engine.dispose())
 
 
-def test_admin_connects_global_provider_without_replacing_local_login(
-    monkeypatch, tmp_path
-):
+def test_admin_connects_global_provider_without_replacing_local_login(monkeypatch, tmp_path):
     monkeypatch.setenv("USER_CONFIG_PATH", str(tmp_path / "userConfig.json"))
     client, engine, session_maker = _build_client(tmp_path)
     _login_admin(client)
@@ -181,10 +185,7 @@ def test_admin_connects_global_provider_without_replacing_local_login(
         json={"device_name": "Test device"},
     )
     assert started.json()["verification_uri"] == "https://presenton.test/device"
-    assert (
-        started.json()["verification_uri_complete"]
-        == "https://presenton.test/device"
-    )
+    assert started.json()["verification_uri_complete"] == "https://presenton.test/device"
     assert "user_code" not in started.json()["verification_uri_complete"]
     connected = client.post(
         "/api/v1/auth/presenton/device/poll",
@@ -209,9 +210,7 @@ def test_admin_connects_global_provider_without_replacing_local_login(
 
     async def rows():
         async with session_maker() as session:
-            user_count = int(
-                await session.scalar(select(func.count()).select_from(User)) or 0
-            )
+            user_count = int(await session.scalar(select(func.count()).select_from(User)) or 0)
             provider = await session.scalar(select(PresentonCloudProvider))
             return user_count, provider
 
@@ -306,19 +305,28 @@ def test_regular_user_cannot_manage_global_provider(monkeypatch, tmp_path):
 
     asyncio.run(create_member())
     client.cookies.clear()
-    assert client.post(
-        "/api/v1/auth/login",
-        json={"username": "member", "password": "member123"},
-    ).status_code == 200
+    assert (
+        client.post(
+            "/api/v1/auth/login",
+            json={"username": "member", "password": "member123"},
+        ).status_code
+        == 200
+    )
 
-    assert client.post(
-        "/api/v1/auth/presenton/device/start",
-        json={"device_name": "Test device"},
-    ).status_code == 403
-    assert client.post(
-        "/api/v1/auth/presenton/device/poll",
-        json={"device_code": "member-device-code-12345"},
-    ).status_code == 403
+    assert (
+        client.post(
+            "/api/v1/auth/presenton/device/start",
+            json={"device_name": "Test device"},
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/api/v1/auth/presenton/device/poll",
+            json={"device_code": "member-device-code-12345"},
+        ).status_code
+        == 403
+    )
     assert client.post("/api/v1/auth/presenton/logout").status_code == 403
     status = client.get("/api/v1/auth/presenton/status").json()
     assert status["can_manage"] is False

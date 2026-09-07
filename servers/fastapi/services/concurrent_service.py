@@ -1,6 +1,7 @@
 import asyncio
 from asyncio import Task
-from typing import Any, Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 
 class ConcurrentService:
@@ -9,7 +10,7 @@ class ConcurrentService:
 
     def run_task(
         self,
-        delay: Optional[int],
+        delay: int | None,
         callable: Callable[..., Coroutine[Any, Any, Any]],
         *args,
         **kwargs,

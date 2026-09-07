@@ -198,10 +198,10 @@ const styles = {
   addSwatch: {
     alignItems: "center",
     background: "#FFFFFF",
-    border: "1px dashed #B8A3F8",
+    border: "1px dashed #93C5FD",
     borderRadius: 999,
     boxSizing: "border-box",
-    color: "#7C51F8",
+    color: "#2563EB",
     cursor: "pointer",
     display: "inline-grid",
     height: 28,

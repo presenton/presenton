@@ -13,15 +13,15 @@ from fastapi_users.password import PasswordHelper, PasswordHelperProtocol
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.v1.auth.schemas import InternalUserCreate
-from models.sql.user import User
-from services.database import get_async_session
 from api.v1.auth.config import (
     SESSION_COOKIE_NAME,
     SESSION_TTL_SECONDS,
     get_or_create_auth_secret,
     verify_legacy_password_hash,
 )
+from api.v1.auth.schemas import InternalUserCreate
+from models.sql.user import User
+from services.database import get_async_session
 
 
 class LegacyAwarePasswordHelper(PasswordHelperProtocol):
@@ -55,14 +55,10 @@ class UsernameUserDatabase(BaseUserDatabase[User, uuid.UUID]):
 
     async def get_by_email(self, email: str) -> User | None:
         """FastAPI Users names this hook after email; Presenton passes a username."""
-        statement = select(User).where(
-            func.lower(User.username) == func.lower(email.strip())
-        )
+        statement = select(User).where(func.lower(User.username) == func.lower(email.strip()))
         return (await self.session.execute(statement)).unique().scalar_one_or_none()
 
-    async def get_by_oauth_account(
-        self, oauth: str, account_id: str
-    ) -> User | None:
+    async def get_by_oauth_account(self, oauth: str, account_id: str) -> User | None:
         del oauth, account_id
         return None
 
@@ -85,9 +81,7 @@ class UsernameUserDatabase(BaseUserDatabase[User, uuid.UUID]):
         await self.session.delete(user)
         await self.session.commit()
 
-    async def add_oauth_account(
-        self, user: User, create_dict: dict[str, Any]
-    ) -> User:
+    async def add_oauth_account(self, user: User, create_dict: dict[str, Any]) -> User:
         del user, create_dict
         raise NotImplementedError("OAuth accounts are not enabled")
 
@@ -113,9 +107,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     def __init__(self, user_db: UsernameUserDatabase):
         super().__init__(user_db, PASSWORD_HELPER)
 
-    async def validate_password(
-        self, password: str, user: InternalUserCreate | User
-    ) -> None:
+    async def validate_password(self, password: str, user: InternalUserCreate | User) -> None:
         del user
         if len(password) < 8:
             raise exceptions.InvalidPasswordException(

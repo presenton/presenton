@@ -2,11 +2,9 @@ import base64
 import hashlib
 import hmac
 import secrets
-from typing import Optional
 
 from utils.get_env import get_user_config_path_env
 from utils.user_config_store import read_user_config_file, update_user_config_file
-
 
 SESSION_COOKIE_NAME = "presenton_session"
 SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
@@ -34,11 +32,7 @@ def _save_auth_config(config: dict) -> None:
     if not user_config_path:
         raise ValueError("USER_CONFIG_PATH is not set")
 
-    auth_config = {
-        key: config[key]
-        for key in AUTH_CONFIG_FIELDS
-        if key in config
-    }
+    auth_config = {key: config[key] for key in AUTH_CONFIG_FIELDS if key in config}
 
     def merge_auth_config(existing: dict) -> dict:
         existing.update(auth_config)
@@ -81,7 +75,7 @@ def get_or_create_auth_secret() -> str:
     return secret
 
 
-def get_legacy_admin_credentials() -> tuple[Optional[str], Optional[str]]:
+def get_legacy_admin_credentials() -> tuple[str | None, str | None]:
     """Return the pre-multi-user username and encoded password hash, if present."""
     config = _load_user_config()
     username = config.get("AUTH_USERNAME")

@@ -10,7 +10,6 @@ from models.sql.presentation import PresentationModel, PresentationVersion
 from models.sql.slide import SlideModel
 from services.database import async_session_maker
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -45,9 +44,7 @@ async def persist_cloud_presentation_created(
     request_payload: dict[str, Any],
     cloud_payload: dict[str, Any],
 ) -> None:
-    presentation_id = _uuid(
-        cloud_payload.get("id") or cloud_payload.get("presentation_id")
-    )
+    presentation_id = _uuid(cloud_payload.get("id") or cloud_payload.get("presentation_id"))
     if presentation_id is None:
         logger.warning("Cloud create response did not include a valid presentation id")
         return
@@ -100,9 +97,7 @@ async def persist_cloud_presentation_created(
                 include_table_of_contents=bool(
                     request_payload.get("include_table_of_contents", False)
                 ),
-                include_title_slide=bool(
-                    request_payload.get("include_title_slide", True)
-                ),
+                include_title_slide=bool(request_payload.get("include_title_slide", True)),
                 web_search=bool(request_payload.get("web_search", False)),
                 generation_mode=generation_mode,
                 community_design_ids=request_payload.get("community_design_ids")
@@ -124,9 +119,7 @@ async def persist_cloud_presentation_complete(
         logger.warning("Cloud completion payload is missing presentation data")
         return
 
-    payload_mode = cloud_payload.get("type") or cloud_payload.get(
-        "generation_mode"
-    )
+    payload_mode = cloud_payload.get("type") or cloud_payload.get("generation_mode")
     if payload_mode not in {"standard", "smart"}:
         payload_mode = generation_mode
     if payload_mode not in {"standard", "smart"}:
@@ -162,17 +155,13 @@ async def persist_cloud_presentation_complete(
 
         presentation.generation_mode = payload_mode
 
-        presentation.content = _text(
-            cloud_payload.get("content"), presentation.content
-        )
+        presentation.content = _text(cloud_payload.get("content"), presentation.content)
         presentation.n_slides = (
             cloud_payload.get("n_slides")
             if isinstance(cloud_payload.get("n_slides"), int)
             else len(slides_payload)
         )
-        presentation.language = _text(
-            cloud_payload.get("language"), presentation.language
-        )
+        presentation.language = _text(cloud_payload.get("language"), presentation.language)
         presentation.title = _optional_text(cloud_payload.get("title"))
         presentation.tone = _optional_text(cloud_payload.get("tone"))
         presentation.verbosity = _optional_text(cloud_payload.get("verbosity"))
@@ -185,9 +174,7 @@ async def persist_cloud_presentation_complete(
             if not isinstance(value, dict):
                 continue
             slide_id = _uuid(value.get("id")) or uuid.uuid4()
-            html_content = _optional_text(
-                value.get("html_content") or value.get("html")
-            )
+            html_content = _optional_text(value.get("html_content") or value.get("html"))
             slides.append(
                 SlideModel(
                     id=slide_id,
@@ -214,9 +201,7 @@ async def persist_cloud_presentation_complete(
                 )
             )
 
-        await session.execute(
-            delete(SlideModel).where(SlideModel.presentation == presentation_id)
-        )
+        await session.execute(delete(SlideModel).where(SlideModel.presentation == presentation_id))
         session.add(presentation)
         session.add_all(slides)
         await session.commit()
@@ -230,9 +215,7 @@ async def get_local_presentation_generation_mode(
         presentation = await session.get(PresentationModel, presentation_id)
         if presentation is None or presentation.owner_id != owner_id:
             return None
-        return (
-            "smart" if presentation.generation_mode == "smart" else "standard"
-        )
+        return "smart" if presentation.generation_mode == "smart" else "standard"
 
 
 async def get_local_slide_presentation_id(

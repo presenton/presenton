@@ -2,6 +2,67 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { runTask } from "@presenton/export-core";
 
+/**
+ * Модуль пост-обработки грузится живучим импортом: раннер копируется
+ * sync-скриптом в presentation-export/runner.mjs, и относительный путь
+ * зависит от того, откуда файл запущен (образ кладёт pptx-svg-fallback.mjs
+ * рядом; локально он в scripts/). Если модуль не найден — пост-обработка
+ * SVG отключается с warning, экспорт продолжается как раньше: ошибка
+ * импорта не должна ронять сам экспорт (прод-инцидент ERR_MODULE_NOT_FOUND).
+ */
+async function loadSvgFallbackModule() {
+  const candidates = ["./pptx-svg-fallback.mjs", "../scripts/pptx-svg-fallback.mjs"];
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      return await import(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  console.warn(
+    "[presentation-export] pptx-svg-fallback.mjs не найден — SVG-пост-обработка отключена:",
+    lastError?.message,
+  );
+  return null;
+}
+
+/**
+ * SVG-иконки export-core вшивает без растрового fallback (r:embed у blip
+ * вырезается) — PowerPoint-вьюверы показывают «Не удалось отобразить
+ * рисунок». Чиним: каждому svg-only blip'у добавляется PNG-копия.
+ * Сбой пост-обработки не валит экспорт — файл отдаётся как есть.
+ */
+async function applySvgRasterFallback(normalizedResponse, task) {
+  const pptxPath =
+    task?.type === "export" && task?.format !== "pdf"
+      ? (normalizedResponse.path ?? normalizedResponse.filePath)
+      : undefined;
+  if (!pptxPath || !pptxPath.toLowerCase().endsWith(".pptx")) return;
+
+  try {
+    const fallbackModule = await loadSvgFallbackModule();
+    if (!fallbackModule) return;
+    const { JSZip, sharp } = await fallbackModule.loadExportCoreDeps();
+    const result = await fallbackModule.addSvgRasterFallbacks(pptxPath, {
+      JSZip,
+      // density подгоняем под размер иконки: 72dpi × (512 / базовая ширина),
+      // чтобы PNG не мылился при масштабировании в PowerPoint
+      rasterize: (svgText) => {
+        const width = Number(svgText.match(/\bwidth="(\d+(?:\.\d+)?)/)?.[1] ?? 24);
+        const density = Math.min(Math.max(Math.round((72 * 512) / Math.max(width, 1)), 72), 2400);
+        return sharp(Buffer.from(svgText), { density }).png().toBuffer();
+      },
+      log: (message) => console.warn(`[presentation-export] ${message}`),
+    });
+    if (result.fixed > 0) {
+      console.log(`[presentation-export] svg raster fallbacks added: ${result.fixed}`);
+    }
+  } catch (error) {
+    console.warn("[presentation-export] svg fallback пост-обработка не удалась:", error);
+  }
+}
+
 function parseCookieHeader(cookieHeader) {
   if (!cookieHeader) return undefined;
 
@@ -98,8 +159,10 @@ async function main() {
     task,
     buildRunOptions(task, { fastapiUrl, cookieHeader }),
   );
+  const normalized = normalizeResponse(response);
+  await applySvgRasterFallback(normalized, task);
   const responsePath = taskPath.replace(/\.json$/i, ".response.json");
-  await fs.writeFile(responsePath, JSON.stringify(normalizeResponse(response)), "utf8");
+  await fs.writeFile(responsePath, JSON.stringify(normalized), "utf8");
 }
 
 main().catch((error) => {

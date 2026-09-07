@@ -324,7 +324,7 @@ const SlideActionBar = ({
                 onClick={handleBlankSlide}
                 disabled={hasReachedSlideLimit}
                 className={cn(
-                  "flex h-8 shrink-0 items-center gap-2 rounded-[6px] px-2 text-sm font-normal leading-none text-[#111324] transition-colors hover:bg-[#F7F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5141e5]",
+                  "flex h-8 shrink-0 items-center gap-2 rounded-[6px] px-2 text-sm font-normal leading-none text-[#111324] transition-colors hover:bg-[#F7F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]",
                   hasReachedSlideLimit && "cursor-not-allowed opacity-50"
                 )}
               >
@@ -340,7 +340,7 @@ const SlideActionBar = ({
                     onClick={openTemplatePicker}
                     disabled={hasReachedSlideLimit}
                     className={cn(
-                      "flex h-8 shrink-0 items-center gap-2 rounded-[6px] px-2 text-sm font-normal leading-none text-[#111324] transition-colors hover:bg-[#F7F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5141e5]",
+                      "flex h-8 shrink-0 items-center gap-2 rounded-[6px] px-2 text-sm font-normal leading-none text-[#111324] transition-colors hover:bg-[#F7F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]",
                       hasReachedSlideLimit && "cursor-not-allowed opacity-50"
                     )}
                   >
@@ -362,7 +362,7 @@ const SlideActionBar = ({
                   type="button"
                   aria-label="Speaker notes"
                   className={cn(
-                    "flex h-8 w-10 shrink-0 items-center justify-center rounded-[6px] text-[#050505] transition-colors hover:bg-[#F7F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5141e5]",
+                    "flex h-8 w-10 shrink-0 items-center justify-center rounded-[6px] text-[#050505] transition-colors hover:bg-[#F7F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]",
                     isSpeakerPopoverOpen && "bg-[#F7F6F9]"
                   )}
                 >
@@ -403,7 +403,7 @@ const SlideActionBar = ({
                 type="button"
                 aria-label="Slide actions"
                 className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] text-[#050505] transition-colors hover:bg-[#F7F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5141e5]",
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] text-[#050505] transition-colors hover:bg-[#F7F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]",
                   isSlideMenuOpen && "bg-[#F7F6F9]"
                 )}
               >

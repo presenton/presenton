@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Dict
 
 
 class ThemeData(BaseModel):
@@ -46,10 +45,10 @@ class GeneratedColorPalette(BaseModel):
     accent_2: str
     text_1: str
     text_2: str
-    primary_variations: Dict[str, str]
-    background_variations: Dict[str, str]
-    accent_1_variations: Dict[str, str]
-    accent_2_variations: Dict[str, str]
+    primary_variations: dict[str, str]
+    background_variations: dict[str, str]
+    accent_1_variations: dict[str, str]
+    accent_2_variations: dict[str, str]
     primary_lightness: float
     background_lightness: float
     accent_1_lightness: float

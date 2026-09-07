@@ -19,11 +19,9 @@ from models.sse_response import (
     SSEStatusResponse,
     SSETraceResponse,
 )
-from services.chat import sql_chat_history
-from services.chat import ChatTurnResult, PresentationChatService
+from services.chat import ChatTurnResult, PresentationChatService, sql_chat_history
 from services.chat.conversation_store import ChatConversationStore
 from services.database import get_async_session
-
 
 CHAT_ROUTER = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -33,9 +31,7 @@ async def list_chat_conversations(
     presentation_id: uuid.UUID = Query(..., description="Presentation id"),
     sql_session: AsyncSession = Depends(get_async_session),
 ):
-    raw = await sql_chat_history.list_conversations(
-        sql_session, presentation_id=presentation_id
-    )
+    raw = await sql_chat_history.list_conversations(sql_session, presentation_id=presentation_id)
     return [
         ChatConversationListItem(
             conversation_id=uuid.UUID(str(item["conversation_id"])),

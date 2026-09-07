@@ -1,17 +1,14 @@
 import json
 import logging
 import re
-from typing import Any, Awaitable, Callable, Literal
+from collections.abc import Awaitable, Callable
+from typing import Any, Literal
 
 import dirtyjson  # type: ignore[import-untyped]
 from llmai.shared import AssistantToolCall, Tool  # type: ignore[import-not-found]
 
 from constants.presentation import MAX_NUMBER_OF_SLIDES, MAX_OUTLINE_CONTENT_WORDS
-from utils.infographic_catalog import (
-    infographic_default_size,
-    normalize_infographic_data,
-    search_infographic_catalog,
-)
+from services.chat.presentation_context_store import PresentationContextStore
 from services.chat.schemas import (
     AddElementInput,
     AddInfographicInput,
@@ -19,16 +16,16 @@ from services.chat.schemas import (
     AddNewSlideLayoutInput,
     AddOutlineInput,
     AddSlideComponentInput,
+    DeleteOutlineInput,
     DeleteSlideComponentInput,
     DeleteSlideElementInput,
     DeleteSlideInput,
-    DeleteOutlineInput,
     GenerateAssetsInput,
     GetAvailableBlocksInput,
     GetAvailableInfographicsInput,
     GetContentSchemaFromLayoutIdInput,
-    GetSmartPresentationContextInput,
     GetSlideAtIndexInput,
+    GetSmartPresentationContextInput,
     NoArgsInput,
     ReadSourceDocumentsInput,
     SaveSlideInput,
@@ -36,12 +33,16 @@ from services.chat.schemas import (
     SearchSlidesInput,
     SetPresentationThemeInput,
     UpdateComponentInput,
-    UpdateSlideInput,
-    UpdateSlideComponentInput,
     UpdateOutlineInput,
+    UpdateSlideComponentInput,
     UpdateSlideElementInput,
+    UpdateSlideInput,
 )
-from services.chat.presentation_context_store import PresentationContextStore
+from utils.infographic_catalog import (
+    infographic_default_size,
+    normalize_infographic_data,
+    search_infographic_catalog,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -75,10 +76,7 @@ def _normalize_tool_argument_value(value: Any) -> Any:
     if isinstance(value, list):
         return [_normalize_tool_argument_value(item) for item in value]
     if isinstance(value, dict):
-        return {
-            key: _normalize_tool_argument_value(item)
-            for key, item in value.items()
-        }
+        return {key: _normalize_tool_argument_value(item) for key, item in value.items()}
     return value
 
 
@@ -460,9 +458,7 @@ class ChatTools:
             ),
             Tool(
                 name="deleteSlide",
-                description=(
-                    "Delete a Smart slide by zero-based index and reindex the rest."
-                ),
+                description=("Delete a Smart slide by zero-based index and reindex the rest."),
                 schema=DeleteSlideInput,
                 strict=False,
             ),
@@ -713,9 +709,7 @@ class ChatTools:
             max_results=max_results,
         )
 
-    async def _get_available_infographics(
-        self, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _get_available_infographics(self, args: dict[str, Any]) -> dict[str, Any]:
         payload = GetAvailableInfographicsInput(**args)
         infographics = search_infographic_catalog(
             infographic_type=payload.infographic_type,
@@ -759,14 +753,10 @@ class ChatTools:
             max_chars=payload.max_chars,
         )
 
-    async def _get_presentation_theme_catalog(
-        self, _: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _get_presentation_theme_catalog(self, _: dict[str, Any]) -> dict[str, Any]:
         return await self._memory.get_presentation_theme_catalog()
 
-    async def _get_content_schema_from_layout_id(
-        self, args: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _get_content_schema_from_layout_id(self, args: dict[str, Any]) -> dict[str, Any]:
         payload = GetContentSchemaFromLayoutIdInput(**args)
         schema = await self._memory.get_content_schema_from_layout_id(payload.layout_id)
         if schema is None:
@@ -954,20 +944,12 @@ class ChatTools:
                 if payload.table_cell is not None
                 else None
             ),
-            table=(
-                payload.table.model_dump()
-                if payload.table is not None
-                else None
-            ),
+            table=(payload.table.model_dump() if payload.table is not None else None),
             chart=(
-                payload.chart.model_dump(exclude_none=True)
-                if payload.chart is not None
-                else None
+                payload.chart.model_dump(exclude_none=True) if payload.chart is not None else None
             ),
             vector=(
-                payload.vector.model_dump(exclude_none=True)
-                if payload.vector is not None
-                else None
+                payload.vector.model_dump(exclude_none=True) if payload.vector is not None else None
             ),
             infographic=(
                 payload.infographic.model_dump(exclude_none=True)
@@ -975,11 +957,7 @@ class ChatTools:
                 else None
             ),
             element_patch=element_patch,
-            position=(
-                payload.position.model_dump()
-                if payload.position is not None
-                else None
-            ),
+            position=(payload.position.model_dump() if payload.position is not None else None),
             size=payload.size.model_dump() if payload.size is not None else None,
         )
 
@@ -988,11 +966,7 @@ class ChatTools:
         return await self._memory.update_slide_ui_component(
             index=payload.index,
             component_id=payload.component_id,
-            position=(
-                payload.position.model_dump()
-                if payload.position is not None
-                else None
-            ),
+            position=(payload.position.model_dump() if payload.position is not None else None),
             size=payload.size.model_dump() if payload.size is not None else None,
         )
 
@@ -1012,11 +986,7 @@ class ChatTools:
             component_id=payload.component_id,
             action=payload.action or "update",
             component_ids=payload.component_ids,
-            position=(
-                payload.position.model_dump()
-                if payload.position is not None
-                else None
-            ),
+            position=(payload.position.model_dump() if payload.position is not None else None),
             size=payload.size.model_dump() if payload.size is not None else None,
             replacement_component=replacement_component,
         )
@@ -1099,11 +1069,7 @@ class ChatTools:
                 include_full_content=False,
                 max_results=1,
             )
-            blocks = (
-                block_result.get("blocks")
-                if isinstance(block_result, dict)
-                else None
-            )
+            blocks = block_result.get("blocks") if isinstance(block_result, dict) else None
             block = blocks[0] if isinstance(blocks, list) and blocks else None
             if not isinstance(block, dict):
                 raise ValueError(
@@ -1111,9 +1077,7 @@ class ChatTools:
                     "Call getAvailableBlocks again and use a returned block_id."
                 )
             block_types = {
-                str(item).lower()
-                for item in block.get("element_types", [])
-                if item is not None
+                str(item).lower() for item in block.get("element_types", []) if item is not None
             }
             if requested_types.isdisjoint(block_types):
                 raise ValueError(
@@ -1149,11 +1113,7 @@ class ChatTools:
                 include_full_content=False,
                 max_results=1,
             )
-            blocks = (
-                block_result.get("blocks")
-                if isinstance(block_result, dict)
-                else None
-            )
+            blocks = block_result.get("blocks") if isinstance(block_result, dict) else None
             block = blocks[0] if isinstance(blocks, list) and blocks else None
             if isinstance(block, dict):
                 return element_type, block
@@ -1263,9 +1223,7 @@ class ChatTools:
                 continue
             if isinstance(value, dict):
                 args[field_name] = json.dumps(value, ensure_ascii=False)
-                notes.append(
-                    f"Converted {field_name} from object to JSON string."
-                )
+                notes.append(f"Converted {field_name} from object to JSON string.")
                 continue
             if not isinstance(value, str):
                 continue
@@ -1335,9 +1293,7 @@ class ChatTools:
 
         repaired = dict(args)
         repaired[payload_field] = json.dumps(payload, ensure_ascii=False)
-        notes.append(
-            "Filled missing table headers/columns and rows from the latest user message."
-        )
+        notes.append("Filled missing table headers/columns and rows from the latest user message.")
         return repaired
 
     def _repair_image_insert_args(
@@ -1361,9 +1317,7 @@ class ChatTools:
 
         repaired = dict(args)
         repaired[payload_field] = json.dumps(payload, ensure_ascii=False)
-        notes.append(
-            "Filled missing image data from the generated asset URL in this turn."
-        )
+        notes.append("Filled missing image data from the generated asset URL in this turn.")
         return repaired
 
     @staticmethod
@@ -1468,10 +1422,7 @@ class ChatTools:
                 node.setdefault("title", title)
                 node["categories"] = categories
                 node["series"] = [{"name": title or "Series 1", "values": values}]
-                node["data"] = [
-                    {"label": row["label"], "value": row["value"]}
-                    for row in rows
-                ]
+                node["data"] = [{"label": row["label"], "value": row["value"]} for row in rows]
                 changed = True
             for value in node.values():
                 changed = cls._inject_missing_chart_data(value, rows, title) or changed
@@ -1642,10 +1593,7 @@ class ChatTools:
 
     @staticmethod
     def _split_table_cells(text: str) -> list[str]:
-        cells = [
-            cell.strip(" \t\r\n.:-–—")
-            for cell in re.split(r"\s*\|\s*|\s*,\s*", text or "")
-        ]
+        cells = [cell.strip(" \t\r\n.:-–—") for cell in re.split(r"\s*\|\s*|\s*,\s*", text or "")]
         return [cell for cell in cells if cell]
 
     @staticmethod
@@ -1762,10 +1710,7 @@ class ChatTools:
         expected: dict[str, Any] = {}
         retryable = True
 
-        if (
-            tool_name not in CHART_INSERT_TOOL_FIELDS
-            and tool_name not in JSON_OBJECT_STRING_FIELDS
-        ):
+        if tool_name not in CHART_INSERT_TOOL_FIELDS and tool_name not in JSON_OBJECT_STRING_FIELDS:
             guidance.append("Review the tool schema and retry with corrected arguments.")
 
         if "reusable block available" in normalized_error:
@@ -1794,9 +1739,7 @@ class ChatTools:
         json_fields = JSON_OBJECT_STRING_FIELDS.get(tool_name, ())
         if json_fields:
             fields = ", ".join(json_fields)
-            guidance.append(
-                f"Ensure {fields} is a JSON-serialized object string, not prose."
-            )
+            guidance.append(f"Ensure {fields} is a JSON-serialized object string, not prose.")
             expected["json_object_string_fields"] = list(json_fields)
 
         if "chart elements must include numeric data" in normalized_error:
@@ -1854,7 +1797,9 @@ class ChatTools:
 
         recovery: dict[str, Any] = {
             "retryable": retryable,
-            "message": "Repair the tool arguments before retrying." if retryable else "Do not retry this exact tool call.",
+            "message": "Repair the tool arguments before retrying."
+            if retryable
+            else "Do not retry this exact tool call.",
             "guidance": guidance,
         }
         if expected:

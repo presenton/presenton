@@ -51,8 +51,7 @@ class PreviewSlideTool(Tool):
         preview_index = self._preview_count
         layout_json = layout.model_dump(mode="json", exclude_none=True)
         components = [
-            component.model_dump(mode="json", exclude_none=True)
-            for component in layout.components
+            component.model_dump(mode="json", exclude_none=True) for component in layout.components
         ]
         result = asyncio.run(
             EXPORT_TASK_SERVICE.render_json_to_image(
@@ -85,9 +84,7 @@ class PreviewSlideTool(Tool):
         if not app_data_dir:
             return
 
-        preview_dir = (
-            Path(app_data_dir) / "preview_slide" / str(self._slide_index)
-        )
+        preview_dir = Path(app_data_dir) / "preview_slide" / str(self._slide_index)
         try:
             preview_dir.mkdir(parents=True, exist_ok=True)
             json_path = preview_dir / f"{preview_index}.json"

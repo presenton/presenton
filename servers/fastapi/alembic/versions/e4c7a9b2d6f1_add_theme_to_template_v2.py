@@ -6,9 +6,9 @@ Revises: d2f4a6b8c0e1
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "e4c7a9b2d6f1"
 down_revision: str | None = "d2f4a6b8c0e1"
@@ -22,8 +22,7 @@ def _has_table(table_name: str) -> bool:
 
 def _has_column(table_name: str, column_name: str) -> bool:
     return column_name in {
-        column["name"]
-        for column in sa.inspect(op.get_bind()).get_columns(table_name)
+        column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)
     }
 
 

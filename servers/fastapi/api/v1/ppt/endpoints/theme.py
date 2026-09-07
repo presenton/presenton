@@ -1,17 +1,17 @@
 import copy
 import uuid
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from api.v1.auth.context import get_current_owner_id
 from models.sql.image_asset import ImageAsset
 from models.sql.key_value import KeyValueSqlModel
 from services.database import get_async_session
 from utils.asset_directory_utils import normalize_slide_asset_url
-from api.v1.auth.context import get_current_owner_id
 
 THEMES_ROUTER = APIRouter(prefix="/themes", tags=["Themes"])
 THEMES_STORAGE_KEY = "presentation_custom_themes"
@@ -25,19 +25,19 @@ def _themes_storage_key() -> str:
 class ThemeRequest(BaseModel):
     name: str
     description: str
-    company_name: Optional[str] = None
-    logo: Optional[str] = None
-    logo_url: Optional[str] = None
+    company_name: str | None = None
+    logo: str | None = None
+    logo_url: str | None = None
     data: dict[str, Any] = Field(default_factory=dict)
 
 
 class ThemeUpdateRequest(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    company_name: Optional[str] = None
-    logo: Optional[str] = None
-    logo_url: Optional[str] = None
-    data: Optional[dict[str, Any]] = None
+    name: str | None = None
+    description: str | None = None
+    company_name: str | None = None
+    logo: str | None = None
+    logo_url: str | None = None
+    data: dict[str, Any] | None = None
 
 
 class ThemeResponse(BaseModel):
@@ -45,9 +45,9 @@ class ThemeResponse(BaseModel):
     name: str
     description: str
     user: str
-    logo: Optional[str] = None
-    logo_url: Optional[str] = None
-    company_name: Optional[str] = None
+    logo: str | None = None
+    logo_url: str | None = None
+    company_name: str | None = None
     data: dict[str, Any]
 
 
@@ -72,15 +72,13 @@ def _normalize_theme(theme: dict[str, Any]) -> ThemeResponse:
     )
 
 
-async def _get_themes_row(sql_session: AsyncSession) -> Optional[KeyValueSqlModel]:
+async def _get_themes_row(sql_session: AsyncSession) -> KeyValueSqlModel | None:
     return await sql_session.scalar(
-        select(KeyValueSqlModel).where(
-            KeyValueSqlModel.key == _themes_storage_key()
-        )
+        select(KeyValueSqlModel).where(KeyValueSqlModel.key == _themes_storage_key())
     )
 
 
-def _read_themes_from_row(row: Optional[KeyValueSqlModel]) -> list[dict[str, Any]]:
+def _read_themes_from_row(row: KeyValueSqlModel | None) -> list[dict[str, Any]]:
     if not row:
         return []
     value = row.value if isinstance(row.value, dict) else {}
@@ -90,9 +88,7 @@ def _read_themes_from_row(row: Optional[KeyValueSqlModel]) -> list[dict[str, Any
     return copy.deepcopy(themes)
 
 
-async def _resolve_logo_url(
-    sql_session: AsyncSession, logo: Optional[str]
-) -> Optional[str]:
+async def _resolve_logo_url(sql_session: AsyncSession, logo: str | None) -> str | None:
     if not logo:
         return None
     try:
@@ -106,13 +102,13 @@ async def _resolve_logo_url(
     return normalize_slide_asset_url(image_asset.path)
 
 
-@THEMES_ROUTER.get("/default", response_model=List[dict[str, Any]])
+@THEMES_ROUTER.get("/default", response_model=list[dict[str, Any]])
 async def get_default_themes():
     # Built-in themes are provided by Next.js constants in this project.
     return []
 
 
-@THEMES_ROUTER.get("/all", response_model=List[ThemeResponse])
+@THEMES_ROUTER.get("/all", response_model=list[ThemeResponse])
 async def get_themes(sql_session: AsyncSession = Depends(get_async_session)):
     row = await _get_themes_row(sql_session)
     themes = _read_themes_from_row(row)
@@ -185,9 +181,7 @@ async def update_theme(
 
 
 @THEMES_ROUTER.delete("/delete/{theme_id}", status_code=204)
-async def delete_theme(
-    theme_id: str, sql_session: AsyncSession = Depends(get_async_session)
-):
+async def delete_theme(theme_id: str, sql_session: AsyncSession = Depends(get_async_session)):
     row = await _get_themes_row(sql_session)
     if not row:
         return

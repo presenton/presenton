@@ -22,7 +22,6 @@ from templates.v2.models.layouts import SlideLayouts
 from utils.llm_config import get_llm_config
 from utils.llm_provider import get_model
 
-
 LOGGER = logging.getLogger(__name__)
 MAX_PROFILE_COLORS = 14
 MAX_PROFILE_PAIRS = 8
@@ -110,7 +109,7 @@ class _ColorStats:
             + len(self.slides)
         )
 
-    def merge(self, other: "_ColorStats") -> None:
+    def merge(self, other: _ColorStats) -> None:
         self.fill_count += other.fill_count
         self.fill_area += other.fill_area
         self.text_count += other.text_count
@@ -154,9 +153,7 @@ def build_theme_profile(
         slide_fill_candidates: list[tuple[str, float]] = []
         unpaired_text_colors: list[str] = []
         for component in layout.components:
-            for element in component.model_dump(mode="json", exclude_none=True).get(
-                "elements", []
-            ):
+            for element in component.model_dump(mode="json", exclude_none=True).get("elements", []):
                 _collect_element_profile(
                     element,
                     slide_index=slide_index,
@@ -228,9 +225,7 @@ def build_theme_profile(
                 background=background_id,
                 count=count,
                 contrast=round(
-                    contrast_ratio(
-                        colors_by_id[foreground_id], colors_by_id[background_id]
-                    ),
+                    contrast_ratio(colors_by_id[foreground_id], colors_by_id[background_id]),
                     2,
                 ),
             )
@@ -288,9 +283,7 @@ def select_theme_roles_with_llm(profile: ThemeProfile) -> ThemeRoleSelection:
         model=get_model(),
         messages=[
             SystemMessage(content=THEME_ROLE_SYSTEM_PROMPT),
-            UserMessage(
-                content=json.dumps(prompt_profile, separators=(",", ":"))
-            ),
+            UserMessage(content=json.dumps(prompt_profile, separators=(",", ":"))),
         ],
         label="template semantic theme",
         output_model=ThemeRoleSelection,
@@ -368,9 +361,7 @@ def materialize_theme(
     background_text = _repair_text_color(
         colors[selection.background_text], background, profile.colors
     )
-    primary_text = _repair_text_color(
-        colors[selection.primary_text], primary, profile.colors
-    )
+    primary_text = _repair_text_color(colors[selection.primary_text], primary, profile.colors)
     if _rgb_distance(card, background) < 10:
         card = _surface_variant(background, 0.06)
     if _rgb_distance(stroke, background) < 12:
@@ -607,10 +598,7 @@ def _build_profile_fonts(
     available_by_name = {
         name.strip().casefold(): (name.strip(), url.strip())
         for name, url in available_fonts.items()
-        if isinstance(name, str)
-        and isinstance(url, str)
-        and name.strip()
-        and url.strip()
+        if isinstance(name, str) and isinstance(url, str) and name.strip() and url.strip()
     }
     for key, (name, _) in available_by_name.items():
         font_stats.setdefault(key, _FontStats(family=name))
@@ -625,9 +613,7 @@ def _build_profile_fonts(
             family=stats.family,
             usage_count=stats.usage_count,
             average_size=(
-                round(stats.total_size / stats.sized_count, 1)
-                if stats.sized_count
-                else None
+                round(stats.total_size / stats.sized_count, 1) if stats.sized_count else None
             ),
             url=available_by_name[key][1] if key in available_by_name else None,
         )
@@ -638,9 +624,7 @@ def _build_profile_fonts(
 def _cluster_colors(
     stats_by_color: dict[str, _ColorStats],
 ) -> tuple[list[_ColorStats], dict[str, str]]:
-    ordered = sorted(
-        stats_by_color.values(), key=lambda stats: (-stats.importance, stats.hex)
-    )
+    ordered = sorted(stats_by_color.values(), key=lambda stats: (-stats.importance, stats.hex))
     clusters: list[_ColorStats] = []
     raw_to_cluster: dict[str, str] = {}
     for stats in ordered:
@@ -661,12 +645,8 @@ def _cluster_colors(
     return clusters, raw_to_cluster
 
 
-def _best_text_candidate(
-    colors: list[ProfileColor], background: str
-) -> ProfileColor:
-    accessible = [
-        color for color in colors if contrast_ratio(color.hex, background) >= 4.5
-    ]
+def _best_text_candidate(colors: list[ProfileColor], background: str) -> ProfileColor:
+    accessible = [color for color in colors if contrast_ratio(color.hex, background) >= 4.5]
     return max(
         accessible or colors,
         key=lambda color: (
@@ -677,9 +657,7 @@ def _best_text_candidate(
     )
 
 
-def _repair_text_color(
-    selected: str, surface: str, candidates: list[ProfileColor]
-) -> str:
+def _repair_text_color(selected: str, surface: str, candidates: list[ProfileColor]) -> str:
     if contrast_ratio(selected, surface) >= 4.5:
         return selected
     observed = sorted(
@@ -702,9 +680,7 @@ def _complete_graph_colors(selected: list[str], primary: str) -> list[str]:
         if normalized and normalized not in colors:
             colors.append(normalized)
 
-    hue, lightness, saturation = colorsys.rgb_to_hls(
-        *(channel / 255 for channel in _rgb(primary))
-    )
+    hue, lightness, saturation = colorsys.rgb_to_hls(*(channel / 255 for channel in _rgb(primary)))
     for index in range(1, 25):
         generated = _hex_from_rgb_float(
             colorsys.hls_to_rgb(
@@ -724,9 +700,7 @@ def _surface_variant(color: str, distance: float) -> str:
     red, green, blue = _rgb(color)
     hue, lightness, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
     target_lightness = (
-        max(0.0, lightness - distance)
-        if lightness > 0.55
-        else min(1.0, lightness + distance)
+        max(0.0, lightness - distance) if lightness > 0.55 else min(1.0, lightness + distance)
     )
     return _hex_from_rgb_float(colorsys.hls_to_rgb(hue, target_lightness, saturation))
 
@@ -794,9 +768,7 @@ def _relative_luminance(color: str) -> float:
     channels = []
     for channel in _rgb(color):
         value = channel / 255
-        channels.append(
-            value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
-        )
+        channels.append(value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4)
     return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
 
 

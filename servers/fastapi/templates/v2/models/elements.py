@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated, Any, Literal, Optional, TypeAlias, Union, List
+from typing import Annotated, Any, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from utils.chart_semantics import coerce_chart_type_for_categories
 from utils.infographic_catalog import normalize_infographic_data
 
 
@@ -22,9 +23,7 @@ def _validate_min_max(
 
     expected_min = (max_value + 1) // 2
     if min_value != expected_min:
-        raise ValueError(
-            f"{min_name} must equal half of {max_name}, rounded up ({expected_min})"
-        )
+        raise ValueError(f"{min_name} must equal half of {max_name}, rounded up ({expected_min})")
 
 
 class HorizontalAlignment(str, Enum):
@@ -112,33 +111,33 @@ class Padding(BaseModel):
 
 
 class Alignment(BaseModel):
-    horizontal: Optional[HorizontalAlignment] = None
-    vertical: Optional[VerticalAlignment] = None
+    horizontal: HorizontalAlignment | None = None
+    vertical: VerticalAlignment | None = None
 
 
 class Font(BaseModel):
-    size: Optional[float] = None
-    family: Optional[str] = None
-    color: Optional[str] = None
-    bold: Optional[bool] = None
-    italic: Optional[bool] = None
-    underline: Optional[bool] = None
-    line_height: Optional[float] = None
-    letter_spacing: Optional[float] = None
-    ellipsis: Optional[bool] = None
-    opacity: Optional[float] = None
+    size: float | None = None
+    family: str | None = None
+    color: str | None = None
+    bold: bool | None = None
+    italic: bool | None = None
+    underline: bool | None = None
+    line_height: float | None = None
+    letter_spacing: float | None = None
+    ellipsis: bool | None = None
+    opacity: float | None = None
 
 
 class Fill(BaseModel):
     color: str
-    opacity: Optional[float] = None
+    opacity: float | None = None
 
 
 class Stroke(BaseModel):
     color: str
-    opacity: Optional[float] = None
+    opacity: float | None = None
     width: float
-    dash: Optional[list[float]] = None
+    dash: list[float] | None = None
 
 
 class BorderRadius(BaseModel):
@@ -150,10 +149,10 @@ class BorderRadius(BaseModel):
 
 class Shadow(BaseModel):
     color: str
-    blur: Optional[float] = None
-    opacity: Optional[float] = None
-    offset_x: Optional[float] = None
-    offset_y: Optional[float] = None
+    blur: float | None = None
+    opacity: float | None = None
+    offset_x: float | None = None
+    offset_y: float | None = None
 
 
 class ChartSeries(BaseModel):
@@ -163,7 +162,7 @@ class ChartSeries(BaseModel):
 
 class TextRun(BaseModel):
     text: str
-    font: Optional[Font] = None
+    font: Font | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -177,22 +176,22 @@ class LatexTextRun(BaseModel):
     type: Literal["latex"]
     latex: str = Field(min_length=1, max_length=4000)
     display_mode: bool = False
-    font: Optional[Font] = None
+    font: Font | None = None
 
 
-TextRunValue: TypeAlias = Union[TextRun, LatexTextRun]
+TextRunValue: TypeAlias = TextRun | LatexTextRun
 
 
 class Text(BaseModel):
     type: Literal["text"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
-    font: Optional[Font] = None
-    alignment: Optional[Alignment] = None
-    fill: Optional[Fill] = None
-    stroke: Optional[Stroke] = None
-    shadow: Optional[Shadow] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
+    font: Font | None = None
+    alignment: Alignment | None = None
+    fill: Fill | None = None
+    stroke: Stroke | None = None
+    shadow: Shadow | None = None
     runs: list[TextRunValue]
 
     # Schema
@@ -204,52 +203,53 @@ class Text(BaseModel):
 
 class Container(BaseModel):  # Konva Group
     type: Literal["container"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
-    alignment: Optional[Alignment] = None
-    fill: Optional[Fill] = None
-    stroke: Optional[Stroke] = None
-    border_radius: Optional[BorderRadius] = None
-    shadow: Optional[Shadow] = None
-    padding: Optional[Padding] = None
-    child: Optional[SlideElement] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
+    alignment: Alignment | None = None
+    fill: Fill | None = None
+    stroke: Stroke | None = None
+    border_radius: BorderRadius | None = None
+    shadow: Shadow | None = None
+    padding: Padding | None = None
+    child: SlideElement | None = None
 
 
 class Image(BaseModel):  # Konva Image
     type: Literal["image"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
-    flip_h: Optional[bool] = None
-    flip_v: Optional[bool] = None
-    opacity: Optional[float] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
+    flip_h: bool | None = None
+    flip_v: bool | None = None
+    opacity: float | None = None
     data: str
-    fit: Optional[ImageFit] = None
-    focus_x: Optional[float] = None
-    focus_y: Optional[float] = None
-    crop_scale: Optional[float] = None
-    border_radius: Optional[BorderRadius] = None
-    clip_path: Optional[str] = None
-    color: Optional[str] = None
+    fit: ImageFit | None = None
+    focus_x: float | None = None
+    focus_y: float | None = None
+    crop_scale: float | None = None
+    border_radius: BorderRadius | None = None
+    clip_path: str | None = None
+    color: str | None = None
 
     # Schema
     decorative: bool
     name: str
-    prompt: Optional[str] = None
+    prompt: str | None = None
     is_icon: bool
-    icon_type: Optional[IconType] = None
+    icon_type: IconType | None = None
 
 
 class TextList(BaseModel):  # Konva Group
     type: Literal["text-list"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
-    font: Optional[Font] = None
-    marker: Optional[Marker] = None
-    gap: Optional[float] = None
-    marker_gap: Optional[float] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
+    font: Font | None = None
+    marker: Marker | None = None
+    # gap/marker_gap — новый апстримовый контроль отступов списков
+    gap: float | None = None
+    marker_gap: float | None = None
     items: list[list[TextRunValue]]
 
     # Schema
@@ -262,17 +262,17 @@ class TextList(BaseModel):  # Konva Group
 
 
 class TableCell(BaseModel):
-    color: Optional[Fill] = None
-    font: Optional[Font] = None
-    alignment: Optional[HorizontalAlignment] = None
-    runs: List[TextRunValue]
+    color: Fill | None = None
+    font: Font | None = None
+    alignment: HorizontalAlignment | None = None
+    runs: list[TextRunValue]
 
 
 class Table(BaseModel):
     type: Literal["table"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
     columns: list[TableCell]
     rows: list[list[TableCell]]
 
@@ -302,65 +302,79 @@ class VectorMarker(str, Enum):
 
 class VectorCurve(BaseModel):
     type: Literal["smooth"]
-    tension: Optional[float] = Field(default=None, ge=0, le=1)
-    segments: Optional[int] = Field(default=16, ge=1, le=96)
+    tension: float | None = Field(default=None, ge=0, le=1)
+    segments: int | None = Field(default=16, ge=1, le=96)
 
 
 class Vector(BaseModel):
     type: Literal["vector"]
-    shape: Optional[VectorShape] = None
+    shape: VectorShape | None = None
     points: list[Position] = Field(min_length=2)
-    closed: Optional[bool] = None
-    curve: Optional[VectorCurve] = None
-    corner_radii: Optional[list[Annotated[float, Field(ge=0)]]] = None
-    start_marker: Optional[VectorMarker] = None
-    end_marker: Optional[VectorMarker] = None
-    rotation: Optional[float] = None
-    opacity: Optional[float] = None
-    fill: Optional[Fill] = None
-    stroke: Optional[Stroke] = None
-    shadow: Optional[Shadow] = None
+    closed: bool | None = None
+    curve: VectorCurve | None = None
+    corner_radii: list[Annotated[float, Field(ge=0)]] | None = None
+    start_marker: VectorMarker | None = None
+    end_marker: VectorMarker | None = None
+    rotation: float | None = None
+    opacity: float | None = None
+    fill: Fill | None = None
+    stroke: Stroke | None = None
+    shadow: Shadow | None = None
 
 
 class Chart(BaseModel):
     type: Literal["chart"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
     chart_type: ChartType
-    title: Optional[str] = None
-    title_color: Optional[str] = None
-    legend_color: Optional[str] = None
-    text_color: Optional[str] = None
+    title: str | None = None
+    title_color: str | None = None
+    legend_color: str | None = None
+    # text_color — новая апстримовая настройка цвета текста диаграммы
+    text_color: str | None = None
 
     # PPTX chart model emitted by the template-v2 converter.
-    colors: Optional[list[str]] = None
-    x_axis: Optional[bool] = None
-    y_axis: Optional[bool] = None
-    x_axis_title: Optional[str] = None
-    y_axis_title: Optional[str] = None
-    axis_color: Optional[str] = None
-    categories: Optional[list[str]] = None
-    series: Optional[list[ChartSeries]] = None
-    data_labels: Optional[DataLabelPosition] = None
-    legend: Optional[bool] = None
-    x_axis_grid: Optional[bool] = None
-    y_axis_grid: Optional[bool] = None
-    grid_color: Optional[str] = None
-    source: Optional[str] = None
+    colors: list[str] | None = None
+    x_axis: bool | None = None
+    y_axis: bool | None = None
+    x_axis_title: str | None = None
+    y_axis_title: str | None = None
+    axis_color: str | None = None
+    categories: list[str] | None = None
+    series: list[ChartSeries] | None = None
+    data_labels: DataLabelPosition | None = None
+    legend: bool | None = None
+    x_axis_grid: bool | None = None
+    y_axis_grid: bool | None = None
+    grid_color: str | None = None
+    source: str | None = None
 
     # Schema
     decorative: bool
     name: str
 
     @model_validator(mode="after")
-    def _pie_and_donut_use_only_first_series(self) -> "Chart":
+    def _pie_and_donut_use_only_first_series(self) -> Chart:
         if (
             self.chart_type in {ChartType.PIE, ChartType.DONUT}
             and self.series
             and len(self.series) > 1
         ):
             self.series = self.series[:1]
+        return self
+
+    @model_validator(mode="after")
+    def _temporal_categories_require_line_chart(self) -> Chart:
+        # Bar/pie по временным рядам (годы, даты, месяцы) — частая ошибка
+        # генерации и зашитых шаблонов; семантический анализатор переводит
+        # такой график в line на границе схемы.
+        corrected = coerce_chart_type_for_categories(
+            self.chart_type.value,
+            self.categories,
+        )
+        if corrected:
+            self.chart_type = ChartType(corrected)
         return self
 
     @field_validator("data_labels", mode="before")
@@ -377,7 +391,7 @@ class Chart(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _size_must_be_visible_when_explicit(self) -> "Chart":
+    def _size_must_be_visible_when_explicit(self) -> Chart:
         if self.size is None:
             return self
         if self.size.width < 80 or self.size.height < 60:
@@ -424,7 +438,7 @@ class ProgressBarInfographicData(BaseModel):
     value: float
 
     @model_validator(mode="after")
-    def _validate_range(self) -> "ProgressBarInfographicData":
+    def _validate_range(self) -> ProgressBarInfographicData:
         if self.max_value <= self.min_value:
             raise ValueError("max_value must be greater than min_value")
         return self
@@ -439,7 +453,7 @@ class GaugeInfographicData(BaseModel):
     value: float
 
     @model_validator(mode="after")
-    def _validate_range(self) -> "GaugeInfographicData":
+    def _validate_range(self) -> GaugeInfographicData:
         if self.max_value <= self.min_value:
             raise ValueError("max_value must be greater than min_value")
         return self
@@ -491,25 +505,23 @@ class StructuralInfographicData(BaseModel):
 
 
 InfographicData = Annotated[
-    Union[
-        ProgressBarInfographicData,
-        GaugeInfographicData,
-        StructuralInfographicData,
-    ],
+    ProgressBarInfographicData | GaugeInfographicData | StructuralInfographicData,
     Field(discriminator="type"),
 ]
 
 
 class Infographic(BaseModel):
     type: Literal["infographic"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
+    # Инфографика из каталога (StructuralInfographicData extra="allow")
+    # покрывает и старые типы progress_bar/gauge — единый union апстрима.
     data: InfographicData
 
     # Design
-    colors: List[str] = Field(default_factory=list)
-    text_color: Optional[str] = None
+    colors: list[str] = Field(default_factory=list)
+    text_color: str | None = None
 
     # Schema
     decorative: bool
@@ -518,16 +530,16 @@ class Infographic(BaseModel):
 
 class Flex(BaseModel):
     type: Literal["flex"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
     direction: FlexDirection
-    wrap: Optional[bool] = None
-    align_items: Optional[LayoutAlignment] = None
-    justify_content: Optional[LayoutAlignment] = None
-    gap: Optional[float] = None
-    column_gap: Optional[float] = None
-    row_gap: Optional[float] = None
+    wrap: bool | None = None
+    align_items: LayoutAlignment | None = None
+    justify_content: LayoutAlignment | None = None
+    gap: float | None = None
+    column_gap: float | None = None
+    row_gap: float | None = None
     children: list[SlideElement]
 
     # Schema
@@ -538,16 +550,16 @@ class Flex(BaseModel):
 
 class Grid(BaseModel):
     type: Literal["grid"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
-    rotation: Optional[float] = None
+    position: Position | None = None
+    size: Size | None = None
+    rotation: float | None = None
     columns: int
-    rows: Optional[int] = None
-    gap: Optional[float] = None
-    column_gap: Optional[float] = None
-    row_gap: Optional[float] = None
-    align_items: Optional[LayoutAlignment] = None
-    justify_items: Optional[LayoutAlignment] = None
+    rows: int | None = None
+    gap: float | None = None
+    column_gap: float | None = None
+    row_gap: float | None = None
+    align_items: LayoutAlignment | None = None
+    justify_items: LayoutAlignment | None = None
     children: list[SlideElement]
 
     # Schema
@@ -558,8 +570,8 @@ class Grid(BaseModel):
 
 class Group(BaseModel):
     type: Literal["group"]
-    position: Optional[Position] = None
-    size: Optional[Size] = None
+    position: Position | None = None
+    size: Size | None = None
     children: list[SlideElement]
 
     # Schema
@@ -567,19 +579,17 @@ class Group(BaseModel):
 
 
 SlideElement: TypeAlias = Annotated[
-    Union[
-        Text,
-        Container,
-        Image,
-        TextList,
-        Table,
-        Vector,
-        Chart,
-        Infographic,
-        Flex,
-        Grid,
-        Group,
-    ],
+    Text
+    | Container
+    | Image
+    | TextList
+    | Table
+    | Vector
+    | Chart
+    | Infographic
+    | Flex
+    | Grid
+    | Group,
     Field(discriminator="type"),
 ]
 

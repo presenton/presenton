@@ -97,7 +97,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     requiresApiKey: true,
     apiKeyField: "PEXELS_API_KEY",
     apiKeyFieldLabel: "Pexels API Key",
-    getApiKeyUrl: "https://docs.presenton.ai/help/get-api-keys/get-pexels-api-key",
+    getApiKeyUrl: "https://www.pexels.com/api/",
   },
   pixabay: {
     value: "pixabay",
@@ -107,7 +107,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     requiresApiKey: true,
     apiKeyField: "PIXABAY_API_KEY",
     apiKeyFieldLabel: "Pixabay API Key",
-    getApiKeyUrl: "https://docs.presenton.ai/help/get-api-keys/get-pixabay-api-key",
+    getApiKeyUrl: "https://pixabay.com/api/docs/",
   },
   "dall-e-3": {
     value: "dall-e-3",

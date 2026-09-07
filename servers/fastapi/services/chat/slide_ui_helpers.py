@@ -6,6 +6,7 @@ import math
 import re
 from typing import Any
 
+from utils.chart_semantics import coerce_chart_type_for_categories
 from utils.infographic_catalog import (
     INFOGRAPHIC_BY_TYPE,
     normalize_infographic_data,
@@ -147,6 +148,11 @@ def _normalize_chart_element(
     _validate_chart_shape(chart_type, categories, series)
     category_count = max(1, len(categories), _max_chart_value_length(series))
     categories = _normalize_chart_categories(categories, category_count)
+    # Временные ряды (годы/даты) не рисуются столбцами/кругами.
+    temporal_chart_type = coerce_chart_type_for_categories(chart_type, categories)
+    if temporal_chart_type:
+        chart_type = temporal_chart_type
+        element["chart_type"] = chart_type
     for item in series:
         item["values"] = _pad_chart_values(
             item.get("values"),
@@ -155,9 +161,7 @@ def _normalize_chart_element(
 
     if not _read_chart_colors(element.get("colors")):
         legacy_colors = [
-            color
-            for item in legacy_data
-            if (color := _normalize_chart_color(item.get("color")))
+            color for item in legacy_data if (color := _normalize_chart_color(item.get("color")))
         ]
         if legacy_colors:
             element["colors"] = legacy_colors
@@ -201,15 +205,9 @@ def _normalize_chart_element(
     if _normalize_chart_color(element.get("legend_color")):
         element["legend_color"] = _normalize_chart_color(element.get("legend_color"))
 
-    if (
-        "x_axis" not in element
-        and chart_type not in {"pie", "donut", "polar_area", "radar"}
-    ):
+    if "x_axis" not in element and chart_type not in {"pie", "donut", "polar_area", "radar"}:
         element["x_axis"] = True
-    if (
-        "y_axis" not in element
-        and chart_type not in {"pie", "donut", "polar_area", "radar"}
-    ):
+    if "y_axis" not in element and chart_type not in {"pie", "donut", "polar_area", "radar"}:
         element["y_axis"] = True
     if "x_axis_grid" not in element and chart_type not in {"pie", "donut"}:
         element["x_axis_grid"] = True
@@ -277,13 +275,11 @@ def _validate_visual_insert_tree(node: Any) -> None:
             )
         if node.get("type") == "table" and not _table_element_has_explicit_data(node):
             raise ValueError(
-                "Table elements must include headers/columns and rows before "
-                "they can be added."
+                "Table elements must include headers/columns and rows before they can be added."
             )
         if node.get("type") == "image" and not _image_element_has_explicit_data(node):
             raise ValueError(
-                "Image elements must include an image/icon URL in data before "
-                "they can be added."
+                "Image elements must include an image/icon URL in data before they can be added."
             )
         for value in node.values():
             _validate_visual_insert_tree(value)
@@ -324,9 +320,7 @@ def _validate_vector_element(element: dict[str, Any]) -> None:
     if shape is not None and shape not in {"polygon", "ellipse"}:
         raise ValueError("vector.shape must be 'polygon' or 'ellipse'.")
     curve = element.get("curve")
-    if curve is not None and (
-        not isinstance(curve, dict) or curve.get("type") != "smooth"
-    ):
+    if curve is not None and (not isinstance(curve, dict) or curve.get("type") != "smooth"):
         raise ValueError("vector.curve supports only type='smooth'.")
     corner_radii = element.get("corner_radii")
     if isinstance(corner_radii, list) and len(corner_radii) != len(points):
@@ -334,9 +328,7 @@ def _validate_vector_element(element: dict[str, Any]) -> None:
     for field in ("start_marker", "end_marker"):
         marker = element.get(field)
         if marker is not None and marker not in VECTOR_MARKERS:
-            raise ValueError(
-                f"vector.{field} must be a supported line endpoint marker."
-            )
+            raise ValueError(f"vector.{field} must be a supported line endpoint marker.")
 
 
 def _validate_infographic_element(element: dict[str, Any]) -> None:
@@ -471,11 +463,7 @@ def _normalize_chart_series(
             )
         elif isinstance(item, list):
             raw_values = item
-            series_name = (
-                fallback_name
-                if index == 0 and fallback_name
-                else f"Series {index + 1}"
-            )
+            series_name = fallback_name if index == 0 and fallback_name else f"Series {index + 1}"
         else:
             continue
 
@@ -579,11 +567,7 @@ def _normalize_chart_categories(
 def _max_chart_value_length(series: list[dict[str, Any]]) -> int:
     return max(
         0,
-        *[
-            len(item.get("values"))
-            for item in series
-            if isinstance(item.get("values"), list)
-        ],
+        *[len(item.get("values")) for item in series if isinstance(item.get("values"), list)],
     )
 
 
@@ -621,15 +605,10 @@ def _resolve_chart_colors(
     if not source_colors:
         source_colors = _theme_chart_palette(theme)
     if not source_colors:
-        source_colors = [
-            _normalize_chart_color(element.get("color")) or DEFAULT_CHART_COLORS[0]
-        ]
+        source_colors = [_normalize_chart_color(element.get("color")) or DEFAULT_CHART_COLORS[0]]
 
     target_count = min(12, max(1, count, len(source_colors)))
-    return [
-        source_colors[index % len(source_colors)]
-        for index in range(target_count)
-    ]
+    return [source_colors[index % len(source_colors)] for index in range(target_count)]
 
 
 def _read_chart_colors(value: Any) -> list[str]:
@@ -661,9 +640,7 @@ def _chart_data_from_series(
     category_colors = chart_type in {"pie", "donut"} or len(series) == 1
     return [
         {
-            "label": (
-                categories[index] if index < len(categories) else f"Item {index + 1}"
-            ),
+            "label": (categories[index] if index < len(categories) else f"Item {index + 1}"),
             "value": _chart_number(values[index] if index < len(values) else 0) or 0,
             "color": colors[index % len(colors)] if category_colors else colors[0],
         }
@@ -675,9 +652,7 @@ def _theme_chart_palette(theme: dict[str, Any] | None) -> list[str]:
     colors = _theme_colors(theme)
     palette = [
         color
-        for color in (
-            _normalize_chart_color(colors.get(key)) for key in THEME_GRAPH_COLOR_KEYS
-        )
+        for color in (_normalize_chart_color(colors.get(key)) for key in THEME_GRAPH_COLOR_KEYS)
         if color
     ]
     if palette:
@@ -1272,9 +1247,7 @@ def _visit_editable_element(
 ) -> None:
     element_type = str(element.get("type") or "")
     is_content_editable = element_type in CONTENT_EDITABLE_ELEMENT_TYPES
-    if is_content_editable or (
-        include_visual_elements and element_type in VISIBLE_ELEMENT_TYPES
-    ):
+    if is_content_editable or (include_visual_elements and element_type in VISIBLE_ELEMENT_TYPES):
         editable.append(
             {
                 "path": path,
@@ -1605,11 +1578,7 @@ def _preserve_slot_fields(
 
 def _is_top_level_component_path(path: str) -> bool:
     match = _PATH_SEGMENT_RE.match(path)
-    return bool(
-        match
-        and match.group("key") == "components"
-        and match.group(0) == path
-    )
+    return bool(match and match.group("key") == "components" and match.group(0) == path)
 
 
 def _component_id_for_path(layout_dict: dict[str, Any], path: str) -> str | None:
@@ -1670,9 +1639,7 @@ def _chart_request_on_image_error() -> ValueError:
 
 def _looks_like_asset_reference(value: str) -> bool:
     stripped = value.strip()
-    return stripped.startswith(
-        ("http://", "https://", "/app_data/", "/static/", "data:", "blob:")
-    )
+    return stripped.startswith(("http://", "https://", "/app_data/", "/static/", "data:", "blob:"))
 
 
 def _chart_update_has_content(chart: dict[str, Any] | None) -> bool:
@@ -1754,9 +1721,7 @@ def _template_asset_prompt(value: Any, *, is_icon: bool) -> str | None:
 def _apply_image_element_value(element: dict[str, Any], value: Any) -> None:
     asset_url = _template_asset_url(value)
     if not asset_url:
-        raise ValueError(
-            "Image/icon updates require `text` with an image or icon URL."
-        )
+        raise ValueError("Image/icon updates require `text` with an image or icon URL.")
     element["data"] = asset_url
     _normalize_generated_image_fit(element, asset_url)
     prompt = _template_asset_prompt(
@@ -1775,9 +1740,7 @@ def _apply_image_element_update(
 ) -> None:
     payload = _resolve_image_update_payload(text, items)
     if payload is None:
-        raise ValueError(
-            "Image/icon updates require `text` with an image or icon URL."
-        )
+        raise ValueError("Image/icon updates require `text` with an image or icon URL.")
     if isinstance(payload, str) and _looks_like_chart_request(payload):
         raise _chart_request_on_image_error()
     _apply_image_element_value(element, payload)
@@ -1809,8 +1772,7 @@ def _content_update_requested_for_type(
     if element_type == "image":
         return _resolve_image_update_payload(text, items) is not None
     return any(
-        value is not None
-        for value in (text, items, table_cell, table, chart, vector, infographic)
+        value is not None for value in (text, items, table_cell, table, chart, vector, infographic)
     )
 
 
@@ -1829,9 +1791,7 @@ def _update_vector_element(element: dict[str, Any], vector: dict[str, Any]) -> N
     _validate_vector_element(element)
 
 
-def _update_infographic_element(
-    element: dict[str, Any], infographic: dict[str, Any]
-) -> None:
+def _update_infographic_element(element: dict[str, Any], infographic: dict[str, Any]) -> None:
     if "data" in infographic:
         current_data = element.get("data")
         data_patch = _normalize_infographic_data_keys(infographic["data"])
@@ -1867,9 +1827,7 @@ def _normalize_infographic_data_keys(value: Any) -> Any:
     if not isinstance(value, dict):
         return copy.deepcopy(value)
     return {
-        _INFOGRAPHIC_DATA_KEY_ALIASES.get(key, key): _normalize_infographic_data_keys(
-            item
-        )
+        _INFOGRAPHIC_DATA_KEY_ALIASES.get(key, key): _normalize_infographic_data_keys(item)
         for key, item in value.items()
     }
 
@@ -1972,9 +1930,7 @@ def _update_table_element(element: dict[str, Any], table: dict[str, Any]) -> Non
         raise ValueError("table row count is outside this element's limits.")
 
     existing_columns = _dicts(element.get("columns"))
-    existing_rows = [
-        _dicts(row) for row in element.get("rows", []) if isinstance(row, list)
-    ]
+    existing_rows = [_dicts(row) for row in element.get("rows", []) if isinstance(row, list)]
 
     element["columns"] = [
         _replacement_table_cell(
@@ -2123,11 +2079,7 @@ def _text_font_patch_from_element_patch(
     direct_color = patch.get("color")
     if isinstance(direct_color, str) and direct_color.strip():
         font_patch["color"] = direct_color
-    return {
-        key: copy.deepcopy(value)
-        for key, value in font_patch.items()
-        if value is not None
-    }
+    return {key: copy.deepcopy(value) for key, value in font_patch.items() if value is not None}
 
 
 def _normalize_font_patch(value: dict[str, Any]) -> dict[str, Any]:

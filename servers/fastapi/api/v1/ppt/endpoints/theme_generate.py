@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -14,12 +12,12 @@ THEME_ROUTER = APIRouter(prefix="/theme", tags=["V3 Theme"])
 
 
 class GenerateThemeRequestV3(BaseModel):
-    primary: Optional[str] = None
-    background: Optional[str] = None
-    accent_1: Optional[str] = None
-    accent_2: Optional[str] = None
-    text_1: Optional[str] = None
-    text_2: Optional[str] = None
+    primary: str | None = None
+    background: str | None = None
+    accent_1: str | None = None
+    accent_2: str | None = None
+    text_1: str | None = None
+    text_2: str | None = None
 
 
 @THEME_ROUTER.post("/generate", response_model=ThemeData)
@@ -72,4 +70,3 @@ async def generate_theme_v3(request: GenerateThemeRequestV3) -> ThemeData:
         graph_9=graph_colors[9],
     )
     return theme_data
-

@@ -83,6 +83,17 @@ export enum MixpanelEvent {
   Smart_Mode_Select_Edit_Toggled = 'Smart Mode Select Edit Toggled',
   Smart_Mode_Element_Selected = 'Smart Mode Element Selected',
 
+  // Форк: community-страницы сохранены (апстрим их удалил вместе с событиями).
+  Community_Page_Viewed = 'Community Page Viewed',
+  Community_Presentations_Loaded = 'Community Presentations Loaded',
+  Community_Presentations_Load_Failed = 'Community Presentations Load Failed',
+  Community_Filters_Changed = 'Community Filters Changed',
+  Community_Presentation_Previewed = 'Community Presentation Previewed',
+  Community_Presentation_Preview_Loaded = 'Community Presentation Preview Loaded',
+  Community_Presentation_Preview_Failed = 'Community Presentation Preview Failed',
+  Community_Design_Used = 'Community Design Used',
+  Community_Prompt_Used = 'Community Prompt Used',
+
   Presentation_Editor_Viewed = 'Presentation Editor Viewed',
   Presentation_Mode_Entered = 'Presentation Mode Entered',
   Presentation_Title_Updated = 'Presentation Title Updated',

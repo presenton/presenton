@@ -3,13 +3,17 @@ import os
 
 from sqlalchemy import delete, func, select, update
 
+from api.v1.auth.config import (
+    get_legacy_admin_credentials,
+    persist_admin_credentials,
+)
 from api.v1.auth.users import PASSWORD_HELPER
+from models.sql.access_token import AccessToken
 from models.sql.api_key import ApiKey
-from models.sql.user import User
-from models.sql.async_task import AsyncTaskModel
 from models.sql.async_presentation_generation_status import (
     AsyncPresentationGenerationTaskModel,
 )
+from models.sql.async_task import AsyncTaskModel
 from models.sql.chat_history_message import ChatHistoryMessageModel
 from models.sql.image_asset import ImageAsset
 from models.sql.key_value import KeyValueSqlModel
@@ -19,13 +23,9 @@ from models.sql.slide import SlideModel
 from models.sql.template import TemplateModel
 from models.sql.template_create_info import TemplateCreateInfoModel
 from models.sql.template_v2 import TemplateV2
+from models.sql.user import User
 from models.sql.webhook_subscription import WebhookSubscription
 from services.database import async_session_maker
-from api.v1.auth.config import (
-    get_legacy_admin_credentials,
-    persist_admin_credentials,
-)
-
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,7 @@ def _validate_new_environment_username(username: str) -> None:
 async def bootstrap_database_admin() -> None:
     """Migrate the old single-admin account or initialize it from environment."""
     async with async_session_maker() as session:
-        admin = await session.scalar(
-            select(User).where(User.is_superuser.is_(True)).limit(1)
-        )
+        admin = await session.scalar(select(User).where(User.is_superuser.is_(True)).limit(1))
         reset_requested = _truthy(os.getenv("RESET_AUTH"))
         override_requested = _truthy(os.getenv("AUTH_OVERRIDE_FROM_ENV"))
         env_username = (os.getenv("AUTH_USERNAME") or "").strip()
@@ -68,6 +66,7 @@ async def bootstrap_database_admin() -> None:
                     admin.username = env_username
                 admin.hashed_password = PASSWORD_HELPER.hash(env_password)
                 admin.auth_version += 1
+                await session.execute(delete(AccessToken).where(AccessToken.user_id == admin.id))
                 await session.execute(delete(ApiKey))
                 await session.flush()
                 await session.commit()
@@ -76,21 +75,15 @@ async def bootstrap_database_admin() -> None:
                     admin.hashed_password,
                     rotate_secret=True,
                 )
-                logger.warning(
-                    "Recovered bootstrap administrator credentials from environment."
-                )
+                logger.warning("Recovered bootstrap administrator credentials from environment.")
             else:
                 await session.commit()
             await _backfill_legacy_ownership(session, admin)
             return
 
-        account_count = int(
-            await session.scalar(select(func.count()).select_from(User)) or 0
-        )
+        account_count = int(await session.scalar(select(func.count()).select_from(User)) or 0)
         if account_count:
-            raise RuntimeError(
-                "User accounts exist but no bootstrap administrator is configured"
-            )
+            raise RuntimeError("User accounts exist but no bootstrap administrator is configured")
 
         legacy_username, legacy_hash = get_legacy_admin_credentials()
         use_environment = reset_requested or override_requested
@@ -144,9 +137,7 @@ async def _backfill_legacy_ownership(session, admin: User) -> None:
     )
     for model in owned_models:
         await session.execute(
-            update(model)
-            .where(model.owner_id.is_(None))
-            .values(owner_id=admin.id)
+            update(model).where(model.owner_id.is_(None)).values(owner_id=admin.id)
         )
     # Built-in templates intentionally remain shared; only custom templates
     # migrate into the bootstrap admin's private workspace.

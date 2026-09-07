@@ -32,6 +32,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
         "/api/v1/auth/verify",
         "/api/v1/auth/setup",
         "/api/v1/auth/login",
+        "/api/v1/auth/telegram",
         "/api/v1/auth/logout",
     }
     _PUBLIC_AUTH_PREFIXES: tuple[str, ...] = ()
@@ -54,9 +55,9 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         if is_disable_auth_enabled():
-            # Electron uses the auth-disabled, single-user runtime. It still
-            # needs the Presenton Cloud provider proxy when that provider is
-            # selected; desktop-owned rows use the existing nullable owner_id.
+            # Auth-disabled deployments use the single-user runtime. They
+            # still need the Presenton Cloud provider proxy when that provider
+            # is selected; local rows use the existing nullable owner_id.
             async with async_session_maker() as session:
                 cloud_response = await maybe_proxy_presenton_cloud_request(
                     request,
@@ -77,9 +78,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         async with async_session_maker() as session:
-            configured = bool(
-                await session.scalar(select(func.count()).select_from(User))
-            )
+            configured = bool(await session.scalar(select(func.count()).select_from(User)))
             if not configured:
                 return JSONResponse(
                     status_code=428,
@@ -97,14 +96,8 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
             admin_only = (
                 path.startswith("/api/v1/admin/")
                 or path.startswith("/api/v1/ppt/codex/auth/")
-                or (
-                    path.startswith("/api/v1/ppt/fonts/")
-                    and request.method in {"POST", "DELETE"}
-                )
-                or (
-                    path == "/api/v1/ppt/ollama/models/pull"
-                    and request.method == "POST"
-                )
+                or (path.startswith("/api/v1/ppt/fonts/") and request.method in {"POST", "DELETE"})
+                or (path == "/api/v1/ppt/ollama/models/pull" and request.method == "POST")
             )
             if admin_only and (principal.method != "jwt" or not principal.is_admin):
                 return JSONResponse(
@@ -115,9 +108,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
             request.state.current_user = user
             request.state.auth_username = principal.username
             if principal.method == "api_key" and user is not None:
-                request.state.internal_session_token = (
-                    await get_jwt_strategy().write_token(user)
-                )
+                request.state.internal_session_token = await get_jwt_strategy().write_token(user)
             context_token = set_current_owner_id(principal.user_id)
             admin_context_token = set_current_owner_is_admin(principal.is_admin)
             try:
@@ -129,9 +120,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
                     )
                     if cloud_response is not None:
                         return cloud_response
-                if path.startswith(
-                    "/app_data/"
-                ) and not is_app_data_path_authorized(
+                if path.startswith("/app_data/") and not is_app_data_path_authorized(
                     path,
                     user_id=principal.user_id,
                     is_admin=principal.is_admin,

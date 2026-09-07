@@ -1,6 +1,5 @@
-from urllib.parse import unquote, urlsplit
 import uuid
-
+from urllib.parse import unquote, urlsplit
 
 PRIVATE_APP_DATA_ROOTS = {
     "images",
@@ -62,10 +61,7 @@ def is_app_data_path_authorized(
 
     relative_parts = parts[1:]
     if relative_parts[0] == "users":
-        return (
-            len(relative_parts) >= 3
-            and relative_parts[1] == str(user_id)
-        )
+        return len(relative_parts) >= 3 and relative_parts[1] == str(user_id)
 
     # Pre-multi-user assets remain in the legacy root and belong only to the
     # migrated primary administrator.

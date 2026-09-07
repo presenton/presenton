@@ -1,6 +1,5 @@
-from contextvars import ContextVar, Token
 import uuid
-
+from contextvars import ContextVar, Token
 
 _CURRENT_OWNER_ID: ContextVar[uuid.UUID | None] = ContextVar(
     "presenton_current_owner_id", default=None

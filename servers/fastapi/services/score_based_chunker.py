@@ -1,32 +1,30 @@
 import asyncio
-from typing import List
 
 from models.document_chunk import DocumentChunk
 
 
 class ScoreBasedChunker:
-
-    def extract_headings(self, text: str) -> List[str]:
+    def extract_headings(self, text: str) -> list[str]:
         lines = text.split("\n")
         headings = []
-        
+
         for line in lines:
             line = line.strip()
             if line.startswith("#"):
                 headings.append(line)
-        
+
         return headings
 
-    def score_headings(self, headings: List[str]) -> List[float]:
+    def score_headings(self, headings: list[str]) -> list[float]:
         heading_scores = []
         last_heading_index = -1
         first_heading_found = False
 
         for i, heading in enumerate(headings):
             score = 0.0
-            
+
             heading_level = len(heading) - len(heading.lstrip("#"))
-            
+
             if heading_level <= 3:
                 score += 10.0 - (heading_level - 1) * 2.0
             else:
@@ -49,10 +47,10 @@ class ScoreBasedChunker:
     def get_chunks_from_headings(
         self,
         text: str,
-        headings: List[str],
-        heading_scores: List[float],
+        headings: list[str],
+        heading_scores: list[float],
         top_k: int = 10,
-    ) -> List[DocumentChunk]:
+    ) -> list[DocumentChunk]:
         if not heading_scores:
             heading_scores = self.score_headings(headings)
 
@@ -79,13 +77,11 @@ class ScoreBasedChunker:
                     score_groups[rounded_score] = []
                 score_groups[rounded_score].append(idx)
 
-            sorted_groups = sorted(
-                score_groups.items(), key=lambda x: x[0], reverse=True
-            )
+            sorted_groups = sorted(score_groups.items(), key=lambda x: x[0], reverse=True)
 
             selected_indices = []
 
-            for score, indices in sorted_groups:
+            for _score, indices in sorted_groups:
                 indices.sort()
                 remaining_needed = top_k - len(selected_indices)
 
@@ -113,7 +109,7 @@ class ScoreBasedChunker:
 
         lines = text.split("\n")
         heading_positions = {}
-        
+
         for i, line in enumerate(lines):
             line_stripped = line.strip()
             if line_stripped.startswith("#"):
@@ -121,14 +117,14 @@ class ScoreBasedChunker:
                     if heading == line_stripped and heading_idx not in heading_positions:
                         heading_positions[heading_idx] = i
                         break
-        
+
         for i, heading_idx in enumerate(selected_indices):
             if heading_idx not in heading_positions:
                 continue
-                
+
             heading = headings[heading_idx]
             heading_line_idx = heading_positions[heading_idx]
-            
+
             if i + 1 < len(selected_indices):
                 next_heading_idx = selected_indices[i + 1]
                 if next_heading_idx in heading_positions:
@@ -149,10 +145,10 @@ class ScoreBasedChunker:
                 score=heading_scores[heading_idx],
             )
             chunks.append(chunk)
-            
+
         return chunks
 
-    async def get_n_chunks(self, text: str, n: int) -> List[DocumentChunk]:
+    async def get_n_chunks(self, text: str, n: int) -> list[DocumentChunk]:
         headings = await asyncio.to_thread(self.extract_headings, text)
         heading_scores = await asyncio.to_thread(self.score_headings, headings)
         chunks = await asyncio.to_thread(

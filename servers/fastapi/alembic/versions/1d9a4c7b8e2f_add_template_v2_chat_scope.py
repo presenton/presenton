@@ -5,18 +5,19 @@ Revises: 9b2d1c4e5f6a
 Create Date: 2026-06-30 00:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 import sqlmodel
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "1d9a4c7b8e2f"
-down_revision: Union[str, None] = "9b2d1c4e5f6a"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "9b2d1c4e5f6a"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def _has_table(table_name: str) -> bool:
@@ -85,9 +86,7 @@ def upgrade() -> None:
                 ondelete="CASCADE",
             )
 
-    if not _has_index(
-        "chat_history_messages", op.f("ix_chat_history_messages_template_v2_id")
-    ):
+    if not _has_index("chat_history_messages", op.f("ix_chat_history_messages_template_v2_id")):
         op.create_index(
             op.f("ix_chat_history_messages_template_v2_id"),
             "chat_history_messages",
@@ -100,9 +99,7 @@ def downgrade() -> None:
     if not _has_table("chat_history_messages"):
         return
 
-    if _has_index(
-        "chat_history_messages", op.f("ix_chat_history_messages_template_v2_id")
-    ):
+    if _has_index("chat_history_messages", op.f("ix_chat_history_messages_template_v2_id")):
         op.drop_index(
             op.f("ix_chat_history_messages_template_v2_id"),
             table_name="chat_history_messages",

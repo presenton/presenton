@@ -169,10 +169,7 @@ def _duplicate_named_groups_content():
 
 
 def _duplicate_named_group_headings(ui):
-    return [
-        group["children"][1]["runs"][0]["text"]
-        for group in ui["components"][0]["elements"]
-    ]
+    return [group["children"][1]["runs"][0]["text"] for group in ui["components"][0]["elements"]]
 
 
 def _nested_duplicate_text_containers_ui():
@@ -240,11 +237,7 @@ def _nested_duplicate_text_containers_content():
 
 def _nested_duplicate_callout_labels(ui):
     children = ui["components"][0]["elements"][0]["children"]
-    return [
-        element["runs"][0]["text"]
-        for element in children
-        if element.get("type") == "text"
-    ]
+    return [element["runs"][0]["text"] for element in children if element.get("type") == "text"]
 
 
 def _nested_duplicate_callout_texts(ui):
@@ -408,9 +401,7 @@ def test_apply_template_content_to_ui_uses_schema_content_keys():
     hydrated = presentation_endpoint._apply_template_content_to_ui(ui, content)
 
     hero_elements = hydrated["components"][0]["elements"]
-    assert hero_elements[0]["runs"] == [
-        {"text": "Generated headline", "font": {"bold": True}}
-    ]
+    assert hero_elements[0]["runs"] == [{"text": "Generated headline", "font": {"bold": True}}]
     assert "text" not in hero_elements[0]
     assert hero_elements[1]["data"] == "/app_data/images/hero.png"
     assert hero_elements[1]["prompt"] == "Team dashboard"
@@ -453,8 +444,7 @@ def test_apply_template_content_to_ui_uses_suffixed_content_for_duplicate_group_
         "Occasion Fit",
     ]
     assert [
-        group["children"][0]["runs"][0]["text"]
-        for group in hydrated["components"][0]["elements"]
+        group["children"][0]["runs"][0]["text"] for group in hydrated["components"][0]["elements"]
     ] == ["1", "2", "3", "4"]
 
 
@@ -545,12 +535,8 @@ def test_apply_template_content_to_ui_handles_empty_text_runs():
 
     elements = hydrated["components"][0]["elements"]
     assert elements[0]["runs"] == [{"text": "Generated headline", "font": {"size": 24}}]
-    assert elements[1]["columns"][0]["runs"] == [
-        {"text": "Metric", "font": {"size": 10}}
-    ]
-    assert elements[1]["rows"][0][0]["runs"] == [
-        {"text": "Revenue", "font": {"size": 9}}
-    ]
+    assert elements[1]["columns"][0]["runs"] == [{"text": "Metric", "font": {"size": 10}}]
+    assert elements[1]["rows"][0][0]["runs"] == [{"text": "Revenue", "font": {"size": 9}}]
 
 
 def test_chat_template_content_hydration_updates_nested_blocks_and_tables():
@@ -795,9 +781,7 @@ def test_apply_template_content_to_ui_markdown_overrides_inherited_emphasis():
         ],
     }
     content = {
-        "information_card_grid": {
-            "card_body": "**Digital ordering** supports quick, easy meals."
-        }
+        "information_card_grid": {"card_body": "**Digital ordering** supports quick, easy meals."}
     }
 
     hydrated = presentation_endpoint._apply_template_content_to_ui(ui, content)
@@ -930,7 +914,9 @@ def test_apply_template_content_to_ui_keeps_markdown_run_whitespace():
 
 
 def test_template_markdown_text_runs_keep_source_boundary_spaces():
-    runs = presentation_endpoint._template_text_runs_from_markdown(
+    from utils.template_text_runs import template_text_runs_from_markdown
+
+    runs = template_text_runs_from_markdown(
         "Hello **how are you?** and",
         {"font": {"family": "Inter", "size": 24}},
     )
@@ -1165,9 +1151,7 @@ def test_apply_template_image_content_avoids_stretching_generated_photos():
         },
     )
 
-    hero_image, contained_image, vector_image, clipped_image = hydrated["components"][
-        0
-    ]["elements"]
+    hero_image, contained_image, vector_image, clipped_image = hydrated["components"][0]["elements"]
     assert hero_image["data"] == "/app_data/images/dashboard.png"
     assert hero_image["fit"] == "cover"
     assert contained_image["data"] == "/app_data/images/product.png"
@@ -1408,10 +1392,7 @@ def _branching_timeline_ui():
         "components": [
             {
                 "id": "branching_timeline_area",
-                "elements": [
-                    timeline_group(index)
-                    for index in (4, 5, 3, 1, 2)
-                ],
+                "elements": [timeline_group(index) for index in (4, 5, 3, 1, 2)],
             }
         ]
     }
@@ -1455,24 +1436,17 @@ def _assert_branching_timeline_hydrated(ui):
         "timeline_2",
     ]
     assert [len(element["children"]) for element in elements] == [2] * 5
-    assert [
-        element["children"][1]["children"][0]["runs"][0]["text"]
-        for element in elements
-    ] == [
+    assert [element["children"][1]["children"][0]["runs"][0]["text"] for element in elements] == [
         "Owned Restaurants",
         "Franchising Scale",
         "Recipe Standards",
         "Distinct Formats",
         "Efficient Growth",
     ]
-    assert [
-        element["children"][1]["children"][1]["data"]
-        for element in elements
-    ] == [f"/static/icons/{index}.svg" for index in range(1, 6)]
-    assert [
-        element["children"][0]["children"][0]["data"]
-        for element in elements
-    ] == [
+    assert [element["children"][1]["children"][1]["data"] for element in elements] == [
+        f"/static/icons/{index}.svg" for index in range(1, 6)
+    ]
+    assert [element["children"][0]["children"][0]["data"] for element in elements] == [
         "connector-4.svg",
         "connector-5.svg",
         "connector-3.svg",

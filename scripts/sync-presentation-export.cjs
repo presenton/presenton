@@ -257,6 +257,12 @@ function installRuntime(version, archivePath) {
   // Removing a mount point fails with EBUSY; clearing its contents is portable.
   clearDirectoryContents(targetRoot);
   fs.copyFileSync(sourceRunner, targetRunner);
+  // Модуль пост-обработки SVG раннер импортирует относительно себя —
+  // копируем его рядом с runner.mjs (иначе export падает MODULE_NOT_FOUND).
+  const svgFallbackSource = path.join(repoRoot, "scripts", "pptx-svg-fallback.mjs");
+  if (fs.existsSync(svgFallbackSource)) {
+    fs.copyFileSync(svgFallbackSource, path.join(targetRoot, "pptx-svg-fallback.mjs"));
+  }
   fs.writeFileSync(
     path.join(targetRoot, "package.json"),
     `${JSON.stringify(

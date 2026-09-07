@@ -93,10 +93,6 @@ const DocumentsPreviewPage: React.FC = () => {
   };
 
   const readFile = async (filePath: string) => {
-    if (typeof window !== "undefined" && window.electron?.readFile) {
-      return window.electron.readFile(filePath);
-    }
-
     const res = await fetch(`/api/read-file`, {
       method: "POST",
       body: JSON.stringify({ filePath }),
@@ -279,7 +275,7 @@ const DocumentsPreviewPage: React.FC = () => {
             <ToolTip content="Open Panel">
               <Button
                 onClick={() => setIsOpen(true)}
-                className="bg-[#5146E5] text-white p-3 shadow-lg"
+                className="bg-[#1D4ED8] text-white p-3 shadow-lg"
               >
                 <PanelRightOpen className="text-white" size={20} />
               </Button>
@@ -296,7 +292,7 @@ const DocumentsPreviewPage: React.FC = () => {
         <div className="fixed bottom-5 right-5">
           <Button
             onClick={handleCreatePresentation}
-            className="flex items-center gap-2 px-8 py-6 rounded-sm text-md bg-[#5146E5] hover:bg-[#5146E5]/90"
+            className="flex items-center gap-2 px-8 py-6 rounded-sm text-md bg-[#1D4ED8] hover:bg-[#1D4ED8]/90"
           >
             <span className="text-white font-semibold">Next</span>
             <ChevronRight />

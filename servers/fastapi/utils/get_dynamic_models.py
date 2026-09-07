@@ -1,5 +1,5 @@
-from typing import List
 from pydantic import Field
+
 from constants.presentation import MAX_OUTLINE_CONTENT_WORDS
 from models.presentation_outline_model import (
     PresentationOutlineModel,
@@ -20,7 +20,7 @@ def get_presentation_outline_model_with_n_slides(n_slides: int):
         )
 
     class PresentationOutlineModelWithNSlides(PresentationOutlineModel):
-        slides: List[SlideOutlineModelWithNSlides] = Field(
+        slides: list[SlideOutlineModelWithNSlides] = Field(
             description="List of slide outlines",
             min_length=n_slides,
             max_length=n_slides,
@@ -31,7 +31,7 @@ def get_presentation_outline_model_with_n_slides(n_slides: int):
 
 def get_presentation_structure_model_with_n_slides(n_slides: int):
     class PresentationStructureModelWithNSlides(PresentationStructureModel):
-        slides: List[int] = Field(
+        slides: list[int] = Field(
             description="List of slide layouts",
             min_length=n_slides,
             max_length=n_slides,

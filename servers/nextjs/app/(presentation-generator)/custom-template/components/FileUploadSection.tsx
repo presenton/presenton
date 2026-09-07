@@ -92,8 +92,8 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
                     className="opacity-0 w-full h-full cursor-pointer absolute top-0 left-0 z-10"
                   />
                   <div className='absolute inset-0 flex flex-col items-center justify-center'>
-                    <div className='w-[42px] h-[42px] flex justify-center items-center rounded-full bg-[#EBE9FE]' >
-                      <div className='w-[22px] h-[22px] rounded-full bg-[#7A5AF8] flex items-center justify-center text-white'>
+                    <div className='w-[42px] h-[42px] flex justify-center items-center rounded-full bg-[#DBEAFE]' >
+                      <div className='w-[22px] h-[22px] rounded-full bg-[#2563EB] flex items-center justify-center text-white'>
                         <Plus className='w-3 h-3' />
                       </div>
                     </div>
@@ -159,10 +159,10 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
                       .processing-stripes {
                         background: repeating-linear-gradient(
                           135deg,
-                          rgba(122, 90, 248, 0.9) 0px,
-                          rgba(122, 90, 248, 0.9) 9px,
-                          rgba(122, 90, 248, 0.18) 9px,
-                          rgba(122, 90, 248, 0.18) 18px
+                          rgba(37, 99, 235, 0.9) 0px,
+                          rgba(37, 99, 235, 0.9) 9px,
+                          rgba(37, 99, 235, 0.18) 9px,
+                          rgba(37, 99, 235, 0.18) 18px
                         );
                         filter: saturate(1.05);
                         background-size: 24px 24px;
@@ -203,19 +203,19 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
         <ul className="flex items-center max-w-[85%] md:max-w-[70%] mx-auto  mt-5 justify-between gap-2.5">
           <li className="flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8.5" cy="8.17041" r="4.5" fill="#EBE9FE" />
+              <circle cx="8.5" cy="8.17041" r="4.5" fill="#DBEAFE" />
             </svg>
             <p className="md:text-sm text-[10px] font-normal text-[#3A3A3A] ">PPTX. Only</p>
           </li>
           <li className="flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8.5" cy="8.17041" r="4.5" fill="#EBE9FE" />
+              <circle cx="8.5" cy="8.17041" r="4.5" fill="#DBEAFE" />
             </svg>
             <p className="md:text-sm text-[10px] font-normal text-[#3A3A3A] ">Max 100MB</p>
           </li>
           <li className="flex items-center gap-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8.5" cy="8.17041" r="4.5" fill="#EBE9FE" />
+              <circle cx="8.5" cy="8.17041" r="4.5" fill="#DBEAFE" />
             </svg>
             <p className="md:text-sm text-[10px] font-normal text-[#3A3A3A] ">5min Generation</p>
           </li>

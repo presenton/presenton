@@ -26,14 +26,6 @@ servers/nextjs/tsconfig.tsbuildinfo
 **/*.cy.ts
 **/*.cy.tsx
 
-# Keep only the LiteParse runner from the Electron tree.
-electron/*
-!electron/resources
-electron/resources/*
-!electron/resources/document-extraction
-electron/resources/document-extraction/*
-!electron/resources/document-extraction/liteparse_runner.mjs
-
 servers/fastapi/tmp
 servers/fastapi/debug
 servers/fastapi/.venv

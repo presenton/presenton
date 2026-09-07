@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 import html as html_module
 import json
+import logging
 import re
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import replace
-from typing import Any, Optional
+from typing import Any
 
 import llmai
 from fastapi import HTTPException
@@ -60,12 +61,18 @@ SmartSlideCallback = Callable[[int, dict[str, str]], Awaitable[None]]
 SmartMetricsCallback = Callable[[TextGenerationMetrics], Awaitable[None]]
 SmartRetryCallback = Callable[[int, str], Awaitable[None]]
 
+LOGGER = logging.getLogger(__name__)
+
 SMART_DECK_SYSTEM_PROMPT = (
     "You are an expert presentation designer and frontend engineer. Return the "
     "entire production-ready deck in the requested delimiter format. Use real "
     "Chart.js charts for quantitative evidence whenever they communicate the "
     "story better than text; never substitute generated chart images. Treat "
-    "overflow-free layout as a hard validation requirement."
+    "overflow-free layout as a hard validation requirement. The Language setting "
+    "in the user message is authoritative: write every audience-facing string "
+    "(titles, body text, labels, speaker notes) in exactly that language, even "
+    "if the source content is in a different language; keep icon queries and "
+    "image prompts in English."
 )
 
 SMART_OVERFLOW_PREVENTION_PROMPT = """
@@ -209,9 +216,7 @@ Requirements for every slide:
     + CHART_JS_INSTRUCTIONS
 )
 
-SMART_DECK_TITLE_RE = re.compile(
-    r"<!--\s*PRESENTATION_TITLE\s*:\s*(.*?)\s*-->", re.IGNORECASE
-)
+SMART_DECK_TITLE_RE = re.compile(r"<!--\s*PRESENTATION_TITLE\s*:\s*(.*?)\s*-->", re.IGNORECASE)
 SMART_SLIDE_BLOCK_RE = re.compile(
     r"<!--\s*SLIDE_START\s*-->\s*(.*?)\s*<!--\s*SLIDE_END\s*-->",
     re.IGNORECASE | re.DOTALL,
@@ -221,15 +226,11 @@ _UNSAFE_DOCUMENT_TAGS = re.compile(
     r"</?(?:html|head|body|style|link|meta|base|iframe|object|embed|form)\b[^>]*>",
     re.IGNORECASE,
 )
-_SCRIPT_TAG = re.compile(
-    r"<script\b([^>]*)>(.*?)</script\b[^>]*>", re.IGNORECASE | re.DOTALL
-)
+_SCRIPT_TAG = re.compile(r"<script\b([^>]*)>(.*?)</script\b[^>]*>", re.IGNORECASE | re.DOTALL)
 _EVENT_HANDLER_ATTRIBUTE = re.compile(
     r"\s+on[a-z]+\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)", re.IGNORECASE
 )
-_JAVASCRIPT_URL = re.compile(
-    r"\s+(href|src)\s*=\s*([\"'])\s*javascript:[^\"']*\2", re.IGNORECASE
-)
+_JAVASCRIPT_URL = re.compile(r"\s+(href|src)\s*=\s*([\"'])\s*javascript:[^\"']*\2", re.IGNORECASE)
 _UNSAFE_CHART_SCRIPT = re.compile(
     r"\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|eval)\s*\(|"
     r"\bimport\s*\(|"
@@ -256,9 +257,7 @@ _SCROLL_OR_CLIP_UTILITY = re.compile(
     r"line-clamp-[^\s]+|truncate|text-ellipsis)(?:\s|$)",
     re.IGNORECASE,
 )
-_SCROLL_STYLE = re.compile(
-    r"\boverflow(?:-[xy])?\s*:\s*(?:auto|scroll)\b", re.IGNORECASE
-)
+_SCROLL_STYLE = re.compile(r"\boverflow(?:-[xy])?\s*:\s*(?:auto|scroll)\b", re.IGNORECASE)
 
 
 def resolve_smart_slide_count(value: int | None) -> int:
@@ -268,7 +267,7 @@ def resolve_smart_slide_count(value: int | None) -> int:
 
 
 def _continuation_prompt(
-    completed_slides: Sequence[dict[str, str]], retry_error: Optional[str]
+    completed_slides: Sequence[dict[str, str]], retry_error: str | None
 ) -> str:
     retry_feedback = (
         f"\nThe prior response failed validation. Correct this before returning "
@@ -279,8 +278,7 @@ def _continuation_prompt(
     if not completed_slides:
         return retry_feedback
     summaries = [
-        f"- Slide {index + 1}: type={slide['slide_type']}; "
-        f"title={slide['title']}"
+        f"- Slide {index + 1}: type={slide['slide_type']}; title={slide['title']}"
         for index, slide in enumerate(completed_slides)
     ]
     exact_tail = "\n\n".join(
@@ -309,17 +307,17 @@ def get_smart_messages(
     *,
     content: str,
     n_slides: int,
-    language: Optional[str],
-    tone: Optional[str],
-    verbosity: Optional[str],
-    instructions: Optional[str],
+    language: str | None,
+    tone: str | None,
+    verbosity: str | None,
+    instructions: str | None,
     include_title_slide: bool,
     include_table_of_contents: bool,
     source_context: str,
     community_design_context: str,
-    fonts: Optional[dict[str, str]] = None,
-    completed_slides: Optional[Sequence[dict[str, str]]] = None,
-    retry_error: Optional[str] = None,
+    fonts: dict[str, str] | None = None,
+    completed_slides: Sequence[dict[str, str]] | None = None,
+    retry_error: str | None = None,
 ) -> list[Message]:
     completed_slides = completed_slides or []
     remaining_count = n_slides - len(completed_slides)
@@ -329,19 +327,20 @@ def get_smart_messages(
         if completed_slides
         else f"Generate exactly {n_slides} total slides."
     )
-    additional_instructions = "\n".join(
-        part
-        for part in (
-            instructions.strip() if instructions else "",
-            f"Tone: {tone.strip()}" if tone and tone.strip() else "",
-            f"Verbosity: {verbosity.strip()}" if verbosity and verbosity.strip() else "",
+    additional_instructions = (
+        "\n".join(
+            part
+            for part in (
+                instructions.strip() if instructions else "",
+                f"Tone: {tone.strip()}" if tone and tone.strip() else "",
+                f"Verbosity: {verbosity.strip()}" if verbosity and verbosity.strip() else "",
+            )
+            if part
         )
-        if part
-    ) or "None"
+        or "None"
+    )
     reference_context = (
-        f"\n\n{community_design_context.strip()}"
-        if community_design_context.strip()
-        else ""
+        f"\n\n{community_design_context.strip()}" if community_design_context.strip() else ""
     )
     user_prompt = (
         f"""
@@ -381,10 +380,7 @@ def _sanitize_script(match: re.Match[str]) -> str:
         return ""
     if not _CHART_INITIALIZER.search(content):
         return ""
-    if (
-        _UNSAFE_CHART_SCRIPT.search(content)
-        or _UNSAFE_FUNCTION_CONSTRUCTOR.search(content)
-    ):
+    if _UNSAFE_CHART_SCRIPT.search(content) or _UNSAFE_FUNCTION_CONSTRUCTOR.search(content):
         return ""
     return match.group(0)
 
@@ -437,9 +433,7 @@ def normalize_smart_slide_html(value: Any) -> str:
 
 def _validate_smart_slide_layout_safety(html: str) -> None:
     """Reject overflow-prone Smart HTML so generation can retry before saving."""
-    class_values = re.findall(
-        r"\bclass\s*=\s*(?:\"([^\"]*)\"|'([^']*)')", html, re.IGNORECASE
-    )
+    class_values = re.findall(r"\bclass\s*=\s*(?:\"([^\"]*)\"|'([^']*)')", html, re.IGNORECASE)
     classes = " ".join(double or single for double, single in class_values)
     if _SCROLL_OR_CLIP_UTILITY.search(classes) or _SCROLL_STYLE.search(html):
         raise HTTPException(
@@ -458,12 +452,8 @@ def _validate_smart_slide_layout_safety(html: str) -> None:
     word_count = len(visible_text.split())
     root_match = _SECTION_OPEN.match(html)
     root_attributes = root_match.group(1) if root_match else ""
-    slide_type = (
-        _attribute(root_attributes, "data-slide-type") or "content"
-    ).casefold()
-    has_primary_visual = bool(
-        re.search(r"<(?:canvas|img|svg|video)\b", html, re.IGNORECASE)
-    )
+    slide_type = (_attribute(root_attributes, "data-slide-type") or "content").casefold()
+    has_primary_visual = bool(re.search(r"<(?:canvas|img|svg|video)\b", html, re.IGNORECASE))
     if slide_type == "title":
         max_words = SMART_TITLE_MAX_VISIBLE_WORDS
         max_characters = SMART_TITLE_MAX_VISIBLE_CHARACTERS
@@ -476,10 +466,7 @@ def _validate_smart_slide_layout_safety(html: str) -> None:
     else:
         max_words = SMART_TEXT_MAX_VISIBLE_WORDS
         max_characters = SMART_TEXT_MAX_VISIBLE_CHARACTERS
-    if (
-        len(visible_text) > max_characters
-        or word_count > max_words
-    ):
+    if len(visible_text) > max_characters or word_count > max_words:
         raise HTTPException(
             status_code=400,
             detail=(
@@ -495,10 +482,7 @@ def _validate_smart_slide_layout_safety(html: str) -> None:
     if layout_issues:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "The Smart slide has overflow or overlap risks: "
-                + " ".join(layout_issues)
-            ),
+            detail=("The Smart slide has overflow or overlap risks: " + " ".join(layout_issues)),
         )
 
 
@@ -542,15 +526,22 @@ def _validate_slide_position(
     if slide_type == "title" and (not include_title_slide or index != 0):
         raise HTTPException(status_code=400, detail="The model repeated the Smart title slide")
     toc_index = 1 if include_title_slide else 0
-    if include_table_of_contents and index == toc_index and slide_type not in {
-        "toc",
-        "table_of_contents",
-    }:
+    if (
+        include_table_of_contents
+        and index == toc_index
+        and slide_type
+        not in {
+            "toc",
+            "table_of_contents",
+        }
+    ):
         raise HTTPException(status_code=400, detail="The Smart table of contents is missing")
     if slide_type in {"toc", "table_of_contents"} and (
         not include_table_of_contents or index != toc_index
     ):
-        raise HTTPException(status_code=400, detail="The model repeated the Smart table of contents")
+        raise HTTPException(
+            status_code=400, detail="The model repeated the Smart table of contents"
+        )
 
 
 class SmartSlideStreamParser:
@@ -720,11 +711,7 @@ def get_smart_reasoning_config(model: str) -> tuple[ReasoningConfig | None, bool
     return (
         ReasoningConfig(
             enabled=True,
-            effort=(
-                ReasoningEffortValue.LOW
-                if provider in {"openai", "azure"}
-                else None
-            ),
+            effort=(ReasoningEffortValue.LOW if provider in {"openai", "azure"} else None),
         ),
         True,
     )
@@ -734,17 +721,17 @@ async def generate_smart_presentation(
     *,
     content: str,
     n_slides: int,
-    language: Optional[str],
-    tone: Optional[str],
-    verbosity: Optional[str],
-    instructions: Optional[str],
+    language: str | None,
+    tone: str | None,
+    verbosity: str | None,
+    instructions: str | None,
     include_title_slide: bool,
     include_table_of_contents: bool,
     source_context: str = "",
     community_design_context: str = "",
-    fonts: Optional[dict[str, str]] = None,
-    existing_slides: Optional[Sequence[dict[str, str]]] = None,
-    existing_title: Optional[str] = None,
+    fonts: dict[str, str] | None = None,
+    existing_slides: Sequence[dict[str, str]] | None = None,
+    existing_title: str | None = None,
     on_slide: SmartSlideCallback | None = None,
     on_metrics: SmartMetricsCallback | None = None,
     on_retry: SmartRetryCallback | None = None,
@@ -904,15 +891,17 @@ async def generate_smart_presentation(
             accepted_slides.extend(attempt_slides)
             return {"title": title, "slides": accepted_slides, "metrics": metrics}
         except Exception as exc:
+            LOGGER.warning(
+                "Smart generation attempt %d/%d failed; retrying",
+                _attempt + 1,
+                SMART_GENERATION_MAX_ATTEMPTS,
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
             if metrics_task is not None and not metrics_task.done():
                 metrics_task.cancel()
                 await asyncio.gather(metrics_task, return_exceptions=True)
             last_exception = exc
-            retry_error = (
-                str(exc.detail)
-                if isinstance(exc, HTTPException)
-                else str(exc)
-            )
+            retry_error = str(exc.detail) if isinstance(exc, HTTPException) else str(exc)
             title_match = SMART_DECK_TITLE_RE.search(parser.buffer)
             if not title and title_match is not None:
                 title = title_match.group(1).strip()

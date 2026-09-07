@@ -5,7 +5,6 @@ from pathlib import Path
 
 from api.main import app
 
-
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "openai_spec.json"
 
 

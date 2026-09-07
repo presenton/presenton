@@ -3,18 +3,18 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func
-from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 from sqlmodel import select
 
+from api.v1.auth.context import get_current_owner_id
 from models.sql.chat_history_message import ChatHistoryMessageModel
 from utils.datetime_utils import get_current_utc_datetime
-from api.v1.auth.context import get_current_owner_id
 
 
 def _compact_preview(content: str) -> str:
@@ -39,7 +39,7 @@ def _serialize_created_at(value: Any) -> str | None:
 
 def _parse_created_at(value: Any) -> datetime | None:
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     if not isinstance(value, str) or not value.strip():
         return None
     normalized = value.strip().replace("Z", "+00:00")
@@ -47,7 +47,7 @@ def _parse_created_at(value: Any) -> datetime | None:
         parsed = datetime.fromisoformat(normalized)
     except ValueError:
         return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def _resource_filter(

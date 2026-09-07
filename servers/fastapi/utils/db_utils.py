@@ -1,7 +1,8 @@
 import os
-from utils.get_env import get_app_data_directory_env, get_database_url_env
-from urllib.parse import urlsplit, urlunsplit, parse_qsl
 import ssl
+from urllib.parse import parse_qsl, urlsplit, urlunsplit
+
+from utils.get_env import get_app_data_directory_env, get_database_url_env
 
 
 def _ensure_sqlite_parent_dir(database_url: str) -> None:
@@ -20,6 +21,8 @@ def _ensure_sqlite_parent_dir(database_url: str) -> None:
     parent = os.path.dirname(db_path)
     if parent:
         os.makedirs(parent, exist_ok=True)
+
+
 def _int_env(name: str, default: int) -> int:
     """Read an integer from an environment variable, falling back to *default*."""
     raw = os.getenv(name)
@@ -49,8 +52,7 @@ def get_pool_kwargs() -> dict:
         "max_overflow": _int_env("DB_MAX_OVERFLOW", 10),
         "pool_timeout": _int_env("DB_POOL_TIMEOUT", 30),
         "pool_recycle": _int_env("DB_POOL_RECYCLE", 1800),
-        "pool_pre_ping": os.getenv("DB_POOL_PRE_PING", "true").lower()
-        not in ("false", "0", "no"),
+        "pool_pre_ping": os.getenv("DB_POOL_PRE_PING", "true").lower() not in ("false", "0", "no"),
     }
 
 

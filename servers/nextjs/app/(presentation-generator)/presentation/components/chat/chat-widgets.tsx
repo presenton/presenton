@@ -16,7 +16,7 @@ const AssistantSparkleIcon = ({ size = 14 }: { size?: number }) => (
   >
     <path
       d="M6.9 1.1c.22 3.03 1.37 4.17 4.4 4.4-3.03.22-4.18 1.37-4.4 4.4-.22-3.03-1.37-4.18-4.4-4.4 3.03-.23 4.18-1.37 4.4-4.4Z"
-      fill="#7A5AF8"
+      fill="#2563EB"
     />
     <path
       d="M11.2 9.4c.1 1.42.64 1.96 2.06 2.06-1.42.1-1.96.64-2.06 2.06-.1-1.42-.64-1.96-2.06-2.06 1.42-.1 1.96-.64 2.06-2.06Z"
@@ -78,7 +78,7 @@ export const QuickPromptsPanel = ({
                 key={prompt}
                 type="button"
                 onClick={() => onPromptSelect(prompt)}
-                className="rounded-full border border-black/[0.04] bg-black/[0.02] px-4 py-1.5 font-manrope text-xs font-normal tracking-[0.24px] text-[#333333] outline-none transition-colors hover:border-[#D9D6FE] hover:bg-[#FAFAFF] hover:text-[#7A5AF8] focus:border-[#7A5AF8] focus:outline-none focus:ring-0 focus-visible:border-[#7A5AF8] focus-visible:text-[#7A5AF8] focus-visible:outline-none focus-visible:ring-0 active:border-[#7A5AF8] active:text-[#7A5AF8]"
+                className="rounded-full border border-black/[0.04] bg-black/[0.02] px-4 py-1.5 font-manrope text-xs font-normal tracking-[0.24px] text-[#333333] outline-none transition-colors hover:border-[#BFDBFE] hover:bg-[#FAFAFF] hover:text-[#2563EB] focus:border-[#2563EB] focus:outline-none focus:ring-0 focus-visible:border-[#2563EB] focus-visible:text-[#2563EB] focus-visible:outline-none focus-visible:ring-0 active:border-[#2563EB] active:text-[#2563EB]"
               >
                 {prompt}
               </button>
@@ -159,7 +159,7 @@ export const EditComparisonPreview = ({
           className="h-[14px] w-[14px] shrink-0"
         />
         <span className="font-semibold text-[#191919]">Select edits</span>
-        <span className="ml-auto text-[11px] font-medium leading-[normal] text-[#7A5AF8]">
+        <span className="ml-auto text-[11px] font-medium leading-[normal] text-[#2563EB]">
           {preview.changeCount} {preview.changeCount === 1 ? "Change" : "Changes"}
         </span>
       </div>
@@ -173,7 +173,7 @@ export const EditComparisonPreview = ({
             className={cn(
               "min-w-0 overflow-hidden rounded-[6px] border bg-[#F9FAFB] px-[6px] py-[10px] text-left transition-[border-color,background-color,box-shadow,opacity] hover:border-[#B7ACFC] disabled:cursor-wait disabled:opacity-70",
               selectedVersion === card.version
-                ? "border-[#7A5AF8] bg-[#FAFAFF]"
+                ? "border-[#2563EB] bg-[#FAFAFF]"
                 : "border-[#EDEEEF]",
             )}
             aria-pressed={selectedVersion === card.version}
@@ -181,7 +181,7 @@ export const EditComparisonPreview = ({
           >
             <span className="mb-[7px] flex items-center justify-center gap-1 truncate text-center text-[13px] font-medium leading-[normal] text-[#191919]">
               {isApplying && selectedVersion === card.version && (
-                <Loader2 className="h-3 w-3 animate-spin text-[#7A5AF8]" />
+                <Loader2 className="h-3 w-3 animate-spin text-[#2563EB]" />
               )}
               <span>{card.label}</span>
             </span>

@@ -54,16 +54,11 @@ def _as_utc(value: datetime) -> datetime:
 
 
 def has_cloud_credentials(provider: PresentonCloudProvider | None) -> bool:
-    if (
-        not provider
-        or not provider.access_token_encrypted
-    ):
+    if not provider or not provider.access_token_encrypted:
         return False
     if provider.token_expires_at is None:
         return False
-    return _as_utc(provider.token_expires_at) > _as_utc(
-        get_current_utc_datetime()
-    )
+    return _as_utc(provider.token_expires_at) > _as_utc(get_current_utc_datetime())
 
 
 async def get_presenton_provider(
@@ -106,9 +101,7 @@ async def store_presenton_credentials(
     provider.subject = subject
     provider.email = email
     provider.access_token_encrypted = _encrypt_token(access_token)
-    provider.token_expires_at = get_current_utc_datetime() + timedelta(
-        seconds=max(1, expires_in)
-    )
+    provider.token_expires_at = get_current_utc_datetime() + timedelta(seconds=max(1, expires_in))
     session.add(provider)
     await session.commit()
     await session.refresh(provider)

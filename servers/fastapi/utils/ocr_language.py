@@ -9,7 +9,6 @@ servers/nextjs/app/(presentation-generator)/upload/type.ts → LanguageType
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 # Values must match `LanguageType` string literals in the upload UI.
 PRESENTATION_LANGUAGE_TO_TESSERACT: dict[str, str] = {
@@ -110,7 +109,7 @@ _LOWER_MAP = {k.lower(): v for k, v in PRESENTATION_LANGUAGE_TO_TESSERACT.items(
 _OCR_CODE_RE = re.compile(r"^[a-zA-Z0-9_,+]+$")
 
 
-def presentation_language_to_ocr_code(language: Optional[str]) -> str:
+def presentation_language_to_ocr_code(language: str | None) -> str:
     """Resolve UI language label to a Tesseract language code; default English."""
     if language is None:
         return "eng"

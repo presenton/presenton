@@ -1,12 +1,13 @@
-from contextlib import asynccontextmanager
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from api.v1.auth.bootstrap import bootstrap_database_admin
 from migrations import migrate_database_on_startup
-from services.database import async_session_maker, create_db_and_tables, dispose_engines
 from services.async_tasks import fail_interrupted_async_tasks
+from services.database import async_session_maker, create_db_and_tables, dispose_engines
 from services.provider_settings import migrate_provider_settings_from_file
 from templates.default_templates import import_default_templates_on_startup
 from utils.get_env import (
@@ -17,7 +18,6 @@ from utils.model_availability import (
     check_llm_and_image_provider_api_or_model_availability,
 )
 from utils.user_config import update_env_with_user_config
-from api.v1.auth.bootstrap import bootstrap_database_admin
 
 logger = logging.getLogger(__name__)
 

@@ -217,12 +217,15 @@ def test_parallel_env_applies_to_presentation_and_assistant_generation(
             assistant_memory.generate_image("assistant image"),
         )
 
-    with patch(
-        "services.chat.memory_layer.ImageGenerationService",
-        return_value=assistant_service,
-    ), patch(
-        "services.chat.memory_layer.get_images_directory",
-        return_value="/tmp",
+    with (
+        patch(
+            "services.chat.memory_layer.ImageGenerationService",
+            return_value=assistant_service,
+        ),
+        patch(
+            "services.chat.memory_layer.get_images_directory",
+            return_value="/tmp",
+        ),
     ):
         asyncio.run(generate_from_presentation_and_assistant())
 
@@ -259,9 +262,7 @@ def test_slide_asset_processing_can_fallback_with_visible_warning():
     )
 
     assert assets == []
-    assert slide.content["image"]["__image_url__"].endswith(
-        "/static/images/placeholder.jpg"
-    )
+    assert slide.content["image"]["__image_url__"].endswith("/static/images/placeholder.jpg")
     assert warnings == [
         {
             "status_code": 429,
@@ -334,7 +335,5 @@ def test_slide_edit_asset_processing_can_fallback_with_visible_warning():
     )
 
     assert assets == []
-    assert new_content["image"]["__image_url__"].endswith(
-        "/static/images/placeholder.jpg"
-    )
+    assert new_content["image"]["__image_url__"].endswith("/static/images/placeholder.jpg")
     assert warnings[0]["detail"] == IMAGE_MODERATION_MESSAGE

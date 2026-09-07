@@ -1,24 +1,13 @@
 import asyncio
-from types import SimpleNamespace
 import uuid
+from types import SimpleNamespace
 
 import httpx
 import pytest
 
 import mcp_server
+from models.sql.access_token import AccessToken as DatabaseAccessToken
 from models.sql.user import User
-
-
-def test_is_mcp_server_enabled_in_server_deployments(monkeypatch):
-    monkeypatch.setattr(mcp_server, "is_presenton_electron_desktop", lambda: False)
-
-    assert mcp_server.is_mcp_server_enabled() is True
-
-
-def test_is_mcp_server_disabled_in_electron_desktop(monkeypatch):
-    monkeypatch.setattr(mcp_server, "is_presenton_electron_desktop", lambda: True)
-
-    assert mcp_server.is_mcp_server_enabled() is False
 
 
 def test_create_mcp_auth_provider_disabled_when_auth_is_disabled(monkeypatch):
@@ -44,6 +33,7 @@ def _mock_api_key_verifier(monkeypatch, token: str | None):
         is_superuser=False,
         is_verified=True,
     )
+    # Апстримовский путь: новый механизм api_keys (Fernet).
     async def verify_api_key(_session, supplied_token):
         if token and supplied_token == token:
             return SimpleNamespace(api_key_id="0123456789abcdef", user=user)
@@ -51,13 +41,56 @@ def _mock_api_key_verifier(monkeypatch, token: str | None):
 
     monkeypatch.setattr(mcp_server, "verify_api_key", verify_api_key)
 
+    # Сессия с безопасным .get: наш каскад после None от verify_api_key
+    # проверяет легаси-таблицу access_token — она пуста в этих кейсах.
+    class EmptyLegacySession:
+        async def get(self, _model, _key):
+            return None
+
     class SessionContext:
         async def __aenter__(self):
-            return object()
+            return EmptyLegacySession()
 
         async def __aexit__(self, *_args):
             return None
 
+    monkeypatch.setattr(mcp_server, "async_session_maker", SessionContext)
+    return user
+
+
+def _mock_legacy_access_token_database(monkeypatch, token: str | None, *, is_admin: bool = True):
+    # Наш легаси-путь: админ-токен Telegram-бота из таблицы access_token.
+    user_id = uuid.uuid4()
+    user = User(
+        id=user_id,
+        username="admin" if is_admin else "plain-user",
+        hashed_password="unused",
+        is_active=True,
+        is_superuser=is_admin,
+        is_verified=True,
+    )
+    access_token = DatabaseAccessToken(token=token, user_id=user_id) if token else None
+
+    class FakeSession:
+        async def get(self, model, key):
+            if model is DatabaseAccessToken and access_token and key == token:
+                return access_token
+            if model is User and key == user_id:
+                return user
+            return None
+
+    class SessionContext:
+        async def __aenter__(self):
+            return FakeSession()
+
+        async def __aexit__(self, *_args):
+            return None
+
+    # verify_api_key для легаси-токена должен вернуть None — падаем в каскад.
+    async def verify_api_key(_session, _supplied_token):
+        return None
+
+    monkeypatch.setattr(mcp_server, "verify_api_key", verify_api_key)
     monkeypatch.setattr(mcp_server, "async_session_maker", SessionContext)
     return user
 
@@ -103,9 +136,35 @@ def test_presenton_token_verifier_rejects_invalid_token(monkeypatch):
     _mock_api_key_verifier(monkeypatch, None)
     verifier = mcp_server.PresentonTokenVerifier()
 
-    access_token = asyncio.run(
-        verifier.verify_token("sk-presenton-invalid-token")
-    )
+    access_token = asyncio.run(verifier.verify_token("sk-presenton-invalid-token"))
+
+    assert access_token is None
+
+
+def test_presenton_token_verifier_accepts_legacy_admin_access_key(monkeypatch):
+    # Наш легаси-кейс: sk-presenton- токен из access_token (Telegram-бот Yarex),
+    # для которого новый api_keys-механизм возвращает None, проходит каскадом.
+    token = "sk-presenton-legacy-bot-token"
+    user = _mock_legacy_access_token_database(monkeypatch, token)
+    verifier = mcp_server.PresentonTokenVerifier()
+
+    access_token = asyncio.run(verifier.verify_token(token))
+
+    assert access_token is not None
+    assert access_token.token == token
+    assert access_token.client_id == str(user.id)
+    assert access_token.claims["u"] == "admin"
+    assert access_token.claims["role"] == "admin"
+    assert access_token.claims["api_key_id"] is None
+
+
+def test_presenton_token_verifier_rejects_legacy_token_of_non_admin(monkeypatch):
+    # Легаси-токены доступны только админам (как в principal.py).
+    token = "sk-presenton-legacy-user-token"
+    _mock_legacy_access_token_database(monkeypatch, token, is_admin=False)
+    verifier = mcp_server.PresentonTokenVerifier()
+
+    access_token = asyncio.run(verifier.verify_token(token))
 
     assert access_token is None
 

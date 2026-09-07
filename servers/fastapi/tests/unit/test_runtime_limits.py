@@ -5,6 +5,7 @@ import sys
 from types import SimpleNamespace
 
 from fastapi import HTTPException
+
 from services.export_task_service import ExportTaskService
 from services.liteparse_service import LiteParseService
 from utils.runtime_limits import BoundedTextBuffer
@@ -69,7 +70,6 @@ def test_export_node_env_recreates_puppeteer_directories(monkeypatch, tmp_path):
     monkeypatch.delenv("NEXT_PUBLIC_FAST_API", raising=False)
     monkeypatch.setenv("PUPPETEER_TMP_DIR", str(puppeteer_temp))
     monkeypatch.setenv("PUPPETEER_CACHE_DIR", str(puppeteer_cache))
-    monkeypatch.delenv("PRESENTON_ELECTRON", raising=False)
 
     service = ExportTaskService(timeout_seconds=10)
     env = service._build_node_env()
@@ -87,35 +87,6 @@ def test_export_node_env_recreates_puppeteer_directories(monkeypatch, tmp_path):
 
     assert puppeteer_temp.is_dir()
     assert puppeteer_cache.is_dir()
-
-
-def test_electron_export_requires_pinned_chromium(monkeypatch, tmp_path):
-    monkeypatch.setenv("APP_DATA_DIRECTORY", str(tmp_path / "app-data"))
-    monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path / "temp"))
-    monkeypatch.setenv("PRESENTON_ELECTRON", "true")
-    monkeypatch.delenv("PUPPETEER_EXECUTABLE_PATH", raising=False)
-
-    service = ExportTaskService(timeout_seconds=10)
-
-    try:
-        service._build_node_env()
-        assert False, "Expected the Electron Chromium guard to reject a missing browser"
-    except HTTPException as exc:
-        assert exc.status_code == 500
-        assert "Refusing to download" in exc.detail
-
-
-def test_electron_export_preserves_valid_pinned_chromium(monkeypatch, tmp_path):
-    chromium = tmp_path / "chrome.exe"
-    chromium.write_bytes(b"chrome")
-    monkeypatch.setenv("APP_DATA_DIRECTORY", str(tmp_path / "app-data"))
-    monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path / "temp"))
-    monkeypatch.setenv("PRESENTON_ELECTRON", "true")
-    monkeypatch.setenv("PUPPETEER_EXECUTABLE_PATH", str(chromium))
-
-    env = ExportTaskService(timeout_seconds=10)._build_node_env()
-
-    assert env["PUPPETEER_EXECUTABLE_PATH"] == str(chromium)
 
 
 def test_export_output_path_accepts_file_path_key(monkeypatch, tmp_path):
@@ -247,10 +218,7 @@ def test_render_json_to_image_embeds_protected_local_assets(monkeypatch, tmp_pat
         return {"file_path": str(output_path)}
 
     service._run_task = fake_run_task
-    local_url = (
-        "http://127.0.0.1:8000/app_data/pptx-to-json/"
-        "session/images/photo.svg"
-    )
+    local_url = "http://127.0.0.1:8000/app_data/pptx-to-json/session/images/photo.svg"
     external_url = "https://example.com/photo.png"
     data = [
         {
@@ -317,9 +285,7 @@ def test_render_jsons_to_images_sends_localized_batch_payload(monkeypatch, tmp_p
     assert payload["width"] == 960
     assert payload["height"] == 540
     assert payload["fonts"] == {"css": "@font-face {}"}
-    assert payload["jsons"][0]["elements"][0]["data"].startswith(
-        "data:image/svg+xml;base64,"
-    )
+    assert payload["jsons"][0]["elements"][0]["data"].startswith("data:image/svg+xml;base64,")
     assert layouts[0]["elements"][0]["data"].startswith("/app_data/")
     assert "JSON-to-images" in captured["response_error_detail"]
 
@@ -416,6 +382,4 @@ def test_render_htmls_to_images_falls_back_when_batch_render_fails(tmp_path):
 
 
 def test_export_entrypoint_resolves_architecture_independent_runner(tmp_path):
-    assert ExportTaskService._resolve_entrypoint_path(str(tmp_path)) == str(
-        tmp_path / "runner.mjs"
-    )
+    assert ExportTaskService._resolve_entrypoint_path(str(tmp_path)) == str(tmp_path / "runner.mjs")

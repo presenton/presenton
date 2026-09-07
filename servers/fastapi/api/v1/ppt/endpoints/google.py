@@ -1,4 +1,5 @@
-from typing import Annotated, List
+from typing import Annotated
+
 from fastapi import APIRouter, Body, HTTPException
 
 from utils.available_models import ModelAvailabilityError, list_available_google_models
@@ -6,7 +7,7 @@ from utils.available_models import ModelAvailabilityError, list_available_google
 GOOGLE_ROUTER = APIRouter(prefix="/google", tags=["Google"])
 
 
-@GOOGLE_ROUTER.post("/models/available", response_model=List[str])
+@GOOGLE_ROUTER.post("/models/available", response_model=list[str])
 async def get_available_models(api_key: Annotated[str, Body(embed=True)]):
     try:
         return await list_available_google_models(api_key)

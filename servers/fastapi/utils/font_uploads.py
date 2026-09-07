@@ -1,9 +1,9 @@
 import asyncio
 import os
 import shutil
-from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 import uuid
+from collections.abc import Sequence
+from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 from pydantic import BaseModel
@@ -19,7 +19,6 @@ from templates.pptx_font_utils import (
 )
 from utils.asset_directory_utils import absolute_fastapi_asset_url
 from utils.get_env import get_app_data_directory_env
-
 
 ALLOWED_FONT_EXTENSIONS = {
     ".eot",
@@ -49,20 +48,20 @@ class FontUploadInfo(BaseModel):
     id: uuid.UUID
     filename: str
     path: str
-    family_name: Optional[str] = None
-    subfamily_name: Optional[str] = None
-    full_name: Optional[str] = None
-    postscript_name: Optional[str] = None
+    family_name: str | None = None
+    subfamily_name: str | None = None
+    full_name: str | None = None
+    postscript_name: str | None = None
     normalized_family_name: str
-    weight_class: Optional[int] = None
-    width_class: Optional[int] = None
-    format: Optional[str] = None
+    weight_class: int | None = None
+    width_class: int | None = None
+    format: str | None = None
     size_bytes: int
     url: str
 
 
 class FontUploadsResponse(BaseModel):
-    fonts: List[FontUploadInfo]
+    fonts: list[FontUploadInfo]
 
 
 def get_fonts_directory() -> str:
@@ -128,7 +127,7 @@ def safe_font_filename(filename: str) -> str:
     return name.replace("/", "_").replace("\\", "_")
 
 
-def raise_if_font_upload_too_large(size: Optional[int]) -> None:
+def raise_if_font_upload_too_large(size: int | None) -> None:
     if size is not None and size > MAX_FONT_UPLOAD_BYTES:
         limit_mb = MAX_FONT_UPLOAD_BYTES // (1024 * 1024)
         raise HTTPException(
@@ -148,7 +147,7 @@ def remove_font_file_quietly(path: str) -> None:
 async def read_upload_with_size_limit(font_file: UploadFile) -> bytes:
     raise_if_font_upload_too_large(getattr(font_file, "size", None))
 
-    chunks: List[bytes] = []
+    chunks: list[bytes] = []
     total = 0
     chunk_size = 64 * 1024
     while True:
@@ -165,9 +164,7 @@ async def read_upload_with_size_limit(font_file: UploadFile) -> bytes:
 def _font_upload_filesystem_path(font_upload: FontUpload) -> str:
     if os.path.isabs(font_upload.path):
         return font_upload.path
-    return os.path.join(
-        get_app_data_directory_env() or "/tmp/presenton", font_upload.path
-    )
+    return os.path.join(get_app_data_directory_env() or "/tmp/presenton", font_upload.path)
 
 
 def _font_path_to_url(path: str) -> str:
@@ -226,16 +223,13 @@ def _font_detail_to_extras(detail: FontDetail) -> dict:
 
 def _build_font_upload_from_path(
     font_path: str,
-    filename: Optional[str] = None,
+    filename: str | None = None,
 ) -> FontUpload:
     detail = get_font_details(font_path)
     if detail.error:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Failed to extract font info for '{filename or font_path}': "
-                f"{detail.error}"
-            ),
+            detail=(f"Failed to extract font info for '{filename or font_path}': {detail.error}"),
         )
 
     family_name = detail.family_name or extract_font_name_from_file(font_path)
@@ -270,8 +264,7 @@ async def backfill_font_uploads_from_disk() -> None:
     candidate_paths = [
         os.path.join(fonts_dir, filename)
         for filename in os.listdir(fonts_dir)
-        if is_allowed_font_filename(filename)
-        and os.path.isfile(os.path.join(fonts_dir, filename))
+        if is_allowed_font_filename(filename) and os.path.isfile(os.path.join(fonts_dir, filename))
     ]
     if not candidate_paths:
         return
@@ -280,17 +273,12 @@ async def backfill_font_uploads_from_disk() -> None:
         result = await session.execute(select(FontUpload.path))
         existing_paths = set(result.scalars().all())
         existing_abs_paths = {
-            os.path.abspath(path)
-            for path in existing_paths
-            if path and os.path.isabs(path)
+            os.path.abspath(path) for path in existing_paths if path and os.path.isabs(path)
         }
 
         added = False
         for font_path in candidate_paths:
-            if (
-                font_path in existing_paths
-                or os.path.abspath(font_path) in existing_abs_paths
-            ):
+            if font_path in existing_paths or os.path.abspath(font_path) in existing_abs_paths:
                 continue
             try:
                 session.add(_build_font_upload_from_path(font_path))
@@ -320,14 +308,12 @@ async def _persist_built_font_upload(
 
 async def persist_font_file(
     src_path: str,
-    filename: Optional[str] = None,
-) -> Tuple[FontUpload, str]:
+    filename: str | None = None,
+) -> tuple[FontUpload, str]:
     source_filename = safe_font_filename(filename or os.path.basename(src_path))
     extension = validate_font_filename(source_filename)
     raise_if_font_upload_too_large(os.path.getsize(src_path))
-    unique_filename = (
-        f"{Path(source_filename).stem}_{uuid.uuid4().hex[:8]}{extension}"
-    )
+    unique_filename = f"{Path(source_filename).stem}_{uuid.uuid4().hex[:8]}{extension}"
     dest_path = os.path.join(get_fonts_directory(), unique_filename)
     committed = False
     try:
@@ -343,7 +329,7 @@ async def persist_font_file(
         raise
 
 
-async def persist_upload_file(font_file: UploadFile) -> Tuple[FontUpload, str]:
+async def persist_upload_file(font_file: UploadFile) -> tuple[FontUpload, str]:
     filename = safe_font_filename(getattr(font_file, "filename", "") or "font")
     validate_font_filename(filename)
     extension = Path(filename).suffix.lower()
@@ -405,9 +391,9 @@ async def delete_font_upload(identifier: str) -> FontUploadInfo:
 
 async def get_font_uploads_for_names_by_variant(
     font_names: Sequence[str],
-) -> Dict[str, Dict[str, FontUpload]]:
+) -> dict[str, dict[str, FontUpload]]:
     await backfill_font_uploads_from_disk()
-    normalized_to_originals: Dict[str, List[str]] = {}
+    normalized_to_originals: dict[str, list[str]] = {}
     for font_name in font_names:
         normalized = normalize_font_family_name(font_name)
         if normalized:
@@ -426,14 +412,12 @@ async def get_font_uploads_for_names_by_variant(
     async with async_session_maker() as session:
         result = await session.execute(query)
 
-    matched: Dict[str, Dict[str, FontUpload]] = {}
+    matched: dict[str, dict[str, FontUpload]] = {}
     for font_upload in result.scalars().all():
         variant = get_font_upload_variant(font_upload)
         if variant == "unsupported":
             continue
-        original_names = normalized_to_originals.get(
-            font_upload.normalized_family_name, []
-        )
+        original_names = normalized_to_originals.get(font_upload.normalized_family_name, [])
         for original_name in original_names:
             matched.setdefault(original_name, {})
             if variant not in matched[original_name]:
@@ -444,8 +428,8 @@ async def get_font_uploads_for_names_by_variant(
 async def download_font_uploads(
     font_uploads: Sequence[FontUpload],
     save_directory: str,
-) -> Dict[uuid.UUID, str]:
-    downloaded: Dict[uuid.UUID, str] = {}
+) -> dict[uuid.UUID, str]:
+    downloaded: dict[uuid.UUID, str] = {}
     os.makedirs(save_directory, exist_ok=True)
     for font_upload in font_uploads:
         src_path = _font_upload_filesystem_path(font_upload)

@@ -327,7 +327,7 @@ function TemplateV2MultiSelectionMemberOutline({
       anchorSize={0}
       borderDash={MULTI_SELECTION_MEMBER_DASH}
       borderEnabled
-      borderStroke="#7A5AF8"
+      borderStroke="#2563EB"
       borderStrokeWidth={1}
       enabledAnchors={[]}
       listening={false}
@@ -550,7 +550,7 @@ export function TemplateV2SelectionTransformers({
           isMultiComponentSelection ? MULTI_SELECTION_GROUP_DASH : undefined
         }
         borderEnabled
-        borderStroke={isMultiComponentSelection ? "#D9D9DE" : "#7A5AF8"}
+        borderStroke={isMultiComponentSelection ? "#D9D9DE" : "#2563EB"}
         borderStrokeWidth={1}
         boundBoxFunc={boundTransformBox}
         enabledAnchors={

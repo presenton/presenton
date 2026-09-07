@@ -87,8 +87,8 @@ export function SlideEditorFontImportDialog({
       <DialogContent className="max-h-[88vh] overflow-hidden p-0 sm:max-w-[760px]">
         <DialogHeader className="border-b border-[#EEF0F4] px-6 py-5">
           <DialogTitle className="flex items-center gap-3 text-left">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EBE9FE]">
-              <Type className="h-5 w-5 text-[#7A5AF8]" />
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#DBEAFE]">
+              <Type className="h-5 w-5 text-[#2563EB]" />
             </span>
             <span className="grid gap-1">
               <span className="text-xl font-semibold text-[#111827]">
@@ -106,7 +106,7 @@ export function SlideEditorFontImportDialog({
         <div className="max-h-[58vh] overflow-y-auto px-6 py-5">
           {isChecking ? (
             <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-[#7A5AF8]" />
+              <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
               <div>
                 <p className="text-sm font-semibold text-[#111827]">
                   Checking presentation fonts
@@ -272,7 +272,7 @@ export function SlideEditorFontImportDialog({
               </Button>
               {error && !fontsData ? (
                 <Button
-                  className="rounded-full bg-[#7A5AF8] text-white hover:bg-[#6941C6]"
+                  className="rounded-full bg-[#2563EB] text-white hover:bg-[#6941C6]"
                   disabled={isPreparing}
                   onClick={onOpenWithoutFontCheck}
                 >
@@ -281,7 +281,7 @@ export function SlideEditorFontImportDialog({
                 </Button>
               ) : (
                 <Button
-                  className="rounded-full bg-[#7A5AF8] text-white hover:bg-[#6941C6]"
+                  className="rounded-full bg-[#2563EB] text-white hover:bg-[#6941C6]"
                   disabled={!canOpenWithFonts || isPreparing}
                   onClick={onOpenWithFonts}
                 >

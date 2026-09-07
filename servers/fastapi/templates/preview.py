@@ -5,16 +5,16 @@ Implementation is ported from presenton-enterprise fonts_and_slides_preview flow
 adapted for local app_data storage instead of S3.
 """
 
-from typing import List, Optional
-
-from fastapi import File, HTTPException, UploadFile
+from fastapi import File, UploadFile
 
 from templates.fonts_and_slides_preview import (
     FontCheckResponse,
     FontInfo,
     FontsUploadAndSlidesPreviewResponse,
-    check_fonts_in_pptx_handler as _check_fonts_in_pptx_handler,
     upload_fonts_and_preview_handler,
+)
+from templates.fonts_and_slides_preview import (
+    check_fonts_in_pptx_handler as _check_fonts_in_pptx_handler,
 )
 
 __all__ = [
@@ -34,17 +34,17 @@ async def check_fonts_in_pptx_handler(
 
 async def upload_fonts_and_slides_preview_handler(
     pptx_file: UploadFile,
-    font_files: Optional[List[UploadFile]] = None,
-    original_font_names: Optional[List[str]] = None,
-    google_font_original_names: Optional[List[str]] = None,
-    google_font_replacement_names: Optional[List[str]] = None,
-    google_font_names: Optional[List[str]] = None,
-    google_font_urls: Optional[List[str]] = None,
-    max_slides: Optional[int] = None,
+    font_files: list[UploadFile] | None = None,
+    original_font_names: list[str] | None = None,
+    google_font_original_names: list[str] | None = None,
+    google_font_replacement_names: list[str] | None = None,
+    google_font_names: list[str] | None = None,
+    google_font_urls: list[str] | None = None,
+    max_slides: int | None = None,
     upload_fonts: bool = True,
     get_slide_images: bool = True,
     upload_presentation: bool = True,
-    temp_dir: Optional[str] = None,
+    temp_dir: str | None = None,
 ) -> FontsUploadAndSlidesPreviewResponse:
     return await upload_fonts_and_preview_handler(
         pptx_file=pptx_file,

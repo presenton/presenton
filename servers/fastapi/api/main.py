@@ -8,11 +8,12 @@ from starlette.responses import FileResponse
 
 from api.lifespan import app_lifespan
 from api.middlewares import SessionAuthMiddleware, UserConfigEnvUpdateMiddleware
+from api.v1.admin.router import API_V1_ADMIN_ROUTER
 from api.v1.async_tasks.router import API_V1_ASYNC_TASKS_ROUTER
 from api.v1.auth.router import API_V1_AUTH_ROUTER
-from api.v1.admin.router import API_V1_ADMIN_ROUTER
 from api.v1.mock.router import API_V1_MOCK_ROUTER
 from api.v1.ppt.router import API_V1_PPT_ROUTER
+from api.v1.quota import QUOTA_ROUTER
 from api.v1.webhook.router import API_V1_WEBHOOK_ROUTER
 from api.v2.router import API_V2_ROUTER
 from utils.get_env import (
@@ -23,7 +24,6 @@ from utils.get_env import (
 )
 from utils.mime_types import init_sandbox_safe_mimetypes
 from utils.path_helpers import get_resource_path
-
 
 init_sandbox_safe_mimetypes()
 
@@ -42,9 +42,7 @@ def _maybe_init_sentry() -> None:
     traces_sample_rate = get_sentry_traces_sample_rate_env()
     send_default_pii = get_sentry_send_default_pii_env()
     try:
-        parsed_sample_rate = (
-            float(traces_sample_rate) if traces_sample_rate is not None else 1.0
-        )
+        parsed_sample_rate = float(traces_sample_rate) if traces_sample_rate is not None else 1.0
     except ValueError:
         parsed_sample_rate = 1.0
 
@@ -65,6 +63,7 @@ app = FastAPI(lifespan=app_lifespan)
 
 # Routers
 app.include_router(API_V1_PPT_ROUTER)
+app.include_router(QUOTA_ROUTER)
 app.include_router(API_V1_WEBHOOK_ROUTER)
 app.include_router(API_V1_MOCK_ROUTER)
 app.include_router(API_V1_AUTH_ROUTER)
@@ -82,10 +81,10 @@ static_dir = get_resource_path("static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Electron serves Next.js and FastAPI from separate loopback ports. When its
-# runtime Next.js origin is available, use that exact origin so credentialed
-# requests remain standards-compliant. Docker stays same-origin behind nginx;
-# the wildcard fallback preserves standalone FastAPI development behavior.
+# When a separate Next.js origin is configured via NEXT_PUBLIC_URL, use that
+# exact origin so credentialed requests remain standards-compliant. Docker
+# stays same-origin behind nginx; the wildcard fallback preserves standalone
+# FastAPI development behavior.
 next_public_origin = (os.getenv("NEXT_PUBLIC_URL") or "").strip().rstrip("/")
 origins = [next_public_origin] if next_public_origin else ["*"]
 app.add_middleware(

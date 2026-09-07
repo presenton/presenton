@@ -5,18 +5,14 @@ Revises: f42ad4074449
 Create Date: 2026-03-24 12:42:46.220359
 
 """
-from typing import Sequence, Union
 
-from alembic import op
-import sqlalchemy as sa
-import sqlmodel
-
+from collections.abc import Sequence
 
 # revision identifiers, used by Alembic.
-revision: str = '82abdbc476a7'
-down_revision: Union[str, None] = 'f42ad4074449'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "82abdbc476a7"
+down_revision: str | None = "f42ad4074449"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

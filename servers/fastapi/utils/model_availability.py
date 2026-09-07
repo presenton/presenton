@@ -1,54 +1,54 @@
 from enums.image_provider import ImageProvider
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
+    get_anthropic_api_key_env,
+    get_anthropic_model_env,
     get_azure_openai_api_key_env,
     get_azure_openai_api_version_env,
     get_azure_openai_base_url_env,
     get_azure_openai_endpoint_env,
-    get_anthropic_api_key_env,
-    get_anthropic_model_env,
     get_bedrock_api_key_env,
     get_bedrock_aws_access_key_id_env,
     get_bedrock_aws_secret_access_key_env,
     get_bedrock_model_env,
     get_can_change_keys_env,
     get_cerebras_api_key_env,
+    get_comfyui_url_env,
+    get_comfyui_workflow_env,
+    get_custom_llm_url_env,
+    get_custom_model_env,
+    get_deepseek_api_key_env,
+    get_deepseek_model_env,
     get_fireworks_api_key_env,
     get_fireworks_model_env,
+    get_google_api_key_env,
     get_google_model_env,
     get_litellm_base_url_env,
     get_litellm_model_env,
     get_lmstudio_model_env,
+    get_ollama_model_env,
     get_openai_api_key_env,
     get_openai_model_env,
     get_openrouter_api_key_env,
     get_openrouter_model_env,
+    get_pexels_api_key_env,
+    get_pixabay_api_key_env,
     get_together_api_key_env,
     get_together_model_env,
-    get_pixabay_api_key_env,
-    get_pexels_api_key_env,
     get_vertex_api_key_env,
     get_vertex_location_env,
     get_vertex_project_env,
-    get_comfyui_url_env,
-    get_comfyui_workflow_env,
-    get_deepseek_api_key_env,
-    get_deepseek_model_env,
 )
-from utils.get_env import get_google_api_key_env
-from utils.get_env import get_ollama_model_env
-from utils.get_env import get_custom_llm_url_env
-from utils.get_env import get_custom_model_env
+from utils.image_provider import (
+    get_selected_image_provider,
+    is_image_generation_disabled,
+)
 from utils.llm_provider import (
     get_llm_provider,
     is_custom_llm_selected,
     is_ollama_selected,
 )
 from utils.ollama import list_available_ollama_models
-from utils.image_provider import (
-    get_selected_image_provider,
-    is_image_generation_disabled,
-)
 
 
 def _check_image_provider_configuration() -> None:
@@ -124,9 +124,7 @@ async def check_llm_and_image_provider_api_or_model_availability():
             vertex_project = get_vertex_project_env()
             vertex_location = get_vertex_location_env()
             if not vertex_api_key and not vertex_project:
-                raise Exception(
-                    "Configure VERTEX_API_KEY or VERTEX_PROJECT for Vertex AI"
-                )
+                raise Exception("Configure VERTEX_API_KEY or VERTEX_PROJECT for Vertex AI")
             if vertex_api_key and (vertex_project or vertex_location):
                 raise Exception(
                     "Vertex config is ambiguous. Use either VERTEX_API_KEY or "
@@ -143,9 +141,7 @@ async def check_llm_and_image_provider_api_or_model_availability():
             if not azure_api_version:
                 raise Exception("AZURE_OPENAI_API_VERSION must be provided")
             if not azure_endpoint and not azure_base_url:
-                raise Exception(
-                    "AZURE_OPENAI_ENDPOINT or AZURE_OPENAI_BASE_URL must be provided"
-                )
+                raise Exception("AZURE_OPENAI_ENDPOINT or AZURE_OPENAI_BASE_URL must be provided")
 
         elif get_llm_provider() == LLMProvider.BEDROCK:
             bedrock_model = (get_bedrock_model_env() or "").strip()

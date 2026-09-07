@@ -1,12 +1,11 @@
 import math
 import re
-from typing import Iterable, List, Optional
+from collections.abc import Iterable
 
 from models.presentation_outline_model import (
     PresentationOutlineModel,
     SlideOutlineModel,
 )
-
 
 HEADING_PATTERN = re.compile(r"^\s{0,3}#+\s*(.+)$", re.MULTILINE)
 FIRST_SENTENCE_PATTERN = re.compile(r"^\s*([^.?!]+?[.?!])", re.DOTALL)
@@ -33,11 +32,7 @@ def get_presentation_title_from_presentation_outline(
         )
 
     return (
-        first_content[:100]
-        .replace("#", "")
-        .replace("/", "")
-        .replace("\\", "")
-        .replace("\n", " ")
+        first_content[:100].replace("#", "").replace("/", "").replace("\\", "").replace("\n", " ")
     )
 
 
@@ -53,7 +48,7 @@ def get_no_of_toc_required_for_n_outlines(
     *,
     n_outlines: int,
     title_slide: bool,
-    target_total_slides: Optional[int] = None,
+    target_total_slides: int | None = None,
 ) -> int:
     if target_total_slides is not None:
         adjusted_total = max(target_total_slides, n_outlines)
@@ -102,12 +97,12 @@ def get_presentation_outline_model_with_toc(
     if not sections:
         return outline_with_toc
 
-    toc_slides: List[SlideOutlineModel] = []
+    toc_slides: list[SlideOutlineModel] = []
     outlines_before_toc = 1 if title_slide else 0
     total_toc_slides = len(sections)
     global_outline_index = 0
 
-    for section_index, section in enumerate(sections):
+    for _section_index, section in enumerate(sections):
         section_lines = [
             "## Table of Contents",
             "",
@@ -115,19 +110,13 @@ def get_presentation_outline_model_with_toc(
 
         for outline in section:
             outline_title = _extract_outline_title(outline.content)
-            page_number = (
-                outlines_before_toc + total_toc_slides + global_outline_index + 1
-            )
-            section_lines.append(
-                f"- Page number: {page_number}, Title: {outline_title}"
-            )
+            page_number = outlines_before_toc + total_toc_slides + global_outline_index + 1
+            section_lines.append(f"- Page number: {page_number}, Title: {outline_title}")
             global_outline_index += 1
 
         toc_slides.append(
             SlideOutlineModel(
-                content="\n".join(
-                    line for line in section_lines if line is not None
-                ).strip()
+                content="\n".join(line for line in section_lines if line is not None).strip()
             )
         )
 
@@ -139,7 +128,7 @@ def get_presentation_outline_model_with_toc(
 
 def _split_outlines_evenly(
     outlines: Iterable[SlideOutlineModel], n_sections: int
-) -> List[List[SlideOutlineModel]]:
+) -> list[list[SlideOutlineModel]]:
     """Split outlines into n contiguous sections with near-equal sizes."""
     outlines_list = list(outlines)
     if n_sections <= 0 or not outlines_list:
@@ -150,7 +139,7 @@ def _split_outlines_evenly(
     base_size = total // n_sections
     remainder = total % n_sections
 
-    sections: List[List[SlideOutlineModel]] = []
+    sections: list[list[SlideOutlineModel]] = []
     start = 0
     for section_index in range(n_sections):
         current_size = base_size + (1 if section_index < remainder else 0)
@@ -182,8 +171,8 @@ def _extract_outline_title(content: str) -> str:
 
 
 def get_images_for_slides_from_outline(
-    slides: List[SlideOutlineModel],
-) -> List[List[str]]:
+    slides: list[SlideOutlineModel],
+) -> list[list[str]]:
     """
     Extract image URLs (png, jpg, jpeg, webp) from each slide's content in the outline.
 
@@ -193,7 +182,7 @@ def get_images_for_slides_from_outline(
     Returns:
         List of lists of image URLs, one list per slide
     """
-    result: List[List[str]] = []
+    result: list[list[str]] = []
 
     for slide in slides:
         content = slide.content or ""

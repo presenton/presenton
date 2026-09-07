@@ -2,7 +2,9 @@ import { resolveBackendAssetUrl } from "@/utils/api";
 import { markdownToPlainChartText } from "@/components/slide-editor/charts/chart-data";
 import { normalizeRawTextMarkdownElement } from "@/components/slide-editor/text/template-v2-text";
 import { isLatexTextRun } from "@/components/slide-editor/text/text-runs";
+import { coerceTemporalChartKind } from "@/lib/chart-semantics";
 import { normalizeMathLatex, renderMathHtml } from "@/lib/math";
+import { renderTextFitScript } from "@/lib/text-fit";
 import { buildSvgUpdateUrl } from "@/lib/svg-color";
 import { normalizeInfographicIcon } from "@/components/slide-editor/infographics/infographic-editing";
 import {
@@ -144,6 +146,18 @@ const TEMPLATE_V2_MATH_CSS = `
 export const TEMPLATE_V2_HTML_WIDTH = 1280;
 export const TEMPLATE_V2_HTML_HEIGHT = 720;
 
+// Пол размеров шрифта. Экспорт честно переносит px в pt (0.75pt/px для
+// канвы 1280px на слайде 13.33"), поэтому шрифт ниже 12px в PPTX даёт
+// нечитаемые 9pt — прод-кейс 2026-09-05 (дека «ИТ в России»): body 12–14px
+// и подписи графиков 8–9.9px. Страховочный пол применяется и к старым
+// шаблонам; авторинг новых дополнительно ограничен правилами промпта.
+export const TEMPLATE_V2_MIN_FONT_SIZE_PX = 12;
+
+// Спокойный нейтральный градиент вместо белого дефолта: старые деки без
+// явного фона и ui без палитры не должны выглядеть «бумагой».
+export const DEFAULT_SLIDE_BACKGROUND =
+  "linear-gradient(150deg, #f7f8fa 0%, #f1f3f7 55%, #e9edf4 100%)";
+
 export function templateV2UiToHtml(
   ui: unknown,
   options: TemplateV2HtmlOptions = {}
@@ -193,7 +207,9 @@ function templateV2RenderPayload(
 
   const width = options.width ?? TEMPLATE_V2_HTML_WIDTH;
   const height = options.height ?? TEMPLATE_V2_HTML_HEIGHT;
-  const background = normalizeCssColor(readString(record.background) ?? "#FFFFFF");
+  const background = normalizeCssColor(
+    readString(record.background) ?? DEFAULT_SLIDE_BACKGROUND
+  );
 
   return {
     items,
@@ -239,7 +255,7 @@ function jsonToHtml(
   width: number,
   height: number,
   fonts: unknown = {},
-  background = "#FFFFFF"
+  background = DEFAULT_SLIDE_BACKGROUND
 ): string {
   const records = items.map(readRecord);
   const chartScripts = records.some(hasChartItem) ? renderChartScripts() : "";
@@ -253,7 +269,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:${bg}}
 body{font-family:Arial,Helvetica,sans-serif}
 *,*::before,*::after{box-sizing:border-box}
 ${TEMPLATE_V2_MATH_CSS}
-</style></head><body>${slideRoot}${chartScripts}</body></html>`;
+</style></head><body>${slideRoot}${chartScripts}${renderTextFitScript()}</body></html>`;
 }
 
 function jsonToHtmlFragment(
@@ -261,7 +277,7 @@ function jsonToHtmlFragment(
   width: number,
   height: number,
   fonts: unknown = {},
-  background = "#FFFFFF"
+  background = DEFAULT_SLIDE_BACKGROUND
 ): string {
   const records = items.map(readRecord);
   const bg = escapeCssColor(background);
@@ -392,7 +408,7 @@ function renderText(item: JsonRecord, mode: RenderMode): string {
     })
     .join("");
 
-  return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(font, {
+  return `<div data-presenton-text="true" style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(font, {
     includeLineHeight: false,
     includeTextDecoration: false,
   })}${textShadowStyle(item)}display:flex;align-items:${verticalAlign(
@@ -436,7 +452,7 @@ function renderTextList(item: JsonRecord, mode: RenderMode): string {
   const listStyle = `margin:0;padding-left:${hidesNativeMarkers ? 0 : 24}px;${hidesNativeMarkers ? "list-style-type:none;" : ""
     }`;
 
-  return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(
+  return `<div data-presenton-text="true" style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(
     font,
     { includeTextDecoration: false }
   )}${textOverflowStyle()}"><${tag} style="${listStyle}">${entries}</${tag}></div>`;
@@ -2083,8 +2099,15 @@ function mindMapHtmlTextBox(position: { x: number; y: number }, radius: number, 
 }
 
 function chartConfig(item: JsonRecord, height: number): JsonRecord {
-  const chartKind = chartKindFromValue(readString(item.chartType ?? item.chart_type));
-  const data = normalizeChartData(item, chartKind);
+  let chartKind = chartKindFromValue(readString(item.chartType ?? item.chart_type));
+  let data = normalizeChartData(item, chartKind);
+  // Временные ряды не рисуются столбцами/кругами: страховка на старых деках,
+  // сервер уже коерсирует новые (utils/chart_semantics.py).
+  const temporalKind = coerceTemporalChartKind(chartKind, data.categories);
+  if (temporalKind && temporalKind !== chartKind) {
+    chartKind = temporalKind as ChartKind;
+    data = normalizeChartData(item, chartKind);
+  }
   const primaryColor = safeChartColor(readString(item.color), DEFAULT_CHART_COLORS[0]);
   const colors = data.colors.length > 0 ? data.colors : [primaryColor];
   const axisColor = safeChartColor(
@@ -2106,9 +2129,12 @@ function chartConfig(item: JsonRecord, height: number): JsonRecord {
     textColor
   );
   const title = markdownToPlainChartText(readString(item.title) ?? "");
-  const fontSize = clamp(height * 0.033, 9, 18);
-  const titleFontSize = clamp(height * 0.044, 11, 26);
-  const valueFontSize = clamp(height * 0.029, 8, 15);
+  // Прежние коэффициенты (0.033/0.044/0.029 с полом 9/11/8) давали на
+  // эталонном графике 640x300 всего 9.9px подписей (7.4pt в PPTX). Пол 12px
+  // достигается от ~286px высоты, потолок 20px — от ~476px.
+  const fontSize = clamp(height * 0.042, TEMPLATE_V2_MIN_FONT_SIZE_PX, 20);
+  const titleFontSize = clamp(height * 0.05, 14, 26);
+  const valueFontSize = clamp(height * 0.036, 11, 16);
   const autoShowLegend =
     isPieLikeChart(chartKind) ||
     data.series.length > 1 ||
@@ -2583,7 +2609,7 @@ function chartScales({
           display: yAxis,
           font: {
             family: CHART_FONT_FAMILY,
-            size: Math.max(8, fontSize - 1),
+            size: Math.max(10, fontSize - 1),
           },
           presentonFormat: true,
         },
@@ -2637,7 +2663,7 @@ function chartScales({
       display: showLinearAxis,
       font: {
         family: CHART_FONT_FAMILY,
-        size: Math.max(8, fontSize - 2),
+        size: Math.max(10, fontSize - 2),
         weight: 600,
       },
       presentonFormat: true,
@@ -3310,7 +3336,9 @@ function fontStyle(
   const family = readString(font.family);
   const size = readNumber(font.size);
   if (family) style += `font-family:${escapeCssFont(family)};`;
-  if (size != null) style += `font-size:${cssNumber(size)}px;`;
+  if (size != null) {
+    style += `font-size:${cssNumber(Math.max(TEMPLATE_V2_MIN_FONT_SIZE_PX, size))}px;`;
+  }
   if (hasOwn(font, "italic")) {
     style += readBoolean(font.italic) ? "font-style:italic;" : "font-style:normal;";
   }
@@ -3402,7 +3430,11 @@ function tableCellStyle(
 }
 
 function textOverflowStyle(): string {
-  return "overflow:visible;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;";
+  // `overflow-wrap:anywhere` + `word-break:break-word` рвали слова посередине
+  // даже когда строка влезала (anywhere влияет на min-content в flex/grid).
+  // `break-word` рвёт слово только когда оно и есть строка; переносы —
+  // по словам.
+  return "overflow:visible;white-space:pre-wrap;overflow-wrap:break-word;word-break:normal;";
 }
 
 function tableCellFont(cellValue: unknown, tableFont: JsonRecord): JsonRecord {

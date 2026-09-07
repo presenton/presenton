@@ -26,30 +26,15 @@ import { notify } from "@/components/ui/sonner";
 import { sanitizeAnalyticsError } from "@/utils/analytics";
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from "@/utils/providerConstants";
 
-const GITHUB_REPOSITORY_URL = "https://github.com/presenton/presenton";
-const DISCORD_INVITE_URL = "https://discord.com/invite/9ZsKKxudNE";
-const APP_UPDATE_URL = "https://presenton.ai/download";
+
 
 const actionCardBase =
   "absolute aspect-[16/9] h-[46.238px] w-[82.201px] rounded-[4.474px] border border-white/50 bg-cover bg-center bg-no-repeat shadow-[0_8px_18px_rgba(16,24,40,0.18)] transition-all duration-500 ease-out opacity-100 translate-y-0 scale-100";
 
 const dashboardHeaderPill =
-  "inline-flex shrink-0 items-center justify-center rounded-full text-[#191919] transition-colors hover:bg-[#F8F8FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2";
+  "inline-flex shrink-0 items-center justify-center rounded-full text-[#191919] transition-colors hover:bg-[#F8F8FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2";
 
-const dashboardHeaderAsset = (name: string) => `/dashboard-header/${name}`;
 const dashboardBodyAsset = (name: string) => `/dashboard-body/${name}`;
-
-const DashboardHeaderDivider = () => (
-  <span className="relative h-5 w-px shrink-0" aria-hidden="true">
-    <Image
-      src={dashboardHeaderAsset("divider.svg")}
-      alt=""
-      width={20}
-      height={1}
-      className="absolute left-1/2 top-1/2 h-px w-5 max-w-none -translate-x-1/2 -translate-y-1/2 rotate-90"
-    />
-  </span>
-);
 
 const FloatingActionCards = () => (
   <div className="pointer-events-none absolute right-[14px] top-[-35px] z-0 hidden h-[64px] w-[158px] sm:block">
@@ -98,7 +83,7 @@ const DashboardActionCard = ({
   mediaClassName = "w-[96px]",
 }: DashboardActionCardProps) => {
   const className =
-    "group/action relative isolate flex h-[90px] w-full min-w-0 overflow-visible rounded-[10.8px] border border-[#EDEEEF] bg-white text-[#191919] outline-none transition-all duration-300 hover:border-[#D7D8DE] hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-4 disabled:cursor-wait disabled:opacity-70 disabled:hover:border-[#EDEEEF] disabled:hover:shadow-none";
+    "group/action relative isolate flex h-[90px] w-full min-w-0 overflow-visible rounded-[10.8px] border border-[#EDEEEF] bg-white text-[#191919] outline-none transition-all duration-300 hover:border-[#D7D8DE] hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-4 disabled:cursor-wait disabled:opacity-70 disabled:hover:border-[#EDEEEF] disabled:hover:shadow-none";
   const content = (
     <>
       {children}
@@ -208,22 +193,11 @@ const sortPresentationsNewestFirst = (presentations: PresentationResponse[]) =>
     );
   });
 
-function formatGitHubStars(stars: number) {
-  if (stars >= 1_000_000) {
-    return `${(stars / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;
-  }
-  if (stars >= 1_000) {
-    return `${(stars / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-  }
-  return stars.toLocaleString();
-}
-
 function DashboardHeader() {
   const pathname = usePathname();
   const llmConfig = useSelector(
     (state: RootState) => state.userConfig.llm_config,
   );
-  const [isElectronApp, setIsElectronApp] = useState(false);
 
   const textProvider = LLM_PROVIDERS[llmConfig.LLM || "openai"];
   const imageProvider = llmConfig.DISABLE_IMAGE_GENERATION
@@ -233,16 +207,6 @@ function DashboardHeader() {
     (provider): provider is NonNullable<typeof provider> =>
       Boolean(provider?.icon),
   );
-
-  useEffect(() => {
-    setIsElectronApp(Boolean(window.electron));
-
-    let isMounted = true;
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   return (
     <header className="sticky top-0 z-50 ml-7 mr-[9px] flex h-[105px] items-center justify-between border-b border-[#EDEEEF] bg-white px-1 max-lg:h-auto max-lg:min-h-[105px] max-lg:flex-col max-lg:items-start max-lg:gap-4 max-lg:py-5">
@@ -295,93 +259,9 @@ function DashboardHeader() {
               </span>
             </Link>
 
-            <DashboardHeaderDivider />
 
-            <Link
-              href={DISCORD_INVITE_URL}
-              target="_blank"
-              rel="noreferrer"
-              className={`${dashboardHeaderPill} h-[29.6px] gap-[8.8px] p-1.5`}
-              onClick={() =>
-                trackEvent(MixpanelEvent.Navigation, {
-                  from: pathname,
-                  to: DISCORD_INVITE_URL,
-                  source: "dashboard_header_discord",
-                })
-              }
-            >
-              <Image
-                src={dashboardHeaderAsset("discord.svg")}
-                alt=""
-                aria-hidden="true"
-                width={18}
-                height={18}
-                className="h-[17.6px] w-[17.6px] shrink-0"
-              />
-              <span className="font-syne text-sm font-normal leading-normal tracking-[-0.14px] text-[#191919]">
-                Join Discord
-              </span>
-            </Link>
-            <DashboardHeaderDivider />
-            <Link
-              href={GITHUB_REPOSITORY_URL}
-              target="_blank"
-              rel="noreferrer"
-              className={`${dashboardHeaderPill} h-[29.6px] gap-[8.8px] p-1.5`}
-              onClick={() =>
-                trackEvent(MixpanelEvent.Navigation, {
-                  from: pathname,
-                  to: GITHUB_REPOSITORY_URL,
-                  source: "dashboard_header_github",
-                })
-              }
-            >
-              <Image
-                src={dashboardHeaderAsset("github.svg")}
-                alt=""
-                aria-hidden="true"
-                width={18}
-                height={18}
-                className="h-[17.6px] w-[17.6px] shrink-0"
-              />
-            </Link>
           </div>
 
-          {isElectronApp && (
-            <Link
-              href={APP_UPDATE_URL}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Update Presenton"
-              title="Update Presenton"
-              className="relative flex h-[42.24px] w-[42.24px] shrink-0 items-center justify-center rounded-full border-[1.32px] border-[#D9D6FE] bg-[#FAFAFF] transition-colors hover:bg-[#F3F0FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2"
-              onClick={() =>
-                trackEvent(MixpanelEvent.Navigation, {
-                  from: pathname,
-                  to: APP_UPDATE_URL,
-                  source: "dashboard_header_update_app",
-                  app_version: window.env?.APP_VERSION,
-                })
-              }
-            >
-              <Image
-                src={dashboardHeaderAsset("update-arrow.svg")}
-                alt=""
-                aria-hidden="true"
-                width={16}
-                height={16}
-                className="h-4 w-4 -rotate-90"
-              />
-              <Image
-                src={dashboardHeaderAsset("update-badge.svg")}
-                alt=""
-                aria-hidden="true"
-                width={14}
-                height={14}
-                className="absolute left-[26.44px] top-[-2.32px] h-[13.2px] w-[13.2px]"
-              />
-            </Link>
-          )}
         </div>
       </div>
     </header>
@@ -561,7 +441,7 @@ const DashboardPage: React.FC = () => {
                 onClick={() => setDeckViewMode("grid")}
                 aria-label="Grid view"
                 aria-pressed={deckViewMode === "grid"}
-                className={`flex items-center rounded px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] ${deckViewMode === "grid" ? "bg-[#F6F6F9]" : "hover:bg-[#FAFAFC]"}`}
+                className={`flex items-center rounded px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] ${deckViewMode === "grid" ? "bg-[#F6F6F9]" : "hover:bg-[#FAFAFC]"}`}
               >
                 <GridViewIcon />
               </button>
@@ -570,7 +450,7 @@ const DashboardPage: React.FC = () => {
                 onClick={() => setDeckViewMode("list")}
                 aria-label="List view"
                 aria-pressed={deckViewMode === "list"}
-                className={`flex items-center rounded px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] ${deckViewMode === "list" ? "bg-[#F6F6F9]" : "hover:bg-[#FAFAFC]"}`}
+                className={`flex items-center rounded px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] ${deckViewMode === "list" ? "bg-[#F6F6F9]" : "hover:bg-[#FAFAFC]"}`}
               >
                 <ListViewIcon />
               </button>

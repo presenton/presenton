@@ -40,7 +40,7 @@ body:
       label: Steps to reproduce
       description: Provide the shortest reproducible steps.
       placeholder: |
-        1. Start Presenton Electron app
+        1. Start Presenton
         2. Generate presentation with 5 slides
         3. Click "Export PPTX"
         4. Error occurs
@@ -88,7 +88,6 @@ body:
     attributes:
       label: How are you running Presenton?
       options:
-        - Electron Desktop App
         - Docker
         - Local Development
         - API Only
@@ -138,4 +137,4 @@ body:
     attributes:
       label: Additional information
       description: Any extra context that might help debug the issue.
-      placeholder: Logs from Electron console, template used, or related issues.
+      placeholder: Logs from the browser console, template used, or related issues.

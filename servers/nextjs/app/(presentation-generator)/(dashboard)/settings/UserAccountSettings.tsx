@@ -1,6 +1,7 @@
 import { UserRound } from "lucide-react";
 
 import LogoutButton from "@/components/Auth/LogoutButton";
+import UserQuotaSection from "./UserQuotaSection";
 
 type UserAccountSettingsProps = {
   username: string;
@@ -24,12 +25,12 @@ export default function UserAccountSettings({
               Account
             </p>
             <div
-              className="flex w-full items-center gap-1.5 rounded-[6px] border border-[#D9D6FE] bg-[#F4F3FF] px-3 py-4"
+              className="flex w-full items-center gap-1.5 rounded-[6px] border border-[#BFDBFE] bg-[#EFF6FF] px-3 py-4"
               aria-current="page"
             >
               <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-[#EDEEEF] bg-white">
                 <UserRound
-                  className="h-3 w-3 text-[#5146E5]"
+                  className="h-3 w-3 text-[#1D4ED8]"
                   aria-hidden="true"
                 />
               </div>
@@ -61,9 +62,9 @@ export default function UserAccountSettings({
 
             <div className="mt-6 rounded-[12px] border border-[#EDEEEF] bg-white p-6">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[4px] bg-[#F4F3FF]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[4px] bg-[#EFF6FF]">
                   <UserRound
-                    className="h-5 w-5 text-[#5146E5]"
+                    className="h-5 w-5 text-[#1D4ED8]"
                     aria-hidden="true"
                   />
                 </div>
@@ -77,6 +78,8 @@ export default function UserAccountSettings({
                 </div>
               </div>
 
+              <UserQuotaSection />
+
               <div className="mt-6 border-t border-[#EDEEEF] pt-6">
                 <p className="text-sm font-semibold text-[#191919]">
                   Sign out
@@ -86,7 +89,7 @@ export default function UserAccountSettings({
                 </p>
                 <LogoutButton
                   label="Sign out"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[58px] border border-[#EDEEEF] bg-[#7C51F8] px-5 py-3 text-xs font-semibold text-white transition hover:bg-[#6d46e6] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[58px] border border-[#EDEEEF] bg-[#2563EB] px-5 py-3 text-xs font-semibold text-white transition hover:bg-[#6d46e6] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 />
               </div>
             </div>

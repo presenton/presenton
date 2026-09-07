@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -14,7 +13,6 @@ from utils.font_uploads import (
     persist_upload_file,
 )
 
-
 FONTS_ROUTER = APIRouter(prefix="/fonts", tags=["fonts"])
 
 SUPPORTED_FONT_EXTENSIONS = FONT_CONTENT_TYPES
@@ -25,17 +23,17 @@ class FontUploadResponse(BaseModel):
     font_name: str
     font_url: str
     font_path: str
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class FontListResponse(BaseModel):
     success: bool
-    fonts: List[dict]
-    message: Optional[str] = None
+    fonts: list[dict]
+    message: str | None = None
 
 
 class UploadedFontsResponse(BaseModel):
-    fonts: List[dict]
+    fonts: list[dict]
 
 
 def _font_display_name(font_info) -> str:
@@ -59,7 +57,7 @@ def _font_original_name(filename: str) -> str:
 async def upload_font(
     font_file: UploadFile = File(
         ..., description="Font file to upload (.ttf, .otf, .woff, .woff2, .eot)"
-    )
+    ),
 ):
     try:
         if not font_file.filename:
@@ -81,9 +79,7 @@ async def upload_font(
         raise
     except Exception as exc:
         print(f"Error uploading font: {exc}")
-        raise HTTPException(
-            status_code=500, detail=f"Error uploading font: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Error uploading font: {exc}") from exc
 
 
 @FONTS_ROUTER.get("/list", response_model=FontListResponse)
@@ -122,9 +118,7 @@ async def list_fonts():
 
     except Exception as exc:
         print(f"Error listing fonts: {exc}")
-        raise HTTPException(
-            status_code=500, detail=f"Error listing fonts: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Error listing fonts: {exc}") from exc
 
 
 @FONTS_ROUTER.get("/uploaded", response_model=UploadedFontsResponse)
@@ -144,14 +138,10 @@ async def get_uploaded_fonts():
 
     except Exception as exc:
         print(f"Error getting uploaded fonts: {exc}")
-        raise HTTPException(
-            status_code=500, detail=f"Error getting uploaded fonts: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Error getting uploaded fonts: {exc}") from exc
 
 
-FONTS_ROUTER.post("/check", response_model=FontCheckResponse)(
-    check_fonts_in_pptx_handler
-)
+FONTS_ROUTER.post("/check", response_model=FontCheckResponse)(check_fonts_in_pptx_handler)
 
 
 @FONTS_ROUTER.delete("/delete/{filename}")
@@ -167,6 +157,4 @@ async def delete_font(filename: str):
         raise
     except Exception as exc:
         print(f"Error deleting font: {exc}")
-        raise HTTPException(
-            status_code=500, detail=f"Error deleting font: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Error deleting font: {exc}") from exc

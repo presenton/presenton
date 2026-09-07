@@ -1,13 +1,14 @@
+import uuid
 from dataclasses import dataclass
 from typing import Literal
-import uuid
 
 from fastapi import HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.v1.auth.users import UsernameUserDatabase, UserManager, get_jwt_strategy
-from models.sql.user import User
 from api.v1.auth.config import SESSION_COOKIE_NAME
+from api.v1.auth.users import UserManager, UsernameUserDatabase, get_jwt_strategy
+from models.sql.access_token import AccessToken
+from models.sql.user import User
 from services.api_keys import verify_api_key
 
 
@@ -40,19 +41,35 @@ async def resolve_request_principal(
     authorization = request.headers.get("Authorization", "")
     if authorization.lower().startswith("bearer "):
         token = authorization.split(" ", 1)[1].strip()
+        # Сначала новый механизм API-ключей (Fernet, срок действия), затем
+        # легаси-токены из таблицы access_token — существующие токены
+        # Telegram-бота продолжают работать после перехода на api_keys.
         verified = await verify_api_key(session, token)
-        if verified is None:
-            return None, None
-        user = verified.user
-        return (
-            AuthPrincipal(
-                user_id=user.id,
-                username=user.username,
-                is_admin=user.is_superuser,
-                method="api_key",
-            ),
-            user,
-        )
+        if verified is not None:
+            user = verified.user
+            return (
+                AuthPrincipal(
+                    user_id=user.id,
+                    username=user.username,
+                    is_admin=user.is_superuser,
+                    method="api_key",
+                ),
+                user,
+            )
+        if token.startswith("sk-presenton-"):
+            access_token = await session.get(AccessToken, token)
+            if access_token is not None:
+                user = await session.get(User, access_token.user_id)
+                if user is not None and user.is_active and user.is_superuser:
+                    return (
+                        AuthPrincipal(
+                            user_id=user.id,
+                            username=user.username,
+                            is_admin=True,
+                            method="api_key",
+                        ),
+                        user,
+                    )
 
     return None, None
 

@@ -10,8 +10,8 @@ from constants.llm import (
     DEFAULT_CODEX_MODEL,
     DEFAULT_DEEPSEEK_MODEL,
     DEFAULT_FIREWORKS_MODEL,
-    DEFAULT_LITELLM_MODEL,
     DEFAULT_GOOGLE_MODEL,
+    DEFAULT_LITELLM_MODEL,
     DEFAULT_LMSTUDIO_MODEL,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_OPENROUTER_MODEL,
@@ -21,10 +21,11 @@ from constants.llm import (
 )
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
+    get_anthropic_model_env,
     get_azure_openai_deployment_env,
     get_azure_openai_model_env,
-    get_anthropic_model_env,
     get_bedrock_model_env,
+    get_cerebras_model_env,
     get_codex_model_env,
     get_custom_model_env,
     get_deepseek_model_env,
@@ -32,12 +33,11 @@ from utils.get_env import (
     get_google_api_key_env,
     get_google_model_env,
     get_litellm_model_env,
-    get_lmstudio_model_env,
     get_llm_provider_env,
+    get_lmstudio_model_env,
     get_ollama_model_env,
     get_openai_api_key_env,
     get_openai_model_env,
-    get_cerebras_model_env,
     get_openrouter_model_env,
     get_together_model_env,
     get_vertex_model_env,
@@ -47,7 +47,7 @@ from utils.get_env import (
 def get_llm_provider():
     try:
         return LLMProvider(get_llm_provider_env())
-    except:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail=(
@@ -135,9 +135,7 @@ def get_model():
         return get_vertex_model_env() or DEFAULT_VERTEX_MODEL
     elif selected_llm == LLMProvider.AZURE:
         return (
-            get_azure_openai_model_env()
-            or get_azure_openai_deployment_env()
-            or DEFAULT_AZURE_MODEL
+            get_azure_openai_model_env() or get_azure_openai_deployment_env() or DEFAULT_AZURE_MODEL
         )
     elif selected_llm == LLMProvider.BEDROCK:
         return get_bedrock_model_env() or DEFAULT_BEDROCK_MODEL

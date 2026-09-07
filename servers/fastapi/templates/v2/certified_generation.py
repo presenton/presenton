@@ -6,11 +6,12 @@ import logging
 import math
 import mimetypes
 import re
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from json import JSONDecodeError
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 
 from llmai.shared import (
     AssistantMessage,
@@ -23,8 +24,11 @@ from llmai.shared import (
 )
 from pydantic import BaseModel, ValidationError
 
+from templates.v2.models.elements import Image as SlideImageElement
+from templates.v2.models.elements import ImageFit, InfographicType
 from templates.v2.models.layouts import (
     Component,
+    FlexibleFlowItemPlan,
     FlexibleFlowNodePlan,
     FlexibleRegionPlan,
     FlexibleSlidePlan,
@@ -32,10 +36,10 @@ from templates.v2.models.layouts import (
     MergedComponents,
     RawSlideLayout,
     RawSlideLayouts,
+    SemanticSlideManifest,
     SimilarComponentsList,
     SlideLayout,
     SlideLayouts,
-    SemanticSlideManifest,
     TextCapacityAdjustment,
     TextCapacityPlan,
     VisualChartReplacement,
@@ -49,10 +53,10 @@ from templates.v2.models.layouts import (
     text_capacity_plan_llm_json_schema,
     visual_data_replacement_plan_llm_json_schema,
 )
-from templates.v2.models.elements import Image as SlideImageElement
-from templates.v2.models.elements import ImageFit, InfographicType
 from utils.asset_directory_utils import resolve_image_path_to_filesystem
 from utils.icon_weights import DEFAULT_ICON_TYPE
+from utils.llm_config import llm_structured_outputs_enabled
+from utils.llm_utils import extract_structured_content
 
 DEFAULT_VALIDATION_RETRIES = 5
 MAX_PARALLEL_SLIDE_LAYOUTS = 10
@@ -3861,16 +3865,21 @@ def _call_llm(
         response_name=response_name,
         response_schema=response_schema,
     )
-    response = client.generate(
-        model=model,
-        messages=messages,
-        response_format=JSONSchemaResponse(
+    # Форк: LLM_STRUCTURED_OUTPUTS=false (провайдеры вроде b.ai отдают 400 на
+    # response_format) — omit-паттерн как в utils/llm_utils.py; JSON парсится
+    # из текста ответа с repair-ретраями.
+    generate_kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+    }
+    if llm_structured_outputs_enabled():
+        generate_kwargs["response_format"] = JSONSchemaResponse(
             name=response_name,
             strict=False,
             json_schema=response_schema,
-        ),
-        max_tokens=max_tokens,
-    )
+        )
+    response = client.generate(**generate_kwargs)
     return response.content
 
 
@@ -4089,10 +4098,22 @@ def _normalize_visual_data_replacement_response(
 
 def _parse_json_content(content: Any) -> dict[str, Any]:
     text_content = _text_from_content(content)
-    parsed = json.loads(text_content) if text_content is not None else content
-    if not isinstance(parsed, dict):
+    if text_content is not None:
+        try:
+            parsed = json.loads(text_content)
+        except (json.JSONDecodeError, TypeError):
+            # Модель может обернуть JSON в код-фенсы или прозу, когда
+            # response_format не отправлялся (LLM_STRUCTURED_OUTPUTS=false).
+            parsed = extract_structured_content(text_content)
+            if parsed is None:
+                raise ValueError("LLM response must be a JSON object")
+            return parsed
+        if not isinstance(parsed, dict):
+            raise ValueError("LLM response must be a JSON object")
+        return parsed
+    if not isinstance(content, dict):
         raise ValueError("LLM response must be a JSON object")
-    return parsed
+    return content
 
 
 def _text_from_content(content: Any) -> str | None:

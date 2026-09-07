@@ -5,18 +5,19 @@ Revises: 2c8f4a1b9d7e
 Create Date: 2026-07-07 00:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 import sqlmodel
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "5d7e9a1b2c3f"
-down_revision: Union[str, None] = "2c8f4a1b9d7e"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "2c8f4a1b9d7e"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def _has_table(table_name: str) -> bool:
@@ -52,9 +53,7 @@ def upgrade() -> None:
             sa.Column("extras", sa.JSON(), nullable=True),
             sa.PrimaryKeyConstraint("id"),
         )
-    if not _has_index(
-        "font_uploads", op.f("ix_font_uploads_normalized_family_name")
-    ):
+    if not _has_index("font_uploads", op.f("ix_font_uploads_normalized_family_name")):
         op.create_index(
             op.f("ix_font_uploads_normalized_family_name"),
             "font_uploads",
@@ -65,9 +64,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     if _has_table("font_uploads"):
-        if _has_index(
-            "font_uploads", op.f("ix_font_uploads_normalized_family_name")
-        ):
+        if _has_index("font_uploads", op.f("ix_font_uploads_normalized_family_name")):
             op.drop_index(
                 op.f("ix_font_uploads_normalized_family_name"),
                 table_name="font_uploads",

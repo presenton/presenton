@@ -86,9 +86,7 @@ def test_standalone_math_element_is_rejected():
 
 
 def test_table_cell_accepts_latex_runs():
-    cell = TableCell.model_validate(
-        {"runs": [{"type": "latex", "latex": r"\sqrt{x^2 + y^2}"}]}
-    )
+    cell = TableCell.model_validate({"runs": [{"type": "latex", "latex": r"\sqrt{x^2 + y^2}"}]})
 
     assert isinstance(cell.runs[0], LatexTextRun)
     assert cell.runs[0].display_mode is False
@@ -106,9 +104,7 @@ def test_text_and_table_cells_accept_justified_alignment():
             "max_length": 100,
         }
     )
-    cell = TableCell.model_validate(
-        {"alignment": "justify", "runs": [{"text": "Justified cell"}]}
-    )
+    cell = TableCell.model_validate({"alignment": "justify", "runs": [{"text": "Justified cell"}]})
 
     assert text.model_dump(mode="json")["alignment"]["horizontal"] == "justify"
     assert cell.model_dump(mode="json")["alignment"] == "justify"

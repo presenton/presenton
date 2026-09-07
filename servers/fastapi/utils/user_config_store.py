@@ -4,9 +4,8 @@ import os
 import shutil
 import time
 import uuid
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Callable, Iterator
-
 
 LOCK_TIMEOUT_SECONDS = 5.0
 LOCK_STALE_SECONDS = 30.0
@@ -32,8 +31,7 @@ def _harden_existing_config_permissions(config_path: str) -> None:
             # Permission hardening must never make a readable credential file
             # appear empty to callers and trigger destructive re-initialization.
             print(
-                f"[Presenton] Failed to secure "
-                f"{os.path.basename(file_path)} permissions: {error}"
+                f"[Presenton] Failed to secure {os.path.basename(file_path)} permissions: {error}"
             )
 
 
@@ -73,7 +71,7 @@ def _ensure_parent_directory(config_path: str) -> None:
 
 def _read_json_if_valid(file_path: str) -> dict | None:
     def read_text() -> str:
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             return file.read()
 
     try:
@@ -174,10 +172,7 @@ def _write_atomic_json(config_path: str, config: dict, primary_valid: bool) -> N
     _ensure_parent_directory(config_path)
     _copy_backup_if_possible(config_path, primary_valid)
 
-    temp_path = (
-        f"{config_path}.{os.getpid()}.{int(time.time() * 1000)}."
-        f"{uuid.uuid4().hex}.tmp"
-    )
+    temp_path = f"{config_path}.{os.getpid()}.{int(time.time() * 1000)}.{uuid.uuid4().hex}.tmp"
     try:
         descriptor = os.open(
             temp_path,

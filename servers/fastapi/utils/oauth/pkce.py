@@ -2,6 +2,7 @@
 PKCE utilities using Python's secrets and hashlib.
 Python port of pi-mono-main/packages/ai/src/utils/oauth/pkce.ts
 """
+
 import base64
 import hashlib
 import secrets

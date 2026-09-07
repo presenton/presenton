@@ -59,7 +59,7 @@ const PrivacySettings = () => {
   if (trackingEnabled === null) {
     return (
       <div className="w-full bg-[#F9F8F8] p-7 rounded-[20px] flex items-center justify-center min-h-[200px]">
-        <Loader2 className="w-5 h-5 animate-spin text-[#5146E5]" />
+        <Loader2 className="w-5 h-5 animate-spin text-[#1D4ED8]" />
       </div>
     );
   }
@@ -71,7 +71,7 @@ const PrivacySettings = () => {
           Usage analytics
         </h4>
         <p className="text-xs text-[#6B7280] mb-6 leading-relaxed max-w-lg">
-          Share anonymous usage data to help us improve Presenton. No personal information or presentation content is collected.
+          Share anonymous usage data to help us improve Yarex. No personal information or presentation content is collected.
         </p>
 
         <div className="flex items-center justify-between gap-4 rounded-[10px] bg-white border border-[#EDEEEF] p-4">

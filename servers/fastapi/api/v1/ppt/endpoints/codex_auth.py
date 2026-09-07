@@ -9,12 +9,20 @@ Flow:
   5. POST /codex/auth/exchange  — manual fallback if browser callback didn't fire
   6. POST /codex/auth/refresh   — refresh a stored token
 """
+
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from utils.get_env import (
+    get_codex_access_token_env,
+    get_codex_email_env,
+    get_codex_is_pro_env,
+    get_codex_refresh_token_env,
+    get_codex_token_expires_env,
+    get_codex_username_env,
+)
 from utils.oauth.openai_codex import (
     CodexAccountProfile,
     OAuthCallbackServer,
@@ -25,22 +33,14 @@ from utils.oauth.openai_codex import (
     parse_authorization_input,
     refresh_access_token,
 )
-from utils.get_env import (
-    get_codex_access_token_env,
-    get_codex_email_env,
-    get_codex_is_pro_env,
-    get_codex_refresh_token_env,
-    get_codex_token_expires_env,
-    get_codex_username_env,
-)
 from utils.set_env import (
     set_codex_access_token_env,
     set_codex_account_id_env,
     set_codex_email_env,
     set_codex_is_pro_env,
+    set_codex_model_env,
     set_codex_refresh_token_env,
     set_codex_token_expires_env,
-    set_codex_model_env,
     set_codex_username_env,
 )
 from utils.user_config import save_codex_tokens_to_user_config
@@ -60,6 +60,7 @@ _sessions: dict[str, dict] = {}
 # Request / Response models
 # ---------------------------------------------------------------------------
 
+
 class InitiateResponse(BaseModel):
     session_id: str
     url: str
@@ -68,11 +69,11 @@ class InitiateResponse(BaseModel):
 
 class StatusResponse(BaseModel):
     status: str  # "pending" | "success" | "failed"
-    account_id: Optional[str] = None
-    username: Optional[str] = None
-    email: Optional[str] = None
-    is_pro: Optional[bool] = None
-    detail: Optional[str] = None
+    account_id: str | None = None
+    username: str | None = None
+    email: str | None = None
+    is_pro: bool | None = None
+    detail: str | None = None
 
 
 class ExchangeRequest(BaseModel):
@@ -81,17 +82,17 @@ class ExchangeRequest(BaseModel):
 
 
 class ExchangeResponse(BaseModel):
-    account_id: Optional[str] = None
-    username: Optional[str] = None
-    email: Optional[str] = None
-    is_pro: Optional[bool] = None
+    account_id: str | None = None
+    username: str | None = None
+    email: str | None = None
+    is_pro: bool | None = None
 
 
 class RefreshResponse(BaseModel):
-    account_id: Optional[str]
-    username: Optional[str] = None
-    email: Optional[str] = None
-    is_pro: Optional[bool] = None
+    account_id: str | None
+    username: str | None = None
+    email: str | None = None
+    is_pro: bool | None = None
     detail: str
 
 
@@ -99,7 +100,8 @@ class RefreshResponse(BaseModel):
 # Helper
 # ---------------------------------------------------------------------------
 
-def _parse_optional_bool(value: Optional[str]) -> Optional[bool]:
+
+def _parse_optional_bool(value: str | None) -> bool | None:
     if value is None:
         return None
     normalized = value.strip().lower()
@@ -130,6 +132,7 @@ def _store_token(result: TokenSuccess) -> CodexAccountProfile:
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @CODEX_AUTH_ROUTER.post("/initiate", response_model=InitiateResponse)
 async def initiate_codex_auth():
     """
@@ -151,13 +154,10 @@ async def initiate_codex_auth():
         "server_started": server_started,
     }
 
-    instructions = (
-        "Open the URL in your browser and complete the OpenAI login. "
-        + (
-            "The callback will be captured automatically."
-            if server_started
-            else "Port 1455 could not be bound — paste the redirect URL or code into /exchange."
-        )
+    instructions = "Open the URL in your browser and complete the OpenAI login. " + (
+        "The callback will be captured automatically."
+        if server_started
+        else "Port 1455 could not be bound — paste the redirect URL or code into /exchange."
     )
 
     return InitiateResponse(
@@ -230,7 +230,9 @@ async def exchange_codex_code(body: ExchangeRequest):
     incoming_state = parsed.get("state")
 
     if not code:
-        raise HTTPException(status_code=400, detail="Could not extract authorization code from input")
+        raise HTTPException(
+            status_code=400, detail="Could not extract authorization code from input"
+        )
 
     if incoming_state and incoming_state != session["state"]:
         raise HTTPException(status_code=400, detail="State mismatch — possible CSRF")
@@ -248,7 +250,9 @@ async def exchange_codex_code(body: ExchangeRequest):
 
     profile = _store_token(result)
     if not profile.account_id:
-        raise HTTPException(status_code=502, detail="Token exchanged but could not extract account ID")
+        raise HTTPException(
+            status_code=502, detail="Token exchanged but could not extract account ID"
+        )
 
     return ExchangeResponse(
         account_id=profile.account_id,
@@ -314,7 +318,9 @@ async def get_codex_auth_status():
             expires_ms = int(expires_str)
             now_ms = int(time.time() * 1000)
             if now_ms >= expires_ms:
-                return StatusResponse(status="expired", detail="Access token has expired — call /refresh")
+                return StatusResponse(
+                    status="expired", detail="Access token has expired — call /refresh"
+                )
         except (ValueError, TypeError):
             pass
 

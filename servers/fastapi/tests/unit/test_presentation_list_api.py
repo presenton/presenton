@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.dialects import sqlite
@@ -70,7 +70,7 @@ def test_get_all_presentations_omits_version_filter_by_default():
 
 
 def test_get_all_presentations_can_skip_slide_preview_join():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     legacy_presentation = PresentationModel(
         version=PresentationVersion.V1_STANDARD,
         content="Legacy deck",

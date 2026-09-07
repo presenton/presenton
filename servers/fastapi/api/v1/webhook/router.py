@@ -1,5 +1,4 @@
-from typing import Optional
-from fastapi import APIRouter, Body, Depends, HTTPException, Path
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +11,7 @@ API_V1_WEBHOOK_ROUTER = APIRouter(prefix="/api/v1/webhook", tags=["Webhook"])
 
 class SubscribeToWebhookRequest(BaseModel):
     url: str = Field(description="The URL to send the webhook to")
-    secret: Optional[str] = Field(None, description="The secret to use for the webhook")
+    secret: str | None = Field(None, description="The secret to use for the webhook")
     event: WebhookEvent = Field(description="The event to subscribe to")
 
 

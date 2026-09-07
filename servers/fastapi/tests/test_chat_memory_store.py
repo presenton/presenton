@@ -69,22 +69,25 @@ class TestChatMemoryStore:
         _mem0_oss_fresh()
 
     def test_store_chat_turn_uses_conversation_scoped_user_id(self):
-        with patch.dict(
-            "os.environ",
-            {
-                "MEM0_ENABLED": "true",
-                "MEM0_TOP_K": "4",
-                "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
-            },
-            clear=False,
-        ), patch(
-            "services.chat.chat_memory_store.get_shared_mem0_client",
-            return_value=FakeMemoryClient.from_config(
+        with (
+            patch.dict(
+                "os.environ",
                 {
-                    "vector_store": {"provider": "qdrant", "config": {}},
-                    "embedder": {"provider": "fastembed", "config": {}},
-                }
+                    "MEM0_ENABLED": "true",
+                    "MEM0_TOP_K": "4",
+                    "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
+                    "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                },
+                clear=False,
+            ),
+            patch(
+                "services.chat.chat_memory_store.get_shared_mem0_client",
+                return_value=FakeMemoryClient.from_config(
+                    {
+                        "vector_store": {"provider": "qdrant", "config": {}},
+                        "embedder": {"provider": "fastembed", "config": {}},
+                    }
+                ),
             ),
         ):
             store = ChatMemoryStore()
@@ -103,9 +106,7 @@ class TestChatMemoryStore:
         assert len(FakeMemoryClient.instances) == 1
         client = FakeMemoryClient.instances[0]
         assert len(client.add_calls) == 1
-        expected_user_id = (
-            f"presentation:{presentation_id}:conversation:{conversation_id}"
-        )
+        expected_user_id = f"presentation:{presentation_id}:conversation:{conversation_id}"
         assert client.add_calls[0]["user_id"] == expected_user_id
         assert client.add_calls[0]["infer"] is False
         payload = str(client.add_calls[0]["messages"][0]["content"])
@@ -114,30 +115,31 @@ class TestChatMemoryStore:
         assert "assistant=Yes, I can make it shorter." in payload
 
     def test_retrieve_context_reads_only_conversation_scoped_user_id(self):
-        with patch.dict(
-            "os.environ",
-            {
-                "MEM0_ENABLED": "true",
-                "MEM0_TOP_K": "6",
-                "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
-            },
-            clear=False,
-        ), patch(
-            "services.chat.chat_memory_store.get_shared_mem0_client",
-            return_value=FakeMemoryClient.from_config(
+        with (
+            patch.dict(
+                "os.environ",
                 {
-                    "vector_store": {"provider": "qdrant", "config": {}},
-                    "embedder": {"provider": "fastembed", "config": {}},
-                }
+                    "MEM0_ENABLED": "true",
+                    "MEM0_TOP_K": "6",
+                    "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
+                    "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                },
+                clear=False,
+            ),
+            patch(
+                "services.chat.chat_memory_store.get_shared_mem0_client",
+                return_value=FakeMemoryClient.from_config(
+                    {
+                        "vector_store": {"provider": "qdrant", "config": {}},
+                        "embedder": {"provider": "fastembed", "config": {}},
+                    }
+                ),
             ),
         ):
             store = ChatMemoryStore()
             presentation_id = uuid.uuid4()
             conversation_id = uuid.uuid4()
-            expected_user_id = (
-                f"presentation:{presentation_id}:conversation:{conversation_id}"
-            )
+            expected_user_id = f"presentation:{presentation_id}:conversation:{conversation_id}"
 
             asyncio.run(
                 store.store_chat_turn(
@@ -175,29 +177,30 @@ class TestChatMemoryStore:
         assert client.search_calls[0]["top_k"] == 6
 
     def test_load_history_reads_conversation_scoped_turns(self):
-        with patch.dict(
-            "os.environ",
-            {
-                "MEM0_ENABLED": "true",
-                "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
-                "APP_DATA_DIRECTORY": "/tmp/presenton-test",
-            },
-            clear=False,
-        ), patch(
-            "services.chat.chat_memory_store.get_shared_mem0_client",
-            return_value=FakeMemoryClient.from_config(
+        with (
+            patch.dict(
+                "os.environ",
                 {
-                    "vector_store": {"provider": "qdrant", "config": {}},
-                    "embedder": {"provider": "fastembed", "config": {}},
-                }
+                    "MEM0_ENABLED": "true",
+                    "MEM0_PRESENTATION_NAMESPACE_PREFIX": "presentation",
+                    "APP_DATA_DIRECTORY": "/tmp/presenton-test",
+                },
+                clear=False,
+            ),
+            patch(
+                "services.chat.chat_memory_store.get_shared_mem0_client",
+                return_value=FakeMemoryClient.from_config(
+                    {
+                        "vector_store": {"provider": "qdrant", "config": {}},
+                        "embedder": {"provider": "fastembed", "config": {}},
+                    }
+                ),
             ),
         ):
             store = ChatMemoryStore()
             presentation_id = uuid.uuid4()
             conversation_id = uuid.uuid4()
-            expected_user_id = (
-                f"presentation:{presentation_id}:conversation:{conversation_id}"
-            )
+            expected_user_id = f"presentation:{presentation_id}:conversation:{conversation_id}"
 
             asyncio.run(
                 store.store_chat_turn(

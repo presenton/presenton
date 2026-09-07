@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 
 from fastapi import HTTPException
 from llmai import (
@@ -15,9 +14,9 @@ from llmai.shared import (
     CerebrasClientConfig,
     ChatGPTClientConfig,
     ClientConfig,
-    GoogleClientConfig,
     GenerationDefaults,
     GenerationProfile,
+    GoogleClientConfig,
     LiteLLMClientConfig,
     OpenAIApiType,
     OpenAIClientConfig,
@@ -28,13 +27,14 @@ from llmai.shared import (
 )
 
 from enums.llm_provider import LLMProvider
+from utils.available_models import normalize_openai_compatible_base_url
 from utils.get_env import (
+    get_anthropic_api_key_env,
     get_azure_openai_api_key_env,
     get_azure_openai_api_version_env,
     get_azure_openai_base_url_env,
     get_azure_openai_deployment_env,
     get_azure_openai_endpoint_env,
-    get_anthropic_api_key_env,
     get_bedrock_api_key_env,
     get_bedrock_aws_access_key_id_env,
     get_bedrock_aws_secret_access_key_env,
@@ -58,13 +58,19 @@ from utils.get_env import (
     get_google_api_key_env,
     get_litellm_api_key_env,
     get_litellm_base_url_env,
+    get_llm_generation_profile_env,
+    get_llm_max_output_tokens_env,
+    get_llm_reasoning_budget_tokens_env,
+    get_llm_reasoning_effort_env,
+    get_llm_reasoning_mode_env,
+    get_llm_structured_outputs_env,
     get_lmstudio_api_key_env,
     get_lmstudio_base_url_env,
     get_ollama_url_env,
     get_openai_api_key_env,
+    get_openrouter_allow_fallbacks_env,
     get_openrouter_api_key_env,
     get_openrouter_base_url_env,
-    get_openrouter_allow_fallbacks_env,
     get_openrouter_data_collection_env,
     get_openrouter_provider_order_env,
     get_openrouter_require_parameters_env,
@@ -76,13 +82,7 @@ from utils.get_env import (
     get_vertex_location_env,
     get_vertex_project_env,
     get_web_grounding_env,
-    get_llm_generation_profile_env,
-    get_llm_max_output_tokens_env,
-    get_llm_reasoning_budget_tokens_env,
-    get_llm_reasoning_effort_env,
-    get_llm_reasoning_mode_env,
 )
-from utils.available_models import normalize_openai_compatible_base_url
 from utils.llm_provider import get_llm_provider
 from utils.parsers import parse_bool_or_none
 from utils.set_env import (
@@ -91,7 +91,6 @@ from utils.set_env import (
     set_codex_refresh_token_env,
     set_codex_token_expires_env,
 )
-
 
 CHATGPT_AUTH_REQUIRED_HEADERS = {"X-Presenton-Auth-Action": "codex-reauth"}
 CHATGPT_AUTH_REQUIRED_PREFIX = "CHATGPT_AUTH_REQUIRED:"
@@ -103,6 +102,21 @@ def enable_web_grounding() -> bool:
 
 def disable_thinking() -> bool:
     return parse_bool_or_none(get_disable_thinking_env()) or False
+
+
+def llm_structured_outputs_enabled() -> bool:
+    """Whether LLM requests may send ``response_format`` (structured outputs).
+
+    Some OpenAI-compatible providers/models (e.g. b.ai) reject
+    ``response_format`` with ``{"type": "json_schema"}`` (HTTP 400, code
+    400001) while accepting the same prompt without it. Set
+    ``LLM_STRUCTURED_OUTPUTS=false`` to omit ``response_format`` from every
+    generation request; the engine then parses JSON from the model's text
+    response (with schema-validation repair retries). Defaults to enabled;
+    only explicit falsey values (``0``/``false``/``no``/``off``) disable it.
+    """
+    value = (get_llm_structured_outputs_env() or "").strip().lower()
+    return value not in {"0", "false", "no", "off"}
 
 
 def _get_codex_access_token() -> str:
@@ -428,9 +442,7 @@ def _get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 base_url=base_url or None,
             )
         case LLMProvider.LITELLM:
-            base_url = normalize_openai_compatible_base_url(
-                get_litellm_base_url_env() or ""
-            )
+            base_url = normalize_openai_compatible_base_url(get_litellm_base_url_env() or "")
             if not base_url:
                 raise HTTPException(
                     status_code=400,
@@ -486,13 +498,11 @@ def get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
     return config
 
 
-def get_extra_body(*, uses_tool_choice: bool = False) -> Optional[dict]:
+def get_extra_body(*, uses_tool_choice: bool = False) -> dict | None:
     llm_provider = get_llm_provider()
     extra_body: dict = {}
     use_legacy_disable = disable_thinking() and not has_explicit_reasoning_settings()
-    if llm_provider == LLMProvider.DEEPSEEK and (
-        use_legacy_disable or uses_tool_choice
-    ):
+    if llm_provider == LLMProvider.DEEPSEEK and (use_legacy_disable or uses_tool_choice):
         extra_body["thinking"] = {"type": "disabled"}
     if llm_provider == LLMProvider.CUSTOM and use_legacy_disable:
         extra_body["enable_thinking"] = False
@@ -508,9 +518,7 @@ def get_extra_body(*, uses_tool_choice: bool = False) -> Optional[dict]:
         allow_fallbacks = parse_bool_or_none(get_openrouter_allow_fallbacks_env())
         if allow_fallbacks is not None:
             provider["allow_fallbacks"] = allow_fallbacks
-        require_parameters = parse_bool_or_none(
-            get_openrouter_require_parameters_env()
-        )
+        require_parameters = parse_bool_or_none(get_openrouter_require_parameters_env())
         if require_parameters is not None:
             provider["require_parameters"] = require_parameters
         data_collection = (get_openrouter_data_collection_env() or "").strip()

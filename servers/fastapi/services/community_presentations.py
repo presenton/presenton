@@ -1,27 +1,21 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 import aiohttp
 from fastapi import HTTPException
 
-
-DEFAULT_COMMUNITY_API_URL = (
-    "https://api.presenton.ai/api/v3/community/presentations"
-)
+DEFAULT_COMMUNITY_API_URL = "https://api.presenton.ai/api/v3/community/presentations"
 MAX_COMMUNITY_REFERENCES = 3
 MAX_REFERENCE_SLIDES = 6
 MAX_REFERENCE_CHARACTERS = 90_000
 
 
 def get_community_api_url() -> str:
-    return (
-        os.getenv("PRESENTON_COMMUNITY_API_URL", DEFAULT_COMMUNITY_API_URL)
-        .strip()
-        .rstrip("/")
-    )
+    return os.getenv("PRESENTON_COMMUNITY_API_URL", DEFAULT_COMMUNITY_API_URL).strip().rstrip("/")
 
 
 @dataclass(frozen=True)
@@ -53,10 +47,7 @@ def normalize_community_ids(values: Sequence[int] | None) -> list[int]:
     if len(normalized) > MAX_COMMUNITY_REFERENCES:
         raise HTTPException(
             status_code=422,
-            detail=(
-                f"A maximum of {MAX_COMMUNITY_REFERENCES} community references "
-                "can be used"
-            ),
+            detail=(f"A maximum of {MAX_COMMUNITY_REFERENCES} community references can be used"),
         )
     return normalized
 

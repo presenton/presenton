@@ -1,7 +1,6 @@
 import os
 from typing import Literal
 
-
 PresentationGenerationMode = Literal["both", "standard", "smart"]
 
 DEFAULT_PRESENTON_OAUTH_ISSUER = "https://api.presenton.ai"
@@ -45,7 +44,7 @@ def get_fastapi_public_base_url() -> str | None:
     """
     Public origin where FastAPI serves /app_data and /static (no trailing slash).
 
-    Uses NEXT_PUBLIC_FAST_API (same value Electron and the export runtime inject for the UI).
+    Uses NEXT_PUBLIC_FAST_API (the value the export runtime injects for the UI).
     When unset, callers keep path-only URLs for same-origin / reverse-proxy setups (e.g. Docker).
     """
     v = (os.getenv("NEXT_PUBLIC_FAST_API") or "").strip().rstrip("/")
@@ -64,6 +63,18 @@ def get_disable_auth_env():
     return os.getenv("DISABLE_AUTH")
 
 
+def get_telegram_bot_token_env():
+    return os.getenv("TELEGRAM_BOT_TOKEN")
+
+
+def get_telegram_allowed_user_ids_env():
+    return os.getenv("TELEGRAM_ALLOWED_USER_IDS")
+
+
+def get_generation_quota_per_day_env():
+    return os.getenv("GENERATION_QUOTA_PER_DAY")
+
+
 def get_presenton_oauth_issuer() -> str:
     return DEFAULT_PRESENTON_OAUTH_ISSUER
 
@@ -74,11 +85,6 @@ def get_presenton_oauth_client_id() -> str:
 
 def is_disable_auth_enabled():
     return _is_truthy(get_disable_auth_env())
-
-
-def is_presenton_electron_desktop():
-    """True when running inside the Presenton Electron desktop app."""
-    return _is_truthy(os.getenv("PRESENTON_ELECTRON"))
 
 
 def get_llm_provider_env():
@@ -334,6 +340,10 @@ def get_disable_thinking_env():
     return os.getenv("DISABLE_THINKING")
 
 
+def get_llm_structured_outputs_env():
+    return os.getenv("LLM_STRUCTURED_OUTPUTS")
+
+
 def get_extended_reasoning_env():
     return os.getenv("EXTENDED_REASONING")
 
@@ -356,6 +366,43 @@ def get_llm_reasoning_effort_env():
 
 def get_llm_reasoning_budget_tokens_env():
     return os.getenv("LLM_REASONING_BUDGET_TOKENS")
+
+
+_DEFAULT_SLIDE_LLM_CONCURRENCY = 10
+_MAX_SLIDE_LLM_CONCURRENCY = 50
+_DEFAULT_LLM_SLOW_CALL_WARN_SEC = 30.0
+
+
+def get_slide_llm_concurrency() -> int:
+    """Максимум одновременных LLM-вызовов контента слайдов на одну генерацию.
+
+    Раньше слайды шли последовательными батчами по 10; семафор с этим лимитом
+    даёт тот же потолок параллелизма без барьера между батчами.
+    """
+    raw = (os.getenv("SLIDE_LLM_CONCURRENCY") or "").strip()
+    if not raw:
+        return _DEFAULT_SLIDE_LLM_CONCURRENCY
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return _DEFAULT_SLIDE_LLM_CONCURRENCY
+    return max(1, min(parsed, _MAX_SLIDE_LLM_CONCURRENCY))
+
+
+def get_llm_slow_call_warn_seconds() -> float:
+    """Порог (в секундах) для warning-лога одного медленного LLM-вызова.
+
+    0 отключает проверку. Нужен для живого стенда: стадия slides в основном
+    ждёт провайдера, и единичные долгие вызовы видны только так.
+    """
+    raw = (os.getenv("LLM_SLOW_CALL_WARN_SEC") or "").strip()
+    if not raw:
+        return _DEFAULT_LLM_SLOW_CALL_WARN_SEC
+    try:
+        parsed = float(raw)
+    except ValueError:
+        return _DEFAULT_LLM_SLOW_CALL_WARN_SEC
+    return max(0.0, parsed)
 
 
 def get_web_grounding_env():

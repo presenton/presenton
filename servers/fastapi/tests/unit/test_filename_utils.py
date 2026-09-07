@@ -1,6 +1,6 @@
 from pathvalidate import sanitize_filename
 
-from utils.filename_utils import safe_export_basename, MAX_EXPORT_BASENAME_BYTES
+from utils.filename_utils import MAX_EXPORT_BASENAME_BYTES, safe_export_basename
 
 
 def test_safe_export_basename_short_name_unchanged():

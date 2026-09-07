@@ -290,9 +290,7 @@ INFOGRAPHIC_CATALOG: tuple[dict[str, Any], ...] = (
         "name": "Conversion funnel",
         "category": "funnel",
         "best_for": "Stage-by-stage conversion values that usually narrow over time.",
-        "required_data": [
-            "items: array of {value:number, heading:string, description?}"
-        ],
+        "required_data": ["items: array of {value:number, heading:string, description?}"],
         "default_size": {"width": 720, "height": 380},
         "example_data": {
             "items": [
@@ -457,9 +455,7 @@ INFOGRAPHIC_CATALOG: tuple[dict[str, Any], ...] = (
         "name": "Mind map",
         "category": "hierarchy",
         "best_for": "Nested ideas branching from a central theme.",
-        "required_data": [
-            "items: recursive array of {heading?, description?, items:[]}"
-        ],
+        "required_data": ["items: recursive array of {heading?, description?, items:[]}"],
         "default_size": {"width": 720, "height": 430},
         "example_data": {
             "items": [
@@ -520,10 +516,7 @@ def normalize_infographic_data(
 
     if infographic_type in {"progress_bar", "gauge"}:
         values = [normalized.get(key) for key in ("min_value", "max_value", "value")]
-        if any(
-            isinstance(value, bool) or not isinstance(value, (int, float))
-            for value in values
-        ):
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in values):
             raise ValueError(
                 f"{infographic_type} requires numeric min_value, max_value, and value."
             )
@@ -576,9 +569,7 @@ def normalize_infographic_data(
     for field_name in required_strings.get(infographic_type, ()):
         value = normalized.get(field_name)
         if not isinstance(value, str) or not value.strip():
-            raise ValueError(
-                f"{infographic_type} requires a non-empty {field_name} string."
-            )
+            raise ValueError(f"{infographic_type} requires a non-empty {field_name} string.")
 
     if infographic_type in {"risk_matrix", "impact_effort_matrix"} and len(items) != 4:
         raise ValueError(f"{infographic_type} requires exactly four items.")
@@ -599,14 +590,9 @@ def normalize_infographic_data(
         if (
             not isinstance(criteria, list)
             or not criteria
-            or not all(
-                isinstance(criterion, str) and criterion.strip()
-                for criterion in criteria
-            )
+            or not all(isinstance(criterion, str) and criterion.strip() for criterion in criteria)
         ):
-            raise ValueError(
-                "comparison_matrix requires a non-empty criteria string array."
-            )
+            raise ValueError("comparison_matrix requires a non-empty criteria string array.")
         if not all(
             isinstance(item, dict)
             and isinstance(item.get("heading"), str)
@@ -614,9 +600,7 @@ def normalize_infographic_data(
             and len(item["values"]) == len(criteria)
             for item in items
         ):
-            raise ValueError(
-                "Every comparison_matrix item needs one value for each criterion."
-            )
+            raise ValueError("Every comparison_matrix item needs one value for each criterion.")
     if infographic_type in {"org_chart", "decision_tree"}:
         ids = [
             item.get("id")
@@ -624,16 +608,12 @@ def normalize_infographic_data(
             if isinstance(item, dict) and isinstance(item.get("id"), str)
         ]
         if len(ids) != len(items) or len(set(ids)) != len(ids):
-            raise ValueError(
-                f"{infographic_type} requires a unique string id on every item."
-            )
+            raise ValueError(f"{infographic_type} requires a unique string id on every item.")
         known_ids = set(ids)
         if any(
             item.get("parent_id") is not None and item.get("parent_id") not in known_ids
             for item in items
         ):
-            raise ValueError(
-                f"Every {infographic_type} parent_id must reference another item id."
-            )
+            raise ValueError(f"Every {infographic_type} parent_id must reference another item id.")
 
     return normalized

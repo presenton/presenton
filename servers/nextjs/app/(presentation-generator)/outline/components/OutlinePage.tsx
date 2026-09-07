@@ -440,7 +440,7 @@ const OutlinePage: React.FC = () => {
                 className="flex w-[70px] shrink-0 flex-col items-center gap-5 px-1.5 py-2"
                 aria-label="Outline tools"
               >
-                <div className="flex w-full flex-col items-center rounded-[10px] bg-[#F4F3FF]/60 py-7">
+                <div className="flex w-full flex-col items-center rounded-[10px] bg-[#EFF6FF]/60 py-7">
                   <div className="flex rounded-[10px] border border-[#EDEEEF] bg-white p-1.5 shadow-[0_6.6px_6.6px_rgba(124,81,248,0.14)]">
                     <Image
                       src="/ai-star.svg"
@@ -450,7 +450,7 @@ const OutlinePage: React.FC = () => {
                       className="h-[18px] w-[19px]"
                     />
                   </div>
-                  <span className="mt-1 text-xs font-normal text-[#7A5AF8]">
+                  <span className="mt-1 text-xs font-normal text-[#2563EB]">
                     AI
                   </span>
                 </div>

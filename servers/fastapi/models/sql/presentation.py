@@ -1,16 +1,18 @@
+import copy
+import uuid
 from datetime import datetime
 from enum import Enum
-from typing import List, Literal, Optional
-import uuid
-import copy
-from sqlalchemy import JSON, Column, DateTime, Enum as SAEnum, ForeignKey, String
+from typing import Literal
+
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, String
+from sqlalchemy import Enum as SAEnum
 from sqlmodel import Boolean, Field, SQLModel
 
+from api.v1.auth.context import get_current_owner_id
+from models.presentation_layout import PresentationLayoutModel
 from models.presentation_outline_model import PresentationOutlineModel
 from models.presentation_structure_model import PresentationStructureModel
-from models.presentation_layout import PresentationLayoutModel
 from utils.datetime_utils import get_current_utc_datetime
-from api.v1.auth.context import get_current_owner_id
 
 
 class PresentationVersion(str, Enum):
@@ -22,7 +24,7 @@ class PresentationModel(SQLModel, table=True):
     __tablename__ = "presentations"
 
     id: uuid.UUID = Field(primary_key=True, default_factory=uuid.uuid4)
-    owner_id: Optional[uuid.UUID] = Field(
+    owner_id: uuid.UUID | None = Field(
         default_factory=get_current_owner_id,
         exclude=True,
         sa_column=Column(
@@ -46,13 +48,11 @@ class PresentationModel(SQLModel, table=True):
     content: str
     n_slides: int
     language: str
-    title: Optional[str] = None
-    file_paths: Optional[List[str]] = Field(sa_column=Column(JSON), default=None)
-    outlines: Optional[dict] = Field(sa_column=Column(JSON), default=None)
+    title: str | None = None
+    file_paths: list[str] | None = Field(sa_column=Column(JSON), default=None)
+    outlines: dict | None = Field(sa_column=Column(JSON), default=None)
     created_at: datetime = Field(
-        sa_column=Column(
-            DateTime(timezone=True), nullable=False, default=get_current_utc_datetime
-        ),
+        sa_column=Column(DateTime(timezone=True), nullable=False, default=get_current_utc_datetime),
     )
     updated_at: datetime = Field(
         sa_column=Column(
@@ -62,23 +62,21 @@ class PresentationModel(SQLModel, table=True):
             onupdate=get_current_utc_datetime,
         ),
     )
-    layout: Optional[dict] = Field(sa_column=Column(JSON), default=None)
-    structure: Optional[dict] = Field(sa_column=Column(JSON), default=None)
-    instructions: Optional[str] = Field(sa_column=Column(String), default=None)
-    tone: Optional[str] = Field(sa_column=Column(String), default=None)
-    verbosity: Optional[str] = Field(sa_column=Column(String), default=None)
+    layout: dict | None = Field(sa_column=Column(JSON), default=None)
+    structure: dict | None = Field(sa_column=Column(JSON), default=None)
+    instructions: str | None = Field(sa_column=Column(String), default=None)
+    tone: str | None = Field(sa_column=Column(String), default=None)
+    verbosity: str | None = Field(sa_column=Column(String), default=None)
     include_table_of_contents: bool = Field(sa_column=Column(Boolean), default=False)
     include_title_slide: bool = Field(sa_column=Column(Boolean), default=True)
     web_search: bool = Field(sa_column=Column(Boolean), default=False)
-    theme: Optional[dict] = Field(sa_column=Column(JSON), default=None)
-    fonts: Optional[dict] = Field(sa_column=Column(JSON), default=None)
+    theme: dict | None = Field(sa_column=Column(JSON), default=None)
+    fonts: dict | None = Field(sa_column=Column(JSON), default=None)
     generation_mode: Literal["standard", "smart"] = Field(
         sa_column=Column(String, nullable=False, default="standard"),
         default="standard",
     )
-    community_design_ids: Optional[List[int]] = Field(
-        sa_column=Column(JSON), default=None
-    )
+    community_design_ids: list[int] | None = Field(sa_column=Column(JSON), default=None)
 
     def get_new_presentation(self):
         return PresentationModel(

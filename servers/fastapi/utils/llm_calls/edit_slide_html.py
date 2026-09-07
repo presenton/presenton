@@ -1,12 +1,13 @@
 import asyncio
-from typing import Optional
+
 from fastapi import HTTPException
 from llmai import get_client
 from llmai.shared import SystemMessage, UserMessage
-from utils.llm_config import get_llm_config
+
 from utils.llm_client_error_handler import handle_llm_client_exceptions
-from utils.llm_utils import extract_text, get_generate_kwargs
+from utils.llm_config import get_llm_config
 from utils.llm_provider import get_model
+from utils.llm_utils import extract_text, get_generate_kwargs
 
 system_prompt = """
     You are an expert HTML slide editor. Your task is to modify slide HTML content based on user prompts while maintaining proper structure, styling, and functionality.
@@ -36,7 +37,7 @@ system_prompt = """
 """
 
 
-def get_user_prompt(prompt: str, html: str, memory_context: Optional[str] = None):
+def get_user_prompt(prompt: str, html: str, memory_context: str | None = None):
     memory_block = (
         f"\n        **Retrieved Presentation Memory Context:**\n        {memory_context}\n"
         if memory_context
@@ -58,9 +59,7 @@ def get_user_prompt(prompt: str, html: str, memory_context: Optional[str] = None
     """
 
 
-async def get_edited_slide_html(
-    prompt: str, html: str, memory_context: Optional[str] = None
-):
+async def get_edited_slide_html(prompt: str, html: str, memory_context: str | None = None):
     model = get_model()
 
     client = get_client(config=get_llm_config())
@@ -71,9 +70,7 @@ async def get_edited_slide_html(
                 model=model,
                 messages=[
                     SystemMessage(content=system_prompt),
-                    UserMessage(
-                        content=get_user_prompt(prompt, html, memory_context)
-                    ),
+                    UserMessage(content=get_user_prompt(prompt, html, memory_context)),
                 ],
             ),
         )
@@ -85,7 +82,7 @@ async def get_edited_slide_html(
         raise handle_llm_client_exceptions(e)
 
 
-def extract_html_from_response(response_text: str) -> Optional[str]:
+def extract_html_from_response(response_text: str) -> str | None:
     start_index = response_text.find("<")
     end_index = response_text.rfind(">")
 

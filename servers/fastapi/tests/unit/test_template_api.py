@@ -2,7 +2,7 @@ import asyncio
 import base64
 import uuid
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -13,8 +13,8 @@ from api.v1.ppt.endpoints.template import (
     TEMPLATE_ROUTER,
     CreateTemplateLayoutsRequest,
     CreateTemplateRequest,
-    GenerateTemplateLayoutRequest,
     GenerateTemplateBlocksRequest,
+    GenerateTemplateLayoutRequest,
     InitTemplateRequest,
     McpEncodedUpload,
     McpTemplateUploadRequest,
@@ -22,11 +22,11 @@ from api.v1.ppt.endpoints.template import (
     UpdateTemplateMetadataRequest,
     _create_template_sync,
     _run_create_template_task,
-    create_template_slide_layouts,
     create_template,
+    create_template_slide_layouts,
     delete_template,
-    generate_template_layout_from_prompt,
     generate_template_blocks,
+    generate_template_layout_from_prompt,
     get_template,
     get_template_theme,
     init_template,
@@ -36,13 +36,12 @@ from api.v1.ppt.endpoints.template import (
     update_template_metadata,
     upload_template_assets_for_mcp,
 )
-from templates.preview import FontsUploadAndSlidesPreviewResponse
 from models.sql.async_task import AsyncTaskModel
 from models.sql.template_v2 import TemplateV2
 from models.theme_data import PresentationThemeData
 from services.export_task_service import PptxToJsonDocument
+from templates.preview import FontsUploadAndSlidesPreviewResponse
 from templates.v2.models.layouts import MergedComponents, RawSlideLayouts, SlideLayouts
-
 
 RAW_LAYOUTS = {
     "layouts": [
@@ -69,7 +68,7 @@ RAW_LAYOUTS = {
                     "decorative": True,
                     "name": "photo",
                     "is_icon": False,
-                }
+                },
             ],
         }
     ]
@@ -160,9 +159,7 @@ GENERATED_THEME = PresentationThemeData.model_validate(GENERATED_THEME_DATA)
 
 
 def _normalized_raw_layouts(layouts=RAW_LAYOUTS):
-    return RawSlideLayouts.model_validate(layouts).model_dump(
-        mode="json", exclude_none=True
-    )
+    return RawSlideLayouts.model_validate(layouts).model_dump(mode="json", exclude_none=True)
 
 
 def _two_raw_layouts():
@@ -276,7 +273,7 @@ class _ListSession:
         return 1
 
     async def execute(self, *_args, **_kwargs):
-        now = datetime(2026, 6, 8, tzinfo=timezone.utc)
+        now = datetime(2026, 6, 8, tzinfo=UTC)
         rows = self.rows or [
             (
                 "00000000-0000-0000-0000-000000000000",
@@ -304,9 +301,7 @@ class _ListSession:
                 now,
             ),
         ]
-        return _RowsResult(
-            rows
-        )
+        return _RowsResult(rows)
 
 
 class _TemplateTaskSession:
@@ -349,25 +344,32 @@ class _TemplateTaskSessionContext:
 def test_create_template_converts_generates_and_persists(tmp_path, fake_async_session):
     pptx_path = tmp_path / "quarterly-review.pptx"
     pptx_path.write_bytes(b"pptx")
-    with patch(
-        "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
-        return_value=str(pptx_path),
-    ), patch(
-        "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
-        new=AsyncMock(return_value=PptxToJsonDocument(**RAW_LAYOUTS)),
-    ) as convert_mock, patch(
-        "api.v1.ppt.endpoints.template.generate_template",
-        new=Mock(return_value=GENERATED_LAYOUTS),
-    ) as generate_mock, patch(
-        "api.v1.ppt.endpoints.template.merge_similar_components",
-        new=Mock(return_value=MERGED_COMPONENTS),
-    ) as merge_mock, patch(
-        "api.v1.ppt.endpoints.template.generate_template_theme",
-        new=Mock(return_value=GENERATED_THEME),
-    ) as theme_mock, patch(
-        "api.v1.ppt.endpoints.template.random.randint",
-        return_value=4801,
-    ) as randint_mock:
+    with (
+        patch(
+            "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
+            return_value=str(pptx_path),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
+            new=AsyncMock(return_value=PptxToJsonDocument(**RAW_LAYOUTS)),
+        ) as convert_mock,
+        patch(
+            "api.v1.ppt.endpoints.template.generate_template",
+            new=Mock(return_value=GENERATED_LAYOUTS),
+        ) as generate_mock,
+        patch(
+            "api.v1.ppt.endpoints.template.merge_similar_components",
+            new=Mock(return_value=MERGED_COMPONENTS),
+        ) as merge_mock,
+        patch(
+            "api.v1.ppt.endpoints.template.generate_template_theme",
+            new=Mock(return_value=GENERATED_THEME),
+        ) as theme_mock,
+        patch(
+            "api.v1.ppt.endpoints.template.random.randint",
+            return_value=4801,
+        ) as randint_mock,
+    ):
         template = asyncio.run(
             _create_template_sync(
                 CreateTemplateRequest(
@@ -429,21 +431,27 @@ def test_create_template_uses_most_common_generated_icon_type(
     pptx_path.write_bytes(b"pptx")
     generated_layouts = SlideLayouts.model_validate(_template_layouts_with_icon_types())
 
-    with patch(
-        "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
-        return_value=str(pptx_path),
-    ), patch(
-        "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
-        new=AsyncMock(return_value=PptxToJsonDocument(**RAW_LAYOUTS)),
-    ), patch(
-        "api.v1.ppt.endpoints.template.generate_template",
-        new=Mock(return_value=generated_layouts),
-    ), patch(
-        "api.v1.ppt.endpoints.template.merge_similar_components",
-        new=Mock(return_value=MERGED_COMPONENTS),
-    ), patch(
-        "api.v1.ppt.endpoints.template.random.randint",
-        return_value=4801,
+    with (
+        patch(
+            "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
+            return_value=str(pptx_path),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
+            new=AsyncMock(return_value=PptxToJsonDocument(**RAW_LAYOUTS)),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.generate_template",
+            new=Mock(return_value=generated_layouts),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.merge_similar_components",
+            new=Mock(return_value=MERGED_COMPONENTS),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.random.randint",
+            return_value=4801,
+        ),
     ):
         template = asyncio.run(
             _create_template_sync(
@@ -476,21 +484,27 @@ def test_create_template_caps_raw_layouts_to_preview_images(tmp_path, fake_async
             },
         ]
     }
-    with patch(
-        "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
-        return_value=str(pptx_path),
-    ), patch(
-        "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
-        new=AsyncMock(return_value=PptxToJsonDocument(**raw_layouts)),
-    ), patch(
-        "api.v1.ppt.endpoints.template.generate_template",
-        new=Mock(return_value=GENERATED_LAYOUTS),
-    ) as generate_mock, patch(
-        "api.v1.ppt.endpoints.template.merge_similar_components",
-        new=Mock(return_value=MERGED_COMPONENTS),
-    ), patch(
-        "api.v1.ppt.endpoints.template.random.randint",
-        return_value=4801,
+    with (
+        patch(
+            "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
+            return_value=str(pptx_path),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
+            new=AsyncMock(return_value=PptxToJsonDocument(**raw_layouts)),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.generate_template",
+            new=Mock(return_value=GENERATED_LAYOUTS),
+        ) as generate_mock,
+        patch(
+            "api.v1.ppt.endpoints.template.merge_similar_components",
+            new=Mock(return_value=MERGED_COMPONENTS),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.random.randint",
+            return_value=4801,
+        ),
     ):
         template = asyncio.run(
             _create_template_sync(
@@ -514,21 +528,27 @@ def test_create_template_persists_when_component_dedup_fails(
 ):
     pptx_path = tmp_path / "dedup-fails.pptx"
     pptx_path.write_bytes(b"pptx")
-    with patch(
-        "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
-        return_value=str(pptx_path),
-    ), patch(
-        "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
-        new=AsyncMock(return_value=PptxToJsonDocument(**RAW_LAYOUTS)),
-    ), patch(
-        "api.v1.ppt.endpoints.template.generate_template",
-        new=Mock(return_value=GENERATED_LAYOUTS),
-    ), patch(
-        "api.v1.ppt.endpoints.template.merge_similar_components",
-        new=Mock(side_effect=ValueError("bad clusters")),
-    ), patch(
-        "api.v1.ppt.endpoints.template.random.randint",
-        return_value=4801,
+    with (
+        patch(
+            "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
+            return_value=str(pptx_path),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
+            new=AsyncMock(return_value=PptxToJsonDocument(**RAW_LAYOUTS)),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.generate_template",
+            new=Mock(return_value=GENERATED_LAYOUTS),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.merge_similar_components",
+            new=Mock(side_effect=ValueError("bad clusters")),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.random.randint",
+            return_value=4801,
+        ),
     ):
         template = asyncio.run(
             _create_template_sync(
@@ -799,24 +819,31 @@ def test_create_template_async_task_updates_slide_status_before_batch_completes(
         generation_max_tokens.append(max_tokens)
         return generated_layouts[index]
 
-    with patch(
-        "api.v1.ppt.endpoints.template.async_session_maker",
-        new=lambda: _TemplateTaskSessionContext(session),
-    ), patch(
-        "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
-        return_value=str(pptx_path),
-    ), patch(
-        "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
-        new=AsyncMock(return_value=PptxToJsonDocument(**_two_raw_layouts())),
-    ), patch(
-        "api.v1.ppt.endpoints.template.generate_slide_layout",
-        new=Mock(side_effect=fake_generate_slide_layout),
-    ), patch(
-        "api.v1.ppt.endpoints.template.merge_similar_components",
-        new=Mock(return_value=MERGED_COMPONENTS),
-    ), patch(
-        "api.v1.ppt.endpoints.template.random.randint",
-        side_effect=[4801, 4802],
+    with (
+        patch(
+            "api.v1.ppt.endpoints.template.async_session_maker",
+            new=lambda: _TemplateTaskSessionContext(session),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
+            return_value=str(pptx_path),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
+            new=AsyncMock(return_value=PptxToJsonDocument(**_two_raw_layouts())),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.generate_slide_layout",
+            new=Mock(side_effect=fake_generate_slide_layout),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.merge_similar_components",
+            new=Mock(return_value=MERGED_COMPONENTS),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.random.randint",
+            side_effect=[4801, 4802],
+        ),
     ):
         asyncio.run(_run_create_template_task(task.id))
 
@@ -850,9 +877,7 @@ def test_template_request_ids_accept_non_uuid_strings():
     layouts_request = CreateTemplateLayoutsRequest.model_validate(
         {"id": "general-template", "indices": [0]}
     )
-    blocks_request = GenerateTemplateBlocksRequest.model_validate(
-        {"template_id": "sales-template"}
-    )
+    blocks_request = GenerateTemplateBlocksRequest.model_validate({"template_id": "sales-template"})
 
     assert layouts_request.template_id == "general-template"
     assert blocks_request.template_id == "sales-template"
@@ -861,13 +886,16 @@ def test_template_request_ids_accept_non_uuid_strings():
 def test_init_template_persists_assets_without_layouts(tmp_path, fake_async_session):
     pptx_path = tmp_path / "quarterly-review.pptx"
     pptx_path.write_bytes(b"pptx")
-    with patch(
-        "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
-        return_value=str(pptx_path),
-    ), patch(
-        "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
-        new=AsyncMock(return_value=PptxToJsonDocument(**RAW_LAYOUTS)),
-    ) as convert_mock:
+    with (
+        patch(
+            "api.v1.ppt.endpoints.template.resolve_app_path_to_filesystem",
+            return_value=str(pptx_path),
+        ),
+        patch(
+            "api.v1.ppt.endpoints.template.EXPORT_TASK_SERVICE.convert_pptx_to_json",
+            new=AsyncMock(return_value=PptxToJsonDocument(**RAW_LAYOUTS)),
+        ) as convert_mock,
+    ):
         template_id = asyncio.run(
             init_template(
                 InitTemplateRequest(
@@ -953,7 +981,7 @@ def test_list_templates_uses_configured_public_url_for_mcp(monkeypatch):
 
 
 def test_list_templates_filters_by_default_flag():
-    now = datetime(2026, 6, 8, tzinfo=timezone.utc)
+    now = datetime(2026, 6, 8, tzinfo=UTC)
     rows = [
         (
             "default-template",
@@ -1055,9 +1083,7 @@ def test_get_template_theme_returns_stored_theme_without_rewriting(
     )
     fake_async_session._get_results[template_id] = template
 
-    response = asyncio.run(
-        get_template_theme(template_id, sql_session=fake_async_session)
-    )
+    response = asyncio.run(get_template_theme(template_id, sql_session=fake_async_session))
 
     assert response.template_id == template_id
     assert response.theme is not None
@@ -1068,9 +1094,7 @@ def test_get_template_theme_returns_stored_theme_without_rewriting(
 
 def test_get_template_theme_route_is_registered_before_template_detail_get():
     route_paths = [
-        route.path
-        for route in TEMPLATE_ROUTER.routes
-        if "GET" in getattr(route, "methods", set())
+        route.path for route in TEMPLATE_ROUTER.routes if "GET" in getattr(route, "methods", set())
     ]
 
     assert "/template/{template_id}/theme" in route_paths
@@ -1095,9 +1119,7 @@ def test_get_template_theme_derives_and_persists_missing_theme(
         "api.v1.ppt.endpoints.template._derive_template_theme",
         return_value=GENERATED_THEME,
     ) as derive_theme:
-        response = asyncio.run(
-            get_template_theme(template_id, sql_session=fake_async_session)
-        )
+        response = asyncio.run(get_template_theme(template_id, sql_session=fake_async_session))
 
     derive_theme.assert_called_once_with(template)
     assert response.theme is not None
@@ -1109,9 +1131,7 @@ def test_get_template_theme_derives_and_persists_missing_theme(
 
 def test_get_template_theme_returns_404_for_missing_template(fake_async_session):
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(
-            get_template_theme("missing-template", sql_session=fake_async_session)
-        )
+        asyncio.run(get_template_theme("missing-template", sql_session=fake_async_session))
 
     assert exc.value.status_code == 404
     assert exc.value.detail == "Template not found"
@@ -1131,16 +1151,17 @@ def test_create_template_slide_layouts_returns_generated_layout(
         },
     )
     fake_async_session._get_results[template_id] = template
-    request = CreateTemplateLayoutsRequest.model_validate(
-        {"id": str(template_id), "indices": [0]}
-    )
+    request = CreateTemplateLayoutsRequest.model_validate({"id": str(template_id), "indices": [0]})
 
-    with patch(
-        "api.v1.ppt.endpoints.template.generate_slide_layout",
-        new=Mock(return_value=GENERATED_LAYOUTS.layouts[0]),
-    ) as generate_mock, patch(
-        "api.v1.ppt.endpoints.template.random.randint",
-        return_value=4801,
+    with (
+        patch(
+            "api.v1.ppt.endpoints.template.generate_slide_layout",
+            new=Mock(return_value=GENERATED_LAYOUTS.layouts[0]),
+        ) as generate_mock,
+        patch(
+            "api.v1.ppt.endpoints.template.random.randint",
+            return_value=4801,
+        ),
     ):
         response = asyncio.run(
             create_template_slide_layouts(
@@ -1157,9 +1178,7 @@ def test_create_template_slide_layouts_returns_generated_layout(
     assert fonts == {"Inter": "https://example.com/inter.css"}
     assert generate_mock.call_args.kwargs == {"max_tokens": 16000}
     assert response.layouts[0].index == 0
-    response_layout = response.layouts[0].layout.model_dump(
-        mode="json", exclude_none=True
-    )
+    response_layout = response.layouts[0].layout.model_dump(mode="json", exclude_none=True)
     assert response_layout == {
         **TEMPLATE_LAYOUTS["layouts"][0],
         "id": "slide_1_4801",
@@ -1215,9 +1234,7 @@ def test_create_template_slide_layouts_requires_slide_image(
         )
 
     assert exc.value.status_code == 400
-    assert (
-        exc.value.detail == "Slide image URL is unavailable for requested slide index"
-    )
+    assert exc.value.detail == "Slide image URL is unavailable for requested slide index"
 
 
 def test_create_template_slide_layouts_preserves_image_url_indexes(
@@ -1295,9 +1312,7 @@ def test_generate_template_blocks_clusters_and_persists(fake_async_session):
     ) as merge_mock:
         response = asyncio.run(
             generate_template_blocks(
-                GenerateTemplateBlocksRequest.model_validate(
-                    {"id": str(template_id)}
-                ),
+                GenerateTemplateBlocksRequest.model_validate({"id": str(template_id)}),
                 sql_session=fake_async_session,
             )
         )
@@ -1352,9 +1367,7 @@ def test_generate_template_layout_from_prompt_returns_draft(
         name="Custom",
         description="A clean editorial template.",
         layouts=TEMPLATE_LAYOUTS,
-        merged_components=MERGED_COMPONENTS.model_dump(
-            mode="json", exclude_none=True
-        ),
+        merged_components=MERGED_COMPONENTS.model_dump(mode="json", exclude_none=True),
         assets={"fonts": {"Inter": "/app_data/fonts/inter.woff2"}},
     )
     fake_async_session._get_results[template_id] = template
@@ -1377,9 +1390,7 @@ def test_generate_template_layout_from_prompt_returns_draft(
         )
 
     assert response.layout == generated_layout
-    assert response.response == (
-        "Created the title metrics dashboard template layout."
-    )
+    assert response.response == ("Created the title metrics dashboard template layout.")
     generate_mock.assert_called_once()
     (
         prompt_arg,
@@ -1797,9 +1808,7 @@ def test_update_template_updates_response_assets_and_components(fake_async_sessi
                 id=template_id,
                 thumbnail="new.png",
                 fonts={"Inter": "inter.woff2"},
-                merged_components=MERGED_COMPONENTS.model_dump(
-                    mode="json", exclude_none=True
-                ),
+                merged_components=MERGED_COMPONENTS.model_dump(mode="json", exclude_none=True),
                 theme=GENERATED_THEME,
             ),
             sql_session=fake_async_session,
@@ -1855,9 +1864,7 @@ def test_delete_template_deletes_template(fake_async_session):
     template = TemplateV2(name="Custom", layouts=RAW_LAYOUTS)
     fake_async_session._get_results[template_id] = template
 
-    response = asyncio.run(
-        delete_template(template_id, sql_session=fake_async_session)
-    )
+    response = asyncio.run(delete_template(template_id, sql_session=fake_async_session))
 
     assert response.status_code == 204
     assert fake_async_session.deleted == [template]

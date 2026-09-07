@@ -15,13 +15,16 @@ class TestChatConversationStore:
         ]
         sql_session = MagicMock()
 
-        with patch(
-            "services.chat.conversation_store.sql_chat_history.load_messages",
-            new=AsyncMock(return_value=expected_history),
-        ) as load_sql, patch(
-            "services.chat.conversation_store.CHAT_MEMORY_STORE.load_history",
-            new=AsyncMock(),
-        ) as load_mem0:
+        with (
+            patch(
+                "services.chat.conversation_store.sql_chat_history.load_messages",
+                new=AsyncMock(return_value=expected_history),
+            ) as load_sql,
+            patch(
+                "services.chat.conversation_store.CHAT_MEMORY_STORE.load_history",
+                new=AsyncMock(),
+            ) as load_mem0,
+        ):
             store = ChatConversationStore(sql_session)
             history = asyncio.run(
                 store.load_history(
@@ -47,16 +50,20 @@ class TestChatConversationStore:
         ]
         sql_session = MagicMock()
 
-        with patch(
-            "services.chat.conversation_store.sql_chat_history.load_messages",
-            new=AsyncMock(return_value=[]),
-        ) as load_sql, patch(
-            "services.chat.conversation_store.CHAT_MEMORY_STORE.load_history",
-            new=AsyncMock(return_value=legacy),
-        ) as load_mem0, patch(
-            "services.chat.conversation_store.sql_chat_history.replace_messages",
-            new=AsyncMock(),
-        ) as replace_messages:
+        with (
+            patch(
+                "services.chat.conversation_store.sql_chat_history.load_messages",
+                new=AsyncMock(return_value=[]),
+            ) as load_sql,
+            patch(
+                "services.chat.conversation_store.CHAT_MEMORY_STORE.load_history",
+                new=AsyncMock(return_value=legacy),
+            ) as load_mem0,
+            patch(
+                "services.chat.conversation_store.sql_chat_history.replace_messages",
+                new=AsyncMock(),
+            ) as replace_messages,
+        ):
             store = ChatConversationStore(sql_session)
             history = asyncio.run(
                 store.load_history(
@@ -81,13 +88,16 @@ class TestChatConversationStore:
         presentation_id = uuid.uuid4()
         conversation_id = uuid.uuid4()
 
-        with patch(
-            "services.chat.conversation_store.sql_chat_history.append_turn",
-            new=AsyncMock(),
-        ) as append_sql, patch(
-            "services.chat.conversation_store.CHAT_MEMORY_STORE.store_chat_turn",
-            new=AsyncMock(),
-        ) as store_mem0:
+        with (
+            patch(
+                "services.chat.conversation_store.sql_chat_history.append_turn",
+                new=AsyncMock(),
+            ) as append_sql,
+            patch(
+                "services.chat.conversation_store.CHAT_MEMORY_STORE.store_chat_turn",
+                new=AsyncMock(),
+            ) as store_mem0,
+        ):
             asyncio.run(
                 store.append_turn(
                     presentation_id=presentation_id,

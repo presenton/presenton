@@ -25,14 +25,18 @@ def test_outline_generation_snapshot_matches_normalized_schema(load_snapshot):
         yield content_event('{"content":"## Details\\n1. Item one\\n2. Item two"}')
         yield content_event("]}")
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
-        outline_module,
-        "get_generate_kwargs",
-        side_effect=lambda **kwargs: kwargs,
-    ), patch.object(
-        outline_module, "stream_generate_events", side_effect=fake_stream_generate_events
+    with (
+        patch.object(outline_module, "get_model", return_value="fake-model"),
+        patch.object(outline_module, "get_client", return_value=object()),
+        patch.object(outline_module, "get_llm_config", return_value={}),
+        patch.object(
+            outline_module,
+            "get_generate_kwargs",
+            side_effect=lambda **kwargs: kwargs,
+        ),
+        patch.object(
+            outline_module, "stream_generate_events", side_effect=fake_stream_generate_events
+        ),
     ):
         raw_json = _collect_chunks(
             outline_module.generate_ppt_outline(

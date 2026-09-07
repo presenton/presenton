@@ -22,9 +22,7 @@ def upgrade() -> None:
     if not {"presentations", "slides"}.issubset(tables):
         return
 
-    presentation_columns = {
-        column["name"] for column in inspector.get_columns("presentations")
-    }
+    presentation_columns = {column["name"] for column in inspector.get_columns("presentations")}
     slide_columns = {column["name"] for column in inspector.get_columns("slides")}
     if "generation_mode" not in presentation_columns or not {
         "presentation",

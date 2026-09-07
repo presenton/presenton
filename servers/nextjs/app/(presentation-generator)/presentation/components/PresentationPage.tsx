@@ -905,7 +905,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
                   type="button"
                   aria-label="Dismiss navigation hint"
                   onClick={dismissNavigationHint}
-                  className="pointer-events-auto ml-1 flex h-7 w-7 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F0F1F4] hover:text-[#101323] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]"
+                  className="pointer-events-auto ml-1 flex h-7 w-7 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F0F1F4] hover:text-[#101323] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
@@ -960,13 +960,13 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
             aria-controls="presentation-mobile-assistant"
             aria-expanded={isMobileAssistantOpen}
             onClick={() => setIsMobileAssistantOpen(true)}
-            className="fixed bottom-5 right-5 z-40 inline-flex h-11 items-center gap-2 rounded-full border border-white/70 px-4 text-sm font-semibold text-[#101323] shadow-[0_8px_24px_rgba(74,58,155,0.24)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2 xl:hidden"
+            className="fixed bottom-5 right-5 z-40 inline-flex h-11 items-center gap-2 rounded-full border border-white/70 px-4 text-sm font-semibold text-[#101323] shadow-[0_8px_24px_rgba(74,58,155,0.24)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 xl:hidden"
             style={{
               background:
                 "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
             }}
           >
-            <Sparkles className="h-4 w-4 text-[#7A5AF8]" aria-hidden="true" />
+            <Sparkles className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
             AI Assistant
           </button>
 
@@ -998,7 +998,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
                 type="button"
                 aria-label="Close tools panel"
                 onClick={() => setIsRightPanelOpen(false)}
-                className="absolute -left-[10px] top-1/2 z-[80] hidden h-[36px] w-[16px] -translate-y-1/2 items-center justify-center rounded-full border-2 border-[#E8E5FF] bg-[#FEFEFF] text-[#6938EF] shadow-[0_10px_26px_rgba(52,48,96,0.10)] transition-[border-color,box-shadow,color] hover:border-[#D9D6FE] hover:text-[#5925DC] hover:shadow-[0_12px_30px_rgba(52,48,96,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2 xl:flex"
+                className="absolute -left-[10px] top-1/2 z-[80] hidden h-[36px] w-[16px] -translate-y-1/2 items-center justify-center rounded-full border-2 border-[#DBEAFE] bg-[#FEFEFF] text-[#1D4ED8] shadow-[0_10px_26px_rgba(52,48,96,0.10)] transition-[border-color,box-shadow,color] hover:border-[#BFDBFE] hover:text-[#1E40AF] hover:shadow-[0_12px_30px_rgba(52,48,96,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 xl:flex"
               >
                 <ChevronRight
                   className="h-4 w-4"
@@ -1009,7 +1009,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
             ) : null}
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#EDEEEF] px-4 xl:hidden">
               <div className="flex items-center gap-2 text-sm font-semibold text-[#101323]">
-                <Sparkles className="h-4 w-4 text-[#7A5AF8]" aria-hidden="true" />
+                <Sparkles className="h-4 w-4 text-[#2563EB]" aria-hidden="true" />
                 AI Assistant
               </div>
               <button
@@ -1017,7 +1017,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
                 type="button"
                 aria-label="Close AI Assistant"
                 onClick={closeMobileAssistant}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F6F6F9] hover:text-[#101323] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F6F6F9] hover:text-[#101323] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>

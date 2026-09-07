@@ -23,10 +23,7 @@ def test_icon_weight_settings_uses_only_icon_weight_and_fallback():
 
 def test_icon_type_settings_prefer_icon_type_and_support_weight_alias():
     assert extract_icon_type_from_settings({"icon_type": "duotone"}) == "duotone"
-    assert (
-        extract_icon_type_from_settings({"icon_type": "bold", "icon_weight": "thin"})
-        == "bold"
-    )
+    assert extract_icon_type_from_settings({"icon_type": "bold", "icon_weight": "thin"}) == "bold"
     assert extract_icon_type_from_settings({"icon_weight": "light"}) == "light"
     assert normalize_icon_type("regular") == "regular"
 
@@ -129,9 +126,7 @@ def test_process_slide_fetches_icons_with_template_weight(monkeypatch):
 
     assert assets == []
     assert captured == {"query": "success check", "weight": "thin"}
-    assert slide.content["icon"]["__icon_url__"].endswith(
-        "/static/icons/thin/checks-thin.svg"
-    )
+    assert slide.content["icon"]["__icon_url__"].endswith("/static/icons/thin/checks-thin.svg")
 
 
 def test_process_slide_fetches_every_template_image_and_icon(monkeypatch):
@@ -179,22 +174,13 @@ def test_process_slide_fetches_every_template_image_and_icon(monkeypatch):
 
     assert assets == []
     assert [
-        call.args[0].prompt
-        for call in image_generation_service.generate_image.await_args_list
+        call.args[0].prompt for call in image_generation_service.generate_image.await_args_list
     ] == ["market dashboard", "collaborative team"]
     assert icon_queries == ["growth chart", "customer support"]
-    assert slide.content["hero"]["image_url"].endswith(
-        "/static/generated/market.png"
-    )
-    assert slide.content["cards"][0]["image_url"].endswith(
-        "/static/generated/team.png"
-    )
-    assert slide.content["cards"][1]["icon_url"].endswith(
-        "/static/icons/growth-chart.svg"
-    )
-    assert slide.content["cards"][2]["icon_url"].endswith(
-        "/static/icons/customer-support.svg"
-    )
+    assert slide.content["hero"]["image_url"].endswith("/static/generated/market.png")
+    assert slide.content["cards"][0]["image_url"].endswith("/static/generated/team.png")
+    assert slide.content["cards"][1]["icon_url"].endswith("/static/icons/growth-chart.svg")
+    assert slide.content["cards"][2]["icon_url"].endswith("/static/icons/customer-support.svg")
     assert "__image_url__" not in slide.content["hero"]
     assert "__image_url__" not in slide.content["cards"][0]
     assert "__icon_url__" not in slide.content["cards"][1]
@@ -329,11 +315,7 @@ def test_template_placeholders_use_clean_url_fields():
 
     process_slides.process_slide_add_placeholder_assets(slide)
 
-    assert slide.content["hero"]["image_url"].endswith(
-        "/static/images/placeholder.jpg"
-    )
-    assert slide.content["badge"]["icon_url"].endswith(
-        "/static/icons/placeholder.svg"
-    )
+    assert slide.content["hero"]["image_url"].endswith("/static/images/placeholder.jpg")
+    assert slide.content["badge"]["icon_url"].endswith("/static/icons/placeholder.svg")
     assert "__image_url__" not in slide.content["hero"]
     assert "__icon_url__" not in slide.content["badge"]

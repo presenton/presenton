@@ -15,14 +15,13 @@ Thanks for helping improve **Presenton — the open-source AI presentation gener
 
 # Current Contribution Scope
 
-The Electron application contains:
+The repository contains:
 
-- Desktop application
-- FastAPI backend
-- Next.js frontend
-- Local runtime integrations
+- FastAPI backend (`servers/fastapi`)
+- Next.js frontend (`servers/nextjs`)
+- Docker deployment (nginx all-in-one image)
 
-Contributions outside `electron/` may not be accepted at this time.
+The desktop (Electron) application was removed; the project is web/Docker-only.
 
 ---
 
@@ -60,57 +59,38 @@ docs/update-readme
 
 ---
 
-# Development Setup (Electron)
+# Development Setup
 
 ### Prerequisites
 
 - Node.js (LTS)
 - npm
-- Python
+- Python 3.11
 - `uv` (Python package manager)
 
 # Setup Environment
 
-From the `electron` directory:
+From the repository root:
 
 ```
-cd electron
-npm run setup:env
+make setup
 ```
 
 This installs:
 
-- Node dependencies
-- FastAPI dependencies
+- FastAPI dependencies (`uv sync`)
+- root npm dependencies
 - Next.js dependencies
 
 ---
 
-# Run the Electron App (Development)
+# Run in Development
 
 ```
-
-npm run dev
-
+docker compose up development
 ```
 
-This will:
-
-- compile TypeScript
-- start the Electron app
-- run the backend and UI locally
-
----
-
-# Build the Electron App
-
-To build all components:
-
-```
-
-npm run build:all
-
-```
+or build and run the all-in-one image directly — see the README.
 
 ---
 
@@ -126,7 +106,6 @@ signing so maintainers can verify it.
 
 Please ensure:
 
-- Changes are **inside `electron/`**
 - Code runs locally on development as well as build environment both
 - PRs are **small and focused**
 - You explain **what and why**

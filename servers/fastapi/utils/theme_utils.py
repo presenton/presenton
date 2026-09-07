@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
-from typing import Dict, Optional
 
 from models.theme_data import GeneratedColorPalette
 
@@ -11,7 +10,7 @@ IS_DARK_BELOW = 0.65
 BACKGROUND_RETRIES = 200
 TEXT_RETRIES = 200
 
-LIGHTNESS_VALUES: Dict[str, float] = {
+LIGHTNESS_VALUES: dict[str, float] = {
     "50": 0.97,
     "100": 0.93,
     "200": 0.86,
@@ -44,8 +43,8 @@ def _get_random_value_at_min_max_distance(
     base_value: float,
     min_value: float,
     max_value: float,
-    min_distance: Optional[float] = None,
-    max_distance: Optional[float] = None,
+    min_distance: float | None = None,
+    max_distance: float | None = None,
 ) -> float:
     normalized_min_distance = max(0.0, min_distance or 0.0)
     normalized_max_distance = max_distance if max_distance is not None else math.inf
@@ -138,11 +137,7 @@ def _hex_to_oklch(hex_value: str) -> Oklch:
 
 def _format_hex(color: Oklch) -> str:
     r, g, b = _oklch_to_srgb(color)
-    return "#{:02x}{:02x}{:02x}".format(
-        int(round(r * 255)),
-        int(round(g * 255)),
-        int(round(b * 255)),
-    )
+    return f"#{int(round(r * 255)):02x}{int(round(g * 255)):02x}{int(round(b * 255)):02x}"
 
 
 def _relative_luminance(color: Oklch) -> float:
@@ -161,8 +156,8 @@ def _wcag_contrast(a: Oklch, b: Oklch) -> float:
     return (lighter + 0.05) / (darker + 0.05)
 
 
-def _get_color_for_all_lightness_values(base_color: Oklch) -> Dict[str, str]:
-    colors: Dict[str, str] = {}
+def _get_color_for_all_lightness_values(base_color: Oklch) -> dict[str, str]:
+    colors: dict[str, str] = {}
     for name, value in LIGHTNESS_VALUES.items():
         color = Oklch(l=value, c=base_color.c, h=base_color.h)
         colors[name] = _format_hex(color)
@@ -208,18 +203,10 @@ def _generate_text_color(base_color: Oklch, text_type: str) -> Oklch:
 
     for _ in range(TEXT_RETRIES):
         if text_type == "text_1":
-            lightness = (
-                _get_random_value(0.8, 1.0)
-                if is_base_dark
-                else _get_random_value(0.0, 0.2)
-            )
+            lightness = _get_random_value(0.8, 1.0) if is_base_dark else _get_random_value(0.0, 0.2)
             chroma = _get_random_value(0.0, 0.02)
         elif text_type == "text_2":
-            lightness = (
-                _get_random_value(0.8, 1.0)
-                if is_base_dark
-                else _get_random_value(0.0, 0.2)
-            )
+            lightness = _get_random_value(0.8, 1.0) if is_base_dark else _get_random_value(0.0, 0.2)
             chroma = _get_random_value(0.0, 0.04)
         else:
             raise ValueError(f"Invalid text type: {text_type}")
@@ -231,9 +218,7 @@ def _generate_text_color(base_color: Oklch, text_type: str) -> Oklch:
         max_contrast = None
         contrast = _wcag_contrast(color, base_color)
 
-        if contrast >= min_contrast and (
-            max_contrast is None or contrast <= max_contrast
-        ):
+        if contrast >= min_contrast and (max_contrast is None or contrast <= max_contrast):
             return color
 
     if base_color.l < IS_DARK_BELOW:
@@ -243,9 +228,9 @@ def _generate_text_color(base_color: Oklch, text_type: str) -> Oklch:
 
 def get_lightness_key_at_distance(
     value: float,
-    min_distance: Optional[int] = None,
-    max_distance: Optional[int] = None,
-    prefer_dark: Optional[bool] = None,
+    min_distance: int | None = None,
+    max_distance: int | None = None,
+    prefer_dark: bool | None = None,
 ) -> str:
     items = sorted(LIGHTNESS_VALUES.items(), key=lambda item: item[1])
 
@@ -295,16 +280,14 @@ def get_lightness_key_at_distance(
 
 
 def generate_color_palette(
-    provided_primary: Optional[str] = None,
-    provided_background: Optional[str] = None,
-    provided_accent_1: Optional[str] = None,
-    provided_accent_2: Optional[str] = None,
-    provided_text_1: Optional[str] = None,
-    provided_text_2: Optional[str] = None,
+    provided_primary: str | None = None,
+    provided_background: str | None = None,
+    provided_accent_1: str | None = None,
+    provided_accent_2: str | None = None,
+    provided_text_1: str | None = None,
+    provided_text_2: str | None = None,
 ) -> GeneratedColorPalette:
-    primary = (
-        _hex_to_oklch(provided_primary) if provided_primary else _generate_primary_color()
-    )
+    primary = _hex_to_oklch(provided_primary) if provided_primary else _generate_primary_color()
     background = (
         _hex_to_oklch(provided_background)
         if provided_background
@@ -354,4 +337,3 @@ def generate_color_palette(
         text_1_lightness=text_1.l,
         text_2_lightness=text_2.l,
     )
-

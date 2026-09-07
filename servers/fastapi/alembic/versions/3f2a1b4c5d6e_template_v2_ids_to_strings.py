@@ -5,18 +5,19 @@ Revises: 5d7e9a1b2c3f
 Create Date: 2026-07-09 00:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 import sqlmodel
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "3f2a1b4c5d6e"
-down_revision: Union[str, None] = "5d7e9a1b2c3f"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "5d7e9a1b2c3f"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 FK_TEMPLATE_V2_ID = "fk_chat_history_messages_template_v2_id_template_v2"

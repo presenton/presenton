@@ -1,9 +1,7 @@
+import re
+
 from models.presentation_layout import PresentationLayoutModel
 from models.presentation_outline_model import PresentationOutlineModel
-import re
-from typing import List
-
-from models.presentation_structure_model import PresentationStructureModel
 
 
 def get_presentation_title_from_outlines(
@@ -23,17 +21,11 @@ def get_presentation_title_from_outlines(
         )
 
     return (
-        first_content[:100]
-        .replace("#", "")
-        .replace("/", "")
-        .replace("\\", "")
-        .replace("\n", " ")
+        first_content[:100].replace("#", "").replace("/", "").replace("\\", "").replace("\n", " ")
     )
 
 
-def find_slide_layout_index_by_regex(
-    layout: PresentationLayoutModel, patterns: List[str]
-) -> int:
+def find_slide_layout_index_by_regex(layout: PresentationLayoutModel, patterns: list[str]) -> int:
     def _find_index(pattern: str) -> int:
         regex = re.compile(pattern, re.IGNORECASE)
         for index, slide_layout in enumerate(layout.slides):

@@ -35,8 +35,7 @@ class NonStreamingRefusingClient:
         self.calls.append(kwargs)
         if not kwargs.get("stream"):
             raise ValueError(
-                "Streaming is required for operations that may take longer "
-                "than 10 minutes."
+                "Streaming is required for operations that may take longer than 10 minutes."
             )
 
         def events():
@@ -104,6 +103,37 @@ def test_background_generation_never_issues_a_nonstreaming_request(monkeypatch):
     assert len(client.calls) == 1
 
 
+def test_structured_outputs_disabled_omits_response_format_and_parses_fenced_json(monkeypatch):
+    """LLM_STRUCTURED_OUTPUTS=false: no response_format in the request, and the
+    model's fenced JSON text response is still parsed into a dict."""
+    monkeypatch.setenv("LLM", "ollama")
+    monkeypatch.setenv("LLM_STRUCTURED_OUTPUTS", "false")
+
+    class FencedTextClient:
+        def __init__(self):
+            self.calls = []
+
+        def generate(self, **kwargs):
+            self.calls.append(kwargs)
+            return iter([ResponseStreamContentChunk(chunk='```json\n{"result": "ok"}\n```')])
+
+    client = FencedTextClient()
+
+    result = asyncio.run(
+        generate_structured_with_schema_retries(
+            client,
+            "test-model",
+            messages=[],
+            response_format=object(),
+            json_schema={},
+        )
+    )
+
+    assert result == {"result": "ok"}
+    assert len(client.calls) == 1
+    assert "response_format" not in client.calls[0]
+
+
 def test_disconnect_cancels_generation_without_retrying(monkeypatch):
     monkeypatch.setenv("LLM", "ollama")
     client = StreamingClient()
@@ -140,13 +170,7 @@ def test_connected_request_uses_stream_completion_content(monkeypatch):
 
         def generate(self, **kwargs):
             self.calls.append(kwargs)
-            return iter(
-                [
-                    ResponseStreamCompletionChunk(
-                        content={"result": "complete"}
-                    )
-                ]
-            )
+            return iter([ResponseStreamCompletionChunk(content={"result": "complete"})])
 
     client = CompletedClient()
 
@@ -177,9 +201,7 @@ def test_connected_request_keeps_schema_validation_retries(monkeypatch):
 
         def generate(self, **kwargs):
             self.calls.append(kwargs)
-            return iter(
-                [ResponseStreamCompletionChunk(content=self.responses.pop(0))]
-            )
+            return iter([ResponseStreamCompletionChunk(content=self.responses.pop(0))])
 
     client = ValidationRetryClient()
 

@@ -3,6 +3,7 @@ import base64
 import json
 import os
 import secrets
+import uuid
 from weakref import WeakKeyDictionary
 
 import aiohttp
@@ -10,44 +11,43 @@ from fastapi import HTTPException
 from google import genai
 from google.genai import types
 from openai import NOT_GIVEN, AsyncOpenAI
+
 from models.image_prompt import ImagePrompt
 from models.sql.image_asset import ImageAsset
+from utils.asset_directory_utils import absolute_fastapi_asset_url
 from utils.get_env import (
+    get_comfyui_url_env,
+    get_comfyui_workflow_env,
     get_dall_e_3_quality_env,
     get_gpt_image_1_5_quality_env,
-    get_pexels_api_key_env,
-    get_open_webui_image_url_env,
     get_open_webui_image_api_key_env,
-    get_openai_compat_image_base_url_env,
+    get_open_webui_image_url_env,
     get_openai_compat_image_api_key_env,
+    get_openai_compat_image_base_url_env,
     get_openai_compat_image_model_env,
+    get_pexels_api_key_env,
+    get_pixabay_api_key_env,
     is_parallel_image_generation_enabled,
 )
-from utils.get_env import get_pixabay_api_key_env
-from utils.get_env import get_comfyui_url_env
-from utils.get_env import get_comfyui_workflow_env
+from utils.image_generation_error import normalize_image_generation_error
 from utils.image_provider import (
+    is_comfyui_selected,
+    is_dalle3_selected,
+    is_gemini_flash_selected,
     is_gpt_image_1_5_selected,
     is_image_generation_disabled,
-    is_pixels_selected,
-    is_pixabay_selected,
-    is_gemini_flash_selected,
     is_nanobanana_pro_selected,
-    is_dalle3_selected,
-    is_comfyui_selected,
     is_open_webui_selected,
     is_openai_compatible_selected,
+    is_pixabay_selected,
+    is_pixels_selected,
 )
-from utils.asset_directory_utils import absolute_fastapi_asset_url
-from utils.image_generation_error import normalize_image_generation_error
-import uuid
-
 
 COMFYUI_MAX_SEED = 0xFFFFFFFFFFFFFFFF
 COMFYUI_SEED_SOURCE_VALUE_KEYS = {"value", "int", "integer", "number"}
-_IMAGE_GENERATION_LOCKS: WeakKeyDictionary[
-    asyncio.AbstractEventLoop, asyncio.Lock
-] = WeakKeyDictionary()
+_IMAGE_GENERATION_LOCKS: WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
+    WeakKeyDictionary()
+)
 
 
 def _get_image_generation_lock() -> asyncio.Lock:
@@ -109,9 +109,7 @@ class ImageGenerationService:
             print("No image generation function found. Using placeholder image.")
             return absolute_fastapi_asset_url("/static/images/placeholder.jpg")
 
-        image_prompt = prompt.get_image_prompt(
-            with_theme=not self.is_stock_provider_selected()
-        )
+        image_prompt = prompt.get_image_prompt(with_theme=not self.is_stock_provider_selected())
         print(f"Request - Generating Image for {image_prompt}")
 
         try:
@@ -132,9 +130,7 @@ class ImageGenerationService:
                             "theme_prompt": prompt.theme_prompt,
                         },
                     )
-                elif image_path.startswith("/app_data/") or image_path.startswith(
-                    "/static/"
-                ):
+                elif image_path.startswith("/app_data/") or image_path.startswith("/static/"):
                     return absolute_fastapi_asset_url(image_path)
             raise Exception(f"Image not found at {image_path}")
 
@@ -167,9 +163,7 @@ class ImageGenerationService:
             f.write(base64.b64decode(result.data[0].b64_json))
         return image_path
 
-    async def generate_image_openai_dalle3(
-        self, prompt: str, output_directory: str
-    ) -> str:
+    async def generate_image_openai_dalle3(self, prompt: str, output_directory: str) -> str:
         return await self.generate_image_openai(
             prompt,
             output_directory,
@@ -177,9 +171,7 @@ class ImageGenerationService:
             get_dall_e_3_quality_env() or "standard",
         )
 
-    async def generate_image_openai_gpt_image_1_5(
-        self, prompt: str, output_directory: str
-    ) -> str:
+    async def generate_image_openai_gpt_image_1_5(self, prompt: str, output_directory: str) -> str:
         return await self.generate_image_openai(
             prompt,
             output_directory,
@@ -187,9 +179,7 @@ class ImageGenerationService:
             get_gpt_image_1_5_quality_env() or "medium",
         )
 
-    async def generate_image_open_webui(
-        self, prompt: str, output_directory: str
-    ) -> str:
+    async def generate_image_open_webui(self, prompt: str, output_directory: str) -> str:
         base_url = get_open_webui_image_url_env()
         if not base_url:
             raise ValueError("OPEN_WEBUI_IMAGE_URL environment variable is not set")
@@ -222,9 +212,7 @@ class ImageGenerationService:
 
             if resp.status != 200:
                 error_text = await resp.text()
-                raise Exception(
-                    f"Open WebUI image generation returned {resp.status}: {error_text}"
-                )
+                raise Exception(f"Open WebUI image generation returned {resp.status}: {error_text}")
 
             body = await resp.json()
 
@@ -259,9 +247,7 @@ class ImageGenerationService:
                     timeout=aiohttp.ClientTimeout(total=120),
                 )
                 if dl_resp.status != 200:
-                    raise Exception(
-                        f"Failed to download image: {dl_resp.status}"
-                    )
+                    raise Exception(f"Failed to download image: {dl_resp.status}")
                 with open(image_path, "wb") as f:
                     f.write(await dl_resp.read())
             else:
@@ -269,9 +255,7 @@ class ImageGenerationService:
 
         return image_path
 
-    async def _generate_image_google(
-        self, prompt: str, output_directory: str, model: str
-    ) -> str:
+    async def _generate_image_google(self, prompt: str, output_directory: str, model: str) -> str:
         """Base method for Google image generation models."""
         client = genai.Client()
         response = await asyncio.to_thread(
@@ -287,20 +271,14 @@ class ImageGenerationService:
         response_parts = getattr(response, "parts", None)
         if not response_parts and getattr(response, "candidates", None):
             first_candidate = response.candidates[0] if response.candidates else None
-            content = (
-                getattr(first_candidate, "content", None) if first_candidate else None
-            )
+            content = getattr(first_candidate, "content", None) if first_candidate else None
             response_parts = getattr(content, "parts", None) if content else None
 
         image_path = None
         for part in response_parts or []:
             if part.inline_data is not None:
                 mime_type = getattr(part.inline_data, "mime_type", "") or ""
-                ext = (
-                    mime_type.split("/")[-1]
-                    if mime_type.startswith("image/")
-                    else "png"
-                )
+                ext = mime_type.split("/")[-1] if mime_type.startswith("image/") else "png"
                 image_path = os.path.join(output_directory, f"{uuid.uuid4()}.{ext}")
                 if hasattr(part, "as_image"):
                     part.as_image().save(image_path)
@@ -310,31 +288,21 @@ class ImageGenerationService:
                     if image_data is None:
                         continue
                     image_bytes = (
-                        base64.b64decode(image_data)
-                        if isinstance(image_data, str)
-                        else image_data
+                        base64.b64decode(image_data) if isinstance(image_data, str) else image_data
                     )
                     with open(image_path, "wb") as image_file:
                         image_file.write(image_bytes)
 
         if not image_path:
-            raise HTTPException(
-                status_code=500, detail=f"No image generated by google {model}"
-            )
+            raise HTTPException(status_code=500, detail=f"No image generated by google {model}")
 
         return image_path
 
-    async def generate_image_gemini_flash(
-        self, prompt: str, output_directory: str
-    ) -> str:
+    async def generate_image_gemini_flash(self, prompt: str, output_directory: str) -> str:
         """Generate image using Gemini Flash (gemini-2.5-flash-image)."""
-        return await self._generate_image_google(
-            prompt, output_directory, "gemini-2.5-flash-image"
-        )
+        return await self._generate_image_google(prompt, output_directory, "gemini-2.5-flash-image")
 
-    async def generate_image_nanobanana_pro(
-        self, prompt: str, output_directory: str
-    ) -> str:
+    async def generate_image_nanobanana_pro(self, prompt: str, output_directory: str) -> str:
         """Generate image using NanoBanana Pro (gemini-3-pro-image-preview)."""
         return await self._generate_image_google(
             prompt, output_directory, "gemini-3-pro-image-preview"
@@ -419,9 +387,7 @@ class ImageGenerationService:
 
             data = await response.json()
             hits = data.get("hits", [])
-            image_urls = [
-                hit.get("largeImageURL") for hit in hits if hit.get("largeImageURL")
-            ]
+            image_urls = [hit.get("largeImageURL") for hit in hits if hit.get("largeImageURL")]
 
             if limit <= 1:
                 return image_urls[0] if image_urls else ""
@@ -469,20 +435,14 @@ class ImageGenerationService:
         workflow = self._inject_prompt_into_workflow(workflow, prompt)
         randomized_seed_count = self._inject_random_seeds_into_workflow(workflow)
         if randomized_seed_count:
-            print(
-                f"Randomized {randomized_seed_count} ComfyUI seed input(s) before submission"
-            )
+            print(f"Randomized {randomized_seed_count} ComfyUI seed input(s) before submission")
 
         async with aiohttp.ClientSession(trust_env=True) as session:
             # Step 1: Submit workflow
-            prompt_id = await self._submit_comfyui_workflow(
-                session, comfyui_url, workflow
-            )
+            prompt_id = await self._submit_comfyui_workflow(session, comfyui_url, workflow)
 
             # Step 2: Wait for completion
-            status_data = await self._wait_for_comfyui_completion(
-                session, comfyui_url, prompt_id
-            )
+            status_data = await self._wait_for_comfyui_completion(session, comfyui_url, prompt_id)
 
             # Step 3: Download the generated image
             image_path = await self._download_comfyui_image(
@@ -506,13 +466,29 @@ class ImageGenerationService:
             )
 
         preferred_keys = (
-            "text", "value", "prompt", "string", "content", "instruction", "input", "query"
+            "text",
+            "value",
+            "prompt",
+            "string",
+            "content",
+            "instruction",
+            "input",
+            "query",
         )
 
         # string inputs that are usually NOT prompt text
         ignore_keys = {
-            "filename_prefix", "ckpt_name", "clip_name", "vae_name", "unet_name",
-            "sampler_name", "scheduler", "type", "device", "model", "lora_name"
+            "filename_prefix",
+            "ckpt_name",
+            "clip_name",
+            "vae_name",
+            "unet_name",
+            "sampler_name",
+            "scheduler",
+            "type",
+            "device",
+            "model",
+            "lora_name",
         }
 
         visited = set()
@@ -537,8 +513,7 @@ class ImageGenerationService:
 
             # 2) fallback: exactly one unambiguous writable string field
             string_candidates = [
-                k for k, v in inputs.items()
-                if isinstance(v, str) and k not in ignore_keys
+                k for k, v in inputs.items() if isinstance(v, str) and k not in ignore_keys
             ]
             if len(string_candidates) == 1:
                 inputs[string_candidates[0]] = prompt
@@ -699,9 +674,7 @@ class ImageGenerationService:
             return True
         if isinstance(value, str):
             raw_value = value.strip()
-            return raw_value.isdigit() or (
-                raw_value.startswith("-") and raw_value[1:].isdigit()
-            )
+            return raw_value.isdigit() or (raw_value.startswith("-") and raw_value[1:].isdigit())
         return False
 
     def _is_comfyui_link(self, value: object) -> bool:
@@ -809,7 +782,7 @@ class ImageGenerationService:
             raise Exception("No outputs found in ComfyUI response")
 
         # Find the first image in outputs
-        for node_id, node_output in outputs.items():
+        for _node_id, node_output in outputs.items():
             if "images" in node_output:
                 for image_info in node_output["images"]:
                     filename = image_info["filename"]
@@ -832,9 +805,7 @@ class ImageGenerationService:
 
                         # Determine extension
                         ext = filename.split(".")[-1] if "." in filename else "png"
-                        image_path = os.path.join(
-                            output_directory, f"{uuid.uuid4()}.{ext}"
-                        )
+                        image_path = os.path.join(output_directory, f"{uuid.uuid4()}.{ext}")
 
                         with open(image_path, "wb") as f:
                             f.write(image_data)
@@ -844,9 +815,7 @@ class ImageGenerationService:
                     else:
                         raise Exception(f"Failed to download image: {response.status}")
 
-    async def generate_image_openai_compatible(
-        self, prompt: str, output_directory: str
-    ) -> str:
+    async def generate_image_openai_compatible(self, prompt: str, output_directory: str) -> str:
         base_url = get_openai_compat_image_base_url_env()
         api_key = get_openai_compat_image_api_key_env()
         model = get_openai_compat_image_model_env()
@@ -883,12 +852,8 @@ class ImageGenerationService:
                 image_url = origin + image_url
             image_origin = urlparse(image_url)
             headers = {}
-            if (
-                is_relative_url
-                or (
-                    image_origin.scheme == parsed.scheme
-                    and image_origin.netloc == parsed.netloc
-                )
+            if is_relative_url or (
+                image_origin.scheme == parsed.scheme and image_origin.netloc == parsed.netloc
             ):
                 headers["Authorization"] = f"Bearer {api_key}"
             async with aiohttp.ClientSession(trust_env=True) as session:

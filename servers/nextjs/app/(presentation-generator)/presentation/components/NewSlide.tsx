@@ -114,7 +114,7 @@ const LayoutItem = memo(({ layout, onSelect }: LayoutItemProps) => {
         event.preventDefault();
         selectLayout();
       }}
-      className="relative aspect-video cursor-pointer overflow-hidden rounded-md border border-[#E4E4EA] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition duration-200 hover:border-[#7C51F8] hover:shadow-[0_0_0_2px_rgba(124,81,248,0.18)] focus-visible:ring-2 focus-visible:ring-[#7C51F8]"
+      className="relative aspect-video cursor-pointer overflow-hidden rounded-md border border-[#E4E4EA] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition duration-200 hover:border-[#2563EB] hover:shadow-[0_0_0_2px_rgba(124,81,248,0.18)] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
     >
       <div className="absolute inset-0 z-40 bg-transparent" />
       <div ref={previewRef} className="relative h-full w-full overflow-hidden">
@@ -341,7 +341,7 @@ const NewSlideV1 = ({
           </p>
         </div>
         {loading && (
-          <Loader2 className="h-5 w-5 animate-spin text-[#7C51F8]" />
+          <Loader2 className="h-5 w-5 animate-spin text-[#2563EB]" />
         )}
       </div>
 
@@ -353,7 +353,7 @@ const NewSlideV1 = ({
         )}
         {loading ? (
           <div className="flex h-56 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-[#7C51F8]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
           </div>
         ) : selectableLayouts.length > 0 ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

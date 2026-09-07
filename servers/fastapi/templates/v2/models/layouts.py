@@ -20,7 +20,6 @@ from .elements import (
     SlideElement,
 )
 
-
 SemanticElementPath = Annotated[
     str,
     Field(
@@ -55,7 +54,7 @@ class SimilarComponents(BaseModel):
     indices: list[int] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def _indices_must_be_unique_and_non_negative(self) -> "SimilarComponents":
+    def _indices_must_be_unique_and_non_negative(self) -> SimilarComponents:
         if any(index < 0 for index in self.indices):
             raise ValueError("similar component indices must be non-negative")
         if len(self.indices) != len(set(self.indices)):
@@ -79,7 +78,7 @@ class MergedComponents(BaseModel):
     components: list[MergedComponent]
 
     @model_validator(mode="after")
-    def _component_ids_must_be_unique(self) -> "MergedComponents":
+    def _component_ids_must_be_unique(self) -> MergedComponents:
         ids = [component.id for component in self.components]
         if len(ids) != len(set(ids)):
             raise ValueError("merged component ids must be unique")
@@ -92,7 +91,7 @@ class SlideLayout(BaseModel):
     components: list[Component]
 
     @model_validator(mode="after")
-    def _component_ids_must_be_unique(self) -> "SlideLayout":
+    def _component_ids_must_be_unique(self) -> SlideLayout:
         ids = [component.id for component in self.components]
         if len(ids) != len(set(ids)):
             raise ValueError("component ids must be unique within a slide layout")
@@ -103,7 +102,7 @@ class SlideLayouts(BaseModel):
     layouts: list[SlideLayout] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def _layout_ids_must_be_unique(self) -> "SlideLayouts":
+    def _layout_ids_must_be_unique(self) -> SlideLayouts:
         ids = [layout.id for layout in self.layouts]
         if len(ids) != len(set(ids)):
             raise ValueError("slide layout ids must be unique")
@@ -185,7 +184,7 @@ class VisualChartReplacement(VisualReplacementGeometry):
     source: str | None
 
     @model_validator(mode="after")
-    def _chart_data_must_be_rectangular(self) -> "VisualChartReplacement":
+    def _chart_data_must_be_rectangular(self) -> VisualChartReplacement:
         if any(len(series.values) != len(self.categories) for series in self.series):
             raise ValueError("chart series values must match categories")
         if (
@@ -217,7 +216,7 @@ class VisualInfographicReplacement(VisualReplacementGeometry):
     )
 
     @model_validator(mode="after")
-    def _metric_fields_must_be_valid(self) -> "VisualInfographicReplacement":
+    def _metric_fields_must_be_valid(self) -> VisualInfographicReplacement:
         if self.data.type not in {"progress_bar", "gauge"}:
             return self
         if self.text_color is not None:
@@ -251,7 +250,7 @@ class VisualTableReplacement(VisualReplacementGeometry):
     rows: list[list[VisualTableCell]] = Field(max_length=40)
 
     @model_validator(mode="after")
-    def _table_data_must_be_rectangular(self) -> "VisualTableReplacement":
+    def _table_data_must_be_rectangular(self) -> VisualTableReplacement:
         if any(len(row) != len(self.columns) for row in self.rows):
             raise ValueError("table replacement rows must match columns")
         return self
@@ -282,7 +281,7 @@ class VisualTextListReplacement(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _unmarked_list_has_no_marker_gap(self) -> "VisualTextListReplacement":
+    def _unmarked_list_has_no_marker_gap(self) -> VisualTextListReplacement:
         if self.marker == Marker.NONE and self.marker_gap != 0:
             raise ValueError("an unmarked text list must have marker_gap=0")
         return self
@@ -305,7 +304,7 @@ class VisualDataReplacementPlan(BaseModel):
     replacements: list[VisualDataReplacement]
 
     @model_validator(mode="after")
-    def _paths_must_be_unique_and_disjoint(self) -> "VisualDataReplacementPlan":
+    def _paths_must_be_unique_and_disjoint(self) -> VisualDataReplacementPlan:
         paths = [replacement.path for replacement in self.replacements]
         if len(paths) != len(set(paths)):
             raise ValueError("a visual region can have at most one replacement")
@@ -342,7 +341,7 @@ class SemanticComponentManifest(BaseModel):
     repeated_items: list[list[int]] | None = None
 
     @model_validator(mode="after")
-    def _validate_source_references(self) -> "SemanticComponentManifest":
+    def _validate_source_references(self) -> SemanticComponentManifest:
         if any(index < 0 for index in self.element_indices):
             raise ValueError("component element indices must be non-negative")
         if len(self.element_indices) != len(set(self.element_indices)):
@@ -380,7 +379,7 @@ class SemanticSlideManifest(BaseModel):
     annotations: list[SemanticElementAnnotation]
 
     @model_validator(mode="after")
-    def _semantic_ids_and_paths_must_be_unique(self) -> "SemanticSlideManifest":
+    def _semantic_ids_and_paths_must_be_unique(self) -> SemanticSlideManifest:
         component_ids = [component.id for component in self.components]
         if len(component_ids) != len(set(component_ids)):
             raise ValueError("semantic component ids must be unique")
@@ -412,7 +411,7 @@ class FlexibleFlowItemPlan(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _must_reference_one_item_kind(self) -> "FlexibleFlowItemPlan":
+    def _must_reference_one_item_kind(self) -> FlexibleFlowItemPlan:
         if (self.indices is None) == (self.flow_id is None):
             raise ValueError("flow item must contain either indices or flow_id")
         if self.indices is not None:
@@ -477,7 +476,7 @@ class FlexibleRegionPlan(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _flow_ids_must_be_unique(self) -> "FlexibleRegionPlan":
+    def _flow_ids_must_be_unique(self) -> FlexibleRegionPlan:
         flow_ids = [flow.id for flow in self.flows]
         if len(flow_ids) != len(set(flow_ids)):
             raise ValueError("flexible flow ids must be unique")
@@ -499,7 +498,7 @@ class FlexibleSlidePlan(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _component_ids_must_be_unique(self) -> "FlexibleSlidePlan":
+    def _component_ids_must_be_unique(self) -> FlexibleSlidePlan:
         component_ids = [region.component_id for region in self.regions]
         if len(component_ids) != len(set(component_ids)):
             raise ValueError("a component can contain at most one flexible region")
@@ -546,7 +545,7 @@ class TextCapacityAdjustment(BaseModel):
         return upgraded
 
     @model_validator(mode="after")
-    def _must_change_capacity_or_alignment(self) -> "TextCapacityAdjustment":
+    def _must_change_capacity_or_alignment(self) -> TextCapacityAdjustment:
         requests_growth = any(
             (
                 self.left_characters,
@@ -579,7 +578,7 @@ class TextCapacityPlan(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _paths_must_be_unique(self) -> "TextCapacityPlan":
+    def _paths_must_be_unique(self) -> TextCapacityPlan:
         paths = [adjustment.path for adjustment in self.adjustments]
         if len(paths) != len(set(paths)):
             raise ValueError("a text box can have at most one capacity adjustment")

@@ -144,9 +144,7 @@ def test_generate_preview_candidate_returns_last_preview_tool_json(monkeypatch, 
         name="previewSlide",
         arguments=json.dumps(_generated_layout()),
     )
-    client = _FakeClient(
-        responses=[_FakeResponse(None, tool_calls=[preview_tool_call])]
-    )
+    client = _FakeClient(responses=[_FakeResponse(None, tool_calls=[preview_tool_call])])
     render_calls = []
 
     def fake_render(_self, layout):
@@ -175,19 +173,12 @@ def test_generate_preview_candidate_returns_last_preview_tool_json(monkeypatch, 
     assert render_calls == ["title_slide"]
     assert len(client.calls) == 1
     call = client.calls[0]
-    assert (
-        call["response_format"].json_schema
-        == slide_layout_llm_json_schema()
-    )
+    assert call["response_format"].json_schema == slide_layout_llm_json_schema()
     assert "max_tokens" not in call
     messages = [record.getMessage() for record in caplog.records]
+    assert any("slide layout: preview slide rendered" in message for message in messages)
     assert any(
-        "slide layout: preview slide rendered" in message
-        for message in messages
-    )
-    assert any(
-        "slide layout: returning preview slide JSON as final" in message
-        for message in messages
+        "slide layout: returning preview slide JSON as final" in message for message in messages
     )
 
 
@@ -243,20 +234,14 @@ def test_generate_preview_candidate_preserves_provider_response_messages(monkeyp
 
 
 def test_generate_template_generates_each_slide_and_preserves_order(monkeypatch):
-    raw_layouts = RawSlideLayouts(
-        layouts=[_raw_layout("first"), _raw_layout("second")]
-    )
+    raw_layouts = RawSlideLayouts(layouts=[_raw_layout("first"), _raw_layout("second")])
     calls = []
 
     def fake_generate(source_layout, slide_index, slide_image_url, fonts=None):
         calls.append((source_layout.id, slide_index, slide_image_url, fonts))
-        return SlideLayout.model_validate(
-            _generated_layout(f"generated_{source_layout.id}")
-        )
+        return SlideLayout.model_validate(_generated_layout(f"generated_{source_layout.id}"))
 
-    monkeypatch.setattr(
-        "templates.v2.generation.generate_slide_layout", fake_generate
-    )
+    monkeypatch.setattr("templates.v2.generation.generate_slide_layout", fake_generate)
 
     generated = generate_template(
         raw_layouts,
@@ -285,16 +270,12 @@ def test_generate_template_generates_each_slide_and_preserves_order(monkeypatch)
 
 
 def test_generate_template_repairs_duplicate_generated_layout_ids(monkeypatch):
-    raw_layouts = RawSlideLayouts(
-        layouts=[_raw_layout("first"), _raw_layout("second")]
-    )
+    raw_layouts = RawSlideLayouts(layouts=[_raw_layout("first"), _raw_layout("second")])
 
     def fake_generate(source_layout, slide_index, slide_image_url, fonts=None):
         return SlideLayout.model_validate(_generated_layout("duplicate_layout"))
 
-    monkeypatch.setattr(
-        "templates.v2.generation.generate_slide_layout", fake_generate
-    )
+    monkeypatch.setattr("templates.v2.generation.generate_slide_layout", fake_generate)
 
     generated = generate_template(
         raw_layouts,
@@ -320,9 +301,7 @@ def test_generate_template_requires_one_image_per_layout():
         )
 
 
-def test_merge_similar_components_clusters_by_global_component_index(
-    monkeypatch, caplog
-):
+def test_merge_similar_components_clusters_by_global_component_index(monkeypatch, caplog):
     first = _generated_layout("first_layout")
     first["components"][0]["id"] = "title_block"
     first["components"][0]["description"] = (
@@ -392,9 +371,7 @@ def test_merge_similar_components_clusters_by_global_component_index(
         "title_block",
         "section_heading",
     ]
-    assert [variant.id for variant in merged.components[1].variants] == [
-        "metric_grid"
-    ]
+    assert [variant.id for variant in merged.components[1].variants] == ["metric_grid"]
 
     call = client.calls[0]
     assert call["response_format"].json_schema["title"] == "SimilarComponentsList"
@@ -416,6 +393,74 @@ def test_merge_similar_components_clusters_by_global_component_index(
     assert "schema=SimilarComponentsResponse" in messages
 
 
+def test_merge_similar_components_omits_response_format_when_structured_outputs_disabled(
+    monkeypatch,
+):
+    """LLM_STRUCTURED_OUTPUTS=false: the validation-retry path sends no
+    response_format and parses the model's JSON text response."""
+    monkeypatch.setenv("LLM_STRUCTURED_OUTPUTS", "false")
+    client = _FakeClient('```json\n{"similar_components": [{"indices": [0, 2]}]}\n```')
+    monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
+    monkeypatch.setattr("templates.v2.generation.get_llm_config", lambda: {})
+    monkeypatch.setattr("templates.v2.generation.get_model", lambda: "test-model")
+
+    first = _generated_layout("first_layout")
+    first["components"][0]["id"] = "title_block"
+    first["components"][0]["description"] = (
+        "Reusable prominent title text block for opening slides."
+    )
+    second = _generated_layout("second_layout")
+    second["components"][0]["id"] = "metric_grid"
+    second["components"][0]["description"] = (
+        "Reusable grid presenting several business metrics and labels."
+    )
+    second["components"][0]["elements"] = [
+        {
+            "type": "grid",
+            "position": {"x": 0, "y": 0},
+            "size": {"width": 600, "height": 180},
+            "columns": 2,
+            "rows": 1,
+            "gap": 24,
+            "name": "metrics",
+            "min_children": 1,
+            "max_children": 2,
+            "children": [
+                {
+                    "type": "text",
+                    "size": {"width": 280, "height": 80},
+                    "decorative": False,
+                    "name": "metric_value",
+                    "min_length": 1,
+                    "max_length": 10,
+                    "runs": [{"text": "42%"}],
+                },
+                {
+                    "type": "text",
+                    "size": {"width": 280, "height": 80},
+                    "decorative": False,
+                    "name": "metric_label",
+                    "min_length": 5,
+                    "max_length": 30,
+                    "runs": [{"text": "Revenue growth"}],
+                },
+            ],
+        }
+    ]
+    third = _generated_layout("third_layout")
+    third["components"][0]["id"] = "section_heading"
+    third["components"][0]["description"] = (
+        "Reusable prominent heading text block for section slides."
+    )
+    layouts = SlideLayouts.model_validate({"layouts": [first, second, third]})
+
+    merged = merge_similar_components(layouts)
+
+    assert len(merged.components) == 2
+    assert len(client.calls) == 1
+    assert "response_format" not in client.calls[0]
+
+
 def test_merge_similar_components_skips_llm_for_single_component(monkeypatch):
     monkeypatch.setattr(
         "templates.v2.generation.get_client",
@@ -435,9 +480,7 @@ def test_merge_similar_components_removes_structural_duplicates_after_clustering
 ):
     first = _generated_layout("first_layout")
     first["components"][0]["id"] = "headline_a"
-    first["components"][0]["description"] = (
-        "Reusable headline card with static divider decoration."
-    )
+    first["components"][0]["description"] = "Reusable headline card with static divider decoration."
     first["components"][0]["elements"] = [
         {
             "type": "vector",
@@ -600,9 +643,7 @@ def test_preview_slide_tool_renders_layout_components(tmp_path, monkeypatch):
     image = PreviewSlideTool(
         slide_index=2,
         fonts={"Inter": "https://example.com/inter.css"},
-    ).render(
-        SlideLayout.model_validate(_generated_layout())
-    )
+    ).render(SlideLayout.model_validate(_generated_layout()))
 
     saved_json_path = app_data_dir / "preview_slide" / "2" / "1.json"
     saved_image_path = app_data_dir / "preview_slide" / "2" / "1.png"

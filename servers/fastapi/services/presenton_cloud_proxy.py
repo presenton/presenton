@@ -30,7 +30,6 @@ from services.presenton_cloud_persistence import (
 from services.provider_settings import get_provider_settings
 from utils.get_env import get_presenton_oauth_issuer
 
-
 logger = logging.getLogger(__name__)
 
 CLOUD_GENERATION_PATHS = frozenset(
@@ -70,9 +69,7 @@ CLOUD_PRIVATE_ASSET_PATH_PREFIXES = (
     "/app_data/pptx-to-html/",
     "/app_data/pptx-to-json/",
 )
-_READ_ONLY_CLOUD_PREFIXES = (
-    "/api/v1/ppt/community/presentations",
-)
+_READ_ONLY_CLOUD_PREFIXES = ("/api/v1/ppt/community/presentations",)
 _HOP_BY_HOP_HEADERS = {
     "connection",
     "keep-alive",
@@ -100,9 +97,7 @@ def should_proxy_presenton_cloud(path: str) -> bool:
         path in CLOUD_GENERATION_PATHS
         or path in CLOUD_EDIT_PATHS
         or path in CLOUD_SMART_PATHS
-        or path.startswith(
-            CLOUD_API_PATH_PREFIXES + CLOUD_PRIVATE_ASSET_PATH_PREFIXES
-        )
+        or path.startswith(CLOUD_API_PATH_PREFIXES + CLOUD_PRIVATE_ASSET_PATH_PREFIXES)
     )
 
 
@@ -137,9 +132,7 @@ def _forward_request_headers(request: Request) -> dict[str, str]:
 
 def _forward_response_headers(headers) -> dict[str, str]:
     return {
-        key: value
-        for key, value in headers.items()
-        if key.lower() not in _RESPONSE_HEADERS_TO_DROP
+        key: value for key, value in headers.items() if key.lower() not in _RESPONSE_HEADERS_TO_DROP
     }
 
 
@@ -166,9 +159,7 @@ def _complete_payloads_from_sse(buffer: bytearray) -> list[dict[str, Any]]:
             break
         frame = bytes(buffer[:boundary]).replace(b"\r\n", b"\n")
         del buffer[: boundary + 2]
-        data = b"\n".join(
-            line[6:] for line in frame.splitlines() if line.startswith(b"data: ")
-        )
+        data = b"\n".join(line[6:] for line in frame.splitlines() if line.startswith(b"data: "))
         payload = _json_object(data)
         if payload and payload.get("type") == "complete":
             payloads.append(payload)
@@ -198,9 +189,7 @@ def _smart_slide(slide: dict[str, Any], presentation_id: uuid.UUID) -> dict:
     }
 
 
-def _smart_update_payload(
-    payload: dict[str, Any], presentation_id: uuid.UUID
-) -> dict[str, Any]:
+def _smart_update_payload(payload: dict[str, Any], presentation_id: uuid.UUID) -> dict[str, Any]:
     result: dict[str, Any] = {"id": str(presentation_id)}
     for key in ("n_slides", "title"):
         if key in payload:
@@ -208,9 +197,7 @@ def _smart_update_payload(
     slides = payload.get("slides")
     if isinstance(slides, list):
         result["slides"] = [
-            _smart_slide(slide, presentation_id)
-            for slide in slides
-            if isinstance(slide, dict)
+            _smart_slide(slide, presentation_id) for slide in slides if isinstance(slide, dict)
         ]
     return result
 
@@ -313,18 +300,14 @@ async def _resolve_presentation_context(
         return None, generation_mode
 
     if payload:
-        presentation_id = _uuid(
-            payload.get("presentation_id") or payload.get("id")
-        )
+        presentation_id = _uuid(payload.get("presentation_id") or payload.get("id"))
         if presentation_id is None and isinstance(payload.get("slide"), dict):
             presentation_id = _uuid(payload["slide"].get("presentation"))
 
     if presentation_id is None and path == "/api/v1/ppt/slide/edit" and payload:
         slide_id = _uuid(payload.get("id"))
         if slide_id is not None:
-            presentation_id = await get_local_slide_presentation_id(
-                owner_id, slide_id
-            )
+            presentation_id = await get_local_slide_presentation_id(owner_id, slide_id)
 
     if presentation_id is None:
         presentation_id = _uuid(_query_value(query_string, "presentation_id"))
@@ -345,10 +328,7 @@ async def _resolve_presentation_context(
         generation_mode = "smart"
     elif presentation_id is not None:
         generation_mode = (
-            await get_local_presentation_generation_mode(
-                owner_id, presentation_id
-            )
-            or "standard"
+            await get_local_presentation_generation_mode(owner_id, presentation_id) or "standard"
         )
     return presentation_id, generation_mode
 
@@ -370,11 +350,7 @@ async def _merge_single_slide_update(
     slides = presentation.get("slides")
     cloud_slides = list(slides) if isinstance(slides, list) else []
     slide_id = str(slide.get("id"))
-    replacement = (
-        _smart_slide(slide, presentation_id)
-        if generation_mode == "smart"
-        else slide
-    )
+    replacement = _smart_slide(slide, presentation_id) if generation_mode == "smart" else slide
     replaced = False
     for index, existing in enumerate(cloud_slides):
         if isinstance(existing, dict) and str(existing.get("id")) == slide_id:
@@ -390,9 +366,7 @@ async def _merge_single_slide_update(
         "title": presentation.get("title"),
         "slides": cloud_slides,
     }
-    if generation_mode == "standard" and isinstance(
-        presentation.get("theme"), dict
-    ):
+    if generation_mode == "standard" and isinstance(presentation.get("theme"), dict):
         update["theme"] = presentation["theme"]
     return json.dumps(update).encode("utf-8")
 
@@ -421,8 +395,7 @@ async def maybe_proxy_presenton_cloud_request(
                 status_code=409,
                 content={
                     "detail": (
-                        "Presenton cloud templates were requested but "
-                        "Presenton is not selected"
+                        "Presenton cloud templates were requested but Presenton is not selected"
                     )
                 },
             )
@@ -433,9 +406,7 @@ async def maybe_proxy_presenton_cloud_request(
     if not has_cloud_credentials(provider):
         return JSONResponse(
             status_code=503,
-            content={
-                "detail": "Presenton is selected but the global provider is not connected"
-            },
+            content={"detail": "Presenton is selected but the global provider is not connected"},
         )
     assert provider is not None
     if not _cloud_asset_belongs_to_provider(path, provider):
@@ -469,10 +440,7 @@ async def maybe_proxy_presenton_cloud_request(
         )
     elif path == "/api/v1/ppt/presentation/create" and generation_mode == "smart":
         upstream_path = "/api/v2/ppt/presentation/generate-html/init"
-    elif (
-        path.startswith("/api/v1/ppt/presentation/stream/")
-        and generation_mode == "smart"
-    ):
+    elif path.startswith("/api/v1/ppt/presentation/stream/") and generation_mode == "smart":
         upstream_path = path.replace(
             "/api/v1/ppt/presentation/stream/",
             "/api/v2/ppt/presentation/stream/",
@@ -501,9 +469,7 @@ async def maybe_proxy_presenton_cloud_request(
                 slide=slide,
             )
         except PresentonCloudError as exc:
-            return JSONResponse(
-                status_code=exc.status_code, content={"detail": exc.detail}
-            )
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
         upstream_path = (
             "/api/v2/ppt/presentation/update"
             if generation_mode == "smart"
@@ -567,8 +533,10 @@ async def maybe_proxy_presenton_cloud_request(
                         request_payload,
                         response_payload,
                     )
-            elif is_success and presentation_id is not None and path in (
-                CLOUD_EDIT_PATHS | {"/api/v1/ppt/chat/message"}
+            elif (
+                is_success
+                and presentation_id is not None
+                and path in (CLOUD_EDIT_PATHS | {"/api/v1/ppt/chat/message"})
             ):
                 await _sync_cloud_presentation(
                     session,
@@ -593,9 +561,7 @@ async def maybe_proxy_presenton_cloud_request(
         synced_on_complete = False
         try:
             async for chunk in upstream.aiter_raw():
-                if is_success and (
-                    is_presentation_stream or is_chat_stream
-                ):
+                if is_success and (is_presentation_stream or is_chat_stream):
                     sse_buffer.extend(chunk)
                     for payload in _complete_payloads_from_sse(sse_buffer):
                         saw_complete = True

@@ -2,14 +2,13 @@ import asyncio
 import json
 import logging
 import os
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from services.mem0_oss_memory import (
     get_shared_mem0_client,
     run_shared_mem0_operation,
 )
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,21 +18,19 @@ class Mem0PresentationMemoryService:
         self._enabled = self._to_bool(os.getenv("MEM0_ENABLED"), default=True)
         self._runtime_enabled = True
         self._top_k = self._to_int(os.getenv("MEM0_TOP_K"), default=8)
-        self._max_context_chars = self._to_int(
-            os.getenv("MEM0_MAX_CONTEXT_CHARS"), default=6000
-        )
+        self._max_context_chars = self._to_int(os.getenv("MEM0_MAX_CONTEXT_CHARS"), default=6000)
         self._namespace_prefix = (
             os.getenv("MEM0_PRESENTATION_NAMESPACE_PREFIX") or "presentation"
         ).strip() or "presentation"
 
     @staticmethod
-    def _to_bool(value: Optional[str], default: bool = False) -> bool:
+    def _to_bool(value: str | None, default: bool = False) -> bool:
         if value is None:
             return default
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
     @staticmethod
-    def _to_int(value: Optional[str], default: int) -> int:
+    def _to_int(value: str | None, default: int) -> int:
         try:
             parsed = int(value) if value is not None else default
             return max(1, parsed)
@@ -96,18 +93,16 @@ class Mem0PresentationMemoryService:
             if isinstance(exc, SystemExit):
                 self._disable_runtime("mem0 runtime failed while adding memory", exc=exc)
                 return
-            LOGGER.exception(
-                "Failed to add mem0 memory for presentation_id=%s", presentation_id
-            )
+            LOGGER.exception("Failed to add mem0 memory for presentation_id=%s", presentation_id)
 
     async def store_generation_context(
         self,
         presentation_id: UUID,
-        system_prompt: Optional[str],
-        user_prompt: Optional[str],
-        extracted_document_text: Optional[str],
-        source_content: Optional[str],
-        instructions: Optional[str],
+        system_prompt: str | None,
+        user_prompt: str | None,
+        extracted_document_text: str | None,
+        source_content: str | None,
+        instructions: str | None,
     ):
         if source_content:
             await self._add_message(
@@ -145,9 +140,7 @@ class Mem0PresentationMemoryService:
 
         try:
             outlines_text = (
-                outlines
-                if isinstance(outlines, str)
-                else json.dumps(outlines, ensure_ascii=False)
+                outlines if isinstance(outlines, str) else json.dumps(outlines, ensure_ascii=False)
             )
         except Exception:
             outlines_text = str(outlines)
@@ -160,7 +153,7 @@ class Mem0PresentationMemoryService:
     async def store_slide_edit(
         self,
         presentation_id: UUID,
-        slide_index: Optional[int],
+        slide_index: int | None,
         edit_prompt: str,
         edited_slide_content: Any,
     ):

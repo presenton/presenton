@@ -5,17 +5,18 @@ Revises: 7f5b2c3d4e6a
 Create Date: 2026-06-22 00:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "8a6c4d2e1f30"
-down_revision: Union[str, None] = "7f5b2c3d4e6a"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "7f5b2c3d4e6a"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def _has_table(table_name: str) -> bool:
@@ -28,9 +29,7 @@ def _has_column(table_name: str, column_name: str) -> bool:
 
 
 def upgrade() -> None:
-    if _has_table("template_v2") and not _has_column(
-        "template_v2", "merged_components"
-    ):
+    if _has_table("template_v2") and not _has_column("template_v2", "merged_components"):
         op.add_column(
             "template_v2",
             sa.Column("merged_components", sa.JSON(), nullable=True),
@@ -38,7 +37,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    if _has_table("template_v2") and _has_column(
-        "template_v2", "merged_components"
-    ):
+    if _has_table("template_v2") and _has_column("template_v2", "merged_components"):
         op.drop_column("template_v2", "merged_components")

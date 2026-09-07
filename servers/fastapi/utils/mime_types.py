@@ -1,6 +1,5 @@
 import mimetypes
 
-
 _EXPLICIT_MIME_TYPES = {
     ".avif": "image/avif",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

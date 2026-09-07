@@ -818,9 +818,7 @@ def test_get_template_schema_strips_component_metadata():
                                 "photo": {
                                     "type": "object",
                                     "additionalProperties": False,
-                                    "properties": {
-                                        "image_prompt": {"type": "string"}
-                                    },
+                                    "properties": {"image_prompt": {"type": "string"}},
                                     "required": ["image_prompt"],
                                 }
                             },

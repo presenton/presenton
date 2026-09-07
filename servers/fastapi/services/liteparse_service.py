@@ -4,7 +4,8 @@ import os
 import subprocess
 import tempfile
 import threading
-from typing import Any, Dict, Mapping, Tuple
+from collections.abc import Mapping
+from typing import Any
 
 from utils.runtime_limits import (
     BoundedTextBuffer,
@@ -79,7 +80,7 @@ class LiteParseService:
         self.runner_dir = os.path.dirname(self.runner_path)
         self._npm_project_root = self._resolve_npm_project_root()
 
-    def _build_node_env(self) -> Dict[str, str]:
+    def _build_node_env(self) -> dict[str, str]:
         """Build environment for Node subprocesses."""
         env = os.environ.copy()
 
@@ -97,13 +98,15 @@ class LiteParseService:
             additional_entries.extend([magick_home, os.path.join(magick_home, "bin")])
 
         if os.name != "nt":
-            additional_entries.extend([
-                "/opt/homebrew/bin",
-                "/usr/local/bin",
-                "/opt/local/bin",
-                "/usr/bin",
-                "/bin",
-            ])
+            additional_entries.extend(
+                [
+                    "/opt/homebrew/bin",
+                    "/usr/local/bin",
+                    "/opt/local/bin",
+                    "/usr/bin",
+                    "/bin",
+                ]
+            )
 
         deduped_additional_entries = []
         for entry in additional_entries:
@@ -174,15 +177,10 @@ class LiteParseService:
             # PyInstaller bundle layout
             os.path.abspath(
                 os.path.join(
-                    cwd, "..", "..", "app", "resources", "document-extraction", "liteparse_runner.mjs"
-                )
-            ),
-            os.path.abspath(
-                os.path.join(
                     cwd,
                     "..",
                     "..",
-                    "electron",
+                    "app",
                     "resources",
                     "document-extraction",
                     "liteparse_runner.mjs",
@@ -194,7 +192,7 @@ class LiteParseService:
                 return path
         return candidates[0]
 
-    def check_runtime_ready(self) -> Tuple[bool, str]:
+    def check_runtime_ready(self) -> tuple[bool, str]:
         if not os.path.isfile(self.runner_path):
             return False, f"LiteParse runner not found at: {self.runner_path}"
 
@@ -267,7 +265,7 @@ class LiteParseService:
         ocr_enabled: bool = True,
         ocr_language: str = "eng",
         dpi: int = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         is_ready, reason = self.check_runtime_ready()
         if not is_ready:
             raise LiteParseError(reason)
@@ -356,7 +354,7 @@ class LiteParseService:
                 "pageCount": 0,
             }
 
-        payload: Dict[str, Any]
+        payload: dict[str, Any]
         try:
             payload = self._decode_runner_output(process.stdout)
         except LiteParseError as exc:
@@ -385,7 +383,7 @@ class LiteParseService:
         return payload
 
     @staticmethod
-    def _decode_runner_output(stdout: str) -> Dict[str, Any]:
+    def _decode_runner_output(stdout: str) -> dict[str, Any]:
         raw = (stdout or "").lstrip("\ufeff").strip()
         if not raw:
             raise LiteParseError("LiteParse runner returned empty output")
@@ -414,7 +412,9 @@ class LiteParseService:
         stdout_path = ""
         stderr_tail = BoundedTextBuffer()
         try:
-            with tempfile.NamedTemporaryFile(prefix="liteparse-stdout-", delete=False) as stdout_file:
+            with tempfile.NamedTemporaryFile(
+                prefix="liteparse-stdout-", delete=False
+            ) as stdout_file:
                 stdout_path = stdout_file.name
                 process = subprocess.Popen(
                     command,
@@ -446,7 +446,7 @@ class LiteParseService:
                     ) from exc
                 stderr_thread.join(timeout=5)
 
-            with open(stdout_path, "r", encoding="utf-8", errors="replace") as output_file:
+            with open(stdout_path, encoding="utf-8", errors="replace") as output_file:
                 stdout = output_file.read()
 
             return subprocess.CompletedProcess(

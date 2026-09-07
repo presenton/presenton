@@ -26,47 +26,22 @@ async function readJson(relativePath) {
 }
 
 test("application versions stay aligned", async () => {
-  const [
-    rootPackage,
-    rootLock,
-    electronPackage,
-    electronLock,
-    electronVersion,
-  ] =
-    await Promise.all([
-      readJson("package.json"),
-      readJson("package-lock.json"),
-      readJson("electron/package.json"),
-      readJson("electron/package-lock.json"),
-      readJson("electron/version.json"),
-    ]);
+  const [rootPackage, rootLock] = await Promise.all([
+    readJson("package.json"),
+    readJson("package-lock.json"),
+  ]);
 
-  assert.equal(electronPackage.version, rootPackage.version);
   assert.equal(rootLock.version, rootPackage.version);
   assert.equal(rootLock.packages[""].version, rootPackage.version);
-  assert.equal(electronLock.version, electronPackage.version);
-  assert.equal(electronLock.packages[""].version, electronPackage.version);
-  assert.equal(electronVersion.version, electronPackage.version);
-  for (const downloadUrl of Object.values(electronVersion.downloads)) {
-    assert.match(downloadUrl, new RegExp(`electron-v${electronPackage.version}/`));
-    assert.match(downloadUrl, new RegExp(`Presenton-${electronPackage.version}\\.`));
-  }
 });
 
-test("Docker and Electron use the same pinned presentation export", async () => {
-  const [rootPackage, electronPackage, dockerfile, dockerfileDev, dockerCompose] =
-    await Promise.all([
-      readJson("package.json"),
-      readJson("electron/package.json"),
-      readFile(path.join(repoRoot, "Dockerfile"), "utf8"),
-      readFile(path.join(repoRoot, "Dockerfile.dev"), "utf8"),
-      readFile(path.join(repoRoot, "docker-compose.yml"), "utf8"),
-    ]);
+test("Docker uses the pinned presentation export", async () => {
+  const [dockerfile, dockerfileDev, dockerCompose] = await Promise.all([
+    readFile(path.join(repoRoot, "Dockerfile"), "utf8"),
+    readFile(path.join(repoRoot, "Dockerfile.dev"), "utf8"),
+    readFile(path.join(repoRoot, "docker-compose.yml"), "utf8"),
+  ]);
 
-  assert.equal(
-    electronPackage.exportVersion,
-    rootPackage.presentationExportVersion,
-  );
   assert.match(dockerfile, /COPY package\.json \/app\//);
   assert.match(
     dockerfile,

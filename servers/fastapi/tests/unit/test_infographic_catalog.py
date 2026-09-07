@@ -84,9 +84,7 @@ def test_chat_tools_browse_and_add_native_infographics():
     tools = ChatTools(memory)
 
     catalog = asyncio.run(
-        tools._get_available_infographics(
-            {"infographicType": "timeline", "query": None}
-        )
+        tools._get_available_infographics({"infographicType": "timeline", "query": None})
     )
     result = asyncio.run(
         tools._add_infographic(

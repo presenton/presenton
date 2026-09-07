@@ -1,8 +1,8 @@
-import sys
 import argparse
 import asyncio
 import json
 import logging
+import sys
 import traceback
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -14,17 +14,21 @@ from fastmcp.server.auth import AccessToken, TokenVerifier
 from fastmcp.server.dependencies import get_access_token, get_http_headers
 from fastmcp.server.providers.openapi import MCPType, RouteMap
 
+from api.v1.auth.config import SESSION_COOKIE_NAME
+from api.v1.auth.users import get_jwt_strategy
+
+# Наш легаси-путь: sk-presenton- токены из таблицы access_token
+# (Telegram-бот) проверяются после нового api_keys-механизма — как в principal.py.
+from models.sql.access_token import AccessToken as DatabaseAccessToken
+from models.sql.user import User
+from services.api_keys import API_KEY_PREFIX, verify_api_key
+from services.database import async_session_maker
 from utils.get_env import (
     PresentationGenerationMode,
     get_presentation_generation_mode,
     get_presenton_public_url,
     is_disable_auth_enabled,
-    is_presenton_electron_desktop,
 )
-from services.database import async_session_maker
-from services.api_keys import API_KEY_PREFIX, verify_api_key
-from api.v1.auth.config import SESSION_COOKIE_NAME
-from api.v1.auth.users import get_jwt_strategy
 from utils.mcp_public_urls import MCP_REQUEST_HEADER
 
 OPENAPI_SPEC_PATH = Path(__file__).with_name("openai_spec.json")
@@ -283,16 +287,32 @@ with OPENAPI_SPEC_PATH.open("r", encoding="utf-8") as f:
 
 
 class PresentonTokenVerifier(TokenVerifier):
-    """Validate the same user-scoped API keys accepted by the REST API."""
+    """Validate the same user-scoped API keys accepted by the REST API.
+
+    Каскад повторяет principal.py: сначала новый механизм api_keys
+    (Fernet, срок действия), затем наш легаси-путь — админ-токены
+    sk-presenton- из таблицы access_token, которыми пользуется
+    Telegram-бот Yarex.
+    """
 
     async def verify_token(self, token: str) -> AccessToken | None:
         if not token.startswith(API_KEY_PREFIX):
             return None
         async with async_session_maker() as session:
+            # Сначала новый механизм API-ключей (api_keys + Fernet).
             verified = await verify_api_key(session, token)
-            if verified is None:
-                return None
-            user = verified.user
+            if verified is not None:
+                user = verified.user
+                api_key_id = verified.api_key_id
+            else:
+                # Легаси-путь: админ-токены Telegram-бота из access_token.
+                access_key = await session.get(DatabaseAccessToken, token)
+                if access_key is None:
+                    return None
+                user = await session.get(User, access_key.user_id)
+                if user is None or not user.is_active or not user.is_superuser:
+                    return None
+                api_key_id = None
             try:
                 internal_session_token = await get_jwt_strategy(
                     lifetime_seconds=MCP_INTERNAL_SESSION_TTL_SECONDS
@@ -310,15 +330,10 @@ class PresentonTokenVerifier(TokenVerifier):
                 "u": user.username,
                 "role": "admin" if user.is_superuser else "user",
                 "user_id": str(user.id),
-                "api_key_id": verified.api_key_id,
+                "api_key_id": api_key_id,
                 "internal_session_token": internal_session_token,
             },
         )
-
-
-def is_mcp_server_enabled() -> bool:
-    """MCP is only supported in server/Docker deployments, not the Electron app."""
-    return not is_presenton_electron_desktop()
 
 
 def create_mcp_auth_provider() -> TokenVerifier | None:
@@ -416,20 +431,9 @@ async def attach_request_auth_header(request: httpx.Request | httpx2.Request) ->
 
 async def main():
     try:
-        if not is_mcp_server_enabled():
-            print(
-                "INFO: MCP server is disabled in the Presenton Electron desktop app "
-                "(PRESENTON_ELECTRON=true)."
-            )
-            return
-
         print("DEBUG: MCP (OpenAPI) Server startup initiated")
-        parser = argparse.ArgumentParser(
-            description="Run the MCP server (from OpenAPI)"
-        )
-        parser.add_argument(
-            "--port", type=int, default=8001, help="Port for the MCP HTTP server"
-        )
+        parser = argparse.ArgumentParser(description="Run the MCP server (from OpenAPI)")
+        parser.add_argument("--port", type=int, default=8001, help="Port for the MCP HTTP server")
 
         parser.add_argument(
             "--name",

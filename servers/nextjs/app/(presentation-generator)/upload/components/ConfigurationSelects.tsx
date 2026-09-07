@@ -130,8 +130,8 @@ const SlideCountSelect: React.FC<{
           className={cn(
             "flex h-[34px] items-center justify-between gap-2 overflow-hidden rounded-full bg-white px-3.5 font-syne font-medium text-[#191919]",
             compact
-              ? "border border-[#EDEEEF] shadow-none focus-visible:ring-2 focus-visible:ring-[#5146E5]/25"
-              : "shadow-sm ring-1 ring-inset ring-slate-200 focus-visible:ring-[#5146E5]/30 min-[1800px]:h-10 min-[1800px]:px-4 min-[2200px]:h-11 min-[2200px]:px-5",
+              ? "border border-[#EDEEEF] shadow-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]/25"
+              : "shadow-sm ring-1 ring-inset ring-slate-200 focus-visible:ring-[#1D4ED8]/30 min-[1800px]:h-10 min-[1800px]:px-4 min-[2200px]:h-11 min-[2200px]:px-5",
           )}
         >
           {compact ? (
@@ -294,7 +294,7 @@ const LanguageSelect: React.FC<{
         className={cn(
           "flex h-[34px] max-w-[160px] items-center gap-2 overflow-hidden rounded-full bg-white px-3.5 font-syne font-semibold text-[#191919]",
           compact
-            ? "border border-[#EDEEEF] shadow-none focus-visible:ring-2 focus-visible:ring-[#5146E5]/25"
+            ? "border border-[#EDEEEF] shadow-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]/25"
             : "shadow-sm ring-1 ring-inset ring-slate-200 min-[1800px]:h-10 min-[1800px]:max-w-[190px] min-[1800px]:px-4 min-[2200px]:h-11 min-[2200px]:max-w-[220px] min-[2200px]:px-5",
         )}
       >

@@ -73,7 +73,7 @@ const OutlinePromptBar: React.FC<OutlinePromptBarProps> = ({
           )}
         >
           {isBusy ? (
-            <Loader2 className="h-[18px] w-[18px] animate-spin text-[#7A5AF8]" />
+            <Loader2 className="h-[18px] w-[18px] animate-spin text-[#2563EB]" />
           ) : (
             <RotateCcw
               aria-hidden="true"

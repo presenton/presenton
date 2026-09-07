@@ -1,7 +1,6 @@
 import re
 from typing import Any
 
-
 _WHITESPACE_RE = re.compile(r"\s+")
 
 

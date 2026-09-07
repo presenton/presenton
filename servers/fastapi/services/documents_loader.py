@@ -5,7 +5,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import pdfplumber
 from fastapi import HTTPException
@@ -50,11 +50,7 @@ def _unwrap_liteparse_json_line_if_stored(text: str) -> str:
         return text
     if not isinstance(payload, dict):
         return text
-    if (
-        payload.get("ok") is True
-        and "filePath" in payload
-        and isinstance(payload.get("text"), str)
-    ):
+    if payload.get("ok") is True and "filePath" in payload and isinstance(payload.get("text"), str):
         return payload["text"]
     return text
 
@@ -113,7 +109,7 @@ def _json_unescape_quoted_value(s: str, content_start: int) -> str:
     return "".join(out)
 
 
-def _try_extract_liteparse_text_value_from_malformed_json(s: str) -> Optional[str]:
+def _try_extract_liteparse_text_value_from_malformed_json(s: str) -> str | None:
     """
     When json.loads failed (e.g. truncated or corrupt), find the "text" field value
     in a LiteParse-shaped object and return only the unescaped string body.
@@ -165,21 +161,19 @@ class DocumentsLoader:
 
     def __init__(
         self,
-        file_paths: List[str],
-        presentation_language: Optional[str] = None,
+        file_paths: list[str],
+        presentation_language: str | None = None,
     ):
         self._file_paths = TEMP_FILE_SERVICE.resolve_existing_temp_paths(file_paths)
         self._ocr_language = presentation_language_to_ocr_code(presentation_language)
-        self.liteparse_service = LiteParseService(
-            timeout_seconds=self.DECOMPOSE_TIMEOUT_SECONDS
-        )
+        self.liteparse_service = LiteParseService(timeout_seconds=self.DECOMPOSE_TIMEOUT_SECONDS)
         self.document_conversion_service = DocumentConversionService()
         self.document_service: Any = (
             DocumentServiceCls() if DocumentServiceCls is not None else None
         )
 
-        self._documents: List[str] = []
-        self._images: List[List[str]] = []
+        self._documents: list[str] = []
+        self._images: list[list[str]] = []
 
     @property
     def documents(self):
@@ -191,23 +185,21 @@ class DocumentsLoader:
 
     async def load_documents(
         self,
-        temp_dir: Optional[str] = None,
+        temp_dir: str | None = None,
         load_text: bool = True,
         load_images: bool = False,
     ):
         """If load_images is True, temp_dir must be provided"""
 
-        documents: List[str] = []
-        images: List[List[str]] = []
+        documents: list[str] = []
+        images: list[list[str]] = []
 
         for file_path in self._file_paths:
             if not os.path.exists(file_path):
-                raise HTTPException(
-                    status_code=404, detail=f"File {file_path} not found"
-                )
+                raise HTTPException(status_code=404, detail=f"File {file_path} not found")
 
             document = ""
-            imgs: List[str] = []
+            imgs: list[str] = []
 
             extension = Path(file_path).suffix.lower()
             LOGGER.info(
@@ -217,9 +209,7 @@ class DocumentsLoader:
             )
 
             if extension in PDF_EXTENSIONS:
-                document, imgs = await self.load_pdf(
-                    file_path, load_text, load_images, temp_dir
-                )
+                document, imgs = await self.load_pdf(file_path, load_text, load_images, temp_dir)
             elif extension in TEXT_EXTENSIONS:
                 document = await self.load_text(file_path)
             elif extension in OFFICE_EXTENSIONS:
@@ -248,9 +238,9 @@ class DocumentsLoader:
         file_path: str,
         load_text: bool,
         load_images: bool,
-        temp_dir: Optional[str] = None,
-    ) -> Tuple[str, List[str]]:
-        image_paths: List[str] = []
+        temp_dir: str | None = None,
+    ) -> tuple[str, list[str]]:
+        image_paths: list[str] = []
         document: str = ""
 
         if load_text:
@@ -274,7 +264,7 @@ class DocumentsLoader:
         try:
             with pdfplumber.open(file_path) as pdf:
                 total_chars = 0
-                for i, page in enumerate(pdf.pages[:sample_pages]):
+                for _i, page in enumerate(pdf.pages[:sample_pages]):
                     text = page.extract_text() or ""
                     total_chars += len(text.strip())
                 return total_chars < threshold
@@ -282,7 +272,7 @@ class DocumentsLoader:
             return False
 
     async def load_text(self, file_path: str) -> str:
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             return await asyncio.to_thread(file.read)
 
     @staticmethod
@@ -292,7 +282,7 @@ class DocumentsLoader:
         except OfficeDocumentError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    def load_image(self, file_path: str, temp_dir: Optional[str] = None) -> str:
+    def load_image(self, file_path: str, temp_dir: str | None = None) -> str:
         if temp_dir:
             converted_path = self.document_conversion_service.convert_image_to_png(
                 file_path,
@@ -340,7 +330,7 @@ class DocumentsLoader:
             ) from exc
 
     @classmethod
-    def get_page_images_from_pdf(cls, file_path: str, temp_dir: str) -> List[str]:
+    def get_page_images_from_pdf(cls, file_path: str, temp_dir: str) -> list[str]:
         with pdfplumber.open(file_path) as pdf:
             images = []
             for page in pdf.pages:
@@ -352,6 +342,4 @@ class DocumentsLoader:
 
     @classmethod
     async def get_page_images_from_pdf_async(cls, file_path: str, temp_dir: str):
-        return await asyncio.to_thread(
-            cls.get_page_images_from_pdf, file_path, temp_dir
-        )
+        return await asyncio.to_thread(cls.get_page_images_from_pdf, file_path, temp_dir)

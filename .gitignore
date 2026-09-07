@@ -26,6 +26,10 @@ skills-lock.json
 .DS_Store
 .codex
 eng.traineddata
+/graphify-out
+
+servers/fastapi/.coverage
+servers/nextjs/.playwright-cli/
 
 # presenton-export runtime (downloaded via scripts/sync-presentation-export.cjs or Docker build)
 presentation-export/
@@ -35,3 +39,6 @@ servers/fastapi/dist/
 servers/fastapi/fastembed_cache/
 servers/fastapi/*.egg-info/
 pptxcollection/
+# graphflow MCP-артефакты
+.graphflow-cache/
+graphflow-out/

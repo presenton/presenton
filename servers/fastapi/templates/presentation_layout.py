@@ -1,5 +1,4 @@
 import json
-from typing import List, Optional
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field, model_validator
@@ -10,8 +9,8 @@ from utils.icon_weights import DEFAULT_ICON_TYPE, extract_icon_type_from_setting
 
 class SlideLayoutModel(BaseModel):
     id: str
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
     json_schema: dict
 
 
@@ -20,7 +19,7 @@ class PresentationLayoutModel(BaseModel):
     ordered: bool = Field(default=False)
     icon_type: str = Field(default=DEFAULT_ICON_TYPE)
     icon_weight: str = Field(default=DEFAULT_ICON_TYPE)
-    slides: List[SlideLayoutModel]
+    slides: list[SlideLayoutModel]
 
     @model_validator(mode="before")
     @classmethod
@@ -37,14 +36,10 @@ class PresentationLayoutModel(BaseModel):
         for index, slide in enumerate(self.slides):
             if slide.id == slide_layout_id:
                 return index
-        raise HTTPException(
-            status_code=404, detail=f"Slide layout {slide_layout_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Slide layout {slide_layout_id} not found")
 
     def to_presentation_structure(self) -> PresentationStructureModel:
-        return PresentationStructureModel(
-            slides=[index for index in range(len(self.slides))]
-        )
+        return PresentationStructureModel(slides=[index for index in range(len(self.slides))])
 
     def to_string(self, with_schema: bool = False) -> str:
         message = "## Presentation Layout\n\n"

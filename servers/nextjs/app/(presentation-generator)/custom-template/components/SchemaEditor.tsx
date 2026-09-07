@@ -518,9 +518,9 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({
             if (fieldEl) {
                 // fieldEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 // Add highlight animation
-                fieldEl.classList.add('ring-2', 'ring-violet-500', 'ring-offset-2');
+                fieldEl.classList.add('ring-2', 'ring-sky-500', 'ring-offset-2');
                 setTimeout(() => {
-                    fieldEl.classList.remove('ring-2', 'ring-violet-500', 'ring-offset-2');
+                    fieldEl.classList.remove('ring-2', 'ring-sky-500', 'ring-offset-2');
                 }, 2000);
             }
         }, 100);
@@ -860,7 +860,7 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({
                                             setExpandedFields(new Set());
                                         }
                                     }}
-                                    className="text-[10px] font-medium text-gray-400 hover:text-violet-600 transition-colors"
+                                    className="text-[10px] font-medium text-gray-400 hover:text-sky-600 transition-colors"
                                 >
                                     {areAllCollapsed ? 'Expand all' : 'Collapse all'}
                                 </button>
@@ -902,7 +902,7 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({
                                             onMouseEnter={() => setHighlightedSchemaPath(f.path)}
                                             onMouseLeave={() => setHighlightedSchemaPath(null)}
                                             className={`rounded-md border transition-all my-3 ${isHighlighted
-                                                ? 'border-violet-400 bg-violet-50/60 ring-2 ring-violet-300'
+                                                ? 'border-sky-400 bg-sky-50/60 ring-2 ring-sky-300'
                                                 : fModified
                                                     ? 'border-amber-200 bg-amber-50/40'
                                                     : isChild
@@ -917,7 +917,7 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     {f.type === 'string' && <Type className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />}
                                                     {f.type === 'number' && <Hash className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />}
-                                                    {f.type === 'array' && <List className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />}
+                                                    {f.type === 'array' && <List className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
                                                     {f.type === 'object' && <Box className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />}
                                                     <span className={`text-sm font-medium truncate ${isChild ? 'text-gray-600' : 'text-gray-700'}`}>
                                                         {formatFieldName(f.name)}
@@ -932,7 +932,7 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({
                                                     )}
                                                     {/* Highlight indicator */}
                                                     {isHighlighted && (
-                                                        <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 bg-violet-100 text-violet-600 rounded">
+                                                        <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 bg-sky-100 text-sky-600 rounded">
                                                             <MousePointer2 className="w-2.5 h-2.5" />
                                                             clicked
                                                         </span>
@@ -1067,13 +1067,13 @@ export const SchemaEditor: React.FC<SchemaEditorProps> = ({
                                     );
                                 };
 
-                                // Determine styles based on parent type (arrays = purple, objects = blue)
+                                // Determine styles based on parent type (arrays = amber, objects = blue)
                                 const isArrayParent = field.type === 'array';
-                                const borderColor = isArrayParent ? 'border-purple-200' : 'border-blue-200';
-                                const lineColor = isArrayParent ? 'bg-purple-200' : 'bg-blue-200';
-                                const textColor = isArrayParent ? 'text-purple-500' : 'text-blue-500';
-                                const bgColor = isArrayParent ? 'bg-purple-50' : 'bg-blue-50';
-                                const badgeTextColor = isArrayParent ? 'text-purple-400' : 'text-blue-400';
+                                const borderColor = isArrayParent ? 'border-amber-200' : 'border-blue-200';
+                                const lineColor = isArrayParent ? 'bg-amber-200' : 'bg-blue-200';
+                                const textColor = isArrayParent ? 'text-amber-500' : 'text-blue-500';
+                                const bgColor = isArrayParent ? 'bg-amber-50' : 'bg-blue-50';
+                                const badgeTextColor = isArrayParent ? 'text-amber-400' : 'text-blue-400';
                                 const headerLabel = isArrayParent ? 'Item Fields' : `${formatFieldName(field.name)} Properties`;
 
                                 return (

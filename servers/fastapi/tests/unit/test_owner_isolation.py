@@ -79,9 +79,7 @@ def test_owned_queries_are_isolated_and_only_default_templates_are_shared():
         context_token = set_current_owner_id(first_id)
         try:
             async with session_maker() as session:
-                presentations = (
-                    await session.scalars(select(PresentationModel))
-                ).all()
+                presentations = (await session.scalars(select(PresentationModel))).all()
                 templates = (await session.scalars(select(TemplateV2))).all()
         finally:
             reset_current_owner_id(context_token)

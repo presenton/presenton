@@ -2,7 +2,7 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,7 @@ from api.v1.auth.context import (
     set_current_owner_is_admin,
 )
 from api.v1.ppt.endpoints.presentation import (
-    build_export_cookie_header,
+    _build_export_cookie_header,
     create_presentation,
     presentation_task_progress_data,
     stream_smart_presentation,
@@ -30,7 +30,6 @@ from services.database import async_session_maker, get_async_session
 from utils.export_utils import export_presentation
 from utils.llm_calls.generate_smart_presentation import resolve_smart_slide_count
 from utils.mcp_public_urls import absolute_mcp_result_links
-
 
 PRESENTATION_V2_ROUTER = APIRouter(
     prefix="/presentation",
@@ -88,7 +87,7 @@ async def _generate_and_export_smart_presentation(
     presentation: PresentationModel,
     *,
     export_as: Literal["pptx", "pdf"],
-    export_cookie_header: Optional[str],
+    export_cookie_header: str | None,
     sql_session: AsyncSession,
     task_id: str | None = None,
 ) -> PresentationPathAndEditPath:
@@ -153,7 +152,7 @@ async def run_generate_smart_presentation_task(
     task_id: str,
     presentation_id: uuid.UUID,
     export_as: Literal["pptx", "pdf"],
-    export_cookie_header: Optional[str],
+    export_cookie_header: str | None,
     owner_id: uuid.UUID | None,
 ) -> None:
     owner_token = set_current_owner_id(owner_id)
@@ -242,7 +241,7 @@ async def generate_smart_presentation_sync(
         response = await _generate_and_export_smart_presentation(
             presentation,
             export_as=request.export_as,
-            export_cookie_header=build_export_cookie_header(request_http),
+            export_cookie_header=_build_export_cookie_header(request_http),
             sql_session=sql_session,
         )
         return response.model_copy(
@@ -292,7 +291,7 @@ async def generate_smart_presentation_async(
         task.id,
         presentation.id,
         request.export_as,
-        build_export_cookie_header(request_http),
+        _build_export_cookie_header(request_http),
         get_current_owner_id(),
     )
     return task

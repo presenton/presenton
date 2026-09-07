@@ -29,9 +29,7 @@ def test_get_presentation_title_for_empty_outline():
 
 def test_slide_outline_content_is_trimmed_to_word_limit():
     assert MAX_OUTLINE_CONTENT_WORDS == 100
-    content = " ".join(
-        f"word{i}" for i in range(MAX_OUTLINE_CONTENT_WORDS + 3)
-    )
+    content = " ".join(f"word{i}" for i in range(MAX_OUTLINE_CONTENT_WORDS + 3))
 
     slide = SlideOutlineModel(content=content)
 

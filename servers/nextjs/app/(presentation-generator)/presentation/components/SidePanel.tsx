@@ -310,7 +310,7 @@ const SidePanel = ({
               <button
                 type="button"
                 onClick={handleAddSlideClick}
-                className="flex w-[70px] cursor-pointer flex-col items-center justify-center gap-2 px-3 text-black transition-opacity duration-200 hover:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5141E5] focus-visible:ring-offset-2"
+                className="flex w-[70px] cursor-pointer flex-col items-center justify-center gap-2 px-3 text-black transition-opacity duration-200 hover:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span className="whitespace-nowrap text-[11px] font-normal leading-normal tracking-[0.11px]">

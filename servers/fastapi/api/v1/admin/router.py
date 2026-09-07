@@ -1,6 +1,6 @@
-import uuid
 import os
 import shutil
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
@@ -11,10 +11,11 @@ from api.v1.auth.schemas import (
     AdminCreateApiKeyRequest,
     AdminCreateUserRequest,
     AdminResetPasswordRequest,
-    PublicUser,
+    AdminSetQuotaRequest,
     ApiKeyCreated,
     ApiKeyPublic,
     ApiKeyToken,
+    PublicUser,
 )
 from api.v1.auth.users import (
     PASSWORD_HELPER,
@@ -22,23 +23,22 @@ from api.v1.auth.users import (
     read_user_from_cookie,
     serialize_user,
 )
-from models.sql.user import User
 from models.sql.api_key import ApiKey
 from models.sql.key_value import KeyValueSqlModel
-from services.database import get_async_session
-from services.provider_settings import get_provider_settings, save_provider_settings
-from services.presenton_cloud import get_presenton_provider, has_cloud_credentials
+from models.sql.user import User
 from services.api_keys import issue_api_key, reveal_api_key
+from services.database import get_async_session
+from services.presenton_cloud import get_presenton_provider, has_cloud_credentials
+from services.provider_settings import get_provider_settings, save_provider_settings
 from utils.datetime_utils import get_current_utc_datetime
 from utils.get_env import (
     get_app_data_directory_env,
     get_can_change_keys_env,
-    get_temp_directory_env,
     get_presenton_oauth_issuer,
+    get_temp_directory_env,
     is_disable_auth_enabled,
 )
 from utils.user_config import update_env_with_user_config
-
 
 API_V1_ADMIN_ROUTER = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 
@@ -184,16 +184,12 @@ async def list_users(
     session: AsyncSession = Depends(get_async_session),
 ):
     users = (
-        await session.scalars(
-            select(User).order_by(User.created_at.desc(), User.username.asc())
-        )
+        await session.scalars(select(User).order_by(User.created_at.desc(), User.username.asc()))
     ).all()
     return [serialize_user(user) for user in users]
 
 
-@API_V1_ADMIN_ROUTER.post(
-    "/users", response_model=PublicUser, status_code=status.HTTP_201_CREATED
-)
+@API_V1_ADMIN_ROUTER.post("/users", response_model=PublicUser, status_code=status.HTTP_201_CREATED)
 async def create_user(
     body: AdminCreateUserRequest,
     _: User = Depends(get_current_admin),
@@ -219,6 +215,25 @@ async def create_user(
         auth_version=1,
     )
     session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return serialize_user(user)
+
+
+@API_V1_ADMIN_ROUTER.put("/users/{user_id}/quota", response_model=PublicUser)
+async def set_user_generation_quota(
+    user_id: uuid.UUID,
+    body: AdminSetQuotaRequest,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Персональный лимит генераций на 24ч для пользователя (P4)."""
+    if not admin.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    user = await session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.generation_limit = body.limit
     await session.commit()
     await session.refresh(user)
     return serialize_user(user)

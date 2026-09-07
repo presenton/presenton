@@ -2,10 +2,10 @@ import json
 from typing import Any
 
 import aiohttp
-from openai import APIError as OpenAIAPIError
-from openai import AsyncOpenAI
 from google import genai
 from google.genai.errors import APIError as GoogleAPIError
+from openai import APIError as OpenAIAPIError
+from openai import AsyncOpenAI
 
 from utils.provider_error_messages import safe_provider_error_detail
 
@@ -65,9 +65,7 @@ async def _aiohttp_error_message(response: aiohttp.ClientResponse) -> str:
     return response.reason or f"Provider returned HTTP {response.status}"
 
 
-async def _raise_for_model_response(
-    response: aiohttp.ClientResponse, *, provider: str
-) -> None:
+async def _raise_for_model_response(response: aiohttp.ClientResponse, *, provider: str) -> None:
     if response.status < 400:
         return
 
@@ -196,7 +194,5 @@ async def list_available_google_models(api_key: str) -> list[str]:
         raise ModelAvailabilityError(
             "Google",
             _google_error_message(e),
-            provider_status_code=getattr(e, "code", None)
-            or getattr(e, "status_code", None)
-            or 500,
+            provider_status_code=getattr(e, "code", None) or getattr(e, "status_code", None) or 500,
         ) from e

@@ -139,30 +139,33 @@ async def test_generate_image_comfyui_randomizes_seed_before_submit(tmp_path):
         submitted_workflow.update(workflow_arg)
         return "prompt-id"
 
-    with patch(
-        "services.image_generation_service.get_comfyui_url_env",
-        return_value="http://comfy.example",
-    ), patch(
-        "services.image_generation_service.get_comfyui_workflow_env",
-        return_value=json.dumps(workflow),
-    ), patch.object(
-        service, "_generate_comfyui_seed", return_value=42
-    ), patch.object(
-        service,
-        "_submit_comfyui_workflow",
-        new=AsyncMock(side_effect=fake_submit),
-    ), patch.object(
-        service,
-        "_wait_for_comfyui_completion",
-        new=AsyncMock(return_value={"prompt-id": {"outputs": {}}}),
-    ), patch.object(
-        service,
-        "_download_comfyui_image",
-        new=AsyncMock(return_value=str(tmp_path / "image.png")),
+    with (
+        patch(
+            "services.image_generation_service.get_comfyui_url_env",
+            return_value="http://comfy.example",
+        ),
+        patch(
+            "services.image_generation_service.get_comfyui_workflow_env",
+            return_value=json.dumps(workflow),
+        ),
+        patch.object(service, "_generate_comfyui_seed", return_value=42),
+        patch.object(
+            service,
+            "_submit_comfyui_workflow",
+            new=AsyncMock(side_effect=fake_submit),
+        ),
+        patch.object(
+            service,
+            "_wait_for_comfyui_completion",
+            new=AsyncMock(return_value={"prompt-id": {"outputs": {}}}),
+        ),
+        patch.object(
+            service,
+            "_download_comfyui_image",
+            new=AsyncMock(return_value=str(tmp_path / "image.png")),
+        ),
     ):
-        image_path = await service.generate_image_comfyui(
-            "new prompt", str(tmp_path)
-        )
+        image_path = await service.generate_image_comfyui("new prompt", str(tmp_path))
 
     assert image_path == str(tmp_path / "image.png")
     assert submitted_workflow["1"]["inputs"]["text"] == "new prompt"

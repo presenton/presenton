@@ -12,9 +12,7 @@ def _outline() -> SlideOutlineModel:
 
 
 def test_slide_content_prompt_keeps_visual_commands_out_of_output_fields():
-    prompt = generate_slide_content.get_system_prompt(
-        instructions="Create a bar chart on slide 5"
-    )
+    prompt = generate_slide_content.get_system_prompt(instructions="Create a bar chart on slide 5")
 
     assert "visual instructions as production" in prompt
     assert "never emit those instructions" in prompt
@@ -71,8 +69,9 @@ def test_slide_content_prompt_includes_soft_targets_and_length_rules():
 
     prompt = generate_slide_content.get_system_prompt(response_schema=prompt_schema)
 
-    assert '"minLength": 16' in prompt
-    assert '"maxLength": 16' in prompt
+    # Форк: схема в промпте рендерится человекочитаемо (_describe_response_schema),
+    # поэтому мягкие таргеты видны как границы "16..16 chars", а не сырой JSON.
+    assert "16..16 chars" in prompt
     assert "aim for that exact count" in prompt
     assert "use a shorter natural value instead" in prompt
 

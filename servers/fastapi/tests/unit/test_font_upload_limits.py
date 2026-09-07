@@ -19,9 +19,7 @@ def fonts_dir(tmp_path, monkeypatch):
 
 def test_raise_if_font_upload_too_large_rejects_over_limit():
     with pytest.raises(HTTPException) as exc:
-        font_uploads.raise_if_font_upload_too_large(
-            font_uploads.MAX_FONT_UPLOAD_BYTES + 1
-        )
+        font_uploads.raise_if_font_upload_too_large(font_uploads.MAX_FONT_UPLOAD_BYTES + 1)
     assert exc.value.status_code == 413
 
 
@@ -72,12 +70,8 @@ def test_persist_upload_file_removes_orphan_after_invalid_font(fonts_dir):
 
 
 def test_persist_upload_file_keeps_valid_font_and_persists(fonts_dir):
-    repo_root = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
-    )
-    source = os.path.join(
-        repo_root, "templates", "momentum", "static", "Lato Regular.ttf"
-    )
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+    source = os.path.join(repo_root, "templates", "momentum", "static", "Lato Regular.ttf")
     if not os.path.isfile(source):
         pytest.skip("No sample TTF available in workspace")
 
@@ -100,18 +94,19 @@ def test_persist_upload_file_keeps_valid_font_and_persists(fonts_dir):
     fake_session.__aenter__ = AsyncMock(return_value=fake_session)
     fake_session.__aexit__ = AsyncMock(return_value=None)
 
-    with patch.object(
-        font_uploads,
-        "_build_font_upload_from_path",
-        return_value=fake_upload,
-    ), patch.object(
-        font_uploads,
-        "async_session_maker",
-        return_value=fake_session,
+    with (
+        patch.object(
+            font_uploads,
+            "_build_font_upload_from_path",
+            return_value=fake_upload,
+        ),
+        patch.object(
+            font_uploads,
+            "async_session_maker",
+            return_value=fake_session,
+        ),
     ):
-        font_upload, dest_path = asyncio.run(
-            font_uploads.persist_upload_file(upload)
-        )
+        font_upload, dest_path = asyncio.run(font_uploads.persist_upload_file(upload))
 
     assert font_upload is fake_upload
     assert os.path.isfile(dest_path)
@@ -119,9 +114,7 @@ def test_persist_upload_file_keeps_valid_font_and_persists(fonts_dir):
     assert os.path.getsize(dest_path) == len(payload)
     fake_session.add.assert_called_once_with(fake_upload)
     assert [
-        name
-        for name, *_ in fake_session.method_calls
-        if name in {"flush", "refresh", "commit"}
+        name for name, *_ in fake_session.method_calls if name in {"flush", "refresh", "commit"}
     ] == ["flush", "refresh", "commit"]
 
 
@@ -141,14 +134,17 @@ def test_persist_upload_file_removes_file_when_refresh_fails_before_commit(fonts
     fake_session.__aenter__ = AsyncMock(return_value=fake_session)
     fake_session.__aexit__ = AsyncMock(return_value=None)
 
-    with patch.object(
-        font_uploads,
-        "_build_font_upload_from_path",
-        return_value=fake_upload,
-    ), patch.object(
-        font_uploads,
-        "async_session_maker",
-        return_value=fake_session,
+    with (
+        patch.object(
+            font_uploads,
+            "_build_font_upload_from_path",
+            return_value=fake_upload,
+        ),
+        patch.object(
+            font_uploads,
+            "async_session_maker",
+            return_value=fake_session,
+        ),
     ):
         with pytest.raises(RuntimeError, match="refresh failed"):
             asyncio.run(font_uploads.persist_upload_file(upload))
@@ -157,9 +153,7 @@ def test_persist_upload_file_removes_file_when_refresh_fails_before_commit(fonts
     assert list(fonts_dir.iterdir()) == []
 
 
-def test_save_uploaded_fonts_to_temp_rejects_oversized_before_write(
-    tmp_path, monkeypatch
-):
+def test_save_uploaded_fonts_to_temp_rejects_oversized_before_write(tmp_path, monkeypatch):
     from templates import fonts_and_slides_preview
 
     monkeypatch.setattr(font_uploads, "MAX_FONT_UPLOAD_BYTES", 32)

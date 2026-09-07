@@ -8,7 +8,6 @@ from services.chat.memory_layer import PresentationChatMemoryLayer
 from services.chat.prompts import build_system_prompt
 from services.chat.tools import ChatTools
 
-
 VALID_SMART_HTML = (
     '<section data-slide-type="content" data-slide-title="Updated title" '
     'class="relative h-[720px] w-[1280px] overflow-hidden bg-white">'
@@ -111,9 +110,7 @@ def test_smart_chat_exposes_only_html_appropriate_tools():
     class _Memory:
         presentation_type = "smart"
 
-    tool_names = {
-        tool.name for tool in ChatTools(_Memory()).get_tool_definitions()
-    }
+    tool_names = {tool.name for tool in ChatTools(_Memory()).get_tool_definitions()}
 
     assert {
         "getSmartPresentationContext",

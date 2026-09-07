@@ -18,10 +18,7 @@ _UNSUPPORTED_LEGACY_EXTENSIONS = {".doc", ".ppt", ".xls", ".rtf"}
 
 
 def _natural_key(value: str) -> list[object]:
-    return [
-        int(part) if part.isdigit() else part.lower()
-        for part in re.split(r"(\d+)", value)
-    ]
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)]
 
 
 def _local_name(tag: str) -> str:
@@ -39,8 +36,7 @@ def _text_nodes(root: ElementTree.Element) -> list[str]:
     return [
         value
         for element in root.iter()
-        if _local_name(element.tag) == "t"
-        and (value := (element.text or "").strip())
+        if _local_name(element.tag) == "t" and (value := (element.text or "").strip())
     ]
 
 
@@ -58,11 +54,7 @@ def _extract_docx(archive: zipfile.ZipFile) -> str:
 
 def _extract_pptx(archive: zipfile.ZipFile) -> str:
     slide_members = sorted(
-        (
-            name
-            for name in archive.namelist()
-            if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)
-        ),
+        (name for name in archive.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
         key=_natural_key,
     )
     slides = [" ".join(_text_nodes(_read_xml(archive, member))) for member in slide_members]
@@ -73,21 +65,13 @@ def _extract_shared_strings(archive: zipfile.ZipFile) -> list[str]:
     if "xl/sharedStrings.xml" not in archive.namelist():
         return []
     root = _read_xml(archive, "xl/sharedStrings.xml")
-    return [
-        " ".join(_text_nodes(item))
-        for item in root.iter()
-        if _local_name(item.tag) == "si"
-    ]
+    return [" ".join(_text_nodes(item)) for item in root.iter() if _local_name(item.tag) == "si"]
 
 
 def _extract_xlsx(archive: zipfile.ZipFile) -> str:
     shared_strings = _extract_shared_strings(archive)
     sheet_members = sorted(
-        (
-            name
-            for name in archive.namelist()
-            if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", name)
-        ),
+        (name for name in archive.namelist() if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", name)),
         key=_natural_key,
     )
     sheets: list[str] = []
@@ -115,11 +99,7 @@ def _extract_xlsx(archive: zipfile.ZipFile) -> str:
                     )
                     if cell_type == "s" and raw_value.isdigit():
                         index = int(raw_value)
-                        value = (
-                            shared_strings[index]
-                            if index < len(shared_strings)
-                            else raw_value
-                        )
+                        value = shared_strings[index] if index < len(shared_strings) else raw_value
                     else:
                         value = raw_value
                 if value:
@@ -144,7 +124,7 @@ def _extract_odf(archive: zipfile.ZipFile) -> str:
 def extract_office_document_text(file_path: str) -> str:
     extension = Path(file_path).suffix.lower()
     if extension in _TEXT_EXTENSIONS:
-        with open(file_path, "r", encoding="utf-8", errors="replace") as file:
+        with open(file_path, encoding="utf-8", errors="replace") as file:
             return file.read()
 
     if extension in _UNSUPPORTED_LEGACY_EXTENSIONS:
@@ -164,8 +144,6 @@ def extract_office_document_text(file_path: str) -> str:
             if extension in _ODF_EXTENSIONS:
                 return _extract_odf(archive)
     except (OSError, zipfile.BadZipFile) as exc:
-        raise OfficeDocumentError(
-            f"Could not parse {os.path.basename(file_path)}"
-        ) from exc
+        raise OfficeDocumentError(f"Could not parse {os.path.basename(file_path)}") from exc
 
     raise OfficeDocumentError(f"Unsupported office document format: {extension}")

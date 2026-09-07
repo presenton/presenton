@@ -127,9 +127,7 @@ class GetAvailableBlocksInput(OpenAIStrictSchemaModel):
         ...,
         min_length=1,
         max_length=1000,
-        description=(
-            "Optional search text for block id, description, layout, or element types."
-        ),
+        description=("Optional search text for block id, description, layout, or element types."),
     )
     layout_id: str | None = Field(
         ...,
@@ -155,16 +153,13 @@ class GetAvailableBlocksInput(OpenAIStrictSchemaModel):
         alias="blockId",
         min_length=1,
         max_length=300,
-        description=(
-            "Optional exact block id returned by a previous getAvailableBlocks call."
-        ),
+        description=("Optional exact block id returned by a previous getAvailableBlocks call."),
     )
     include_full_content: bool | None = Field(
         ...,
         alias="includeFullContent",
         description=(
-            "Set true only when exact component JSON is needed for "
-            "addComponent/createComponent."
+            "Set true only when exact component JSON is needed for addComponent/createComponent."
         ),
     )
     max_results: int | None = Field(
@@ -172,9 +167,7 @@ class GetAvailableBlocksInput(OpenAIStrictSchemaModel):
         alias="maxResults",
         ge=1,
         le=50,
-        description=(
-            "Maximum matching block summaries to return. Use null for the default."
-        ),
+        description=("Maximum matching block summaries to return. Use null for the default."),
     )
 
     model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
@@ -184,9 +177,7 @@ class GetAvailableInfographicsInput(OpenAIStrictSchemaModel):
     infographic_type: InfographicType | None = Field(
         ...,
         alias="infographicType",
-        description=(
-            "Optional exact infographic type. Use null to browse or search the catalog."
-        ),
+        description=("Optional exact infographic type. Use null to browse or search the catalog."),
     )
     query: str | None = Field(
         ...,
@@ -237,7 +228,7 @@ class SaveSlideInput(StrictSchemaModel):
         max_length=200000,
         description=(
             "A JSON-serialized object for slide content. "
-            "Example: '{\"title\": \"Q4 Revenue\", \"bullets\": [\"North America +22%\"]}'"
+            'Example: \'{"title": "Q4 Revenue", "bullets": ["North America +22%"]}\''
         ),
     )
     layout_id: str = Field(alias="layoutId", min_length=1, max_length=200)
@@ -371,20 +362,23 @@ DataLabelPosition = Literal["base", "mid", "top", "outside"]
 
 
 class SlideElementChartInput(OpenAIStrictSchemaModel):
-    chart_type: Literal[
-        "area",
-        "bar",
-        "bubble",
-        "donut",
-        "horizontal_bar",
-        "horizontal_stacked_bar",
-        "line",
-        "pie",
-        "polar_area",
-        "radar",
-        "scatter",
-        "stacked_bar",
-    ] | None = Field(
+    chart_type: (
+        Literal[
+            "area",
+            "bar",
+            "bubble",
+            "donut",
+            "horizontal_bar",
+            "horizontal_stacked_bar",
+            "line",
+            "pie",
+            "polar_area",
+            "radar",
+            "scatter",
+            "stacked_bar",
+        ]
+        | None
+    ) = Field(
         ...,
         alias="chartType",
         description=(
@@ -394,16 +388,10 @@ class SlideElementChartInput(OpenAIStrictSchemaModel):
         ),
     )
     title: str | None = Field(..., min_length=0, max_length=500)
-    title_color: str | None = Field(
-        ..., alias="titleColor", min_length=1, max_length=32
-    )
-    legend_color: str | None = Field(
-        ..., alias="legendColor", min_length=1, max_length=32
-    )
+    title_color: str | None = Field(..., alias="titleColor", min_length=1, max_length=32)
+    legend_color: str | None = Field(..., alias="legendColor", min_length=1, max_length=32)
     categories: list[str] | None = Field(..., min_length=1, max_length=100)
-    series: list[SlideElementChartSeriesInput] | None = Field(
-        ..., min_length=1, max_length=20
-    )
+    series: list[SlideElementChartSeriesInput] | None = Field(..., min_length=1, max_length=20)
     colors: list[str] | None = Field(
         ...,
         min_length=1,
@@ -475,18 +463,12 @@ class SlideElementTableValueInput(StrictSchemaModel):
     text: str = Field(min_length=0, max_length=5000)
 
 
-SlideElementTableValue = (
-    str | int | float | bool | None | SlideElementTableValueInput
-)
+SlideElementTableValue = str | int | float | bool | None | SlideElementTableValueInput
 
 
 class SlideElementTableInput(OpenAIStrictSchemaModel):
-    columns: list[SlideElementTableValue] | None = Field(
-        ..., min_length=1, max_length=100
-    )
-    headers: list[SlideElementTableValue] | None = Field(
-        ..., min_length=1, max_length=100
-    )
+    columns: list[SlideElementTableValue] | None = Field(..., min_length=1, max_length=100)
+    headers: list[SlideElementTableValue] | None = Field(..., min_length=1, max_length=100)
     rows: list[list[SlideElementTableValue]] = Field(min_length=1, max_length=100)
 
     @model_validator(mode="after")
@@ -518,9 +500,7 @@ class AddInfographicInput(OpenAIStrictSchemaModel):
         alias="slideIndex",
         ge=0,
         le=1000,
-        description=(
-            "Required for existing_slide; optional insertion index for new_slide."
-        ),
+        description=("Required for existing_slide; optional insertion index for new_slide."),
     )
     data: dict[str, Any] = Field(
         ...,
@@ -584,12 +564,12 @@ class SlideElementVectorInput(OpenAIStrictSchemaModel):
         min_length=2,
         max_length=200,
     )
-    start_marker: Literal[
-        "none", "arrow", "stealth", "triangle", "circle", "square", "diamond"
-    ] | None = Field(..., alias="startMarker")
-    end_marker: Literal[
-        "none", "arrow", "stealth", "triangle", "circle", "square", "diamond"
-    ] | None = Field(..., alias="endMarker")
+    start_marker: (
+        Literal["none", "arrow", "stealth", "triangle", "circle", "square", "diamond"] | None
+    ) = Field(..., alias="startMarker")
+    end_marker: (
+        Literal["none", "arrow", "stealth", "triangle", "circle", "square", "diamond"] | None
+    ) = Field(..., alias="endMarker")
 
     model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
 
@@ -700,9 +680,7 @@ class UpdateSlideElementInput(OpenAIStrictSchemaModel):
     )
     infographic: SlideElementInfographicInput | None = Field(
         ...,
-        description=(
-            "Infographic update using catalog-native nested data and ordered colors."
-        ),
+        description=("Infographic update using catalog-native nested data and ordered colors."),
     )
     table: SlideElementTableInput | None = Field(
         ...,
@@ -805,13 +783,9 @@ class UpdateSlideElementInput(OpenAIStrictSchemaModel):
             "y_axis_grid",
             "y_axis_title",
         )
-        if "chart" not in normalized and any(
-            key in normalized for key in chart_keys
-        ):
+        if "chart" not in normalized and any(key in normalized for key in chart_keys):
             normalized["chart"] = {
-                key: normalized.pop(key)
-                for key in chart_keys
-                if key in normalized
+                key: normalized.pop(key) for key in chart_keys if key in normalized
             }
 
         font_aliases = {
@@ -834,11 +808,7 @@ class UpdateSlideElementInput(OpenAIStrictSchemaModel):
             "letter_spacing": "letterSpacing",
             "wrap": "wrap",
         }
-        font_patch = (
-            dict(normalized["font"])
-            if isinstance(normalized.get("font"), dict)
-            else {}
-        )
+        font_patch = dict(normalized["font"]) if isinstance(normalized.get("font"), dict) else {}
         for source_key, target_key in font_aliases.items():
             if source_key in normalized and target_key not in font_patch:
                 font_patch[target_key] = normalized.pop(source_key)
@@ -859,9 +829,7 @@ class UpdateSlideElementInput(OpenAIStrictSchemaModel):
             "verticalAlignment": "vertical",
         }
         alignment_patch = (
-            dict(normalized["alignment"])
-            if isinstance(normalized.get("alignment"), dict)
-            else {}
+            dict(normalized["alignment"]) if isinstance(normalized.get("alignment"), dict) else {}
         )
         for source_key, target_key in alignment_aliases.items():
             if source_key in normalized and target_key not in alignment_patch:
@@ -869,11 +837,7 @@ class UpdateSlideElementInput(OpenAIStrictSchemaModel):
         if alignment_patch:
             normalized["alignment"] = alignment_patch
 
-        fill_patch = (
-            dict(normalized["fill"])
-            if isinstance(normalized.get("fill"), dict)
-            else {}
-        )
+        fill_patch = dict(normalized["fill"]) if isinstance(normalized.get("fill"), dict) else {}
         for source_key in (
             "fillColor",
             "fill_color",
@@ -890,9 +854,7 @@ class UpdateSlideElementInput(OpenAIStrictSchemaModel):
             normalized["fill"] = fill_patch
 
         stroke_patch = (
-            dict(normalized["stroke"])
-            if isinstance(normalized.get("stroke"), dict)
-            else {}
+            dict(normalized["stroke"]) if isinstance(normalized.get("stroke"), dict) else {}
         )
         for source_key in ("strokeColor", "stroke_color", "borderColor", "border_color"):
             if source_key in normalized and "color" not in stroke_patch:
@@ -1013,20 +975,23 @@ class AddSlideComponentInput(OpenAIStrictSchemaModel):
 class UpdateComponentInput(OpenAIStrictSchemaModel):
     index: int = Field(..., ge=0, le=1000)
     component_id: str = Field(..., alias="componentId", min_length=1, max_length=120)
-    action: Literal[
-        "update",
-        "group",
-        "ungroup",
-        "duplicate",
-        "bring-to-front",
-        "bring-forward",
-        "send-backward",
-        "send-to-back",
-        "bringToFront",
-        "bringForward",
-        "sendBackward",
-        "sendToBack",
-    ] | None = Field(
+    action: (
+        Literal[
+            "update",
+            "group",
+            "ungroup",
+            "duplicate",
+            "bring-to-front",
+            "bring-forward",
+            "send-backward",
+            "send-to-back",
+            "bringToFront",
+            "bringForward",
+            "sendBackward",
+            "sendToBack",
+        ]
+        | None
+    ) = Field(
         ...,
         description=(
             "Use update for move/resize/replace, group to combine components, "

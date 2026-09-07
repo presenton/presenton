@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from llmai.shared import JSONSchemaResponse, SystemMessage, UserMessage
 
@@ -40,9 +40,9 @@ async def generate_web_search_query(
     client: Any,
     model: str,
     content: str,
-    instructions: Optional[str] = None,
-    disconnect_checker: Optional[DisconnectChecker] = None,
-) -> Optional[str]:
+    instructions: str | None = None,
+    disconnect_checker: DisconnectChecker | None = None,
+) -> str | None:
     response_format = JSONSchemaResponse(
         name="web_search_query",
         json_schema=SEARCH_QUERY_RESPONSE_SCHEMA,

@@ -1,7 +1,7 @@
 import asyncio
+import uuid
 from datetime import timedelta
 from types import SimpleNamespace
-import uuid
 
 from models.sql.api_key import ApiKey
 from models.sql.user import User

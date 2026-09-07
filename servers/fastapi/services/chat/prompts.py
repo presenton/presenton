@@ -7,6 +7,7 @@ def _trim_block(label: str, text: str) -> str:
         return ""
     return f"\n{label}\n{value}\n"
 
+
 CHAT_AI_ASSISTANT_SYSTEM_PROMPT = f"""
 You need to be a helpful slide AI assistant. Be concise, accurate, and action-oriented.
 Use the available tools to inspect and edit the current presentation.
@@ -243,9 +244,4 @@ def build_system_prompt(
         if presentation_type == "smart"
         else CHAT_AI_ASSISTANT_SYSTEM_PROMPT
     )
-    return (
-        base_prompt.strip()
-        + "\n"
-        + presentation_block
-        + chat_block
-    )
+    return base_prompt.strip() + "\n" + presentation_block + chat_block

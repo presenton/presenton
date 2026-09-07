@@ -54,12 +54,10 @@ def _oauth_config() -> tuple[str, str]:
 
 
 def _can_manage_provider(current_user: User | None) -> bool:
-    # Electron is intentionally started with DISABLE_AUTH=true and is treated as
-    # an administrator everywhere else in the local auth API. Keep the cloud
-    # provider controls consistent with that single-user desktop runtime.
-    return is_disable_auth_enabled() or bool(
-        current_user and current_user.is_superuser
-    )
+    # Deployments started with DISABLE_AUTH=true are treated as an
+    # administrator everywhere else in the local auth API. Keep the cloud
+    # provider controls consistent with that single-user runtime.
+    return is_disable_auth_enabled() or bool(current_user and current_user.is_superuser)
 
 
 async def require_presenton_manager(
@@ -254,9 +252,7 @@ async def poll_presenton_provider_connection(
     access_token = token_payload.get("access_token")
     expires_in = token_payload.get("expires_in")
     if not isinstance(access_token, str) or not access_token:
-        raise HTTPException(
-            status_code=502, detail="Presenton did not return an access token"
-        )
+        raise HTTPException(status_code=502, detail="Presenton did not return an access token")
 
     expires_in_value = expires_in if isinstance(expires_in, int) else 30 * 24 * 60 * 60
     credentials_stored = False
@@ -274,9 +270,7 @@ async def poll_presenton_provider_connection(
             ) from exc
         userinfo_payload = _provider_json(userinfo_response)
         if not userinfo_response.is_success:
-            raise HTTPException(
-                status_code=502, detail="Could not verify the Presenton account"
-            )
+            raise HTTPException(status_code=502, detail="Could not verify the Presenton account")
         try:
             profile = PresentonUserInfo.model_validate(userinfo_payload)
         except ValueError as exc:

@@ -3,7 +3,6 @@ from llmai import GenerationDefaults, GenerationProfile, get_model_capabilities
 from llmai.shared.generation import prepare_generation
 from pydantic import BaseModel, Field
 
-
 GENERATION_ROUTER = APIRouter(prefix="/generation", tags=["Generation"])
 
 PROVIDER_ALIASES = {

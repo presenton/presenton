@@ -256,7 +256,7 @@ function SelectedTableCellOutline({
       width={cellW}
       height={cellH}
       fill="rgba(0,0,0,0)"
-      stroke="#7C51F8"
+      stroke="#2563EB"
       strokeWidth={2}
       listening={false}
     />

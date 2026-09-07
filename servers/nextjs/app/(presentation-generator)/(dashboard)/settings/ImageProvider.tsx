@@ -134,7 +134,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
 
                     <div className=" max-w-[290px] pb-[50px]">
                         <div className='w-[60px] h-[60px] px-[13.5px] py-[14.2px] rounded-[4px] flex items-center justify-center'
-                            style={{ backgroundColor: '#F4F3FF' }}
+                            style={{ backgroundColor: '#EFF6FF' }}
                         >
                             <img src="/image-markup.svg" className='w-full h-full object-cover' alt='image-markup' />
                         </div>

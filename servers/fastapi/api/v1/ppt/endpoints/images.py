@@ -1,10 +1,13 @@
+import os
+import uuid
 from io import BytesIO
-from typing import List
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Header
+
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from enums.image_provider import ImageProvider
 from models.image_prompt import ImagePrompt
 from models.sql.image_asset import ImageAsset
 from services.database import get_async_session
@@ -14,12 +17,9 @@ from utils.asset_directory_utils import (
     get_images_directory,
     normalize_slide_asset_url,
 )
+from utils.file_utils import get_file_name_with_random_uuid
 from utils.get_env import get_pexels_api_key_env, get_pixabay_api_key_env
 from utils.image_provider import get_selected_image_provider
-from enums.image_provider import ImageProvider
-import os
-import uuid
-from utils.file_utils import get_file_name_with_random_uuid
 
 IMAGES_ROUTER = APIRouter(prefix="/images", tags=["Images"])
 
@@ -77,9 +77,7 @@ async def _read_validated_image_upload(file: UploadFile) -> bytes:
         UnidentifiedImageError,
         ValueError,
     ):
-        raise HTTPException(
-            status_code=400, detail="Uploaded file is not a valid image"
-        )
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid image")
 
     return content
 
@@ -103,16 +101,14 @@ def _normalize_stock_provider(provider: str | None) -> str:
     return "pexels"
 
 
-def _resolve_stock_api_key(
-    request_api_key: str | None, configured_api_key: str | None
-) -> str:
+def _resolve_stock_api_key(request_api_key: str | None, configured_api_key: str | None) -> str:
     normalized_request_key = (request_api_key or "").strip()
     if normalized_request_key == REDACTED_SECRET_PLACEHOLDER:
         normalized_request_key = ""
     return (normalized_request_key or configured_api_key or "").strip()
 
 
-@IMAGES_ROUTER.get("/search", response_model=List[str])
+@IMAGES_ROUTER.get("/search", response_model=list[str])
 async def search_stock_images(
     query: str,
     limit: int = Query(default=12, ge=1, le=30),
@@ -163,9 +159,7 @@ async def search_stock_images(
 
 
 @IMAGES_ROUTER.get("/generate")
-async def generate_image(
-    prompt: str, sql_session: AsyncSession = Depends(get_async_session)
-):
+async def generate_image(prompt: str, sql_session: AsyncSession = Depends(get_async_session)):
     images_directory = get_images_directory()
     image_prompt = ImagePrompt(prompt=prompt)
     image_generation_service = ImageGenerationService(images_directory)
@@ -196,7 +190,7 @@ async def get_generated_images(sql_session: AsyncSession = Depends(get_async_ses
     try:
         images_result = await sql_session.scalars(
             select(ImageAsset)
-            .where(ImageAsset.is_uploaded == False)
+            .where(not ImageAsset.is_uploaded)
             .order_by(ImageAsset.created_at.desc())
         )
         return [_image_asset_api_dict(a) for a in images_result]
@@ -213,9 +207,7 @@ async def upload_image(
     try:
         content = await _read_validated_image_upload(file)
         new_filename = get_file_name_with_random_uuid(file)
-        image_path = os.path.join(
-            get_images_directory(), os.path.basename(new_filename)
-        )
+        image_path = os.path.join(get_images_directory(), os.path.basename(new_filename))
 
         with open(image_path, "wb") as f:
             f.write(content)
@@ -238,15 +230,11 @@ async def upload_image(
 async def get_uploaded_images(sql_session: AsyncSession = Depends(get_async_session)):
     try:
         images_result = await sql_session.scalars(
-            select(ImageAsset)
-            .where(ImageAsset.is_uploaded == True)
-            .order_by(ImageAsset.created_at.desc())
+            select(ImageAsset).where(ImageAsset.is_uploaded).order_by(ImageAsset.created_at.desc())
         )
         return [_image_asset_api_dict(a) for a in images_result]
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve uploaded images: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve uploaded images: {str(e)}")
 
 
 @IMAGES_ROUTER.delete("/{id}", status_code=204)

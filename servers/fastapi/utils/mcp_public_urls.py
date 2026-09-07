@@ -5,7 +5,6 @@ from fastapi import Request
 
 from utils.get_env import get_presenton_public_url
 
-
 MCP_REQUEST_HEADER = "X-Presenton-MCP-Request"
 MCP_LINK_FIELDS = frozenset({"path", "edit_path", "preview_url"})
 

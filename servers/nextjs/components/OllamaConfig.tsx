@@ -75,8 +75,6 @@ export default function OllamaConfig({
   const [pullCancelled, setPullCancelled] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const pullRequestIdRef = useRef(0);
-  const isElectronRuntime =
-    typeof window !== "undefined" && !!window.electron;
   const defaultOllamaUrl = getDefaultOllamaUrl();
   const trimmedOllamaUrl = ollamaUrl.trim();
   const activeOllamaUrl = trimmedOllamaUrl || resolvedOllamaUrl || "";
@@ -148,7 +146,7 @@ export default function OllamaConfig({
         notify.success(
           "Using in-container Ollama",
           requestedUrl
-            ? "host.docker.internal did not respond, so Presenton switched Ollama URL to localhost."
+            ? "host.docker.internal did not respond, so Yarex switched Ollama URL to localhost."
             : "host.docker.internal did not respond, so this check used localhost."
         );
       }
@@ -367,11 +365,7 @@ export default function OllamaConfig({
         </label>
         <input
           type="text"
-          placeholder={
-            isElectronRuntime
-              ? "http://localhost:11434"
-              : "http://host.docker.internal:11434"
-          }
+          placeholder="http://host.docker.internal:11434"
           className="w-full px-4 py-2.5 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
           value={ollamaUrl}
           onChange={(event) => {
@@ -384,10 +378,8 @@ export default function OllamaConfig({
           }}
         />
         <p className="mt-2 text-sm text-gray-500">
-          Required for generation. Use {defaultOllamaUrl}
-          {!isElectronRuntime
-            ? ", or click Check models to detect localhost when Ollama runs in the same container."
-            : "."}
+          Required for generation. Use {defaultOllamaUrl}, or click Check models
+          to detect localhost when Ollama runs in the same container.
         </p>
         <Button
           type="button"

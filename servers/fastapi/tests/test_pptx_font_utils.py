@@ -3,15 +3,14 @@ import io
 import os
 import struct
 import uuid
-import zipfile
 import xml.etree.ElementTree as ET
+import zipfile
 from types import SimpleNamespace
 
 import pytest
 
-from templates import fonts_and_slides_preview
-from templates import pptx_font_utils
 from models.sql.font_upload import FontUpload
+from templates import fonts_and_slides_preview, pptx_font_utils
 
 
 class DummyLogger:
@@ -55,8 +54,7 @@ def _fake_corrupted_pptx_bytes() -> bytes:
 def _fake_pptx_bytes(slide_count: int) -> bytes:
     buffer = io.BytesIO()
     slide_ids = "\n".join(
-        f'<p:sldId id="{255 + index}" r:id="rId{index}" />'
-        for index in range(1, slide_count + 1)
+        f'<p:sldId id="{255 + index}" r:id="rId{index}" />' for index in range(1, slide_count + 1)
     )
     rels = "\n".join(
         f'<Relationship Id="rId{index}" '
@@ -111,18 +109,9 @@ def test_normalize_font_family_name_strips_localized_bold_token():
 
 
 def test_normalize_font_family_name_preserves_width_tokens():
-    assert (
-        pptx_font_utils.normalize_font_family_name("Latin Condensed")
-        == "Latin Condensed"
-    )
-    assert (
-        pptx_font_utils.normalize_font_family_name("Roboto Condensed Bold")
-        == "Roboto Condensed"
-    )
-    assert (
-        pptx_font_utils.normalize_font_family_name("Arial Narrow Bold")
-        == "Arial Narrow"
-    )
+    assert pptx_font_utils.normalize_font_family_name("Latin Condensed") == "Latin Condensed"
+    assert pptx_font_utils.normalize_font_family_name("Roboto Condensed Bold") == "Roboto Condensed"
+    assert pptx_font_utils.normalize_font_family_name("Arial Narrow Bold") == "Arial Narrow"
 
 
 def test_extract_font_from_eot_uses_header_font_data_offset(tmp_path):
@@ -131,9 +120,7 @@ def test_extract_font_from_eot_uses_header_font_data_offset(tmp_path):
     eot_size = 8 + len(header_body) + len(embedded_font)
     font_data_size = len(embedded_font)
     eot_path = tmp_path / "font.fntdata"
-    eot_path.write_bytes(
-        struct.pack("<II", eot_size, font_data_size) + header_body + embedded_font
-    )
+    eot_path.write_bytes(struct.pack("<II", eot_size, font_data_size) + header_body + embedded_font)
 
     assert pptx_font_utils.extract_font_from_eot(eot_path) == embedded_font
 
@@ -155,9 +142,7 @@ def test_check_fonts_in_pptx_rejects_100mb_file_from_upload_size():
 def test_check_fonts_in_pptx_rejects_oversize_after_read_when_size_missing(
     monkeypatch,
 ):
-    monkeypatch.setattr(
-        fonts_and_slides_preview, "MAX_FONT_CHECK_UPLOAD_SIZE_BYTES", 4
-    )
+    monkeypatch.setattr(fonts_and_slides_preview, "MAX_FONT_CHECK_UPLOAD_SIZE_BYTES", 4)
     upload = DummyUploadFile("deck.pptx", content=b"abcd", size=None)
 
     with pytest.raises(fonts_and_slides_preview.HTTPException) as exc_info:
@@ -216,14 +201,15 @@ def test_template_preview_slide_cap_and_pptx_trim(tmp_path):
         assert "ppt/slides/slide50.xml" in archive.namelist()
         assert "ppt/slides/slide51.xml" not in archive.namelist()
         presentation_xml = ET.fromstring(archive.read("ppt/presentation.xml"))
-        slide_ids = presentation_xml.findall(
-            ".//p:sldId", fonts_and_slides_preview.PPT_NS
-        )
+        slide_ids = presentation_xml.findall(".//p:sldId", fonts_and_slides_preview.PPT_NS)
         assert len(slide_ids) == 50
         rels_xml = ET.fromstring(archive.read("ppt/_rels/presentation.xml.rels"))
-        assert rels_xml.find(
-            ".//*[@Id='rId51']",
-        ) is None
+        assert (
+            rels_xml.find(
+                ".//*[@Id='rId51']",
+            )
+            is None
+        )
         content_types = archive.read("[Content_Types].xml").decode()
         assert "/ppt/slides/slide51.xml" not in content_types
 
@@ -260,9 +246,7 @@ async def test_upload_fonts_and_preview_uses_trimmed_pptx_for_processing(
     def assert_slide_count(path, expected_count):
         with zipfile.ZipFile(path) as archive:
             presentation_xml = ET.fromstring(archive.read("ppt/presentation.xml"))
-            slide_ids = presentation_xml.findall(
-                ".//p:sldId", fonts_and_slides_preview.PPT_NS
-            )
+            slide_ids = presentation_xml.findall(".//p:sldId", fonts_and_slides_preview.PPT_NS)
             assert len(slide_ids) == expected_count
             assert "ppt/slides/slide50.xml" in archive.namelist()
             assert "ppt/slides/slide51.xml" not in archive.namelist()
@@ -688,12 +672,14 @@ def test_font_info_entries_do_not_duplicate_explicit_variant_name():
 
 
 def test_preview_dimensions_preserve_converter_aspect_ratio():
-    assert fonts_and_slides_preview._preview_dimensions_from_document(
-        1280.0, 960.0
-    ) == (1280, 960)
-    assert fonts_and_slides_preview._preview_dimensions_from_document(
-        1707.0, 960.0
-    ) == (1280, 720)
+    assert fonts_and_slides_preview._preview_dimensions_from_document(1280.0, 960.0) == (
+        1280,
+        960,
+    )
+    assert fonts_and_slides_preview._preview_dimensions_from_document(1707.0, 960.0) == (
+        1280,
+        720,
+    )
     assert fonts_and_slides_preview._preview_dimensions_from_document(0, 0) == (
         1280,
         720,
@@ -711,9 +697,10 @@ def test_preview_dimensions_from_pptx_use_export_core_coordinate_space(tmp_path)
 </p:presentation>""",
         )
 
-    assert fonts_and_slides_preview._preview_dimensions_from_pptx(
-        str(pptx_path)
-    ) == (1280, 720)
+    assert fonts_and_slides_preview._preview_dimensions_from_pptx(str(pptx_path)) == (
+        1280,
+        720,
+    )
 
 
 def test_build_slide_preview_html_adds_fixed_viewport_css(monkeypatch):
@@ -738,8 +725,7 @@ def test_build_slide_preview_html_adds_fixed_viewport_css(monkeypatch):
     )
     assert "cdn.tailwindcss.com" not in html
     assert (
-        '<script src="http://backend.test/static/vendor/'
-        'chart-4.5.1.umd.min.js"></script>' in html
+        '<script src="http://backend.test/static/vendor/chart-4.5.1.umd.min.js"></script>' in html
     )
     assert (
         '<script src="http://backend.test/static/vendor/'
@@ -757,8 +743,7 @@ def test_build_slide_preview_html_adds_fixed_viewport_css(monkeypatch):
 
 def test_font_stylesheet_links_for_slide_html_extracts_tailwind_font_classes():
     links = fonts_and_slides_preview._font_stylesheet_links_for_slide_html(
-        "<span class=\"font-['Poppins']\"></span>"
-        "<span class=\"font-['DM_Sans']\"></span>"
+        "<span class=\"font-['Poppins']\"></span><span class=\"font-['DM_Sans']\"></span>"
     )
 
     assert "/vendor/fonts/sans_serif/poppins/Poppins-Regular.ttf" in links
@@ -849,8 +834,7 @@ def test_tailwind_fallback_css_handles_converted_slide_utility_classes():
     assert '[class~="text-[#FFFFFF]"]{color:#FFFFFF;}' in css
     assert '[class~="font-bold"]{font-weight:700;}' in css
     assert (
-        '[class~="font-[\'Formula_Bold\']"]{font-family:"Formula_Bold", Arial, sans-serif;}'
-        in css
+        '[class~="font-[\'Formula_Bold\']"]{font-family:"Formula_Bold", Arial, sans-serif;}' in css
     )
 
 
@@ -930,10 +914,7 @@ def test_localize_preview_asset_urls_absolutizes_unresolved_app_data_urls(
 
     localized = fonts_and_slides_preview._localize_preview_asset_urls(html)
 
-    assert (
-        "url('http://backend.test/app_data/pptx-to-html/session/fonts/aileron.otf')"
-        in localized
-    )
+    assert "url('http://backend.test/app_data/pptx-to-html/session/fonts/aileron.otf')" in localized
 
 
 def test_localize_preview_asset_urls_leaves_external_urls(monkeypatch):
@@ -1254,9 +1235,7 @@ def test_get_available_and_unavailable_fonts_for_pptx_returns_packaged_font_url(
     )
 
     available_fonts, unavailable_fonts = asyncio.run(
-        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx(
-            "presentation.pptx", "/tmp"
-        )
+        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx("presentation.pptx", "/tmp")
     )
 
     assert unavailable_fonts == []
@@ -1288,9 +1267,7 @@ def test_get_available_and_unavailable_fonts_for_pptx_preserves_variants_for_loc
     )
 
     available_fonts, unavailable_fonts = asyncio.run(
-        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx(
-            "presentation.pptx", "/tmp"
-        )
+        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx("presentation.pptx", "/tmp")
     )
 
     assert unavailable_fonts == []
@@ -1330,9 +1307,7 @@ def test_get_available_and_unavailable_fonts_for_pptx_is_variant_aware(
     monkeypatch.setattr(
         pptx_font_utils,
         "get_index_of_matching_font_detail_or_none",
-        lambda font_name, _details: 0
-        if font_name == "HK Grotesk Semi-Bold"
-        else None,
+        lambda font_name, _details: 0 if font_name == "HK Grotesk Semi-Bold" else None,
     )
 
     async def fake_check_google_font_availability(font_name: str, variants=None) -> bool:
@@ -1347,9 +1322,7 @@ def test_get_available_and_unavailable_fonts_for_pptx_is_variant_aware(
     )
 
     available_fonts, unavailable_fonts = asyncio.run(
-        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx(
-            "presentation.pptx", "/tmp"
-        )
+        pptx_font_utils.get_available_and_unavailable_fonts_for_pptx("presentation.pptx", "/tmp")
     )
 
     assert available_fonts == [
@@ -1494,9 +1467,7 @@ def test_extract_used_fonts_from_pptx_only_returns_fonts_used_by_slide_content(t
         for name, content in files.items():
             archive.writestr(name, content)
 
-    assert pptx_font_utils.extract_used_fonts_from_pptx(str(pptx_path)) == {
-        "Body Theme Font"
-    }
+    assert pptx_font_utils.extract_used_fonts_from_pptx(str(pptx_path)) == {"Body Theme Font"}
 
 
 def test_extract_used_fonts_from_pptx_prefers_latin_font_over_fallbacks(tmp_path):
@@ -1786,9 +1757,7 @@ async def test_uploaded_font_mapping_uses_original_variant_name_and_uploaded_act
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.setattr(
-        fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test
-    )
+    monkeypatch.setattr(fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test)
 
     def fake_get_font_details(path: str) -> pptx_font_utils.FontDetail:
         if path.endswith("Calibri-Bold.ttf"):
@@ -1850,9 +1819,7 @@ async def test_direct_upload_uses_canonical_name_for_localized_same_family_varia
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.setattr(
-        fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test
-    )
+    monkeypatch.setattr(fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test)
 
     def fake_get_font_details(path: str) -> pptx_font_utils.FontDetail:
         return pptx_font_utils.FontDetail(
@@ -1891,9 +1858,7 @@ async def test_direct_upload_keeps_different_replacement_font_family(
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.setattr(
-        fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test
-    )
+    monkeypatch.setattr(fonts_and_slides_preview.asyncio, "to_thread", _run_sync_in_test)
 
     def fake_get_font_details(path: str) -> pptx_font_utils.FontDetail:
         return pptx_font_utils.FontDetail(
@@ -2213,12 +2178,8 @@ async def test_saved_font_upload_for_explicit_variant_uses_normalized_family_nam
     )
 
     assert captured_replacement["font_mapping"] == {"Arial Bold": "Arial Bold"}
-    assert captured_replacement["font_variant_mapping"]["Arial Bold"] == {
-        "bold": "Arial Bold"
-    }
-    assert captured_replacement["font_variant_mapping"]["Arial"] == {
-        "bold": "Arial Bold"
-    }
+    assert captured_replacement["font_variant_mapping"]["Arial Bold"] == {"bold": "Arial Bold"}
+    assert captured_replacement["font_variant_mapping"]["Arial"] == {"bold": "Arial Bold"}
     assert result[1] == {"Arial Bold": "/app_data/fonts/Arial-Bold.ttf"}
 
 
@@ -2278,12 +2239,8 @@ async def test_google_font_replacements_are_used_for_pptx_font_mapping(
 
     assert captured_candidates == []
     assert captured_replacement["font_mapping"] == {"Arial Bold": "Poppins"}
-    assert captured_replacement["font_variant_mapping"]["Arial"] == {
-        "bold": "Poppins"
-    }
-    assert captured_replacement["font_variant_mapping"]["Arial Bold"] == {
-        "bold": "Poppins"
-    }
+    assert captured_replacement["font_variant_mapping"]["Arial"] == {"bold": "Poppins"}
+    assert captured_replacement["font_variant_mapping"]["Arial Bold"] == {"bold": "Poppins"}
 
 
 @pytest.mark.anyio

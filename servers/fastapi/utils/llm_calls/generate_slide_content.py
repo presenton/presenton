@@ -1,13 +1,18 @@
 import json
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from llmai import get_client
 from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 
 from models.presentation_layout import SlideLayoutModel
 from models.presentation_outline_model import SlideOutlineModel
+from utils.content_quality import get_content_quality_errors
+from utils.language_validation import (
+    get_language_mismatch_errors,
+    resolve_prompt_language,
+)
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_config import get_llm_config
 from utils.llm_provider import get_model
@@ -48,6 +53,13 @@ You need to generate structured content json based on the schema.
 - Output fields must contain only audience-facing content and data. For chart fields,
   populate the requested labels, series, and values rather than text such as "create a
   bar chart" or "show this data as a graph".
+- Every string value is content the audience will read: real facts, names, numbers and
+  phrasing in the slide language. Never fill values with response-schema field names or
+  JSON-Schema keywords ("minLength", "type object", "additional_properties"), internal
+  identifiers ("__tablecard", "__speaker_note__"), generation chatter ("please wait
+  while I import...", "some text ..."), placeholder junk ("...", "TBD"), or glued or
+  truncated words ("поставщиNo hardware"). If you cannot produce a value, write the
+  shortest meaningful content for that field instead.
 
 # Math Expression Rules
 - Wrap every LaTeX expression in `<latex>` and `</latex>` inside the generated string.
@@ -85,9 +97,9 @@ English
 """
 
 ASSET_ONLY_FIELDS = ["__image_url__", "__icon_url__"]
-AUTO_DETECT_LANGUAGE_INSTRUCTION = (
-    "auto-detect from the slide content and use the same language as the slide content"
-)
+
+# Апстрим: мягкие лимиты слов в промпте — цель по 0.8 от жёсткого потолка
+# схемы, чтобы провайдер не подрезал текст у самой границы.
 SLIDE_CONTENT_LENGTH_RATIO = 0.8
 
 SLIDE_CONTENT_LENGTH_RULES = """
@@ -170,20 +182,112 @@ def build_slide_content_schemas(response_schema: dict) -> tuple[dict, dict, dict
     return prompt_schema, provider_schema, validation_schema
 
 
-def _resolve_prompt_language(language: Optional[str]) -> str:
-    if language is None:
-        return AUTO_DETECT_LANGUAGE_INSTRUCTION
-    s = str(language).strip()
-    if not s:
-        return AUTO_DETECT_LANGUAGE_INSTRUCTION
-    if s.lower() in {"auto", "auto-detect"}:
-        return AUTO_DETECT_LANGUAGE_INSTRUCTION
-    return s
+_MAX_SCHEMA_DESCRIPTION_LINES = 60
 
 
-def _get_schema_markdown(response_schema: Optional[dict]) -> str:
+def _schema_length_bounds(node: dict) -> str:
+    """«, 2..6 items» / «, up to 120 chars» / «» — по ограничениям схемы."""
+    bounds: list[str] = []
+    minimum = node.get("minLength")
+    maximum = node.get("maxLength")
+    if isinstance(minimum, int) and isinstance(maximum, int):
+        bounds.append(f"{minimum}..{maximum} chars")
+    elif isinstance(maximum, int):
+        bounds.append(f"up to {maximum} chars")
+    elif isinstance(minimum, int):
+        bounds.append(f"at least {minimum} chars")
+    min_items = node.get("minItems")
+    max_items = node.get("maxItems")
+    if isinstance(min_items, int) and isinstance(max_items, int):
+        bounds.append(f"{min_items}..{max_items} items")
+    elif isinstance(max_items, int):
+        bounds.append(f"up to {max_items} items")
+    if not bounds:
+        return ""
+    return ", " + " and ".join(bounds)
+
+
+def _schema_enum_options(node: dict) -> str:
+    options = node.get("enum")
+    if not isinstance(options, list) or not options:
+        return ""
+    rendered = ", ".join(str(option) for option in options[:8])
+    return f" (one of: {rendered})"
+
+
+def _describe_schema_properties(
+    properties: dict,
+    lines: list[str],
+    depth: int,
+) -> None:
+    indent = "  " * depth
+    for name, node in properties.items():
+        if len(lines) >= _MAX_SCHEMA_DESCRIPTION_LINES:
+            return
+        if not isinstance(node, dict):
+            lines.append(f"{indent}- {name}")
+            continue
+        node_type = node.get("type") or "any"
+        description = str(node.get("description") or "").strip()
+        suffix = f": {description}" if description else ""
+        if node_type == "object":
+            child_properties = node.get("properties")
+            lines.append(f"{indent}- {name} (object){suffix}")
+            if isinstance(child_properties, dict) and child_properties:
+                _describe_schema_properties(child_properties, lines, depth + 1)
+        elif node_type == "array":
+            items = node.get("items")
+            if (
+                isinstance(items, dict)
+                and items.get("type") == "object"
+                and isinstance(items.get("properties"), dict)
+            ):
+                lines.append(
+                    f"{indent}- {name} (array of objects){_schema_length_bounds(node)}{suffix}, "
+                    "each object with:"
+                )
+                _describe_schema_properties(items["properties"], lines, depth + 1)
+            elif isinstance(items, dict) and items.get("type"):
+                lines.append(
+                    f"{indent}- {name} (array of {items['type']})"
+                    f"{_schema_length_bounds(node)}{suffix}"
+                )
+            else:
+                lines.append(f"{indent}- {name} (array){_schema_length_bounds(node)}{suffix}")
+        else:
+            lines.append(
+                f"{indent}- {name} ({node_type}{_schema_length_bounds(node)})"
+                f"{_schema_enum_options(node)}{suffix}"
+            )
+
+
+def _describe_response_schema(response_schema: dict) -> str | None:
+    """Человекочитаемый список полей вместо сырого JSON-дампа.
+
+    Сырой дамп в промпте даёт модели готовый словарь для попугайства:
+    прод-кейс 2026-09-05 — таблица, чьи ячейки повторяли «minLength»,
+    «type object» и «additional_properties» из дампа схемы. Если описание
+    не собралось, вызывающий код откатывается к сырому дампу.
+    """
+    properties = response_schema.get("properties")
+    if not isinstance(properties, dict) or not properties:
+        return None
+    lines: list[str] = []
+    _describe_schema_properties(properties, lines, 0)
+    if not lines or len(lines) >= _MAX_SCHEMA_DESCRIPTION_LINES:
+        return None
+    return "\n".join(lines)
+
+
+def _get_schema_markdown(response_schema: dict | None) -> str:
     if not response_schema:
         return "- Follow the provided response schema strictly."
+    described = _describe_response_schema(response_schema)
+    if described:
+        return (
+            "- Follow this response schema. Fields (name, type, character limits, "
+            f"meaning):\n{described}"
+        )
     try:
         schema_text = json.dumps(response_schema, ensure_ascii=False)
     except Exception:
@@ -192,10 +296,10 @@ def _get_schema_markdown(response_schema: Optional[dict]) -> str:
 
 
 def get_system_prompt(
-    tone: Optional[str] = None,
-    verbosity: Optional[str] = None,
-    instructions: Optional[str] = None,
-    response_schema: Optional[dict] = None,
+    tone: str | None = None,
+    verbosity: str | None = None,
+    instructions: str | None = None,
+    response_schema: dict | None = None,
 ):
     markdown_emphasis_rules = (
         "- Strictly use markdown to emphasize important points, by bolding or "
@@ -203,9 +307,7 @@ def get_system_prompt(
     )
 
     user_instructions = f"# User Instructions:\n{instructions}" if instructions else ""
-    tone_instructions = (
-        f"# Tone Instructions:\nMake slide as {tone} as possible." if tone else ""
-    )
+    tone_instructions = f"# Tone Instructions:\nMake slide as {tone} as possible." if tone else ""
 
     verbosity_instructions = ""
     if verbosity:
@@ -217,9 +319,7 @@ def get_system_prompt(
         elif verbosity == "text-heavy":
             verbosity_instructions += "Make slide as text-heavy as possible."
 
-    output_fields_instructions = "# Output Fields:\n" + _get_schema_markdown(
-        response_schema
-    )
+    output_fields_instructions = "# Output Fields:\n" + _get_schema_markdown(response_schema)
 
     system_prompt = SLIDE_CONTENT_SYSTEM_PROMPT.format(
         markdown_emphasis_rules=markdown_emphasis_rules,
@@ -231,18 +331,16 @@ def get_system_prompt(
     return system_prompt + SLIDE_CONTENT_LENGTH_RULES
 
 
-def _get_slide_number_section(slide_number: Optional[int]) -> str:
+def _get_slide_number_section(slide_number: int | None) -> str:
     if slide_number is None:
         return ""
     return f"# Slide Number:\n{slide_number}\n"
 
 
-def get_user_prompt(
-    outline: str, language: Optional[str], slide_number: Optional[int] = None
-):
+def get_user_prompt(outline: str, language: str | None, slide_number: int | None = None):
     return SLIDE_CONTENT_USER_PROMPT.format(
         current_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        language=_resolve_prompt_language(language),
+        language=resolve_prompt_language(language),
         slide_number_section=_get_slide_number_section(slide_number),
         content=outline,
     )
@@ -250,13 +348,13 @@ def get_user_prompt(
 
 def get_messages(
     outline: str,
-    language: Optional[str],
-    tone: Optional[str] = None,
-    verbosity: Optional[str] = None,
-    instructions: Optional[str] = None,
-    response_schema: Optional[dict] = None,
+    language: str | None,
+    tone: str | None = None,
+    verbosity: str | None = None,
+    instructions: str | None = None,
+    response_schema: dict | None = None,
     *,
-    slide_number: Optional[int] = None,
+    slide_number: int | None = None,
 ) -> list[Message]:
 
     return [
@@ -274,7 +372,7 @@ def get_messages(
     ]
 
 
-def _schema_has_content_fields(response_schema: Optional[dict]) -> bool:
+def _schema_has_content_fields(response_schema: dict | None) -> bool:
     if not isinstance(response_schema, dict):
         return False
 
@@ -282,7 +380,7 @@ def _schema_has_content_fields(response_schema: Optional[dict]) -> bool:
     return isinstance(properties, dict) and bool(properties)
 
 
-def _prepare_response_schema(json_schema: Optional[dict]) -> Optional[dict]:
+def _prepare_response_schema(json_schema: dict | None) -> dict | None:
     if not isinstance(json_schema, dict):
         return None
 
@@ -308,16 +406,33 @@ def _prepare_response_schema(json_schema: Optional[dict]) -> Optional[dict]:
     return ensure_array_schemas_have_items(response_schema)
 
 
+def _content_validator(response_schema: dict, language: str | None):
+    """Контент-QC + языковая валидация для ретрай-цикла.
+
+    Language Detection как промежуточный шаг перед рендерингом: текст не на
+    запрошенном языке уходит модели на переделку вместе с качественными
+    ошибками, а не доезжает до слайда.
+    """
+
+    def validate(content: dict) -> list[str]:
+        return [
+            *get_content_quality_errors(response_schema, content),
+            *get_language_mismatch_errors(content, language),
+        ]
+
+    return validate
+
+
 async def get_slide_content_from_type_and_outline(
     slide_layout: SlideLayoutModel,
     outline: SlideOutlineModel,
-    language: Optional[str],
-    tone: Optional[str] = None,
-    verbosity: Optional[str] = None,
-    instructions: Optional[str] = None,
+    language: str | None,
+    tone: str | None = None,
+    verbosity: str | None = None,
+    instructions: str | None = None,
     *,
-    slide_number: Optional[int] = None,
-    disconnect_checker: Optional[DisconnectChecker] = None,
+    slide_number: int | None = None,
+    disconnect_checker: DisconnectChecker | None = None,
 ):
     response_schema = _prepare_response_schema(slide_layout.json_schema)
     if response_schema is None:
@@ -354,6 +469,7 @@ async def get_slide_content_from_type_and_outline(
             json_schema=validation_schema,
             strict=False,
             validate_schema=True,
+            content_validator=_content_validator(response_schema, language),
             disconnect_checker=disconnect_checker,
         )
 

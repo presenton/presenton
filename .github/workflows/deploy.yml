@@ -1,0 +1,204 @@
+# C1 (tasks.md): кнопка в Actions -> build образа текущего main ->
+# ghcr.io/yarexlab/presenton, деплой на сервер по SSH (git pull + compose
+# pull + up -d сервиса production), post-deploy smoke, чистка старых образов.
+# Автозапуска нет — только вручную.
+#
+# На сервере движок живёт как сервис `production` из корневого
+# docker-compose.yml + docker-compose.override.yml (image: ghcr-образа).
+# Кнопка перезаписывает override актуальным тегом и пересоздаёт контейнер
+# yarex_presenton-production-1 (данные — в хостовом ./app_data, env — из .env),
+# затем возвращает боту DNS-алиас presenton в сети yarex-lab-tg_default.
+#
+# Требуемые secrets (Settings -> Secrets and variables -> Actions):
+#   DEPLOY_SSH_HOST - хост сервера (yarexlab.ru)
+#   DEPLOY_SSH_USER - пользователь SSH на сервере
+#   DEPLOY_SSH_KEY  - приватный ключ (ed25519), authorized_keys на сервере
+#   DEPLOY_PATH     - каталог репо на сервере с docker-compose.yml
+#
+# Разовая настройка сервера: docker login ghcr.io (PAT с read:packages),
+# т.к. пакет приватный. Либо сделать пакет public — тогда логин не нужен.
+#
+# Откат: Actions -> Deploy -> Run workflow, deploy_tag = main-<sha предыдущего
+# удачного деплоя> (build пропускается).
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_tag:
+        description: "Existing image tag to deploy (e.g. main-abc1234). Empty = build current main."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/yarexlab/presenton
+
+jobs:
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    if: github.event.inputs.deploy_tag == ''
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag
+        id: tag
+        run: echo "tag=main-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push (linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE }}:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Delete old GHCR versions (keep 10 newest)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ротация в реестре: держим последние 10 версий пакета (запас для
+          # отката), старые main-<sha> удаляем — образ движка тяжёлый,
+          # без ротации GHCR раздувается особенно быстро.
+          # Неудача чистки не должна ронять деплой.
+          PKG="presenton"
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          set +e
+          if IDS=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/orgs/$OWNER/packages/container/$PKG/versions?per_page=100" \
+              | jq -r 'sort_by(.created_at) | reverse | .[10:][] | .id' \
+              ) && [ -n "$IDS" ]; then
+            for id in $IDS; do
+              curl -sf -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/orgs/$OWNER/packages/container/$PKG/versions/$id" \
+                || echo "не удалось удалить версию $id"
+            done
+          else
+            echo "нет старых версий (или орг-API недоступен) — пропуск"
+          fi
+        continue-on-error: true
+
+  deploy:
+    name: Deploy to yarexlab.ru
+    runs-on: ubuntu-latest
+    needs: build
+    # build может быть пропущен (deploy_tag указан явно) — это валидный путь;
+    # падение build'а деплой не запускает
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    # production: можно включить Required reviewers в Settings -> Environments,
+    # тогда деплой будет ждать ручного одобрения
+    environment: production
+    env:
+      IMAGE_TAG: ${{ github.event.inputs.deploy_tag || needs.build.outputs.tag }}
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Полный teardown проекта перед up: recreate-гонка docker-proxy
+          # («port is already allocated») ловилась дважды подряд; full
+          # teardown + ретраи up её снимают. Внешние сети (yarex-lab-tg_default)
+          # при down не удаляются. Чужой контейнер server-схемы (presenton)
+          # убираем на всякий случай.
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new             "$SSH_USER@$SSH_HOST" DEPLOY_PATH="$DEPLOY_PATH" IMAGE_TAG="$IMAGE_TAG" 'bash -s' <<'REMOTE'
+          set -e
+          cd "$DEPLOY_PATH"
+          git pull --ff-only
+          docker rm -f presenton 2>/dev/null || true
+          echo "--- containers holding :50521 before deploy ---"
+          docker ps -a --filter publish=50521 --format '{{.Names}} {{.Image}} {{.Status}}' || true
+          docker compose down --remove-orphans || true
+          printf 'services:\n  production:\n    image: ghcr.io/yarexlab/presenton:%s\n' "$IMAGE_TAG" > docker-compose.override.yml
+          docker compose pull production
+          ok=0
+          for i in 1 2 3; do
+            if docker compose up -d --no-build production; then
+              ok=1
+              break
+            fi
+            echo "up attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          if [ "$ok" != 1 ]; then
+            echo "--- still failing; containers on :50521 ---" >&2
+            docker ps -a --filter publish=50521 --format '{{.Names}} {{.Image}} {{.Status}}' >&2
+            exit 1
+          fi
+          # бот ходит на движок по DNS-имени presenton в своей сети
+          docker network disconnect yarex-lab-tg_default yarex_presenton-production-1 2>/dev/null || true
+          docker network connect yarex-lab-tg_default yarex_presenton-production-1 --alias presenton
+          REMOTE
+
+      - name: Smoke check
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          for i in $(seq 1 12); do
+            if ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+              "$SSH_USER@$SSH_HOST" \
+              "curl -fsS --max-time 10 http://127.0.0.1:50521/api/v1/auth/status"; then
+              echo "Smoke check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Smoke check failed after 2 minutes" >&2
+          exit 1
+
+      - name: Prune old images on server
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # старые тегированные версии main-<sha>, кроме текущей + висячие слои
+          # + кэш сборки старше 7 дней; неудача чистки не роняет деплой
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+            "$SSH_USER@$SSH_HOST" IMAGE_TAG="$IMAGE_TAG" 'bash -s' <<'REMOTE'
+          docker images --format '{{.Repository}}:{{.Tag}}' \
+            | grep '^ghcr.io/yarexlab/presenton:main-' \
+            | grep -v ":$IMAGE_TAG" \
+            | xargs -r docker rmi || true
+          docker image prune -f
+          docker builder prune -f --filter "until=168h" || true
+          docker system df || true
+          REMOTE

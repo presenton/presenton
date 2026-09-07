@@ -40,9 +40,7 @@ class SSEErrorResponse(BaseModel):
 
     def to_string(self):
         payload = {"type": "error", **self.model_dump(exclude_none=True)}
-        return SSEResponse(
-            event="response", data=json.dumps(payload)
-        ).to_string()
+        return SSEResponse(event="response", data=json.dumps(payload)).to_string()
 
 
 class SSECompleteResponse(BaseModel):

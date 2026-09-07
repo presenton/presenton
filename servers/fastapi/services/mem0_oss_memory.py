@@ -17,7 +17,7 @@ import os
 import threading
 from collections.abc import Callable
 from importlib import import_module
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 LOGGER = logging.getLogger(__name__)
 
@@ -42,13 +42,13 @@ def run_shared_mem0_operation(operation: Callable[[], _T]) -> _T:
         return operation()
 
 
-def _to_bool(value: Optional[str], default: bool = False) -> bool:
+def _to_bool(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _to_int(value: Optional[str], default: int) -> int:
+def _to_int(value: str | None, default: int) -> int:
     try:
         parsed = int(value) if value is not None else default
         return max(1, parsed)
@@ -79,7 +79,7 @@ def _spacy_model_available() -> bool:
         return False
 
 
-def _normalize_openai_base_url(value: Optional[str]) -> Optional[str]:
+def _normalize_openai_base_url(value: str | None) -> str | None:
     if not value:
         return None
 
@@ -93,9 +93,7 @@ def _oss_config_from_env() -> tuple[str, str, str, str, int, dict[str, Any]]:
     """Return (mem0_dir, qdrant_path, history_db, collection, dims, from_config_dict)."""
     app_data_dir = (os.getenv("APP_DATA_DIRECTORY") or "/tmp/presenton").strip()
     mem0_dir = (os.getenv("MEM0_DIR") or os.path.join(app_data_dir, "mem0")).strip()
-    qdrant_path = (
-        os.getenv("MEM0_QDRANT_PATH") or os.path.join(mem0_dir, "qdrant")
-    ).strip()
+    qdrant_path = (os.getenv("MEM0_QDRANT_PATH") or os.path.join(mem0_dir, "qdrant")).strip()
     history_db_path = (
         os.getenv("MEM0_HISTORY_DB_PATH") or os.path.join(mem0_dir, "history.db")
     ).strip()
@@ -108,14 +106,10 @@ def _oss_config_from_env() -> tuple[str, str, str, str, int, dict[str, Any]]:
     ).strip() or "BAAI/bge-small-en-v1.5"
     dims = _to_int(os.getenv("MEM0_EMBEDDING_DIMS"), default=384)
     llm_model = (
-        os.getenv("MEM0_LLM_MODEL")
-        or os.getenv("OLLAMA_MODEL")
-        or "llama3.1:latest"
+        os.getenv("MEM0_LLM_MODEL") or os.getenv("OLLAMA_MODEL") or "llama3.1:latest"
     ).strip() or "llama3.1:latest"
     llm_api_key = (
-        os.getenv("MEM0_LLM_API_KEY")
-        or os.getenv("OPENAI_API_KEY")
-        or "ollama"
+        os.getenv("MEM0_LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or "ollama"
     ).strip() or "ollama"
     llm_base_url = _normalize_openai_base_url(
         os.getenv("MEM0_LLM_BASE_URL")
@@ -160,7 +154,7 @@ def memory_from_config(config: dict[str, Any], *, telemetry_base: str) -> Any:
     import mem0.memory.main as mem0_main  # type: ignore[import-untyped]
 
     mem0_main.mem0_dir = telemetry_base
-    memory_cls = getattr(import_module("mem0"), "Memory")
+    memory_cls = import_module("mem0").Memory
     return memory_cls.from_config(config)
 
 
@@ -185,9 +179,7 @@ def get_shared_mem0_client() -> Any | None:
             return None
         _init_attempted = True
         try:
-            mem0_dir, qdrant_path, history_db, collection, dims, config = (
-                _oss_config_from_env()
-            )
+            mem0_dir, qdrant_path, history_db, collection, dims, config = _oss_config_from_env()
             os.makedirs(mem0_dir, exist_ok=True)
             os.makedirs(qdrant_path, exist_ok=True)
             telemetry_base = os.path.join(mem0_dir, "telemetry", "oss")

@@ -330,9 +330,9 @@ const IconsEditor = ({
                             aria-pressed={isSelected}
                             onClick={() => handleWeightSelect(weight)}
                             className={cn(
-                              "relative flex h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-[10px] border bg-white px-1 outline-none transition hover:bg-[#F4F4F4] focus-visible:ring-2 focus-visible:ring-[#D9D6FE]",
+                              "relative flex h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-[10px] border bg-white px-1 outline-none transition hover:bg-[#F4F4F4] focus-visible:ring-2 focus-visible:ring-[#BFDBFE]",
                               isSelected
-                                ? "border-[#B9A8FA] bg-[#F4F3FF]"
+                                ? "border-[#93C5FD] bg-[#EFF6FF]"
                                 : "border-[#E1E1E5]"
                             )}
                           >
@@ -457,7 +457,7 @@ const IconsEditor = ({
                               className={cn(
                                 "group relative aspect-square min-w-0 overflow-hidden rounded-[10px] border bg-[#F9FAFB] p-4 outline-none transition hover:border-[#CACBD0] hover:bg-[#F4F4F4] focus-visible:ring-2 focus-visible:ring-[#191919]",
                                 isSelected
-                                  ? "border-[#8B75E8] bg-[#F4F3FF] ring-1 ring-[#8B75E8]"
+                                  ? "border-[#8B75E8] bg-[#EFF6FF] ring-1 ring-[#8B75E8]"
                                   : "border-[#EDEEEF]"
                               )}
                             >

@@ -5,7 +5,6 @@ import aiohttp
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
-
 OPENROUTER_ROUTER = APIRouter(prefix="/openrouter", tags=["OpenRouter"])
 DEFAULT_OPENROUTER_API_URL = "https://openrouter.ai/api/v1"
 
@@ -43,9 +42,7 @@ def _provider_option(item: dict[str, Any]) -> OpenRouterProviderOption | None:
     )
 
 
-async def _get_json(
-    session: aiohttp.ClientSession, url: str
-) -> tuple[int, Any]:
+async def _get_json(session: aiohttp.ClientSession, url: str) -> tuple[int, Any]:
     async with session.get(url) as response:
         try:
             payload = await response.json(content_type=None)
@@ -54,9 +51,7 @@ async def _get_json(
         return response.status, payload
 
 
-@OPENROUTER_ROUTER.post(
-    "/providers/available", response_model=list[OpenRouterProviderOption]
-)
+@OPENROUTER_ROUTER.post("/providers/available", response_model=list[OpenRouterProviderOption])
 async def get_available_openrouter_providers(
     model: Annotated[str, Body()],
     api_key: Annotated[str, Body()],
@@ -76,16 +71,13 @@ async def get_available_openrouter_providers(
         if "/" in model:
             author, slug = model.split("/", 1)
             endpoint_url = (
-                f"{api_root}/models/{quote(author, safe='')}/"
-                f"{quote(slug, safe='')}/endpoints"
+                f"{api_root}/models/{quote(author, safe='')}/{quote(slug, safe='')}/endpoints"
             )
             status, payload = await _get_json(session, endpoint_url)
             if status < 400 and isinstance(payload, dict):
                 data = payload.get("data", payload)
                 if isinstance(data, dict) and isinstance(data.get("endpoints"), list):
-                    endpoint_items = [
-                        item for item in data["endpoints"] if isinstance(item, dict)
-                    ]
+                    endpoint_items = [item for item in data["endpoints"] if isinstance(item, dict)]
 
         if not endpoint_items:
             status, payload = await _get_json(session, f"{api_root}/providers")

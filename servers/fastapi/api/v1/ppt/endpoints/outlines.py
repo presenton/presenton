@@ -1,9 +1,8 @@
 import asyncio
 import json
 import logging
-import traceback
 import uuid
-import dirtyjson
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,22 +16,24 @@ from models.sse_response import (
     SSEResponse,
     SSEStatusResponse,
 )
-from services.temp_file_service import TEMP_FILE_SERVICE
 from services.database import get_async_session
 from services.documents_loader import DocumentsLoader
 from services.mem0_presentation_memory_service import (
     MEM0_PRESENTATION_MEMORY_SERVICE,
 )
-from utils.llm_utils import message_content_to_text
-from utils.outline_utils import (
-    get_no_of_outlines_to_generate_for_n_slides,
-    get_presentation_title_from_presentation_outline,
-)
-from utils.outline_limits import normalize_outline_payload
+from services.temp_file_service import TEMP_FILE_SERVICE
 from utils.llm_calls.generate_presentation_outlines import (
     OutlineGenerationStatus,
     generate_ppt_outline,
+)
+from utils.llm_calls.generate_presentation_outlines import (
     get_messages as get_outline_messages,
+)
+from utils.llm_utils import extract_structured_content, message_content_to_text
+from utils.outline_limits import normalize_outline_payload
+from utils.outline_utils import (
+    get_no_of_outlines_to_generate_for_n_slides,
+    get_presentation_title_from_presentation_outline,
 )
 from utils.sse import safe_sse_stream
 from utils.web_search import get_selected_web_search_provider, get_web_search_route
@@ -113,9 +114,7 @@ async def stream_outlines(
         if await request.is_disconnected():
             return
 
-        yield SSEStatusResponse(
-            status="Preparing your presentation outline"
-        ).to_string()
+        yield SSEStatusResponse(status="Preparing your presentation outline").to_string()
 
         additional_context = ""
         if presentation.file_paths:
@@ -204,14 +203,12 @@ async def stream_outlines(
 
             presentation_outlines_text += chunk
 
-        try:
-            presentation_outlines_json = dict(
-                dirtyjson.loads(presentation_outlines_text)
-            )
-        except Exception as e:
-            traceback.print_exc()
+        # Tolerant parse: models without structured outputs may wrap the JSON
+        # in markdown fences or add prose around it.
+        presentation_outlines_json = extract_structured_content(presentation_outlines_text)
+        if presentation_outlines_json is None:
             yield SSEErrorResponse(
-                detail=f"Failed to generate presentation outlines. Please try again. {str(e)}",
+                detail="Failed to generate presentation outlines. Please try again.",
             ).to_string()
             return
 
@@ -238,17 +235,13 @@ async def stream_outlines(
             return
 
         if n_slides_to_generate is not None:
-            presentation_outlines.slides = presentation_outlines.slides[
-                :n_slides_to_generate
-            ]
+            presentation_outlines.slides = presentation_outlines.slides[:n_slides_to_generate]
 
         if presentation.n_slides <= 0:
             presentation.n_slides = len(presentation_outlines.slides)
 
         presentation.outlines = presentation_outlines.model_dump()
-        presentation.title = get_presentation_title_from_presentation_outline(
-            presentation_outlines
-        )
+        presentation.title = get_presentation_title_from_presentation_outline(presentation_outlines)
 
         sql_session.add(presentation)
         await sql_session.commit()

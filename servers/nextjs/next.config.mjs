@@ -2,8 +2,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const nextjsRoot = path.dirname(fileURLToPath(import.meta.url));
-const isElectronBuild = process.env.PRESENTON_ELECTRON_BUILD === "true";
-
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
@@ -21,10 +19,6 @@ const nextConfig = {
     : {}),
 
   images: {
-    // A packaged Electron app is installed under a read-only directory such as
-    // /opt/Presenton. Next's optimizer writes to <distDir>/cache, so emit direct
-    // image URLs for that build instead of attempting runtime cache writes.
-    unoptimized: isElectronBuild,
     remotePatterns: [
       {
         protocol: "https",

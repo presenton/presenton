@@ -67,8 +67,8 @@ const FontManager: React.FC<FontManagerProps> = ({
         {/* Header */}
         <div className="px-6 py-5 border-b border-[#F3F4F6] bg-[#FAFAFA]">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-[#EBE9FE] flex items-center justify-center">
-              <Type className="w-6 h-6 text-[#7A5AF8]" />
+            <div className="w-12 h-12 rounded-xl bg-[#DBEAFE] flex items-center justify-center">
+              <Type className="w-6 h-6 text-[#2563EB]" />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-[#111827]">Font Management</h2>

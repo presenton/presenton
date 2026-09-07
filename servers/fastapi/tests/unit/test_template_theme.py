@@ -217,6 +217,4 @@ def test_generation_falls_back_and_theme_wraps_for_presentation(monkeypatch):
     assert wrapped["name"] == "Brand Template Theme"
     assert wrapped["data"] == theme.model_dump(mode="json")
     assert wrapped["source"] == "template"
-    assert select_theme_roles_deterministically(
-        build_theme_profile(_generated_layouts())
-    ).primary
+    assert select_theme_roles_deterministically(build_theme_profile(_generated_layouts())).primary

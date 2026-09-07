@@ -1,0 +1,55 @@
+name: yarex-presenton
+
+# Сервер yarexlab.ru: один контейнер движка, TLS на nginx хоста.
+# LLM-провайдер настраивается через веб-админку (Settings → Text Provider)
+# или напрямую в .env — следующие четыре переменные прокидывают её сюда.
+#
+# Деплой из CI (deploy.yml): образ пушится в ghcr.io/yarexlab/presenton с тегом
+# main-<sha>; на сервере YAREX_IMAGE_TAG=<тег> docker compose pull && up -d.
+# YAREX_IMAGE_TAG не задан -> берётся moving-тег main. Сборка на месте
+# (build:) остаётся как ручной fallback при недоступном GHCR.
+services:
+  presenton:
+    image: ghcr.io/yarexlab/presenton:${YAREX_IMAGE_TAG:-main}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: presenton
+    restart: unless-stopped
+    # Ротация логов контейнера (собираются в Loki агентом мониторинга,
+    # но json-файлы на хосте остаются fallback'ом). Без лимитов Docker
+    # пишет без ограничений — диск со временем закончится.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    ports:
+      - "127.0.0.1:50521:80"
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS}
+      GENERATION_QUOTA_PER_DAY: ${GENERATION_QUOTA_PER_DAY}
+      # приватная панель: анонимная телеметрия выключена по умолчанию
+      DISABLE_ANONYMOUS_TRACKING: ${DISABLE_ANONYMOUS_TRACKING:-true}
+      CAN_CHANGE_KEYS: "true"
+      MIGRATE_DATABASE_ON_STARTUP: "true"
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      # веб-логин админа (Settings): назначается bootstrap'ом при первом старте
+      AUTH_USERNAME: ${AUTH_USERNAME:-}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+      # одноразово, чтобы назначить/сменить пароль; потом удалить из .env
+      RESET_AUTH: ${RESET_AUTH:-}
+      # провайдер LLM из .env (можно и через админку, тогда эти не нужны)
+      LLM: ${LLM:-}
+      CUSTOM_LLM_URL: ${CUSTOM_LLM_URL:-}
+      CUSTOM_LLM_API_KEY: ${CUSTOM_LLM_API_KEY:-}
+      CUSTOM_MODEL: ${CUSTOM_MODEL:-}
+    volumes:
+      - ./app_data:/app_data
+    networks: [yarex-net]
+
+networks:
+  yarex-net:
+    external: true
+    name: yarex-net

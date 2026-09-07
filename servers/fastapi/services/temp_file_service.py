@@ -1,15 +1,13 @@
 import os
-from typing import Optional, Union
+import uuid
 
 from fastapi import HTTPException
 
-from utils.get_env import get_temp_directory_env
 from api.v1.auth.context import get_current_owner_id
-import uuid
+from utils.get_env import get_temp_directory_env
 
 
 class TempFileService:
-
     def __init__(self):
         self.base_dir = get_temp_directory_env() or "/tmp/presenton"
         self.cleanup_base_dir()
@@ -40,7 +38,7 @@ class TempFileService:
         if not self._is_within_base_dir(path):
             raise HTTPException(status_code=400, detail=detail)
 
-    def sanitize_upload_filename(self, file_name: Optional[str]) -> str:
+    def sanitize_upload_filename(self, file_name: str | None) -> str:
         normalized_name = (file_name or "").replace("\\", "/")
         safe_name = os.path.basename(normalized_name).strip()
         if not safe_name or safe_name in {".", ".."}:
@@ -57,10 +55,7 @@ class TempFileService:
             raise HTTPException(status_code=404, detail="File not found") from exc
 
         base_dir = self._owner_base_dir_realpath()
-        if not (
-            resolved_path == base_dir
-            or resolved_path.startswith(f"{base_dir}{os.sep}")
-        ):
+        if not (resolved_path == base_dir or resolved_path.startswith(f"{base_dir}{os.sep}")):
             raise HTTPException(
                 status_code=400,
                 detail="File path must stay within the temp directory",
@@ -71,31 +66,23 @@ class TempFileService:
 
         return resolved_path
 
-    def resolve_existing_temp_paths(self, file_paths: Optional[list[str]]) -> list[str]:
+    def resolve_existing_temp_paths(self, file_paths: list[str] | None) -> list[str]:
         if not file_paths:
             return []
-        return [
-            self.resolve_temp_path(file_path, must_exist=True) for file_path in file_paths
-        ]
+        return [self.resolve_temp_path(file_path, must_exist=True) for file_path in file_paths]
 
-    def create_dir_in_dir(self, base_dir: str, dir_name: Optional[str] = None) -> str:
-        temp_dir_name = (
-            self.sanitize_upload_filename(dir_name) if dir_name else str(uuid.uuid4())
-        )
+    def create_dir_in_dir(self, base_dir: str, dir_name: str | None = None) -> str:
+        temp_dir_name = self.sanitize_upload_filename(dir_name) if dir_name else str(uuid.uuid4())
         temp_dir = os.path.join(base_dir, temp_dir_name)
         temp_dir = os.path.realpath(temp_dir)
-        self._assert_within_base_dir(
-            temp_dir, "Directory path must stay within the temp directory"
-        )
+        self._assert_within_base_dir(temp_dir, "Directory path must stay within the temp directory")
         os.makedirs(temp_dir, exist_ok=True)
         return temp_dir
 
-    def create_temp_dir(self, dir_name: Optional[str] = None) -> str:
+    def create_temp_dir(self, dir_name: str | None = None) -> str:
         return self.create_dir_in_dir(self._owner_base_dir_realpath(), dir_name)
 
-    def create_temp_file_path(
-        self, file_path: str, dir_path: Optional[str] = None
-    ) -> str:
+    def create_temp_file_path(self, file_path: str, dir_path: str | None = None) -> str:
         if dir_path is None:
             dir_path = self._owner_base_dir_realpath()
 
@@ -107,9 +94,7 @@ class TempFileService:
 
         full_path = os.path.join(resolved_dir, safe_name)
         full_path = os.path.realpath(full_path)
-        self._assert_within_base_dir(
-            full_path, "File path must stay within the temp directory"
-        )
+        self._assert_within_base_dir(full_path, "File path must stay within the temp directory")
 
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         return full_path
@@ -117,8 +102,8 @@ class TempFileService:
     def create_temp_file(
         self,
         file_path: str,
-        content: Union[bytes, str],
-        dir_path: Optional[str] = None,
+        content: bytes | str,
+        dir_path: str | None = None,
     ) -> str:
         file_path = self.create_temp_file_path(file_path, dir_path)
         mode = "wb" if isinstance(content, bytes) else "w"
@@ -127,7 +112,7 @@ class TempFileService:
 
         return file_path
 
-    def read_temp_file(self, file_path: str, binary: bool = True) -> Union[bytes, str]:
+    def read_temp_file(self, file_path: str, binary: bool = True) -> bytes | str:
         file_path = self.resolve_temp_path(file_path, must_exist=True)
         base_dir = self._owner_base_dir_realpath()
         if not (file_path == base_dir or file_path.startswith(f"{base_dir}{os.sep}")):

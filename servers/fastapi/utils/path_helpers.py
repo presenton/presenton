@@ -3,8 +3,8 @@
 The API is always started with cwd set to the `servers/fastapi` package root
 (see start.js), without OS-specific layout handling.
 
-Packaged Electron builds use cwd under the app install dir (often read-only under
-``/opt``). Writable caches must use ``APP_DATA_DIRECTORY`` when set (Electron).
+Packaged builds may run with cwd under an app install dir (often read-only under
+``/opt``). Writable caches must use ``APP_DATA_DIRECTORY`` when set.
 """
 
 from __future__ import annotations

@@ -6,9 +6,9 @@ Revises: e1b3c5d7f9a2
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "f3a7c1d9e5b2"
 down_revision: str | None = "e1b3c5d7f9a2"
@@ -20,9 +20,7 @@ def upgrade() -> None:
     inspector = sa.inspect(op.get_bind())
     if "presentations" not in inspector.get_table_names():
         return
-    columns = {
-        column["name"] for column in inspector.get_columns("presentations")
-    }
+    columns = {column["name"] for column in inspector.get_columns("presentations")}
     with op.batch_alter_table("presentations") as batch_op:
         if "generation_mode" not in columns:
             batch_op.add_column(
@@ -34,18 +32,14 @@ def upgrade() -> None:
                 )
             )
         if "community_design_ids" not in columns:
-            batch_op.add_column(
-                sa.Column("community_design_ids", sa.JSON(), nullable=True)
-            )
+            batch_op.add_column(sa.Column("community_design_ids", sa.JSON(), nullable=True))
 
 
 def downgrade() -> None:
     inspector = sa.inspect(op.get_bind())
     if "presentations" not in inspector.get_table_names():
         return
-    columns = {
-        column["name"] for column in inspector.get_columns("presentations")
-    }
+    columns = {column["name"] for column in inspector.get_columns("presentations")}
     with op.batch_alter_table("presentations") as batch_op:
         if "community_design_ids" in columns:
             batch_op.drop_column("community_design_ids")

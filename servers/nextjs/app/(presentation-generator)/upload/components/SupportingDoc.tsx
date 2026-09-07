@@ -85,7 +85,7 @@ export default function SupportingDoc({
               className="inline-flex h-[30px] max-w-full items-center gap-2 rounded-md border border-[#EDEEEF] bg-[#F6F6F9] px-2 font-manrope text-[11px] text-[#333333]"
               data-testid="attached-file-item"
             >
-              <File className="h-3.5 w-3.5 shrink-0 text-[#7A5AF8]" />
+              <File className="h-3.5 w-3.5 shrink-0 text-[#2563EB]" />
               <span className="max-w-[180px] truncate" title={file.name}>
                 {file.name}
               </span>
@@ -125,7 +125,7 @@ export default function SupportingDoc({
           onClick={onSubmit}
           disabled={disabled}
           aria-label="Generate presentation"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7A5AF8] text-white shadow-sm transition hover:bg-[#6938EF] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-sm transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ArrowUp className="h-4 w-4" strokeWidth={2} />
         </button>

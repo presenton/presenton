@@ -56,10 +56,33 @@ include = [
 [tool.pyright]
 typeCheckingMode = "off"
 
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    # E501: ~870 длинных строк (строки/промпты/комментарии), ruff format их не бьёт —
+    # массовая ручная перебивка не входит в bootstrap.
+    "E501",
+    # B008: function-call в дефолтном аргументе — идиоматичный FastAPI-паттерн
+    # (Depends()/Query()/Body() в сигнатурах эндпоинтов), ~116 мест.
+    "B008",
+    # B904: raise-without-from-inside-except — ~24 места, чинить осознанно точечно.
+    "B904",
+    # B905: zip() без strict= — ~15 мест, требует проверки инвариантов длин.
+    "B905",
+    # B023: захват loop-переменной в замыкание — ~13 мест, нужен анализ каждого.
+    "B023",
+    # UP042: замена str+Enum на StrEnum меняет repr/pickle поведение классов.
+    "UP042",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
+    "ruff>=0.16.4",
 ]
 
 [tool.pytest.ini_options]

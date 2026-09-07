@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 
 const LEGACY_RELEASE_URL =
-  "https://presenton.ai/download";
+  "https://github.com/presenton/presenton/releases";
 
 const formatLegacyDate = (value: string) => {
   const date = new Date(value);
@@ -94,7 +94,7 @@ export function LegacyPresentationsTable({
             disabled={isDeleting}
             aria-label="Delete all legacy presentations"
             title="Delete all legacy presentations"
-            className="flex h-[35px] min-w-[51px] items-center justify-center rounded-full border border-[#EDEEEF] bg-white px-3 text-[#191919] transition-colors hover:bg-[#F6F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-[35px] min-w-[51px] items-center justify-center rounded-full border border-[#EDEEEF] bg-white px-3 text-[#191919] transition-colors hover:bg-[#F6F6F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isDeleting ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -113,14 +113,14 @@ export function LegacyPresentationsTable({
         />
         <p className="text-[#4C4C4C]">
           These presentations were created in an older format and can&apos;t be
-          opened in Presenton 0.9.2-beta. {" "}
+          opened in the current version. {" "}
           <a
             href={LEGACY_RELEASE_URL}
             target="_blank"
             rel="noreferrer"
             className="text-[#C4320A] underline decoration-[#C4320A] underline-offset-2"
           >
-            Download Presenton v0.8.10-beta to access them
+            Download an older release to access them
           </a>
           .
         </p>

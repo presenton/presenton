@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import re
 from html.parser import HTMLParser
-from typing import Optional
-
 
 SLIDE_WIDTH = 1280.0
 SLIDE_HEIGHT = 720.0
@@ -24,9 +22,7 @@ _VOID_TAGS = {
     "wbr",
 }
 _MEDIA_TAGS = {"canvas", "img", "svg", "table", "video"}
-_NEGATIVE_LAYOUT_CLASS = re.compile(
-    r"^-(?:m[trblxy]?|translate-[xy])-(?:\[|\d)", re.IGNORECASE
-)
+_NEGATIVE_LAYOUT_CLASS = re.compile(r"^-(?:m[trblxy]?|translate-[xy])-(?:\[|\d)", re.IGNORECASE)
 _NEGATIVE_LAYOUT_STYLE = re.compile(
     r"(?:margin(?:-top|-right|-bottom|-left)?\s*:\s*-|"
     r"transform\s*:[^;]*translate(?:X|Y|3d)?\([^)]*-)",
@@ -41,17 +37,15 @@ _ARBITRARY_PX_CLASS = re.compile(
     r"^(left|right|top|bottom|w|h)-\[(-?\d+(?:\.\d+)?)px\]$",
     re.IGNORECASE,
 )
-_SPACING_CLASS = re.compile(
-    r"^(left|right|top|bottom|w|h)-(\d+(?:\.5)?)$", re.IGNORECASE
-)
+_SPACING_CLASS = re.compile(r"^(left|right|top|bottom|w|h)-(\d+(?:\.5)?)$", re.IGNORECASE)
 
 
 class _LayoutNode:
     def __init__(
         self,
         tag: str,
-        attrs: list[tuple[str, Optional[str]]],
-        parent: Optional["_LayoutNode"],
+        attrs: list[tuple[str, str | None]],
+        parent: _LayoutNode | None,
     ) -> None:
         self.tag = tag.casefold()
         self.attrs = {name.casefold(): value or "" for name, value in attrs}
@@ -77,9 +71,7 @@ class _LayoutParser(HTMLParser):
         self.roots: list[_LayoutNode] = []
         self.stack: list[_LayoutNode] = []
 
-    def handle_starttag(
-        self, tag: str, attrs: list[tuple[str, Optional[str]]]
-    ) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         parent = self.stack[-1] if self.stack else None
         node = _LayoutNode(tag, attrs, parent)
         if parent is None:
@@ -89,9 +81,7 @@ class _LayoutParser(HTMLParser):
         if tag.casefold() not in _VOID_TAGS:
             self.stack.append(node)
 
-    def handle_startendtag(
-        self, tag: str, attrs: list[tuple[str, Optional[str]]]
-    ) -> None:
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self.handle_starttag(tag, attrs)
         if self.stack and self.stack[-1].tag == tag.casefold():
             self.stack.pop()
@@ -127,7 +117,7 @@ def _contains_media(node: _LayoutNode) -> bool:
 
 
 def _is_decorative(node: _LayoutNode) -> bool:
-    current: Optional[_LayoutNode] = node
+    current: _LayoutNode | None = node
     while current is not None:
         if current.attrs.get("aria-hidden", "").casefold() == "true":
             return True
@@ -148,16 +138,14 @@ def _is_positioned(node: _LayoutNode) -> bool:
     )
 
 
-def _dimension_value(node: _LayoutNode, property_name: str) -> Optional[float]:
+def _dimension_value(node: _LayoutNode, property_name: str) -> float | None:
     style_value = node.styles.get(property_name)
     if style_value:
         match = re.fullmatch(r"(-?\d+(?:\.\d+)?)px", style_value)
         if match:
             return float(match.group(1))
 
-    class_property = {"width": "w", "height": "h"}.get(
-        property_name, property_name
-    )
+    class_property = {"width": "w", "height": "h"}.get(property_name, property_name)
     for token in node.classes:
         arbitrary = _ARBITRARY_PX_CLASS.fullmatch(token)
         if arbitrary and arbitrary.group(1).casefold() == class_property:
@@ -168,13 +156,13 @@ def _dimension_value(node: _LayoutNode, property_name: str) -> Optional[float]:
     return None
 
 
-def _edge_value(node: _LayoutNode, edge: str) -> Optional[float]:
+def _edge_value(node: _LayoutNode, edge: str) -> float | None:
     if "inset-0" in node.classes or f"{edge}-0" in node.classes:
         return 0.0
     return _dimension_value(node, edge)
 
 
-def _node_size(node: _LayoutNode) -> tuple[Optional[float], Optional[float]]:
+def _node_size(node: _LayoutNode) -> tuple[float | None, float | None]:
     if node.parent is None:
         return SLIDE_WIDTH, SLIDE_HEIGHT
     width = _dimension_value(node, "width")
@@ -188,10 +176,14 @@ def _node_size(node: _LayoutNode) -> tuple[Optional[float], Optional[float]]:
 
 def _positioned_rect(
     node: _LayoutNode,
-) -> Optional[tuple[float, float, float, float]]:
-    parent_width, parent_height = _node_size(node.parent) if node.parent else (
-        SLIDE_WIDTH,
-        SLIDE_HEIGHT,
+) -> tuple[float, float, float, float] | None:
+    parent_width, parent_height = (
+        _node_size(node.parent)
+        if node.parent
+        else (
+            SLIDE_WIDTH,
+            SLIDE_HEIGHT,
+        )
     )
     left = _edge_value(node, "left")
     right = _edge_value(node, "right")
@@ -218,12 +210,8 @@ def _rectangles_overlap(
 ) -> bool:
     first_x, first_y, first_width, first_height = first
     second_x, second_y, second_width, second_height = second
-    overlap_width = min(first_x + first_width, second_x + second_width) - max(
-        first_x, second_x
-    )
-    overlap_height = min(first_y + first_height, second_y + second_height) - max(
-        first_y, second_y
-    )
+    overlap_width = min(first_x + first_width, second_x + second_width) - max(first_x, second_x)
+    overlap_height = min(first_y + first_height, second_y + second_height) - max(first_y, second_y)
     return overlap_width > 4 and overlap_height > 4
 
 
@@ -235,7 +223,9 @@ def inspect_smart_slide_layout(html: str) -> list[str]:
         return []
     root = parser.roots[0]
     issues: list[str] = []
-    positioned_by_parent: dict[int, list[tuple[_LayoutNode, tuple[float, float, float, float]]]] = {}
+    positioned_by_parent: dict[
+        int, list[tuple[_LayoutNode, tuple[float, float, float, float]]]
+    ] = {}
 
     for node in _walk(root):
         if node is root or not _is_meaningful(node) or _is_decorative(node):
@@ -265,16 +255,24 @@ def inspect_smart_slide_layout(html: str) -> list[str]:
             )
             continue
         x, y, width, height = rect
-        parent_width, parent_height = _node_size(node.parent) if node.parent else (
-            SLIDE_WIDTH,
-            SLIDE_HEIGHT,
+        parent_width, parent_height = (
+            _node_size(node.parent)
+            if node.parent
+            else (
+                SLIDE_WIDTH,
+                SLIDE_HEIGHT,
+            )
         )
         if width <= 0 or height <= 0 or x < 0 or y < 0:
             issues.append("Positioned meaningful content has invalid or off-canvas geometry.")
         elif parent_width is not None and x + width > parent_width + 1:
-            issues.append("Positioned meaningful content crosses the right slide/container boundary.")
+            issues.append(
+                "Positioned meaningful content crosses the right slide/container boundary."
+            )
         elif parent_height is not None and y + height > parent_height + 1:
-            issues.append("Positioned meaningful content crosses the bottom slide/container boundary.")
+            issues.append(
+                "Positioned meaningful content crosses the bottom slide/container boundary."
+            )
 
         positioned_by_parent.setdefault(id(node.parent), []).append((node, rect))
 

@@ -1,6 +1,6 @@
 import os
-from typing import BinaryIO
 import uuid
+from typing import BinaryIO
 
 from fastapi import UploadFile
 
@@ -19,9 +19,7 @@ def get_file_name_with_random_uuid(file: str | UploadFile | BinaryIO) -> str:
     else:
         filename = str(uuid.uuid4())
 
-    return replace_file_name(
-        filename, f"{os.path.splitext(filename)[0]}----{str(uuid.uuid4())}"
-    )
+    return replace_file_name(filename, f"{os.path.splitext(filename)[0]}----{str(uuid.uuid4())}")
 
 
 def get_original_file_name(file_path: str) -> str:

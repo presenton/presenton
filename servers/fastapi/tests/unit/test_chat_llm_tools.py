@@ -2,9 +2,9 @@ from unittest.mock import Mock
 
 import pytest
 from llmai.openai.client import OpenAIClient  # type: ignore[import-not-found]
+from llmai.shared import Tool  # type: ignore[import-not-found]
 from llmai.shared.configs import OpenAIClientConfig  # type: ignore[import-not-found]
 from llmai.shared.schema import get_schema_as_dict  # type: ignore[import-not-found]
-from llmai.shared import Tool  # type: ignore[import-not-found]
 
 from enums.llm_provider import LLMProvider
 from services.chat.llm_tools import build_chat_llm_tools
@@ -77,9 +77,10 @@ def test_chat_tool_handler_rejects_web_search():
 
 
 def test_chat_tool_parse_args_repairs_fenced_jsonish_payload():
-    assert ChatTools._parse_args(
-        "```json\n{index: 0, includeFullContent: true}\n```"
-    ) == {"index": 0, "includeFullContent": True}
+    assert ChatTools._parse_args("```json\n{index: 0, includeFullContent: true}\n```") == {
+        "index": 0,
+        "includeFullContent": True,
+    }
 
 
 def test_chat_tools_expose_only_v2_tool_names():

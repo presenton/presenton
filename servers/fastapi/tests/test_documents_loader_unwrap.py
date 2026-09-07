@@ -7,7 +7,7 @@ from services.documents_loader import (
 
 
 def test_unwrap_strips_liteparse_json_line():
-    inner = "Title\n\nBody with \"quotes\" and\nnewlines."
+    inner = 'Title\n\nBody with "quotes" and\nnewlines.'
     line = json.dumps(
         {"ok": True, "filePath": "/tmp/x.pdf", "text": inner},
         ensure_ascii=False,

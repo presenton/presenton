@@ -42,9 +42,7 @@ def test_slide_update_changes_only_mutable_slide_fields():
     incoming.ui = {"components": [{"id": "hero"}]}
     session = FakeAsyncSession(get_results={stored.id: stored})
 
-    result = asyncio.run(
-        update_presentation_slide(slide=incoming, sql_session=session)
-    )
+    result = asyncio.run(update_presentation_slide(slide=incoming, sql_session=session))
 
     assert result is stored
     assert stored.content == {"title": "Updated"}
@@ -72,9 +70,7 @@ def test_slide_update_coerces_json_uuid_strings_before_database_lookup():
     assert isinstance(incoming.presentation, str)
     session = FakeAsyncSession(get_results={stored.id: stored})
 
-    result = asyncio.run(
-        update_presentation_slide(slide=incoming, sql_session=session)
-    )
+    result = asyncio.run(update_presentation_slide(slide=incoming, sql_session=session))
 
     assert result is stored
     assert stored.content == {"title": "Updated"}
@@ -87,9 +83,7 @@ def test_slide_update_rejects_invalid_uuid_strings():
     session = FakeAsyncSession()
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(
-            update_presentation_slide(slide=incoming, sql_session=session)
-        )
+        asyncio.run(update_presentation_slide(slide=incoming, sql_session=session))
 
     assert exc_info.value.status_code == 422
     assert session.commit_count == 0
@@ -100,9 +94,7 @@ def test_slide_update_rejects_unknown_slide():
     session = FakeAsyncSession()
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(
-            update_presentation_slide(slide=incoming, sql_session=session)
-        )
+        asyncio.run(update_presentation_slide(slide=incoming, sql_session=session))
 
     assert exc_info.value.status_code == 404
     assert session.commit_count == 0
@@ -114,9 +106,7 @@ def test_slide_update_rejects_presentation_mismatch():
     session = FakeAsyncSession(get_results={stored.id: stored})
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(
-            update_presentation_slide(slide=incoming, sql_session=session)
-        )
+        asyncio.run(update_presentation_slide(slide=incoming, sql_session=session))
 
     assert exc_info.value.status_code == 400
     assert session.commit_count == 0

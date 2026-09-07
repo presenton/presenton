@@ -1,7 +1,6 @@
 from models.ollama_model_metadata import OllamaModelMetadata
 from models.ollama_model_status import OllamaModelStatus
 
-
 SUPPORTED_LLAMA_MODELS = {
     "llama3:8b": OllamaModelMetadata(
         label="Llama 3:8b",
@@ -198,7 +197,6 @@ SUPPORTED_GEMMA4_MODELS = {
         value="gemma4:31b",
         size="20GB",
     ),
-
     # e2b variants
     "gemma4:e2b-it-q4_K_M": OllamaModelMetadata(
         label="Gemma 4:e2b-it-q4_K_M",
@@ -215,7 +213,6 @@ SUPPORTED_GEMMA4_MODELS = {
         value="gemma4:e2b-it-bf16",
         size="10GB",
     ),
-
     # e4b variants
     "gemma4:e4b-it-q4_K_M": OllamaModelMetadata(
         label="Gemma 4:e4b-it-q4_K_M",
@@ -232,7 +229,6 @@ SUPPORTED_GEMMA4_MODELS = {
         value="gemma4:e4b-it-bf16",
         size="16GB",
     ),
-
     # 26b variants
     "gemma4:26b-a4b-it-q4_K_M": OllamaModelMetadata(
         label="Gemma 4:26b-a4b-it-q4_K_M",
@@ -244,7 +240,6 @@ SUPPORTED_GEMMA4_MODELS = {
         value="gemma4:26b-a4b-it-q8_0",
         size="28GB",
     ),
-
     # 31b variants
     "gemma4:31b-it-q4_K_M": OllamaModelMetadata(
         label="Gemma 4:31b-it-q4_K_M",
@@ -260,7 +255,7 @@ SUPPORTED_GEMMA4_MODELS = {
         label="Gemma 4:31b-it-bf16",
         value="gemma4:31b-it-bf16",
         size="63GB",
-    )
+    ),
 }
 
 SUPPORTED_QWEN35_MODELS = {
@@ -298,7 +293,7 @@ SUPPORTED_QWEN35_MODELS = {
         label="Qwen 3.5:122b",
         value="qwen3.5:122b",
         size="81GB",
-    )
+    ),
 }
 
 TESTED_OLLAMA_MODELS = {

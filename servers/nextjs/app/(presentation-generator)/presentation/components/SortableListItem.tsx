@@ -52,7 +52,7 @@ export function SortableListItem({ slide, index, selectedSlide, onSlideClick }: 
             onClick={handleClick}
             className={`p-3 cursor-pointer ring-0 border-[3px] rounded-lg slide-box
                 ${selectedSlide === index
-                    ? ' border-[#5141e5] '
+                    ? ' border-[#1D4ED8] '
                     : 'hover:slide-box/40 border-gray-300'
                 }`}
         >

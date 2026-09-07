@@ -1,4 +1,3 @@
-from typing import List
 from pydantic import BaseModel, Field, field_validator
 
 from constants.presentation import MAX_NUMBER_OF_SLIDES, MAX_OUTLINE_CONTENT_WORDS
@@ -22,7 +21,7 @@ class SlideOutlineModel(BaseModel):
 
 
 class PresentationOutlineModel(BaseModel):
-    slides: List[SlideOutlineModel] = Field(
+    slides: list[SlideOutlineModel] = Field(
         description="List of slide outlines",
         max_length=MAX_NUMBER_OF_SLIDES,
     )
@@ -30,6 +29,6 @@ class PresentationOutlineModel(BaseModel):
     def to_string(self):
         message = ""
         for i, slide in enumerate(self.slides):
-            message += f"## Slide {i+1}:\n"
+            message += f"## Slide {i + 1}:\n"
             message += f"  - Content: {slide} \n"
         return message

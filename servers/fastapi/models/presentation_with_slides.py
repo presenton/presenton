@@ -1,6 +1,6 @@
-from typing import Any, List, Literal, Optional
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -9,18 +9,18 @@ from models.sql.slide import SlideModel
 
 class PresentationWithSlides(BaseModel):
     id: uuid.UUID
-    version: Optional[str] = None
+    version: str | None = None
     content: str
     n_slides: int
     language: str
-    title: Optional[str] = None
+    title: str | None = None
     created_at: datetime
     updated_at: datetime
-    tone: Optional[str] = None
-    verbosity: Optional[str] = None
-    slides: List[SlideModel]
-    fonts: Optional[Any] = None
-    theme: Optional[dict[str, Any]] = None
+    tone: str | None = None
+    verbosity: str | None = None
+    slides: list[SlideModel]
+    fonts: Any | None = None
+    theme: dict[str, Any] | None = None
     generation_mode: Literal["standard", "smart"] = "standard"
     type: Literal["standard", "smart"] = "standard"
-    community_design_ids: Optional[List[int]] = None
+    community_design_ids: list[int] | None = None

@@ -91,9 +91,7 @@ def test_cloud_generation_is_mirrored_into_the_local_database(monkeypatch, tmp_p
             completed = await session.get(PresentationModel, presentation_id)
             slides = (
                 await session.scalars(
-                    select(SlideModel).where(
-                        SlideModel.presentation == presentation_id
-                    )
+                    select(SlideModel).where(SlideModel.presentation == presentation_id)
                 )
             ).all()
             assert completed is not None

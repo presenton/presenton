@@ -1,7 +1,6 @@
-from datetime import datetime
 import secrets
 import uuid
-from typing import Optional
+from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlmodel import Field, SQLModel
@@ -20,7 +19,7 @@ class ApiKey(SQLModel, table=True):
         max_length=64,
     )
     secret_hash: str = Field(sa_column=Column(String(512), nullable=False))
-    token_encrypted: Optional[str] = Field(
+    token_encrypted: str | None = Field(
         default=None,
         exclude=True,
         sa_column=Column(String(1024), nullable=True),
@@ -46,10 +45,10 @@ class ApiKey(SQLModel, table=True):
     expires_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True)
     )
-    last_used_at: Optional[datetime] = Field(
+    last_used_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
     )
-    revoked_at: Optional[datetime] = Field(
+    revoked_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True, index=True),
     )

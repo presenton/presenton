@@ -14,7 +14,6 @@ from templates.v2.models.layouts import MergedComponents, SlideLayouts
 from utils.get_env import get_app_data_directory_env
 from utils.icon_weights import extract_icon_type_from_settings
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -154,13 +153,9 @@ async def _remove_stale_default_templates(
     session: Any,
     imported_template_ids: set[str],
 ) -> None:
-    result = await session.execute(
-        select(TemplateV2).where(TemplateV2.is_default.is_(True))
-    )
+    result = await session.execute(select(TemplateV2).where(TemplateV2.is_default.is_(True)))
     stale_templates = [
-        template
-        for template in result.scalars().all()
-        if template.id not in imported_template_ids
+        template for template in result.scalars().all() if template.id not in imported_template_ids
     ]
     if not stale_templates:
         return
@@ -179,9 +174,7 @@ def _read_template_id(raw: dict[str, Any], template_dir: Path) -> str:
         template_id = template_dir.name
     template_id = template_id.strip()
     if "/" in template_id or "\\" in template_id:
-        raise ValueError(
-            f"Default template id cannot contain path separators: {template_id}"
-        )
+        raise ValueError(f"Default template id cannot contain path separators: {template_id}")
     return template_id
 
 
@@ -246,10 +239,7 @@ def _rewrite_static_asset_urls(value: Any, template_id: str) -> Any:
     if isinstance(value, list):
         return [_rewrite_static_asset_urls(item, template_id) for item in value]
     if isinstance(value, dict):
-        return {
-            key: _rewrite_static_asset_urls(child, template_id)
-            for key, child in value.items()
-        }
+        return {key: _rewrite_static_asset_urls(child, template_id) for key, child in value.items()}
     return value
 
 
@@ -271,11 +261,7 @@ def _collect_image_urls(*values: Any) -> list[str]:
         if isinstance(value, dict):
             if value.get("type") == "image":
                 image_data = value.get("data")
-                if (
-                    isinstance(image_data, str)
-                    and image_data
-                    and image_data not in seen
-                ):
+                if isinstance(image_data, str) and image_data and image_data not in seen:
                     seen.add(image_data)
                     images.append(image_data)
             for child in value.values():

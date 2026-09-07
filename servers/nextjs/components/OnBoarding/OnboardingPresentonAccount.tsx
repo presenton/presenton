@@ -116,12 +116,7 @@ export default function OnboardingPresentonAccount({
     });
     setIsStarting(true);
 
-    // Electron denies child windows and sends http(s) targets to the system
-    // browser. Do not ask it to open the unsupported about:blank placeholder.
-    const isElectron = Boolean(window.electron);
-    const approvalWindow = isElectron
-      ? null
-      : window.open("about:blank", "_blank");
+    const approvalWindow = window.open("about:blank", "_blank");
     approvalWindowRef.current = approvalWindow;
     if (approvalWindow) {
       approvalWindow.opener = null;
@@ -164,12 +159,6 @@ export default function OnboardingPresentonAccount({
       setPollAttempt(0);
       if (approvalWindow) {
         approvalWindow.location.replace(nextFlow.verificationUri);
-      } else if (isElectron) {
-        window.open(
-          nextFlow.verificationUri,
-          "_blank",
-          "noopener,noreferrer",
-        );
       }
     } catch (error) {
       approvalWindow?.close();
@@ -400,7 +389,7 @@ export default function OnboardingPresentonAccount({
                 <button
                   type="button"
                   onClick={() => void onContinue()}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-[#7C51F8] px-4 text-[11px] font-semibold text-white transition hover:bg-[#6D46E6]"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-4 text-[11px] font-semibold text-white transition hover:bg-[#6D46E6]"
                 >
                   Continue with Presenton
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -438,7 +427,7 @@ export default function OnboardingPresentonAccount({
                 href={flow.verificationUri}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex shrink-0 items-end gap-0.5 text-[12px] font-normal leading-normal tracking-[-0.36px] text-[#7A5AF8] transition-colors hover:text-[#5F3BD0]"
+                className="inline-flex shrink-0 items-end gap-0.5 text-[12px] font-normal leading-normal tracking-[-0.36px] text-[#2563EB] transition-colors hover:text-[#5F3BD0]"
               >
                 Approval Page <ExternalLink className="h-3 w-3" />
               </a>
@@ -493,7 +482,7 @@ export default function OnboardingPresentonAccount({
               role="status"
               aria-live="polite"
             >
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#7A5AF8]" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#2563EB]" />
               Waiting for authorization…
             </div>
           </div>

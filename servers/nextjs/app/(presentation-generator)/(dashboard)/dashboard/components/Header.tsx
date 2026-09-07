@@ -1,5 +1,6 @@
 "use client";
 
+import { YarexMark } from "@/components/Brand";
 import Wrapper from "@/components/Wrapper";
 import React from "react";
 import Link from "next/link";
@@ -44,11 +45,7 @@ const Header = () => {
         <div className="flex items-center justify-between py-1">
           <div className="flex items-center gap-3">
             <Link href="/dashboard" onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/dashboard" })}>
-              <img
-                src="/logo-with-bg.png"
-                alt="Presentation logo"
-                className="h-[40px] w-[40px]"
-              />
+              <YarexMark size={40} />
             </Link>
           </div>
           <div className="flex items-center">

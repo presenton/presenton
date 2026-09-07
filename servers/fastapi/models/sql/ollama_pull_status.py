@@ -1,6 +1,6 @@
 from datetime import datetime
-import uuid
-from sqlmodel import Field, Column, JSON, SQLModel, DateTime
+
+from sqlmodel import JSON, Column, DateTime, Field, SQLModel
 
 
 class OllamaPullStatus(SQLModel, table=True):

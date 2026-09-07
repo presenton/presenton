@@ -71,9 +71,7 @@ def test_reset_advanced_settings_removes_only_optional_overrides():
     }
 
 
-def test_startup_migrates_user_config_and_rewrites_compatibility_file(
-    monkeypatch, tmp_path
-):
+def test_startup_migrates_user_config_and_rewrites_compatibility_file(monkeypatch, tmp_path):
     path = tmp_path / "userConfig.json"
     monkeypatch.setenv("USER_CONFIG_PATH", str(path))
     update_user_config_file(

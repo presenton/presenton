@@ -9,3 +9,6 @@ class WebSearchProvider(Enum):
     EXA = "exa"
     BRAVE = "brave"
     SERPER = "serper"
+    #: неизвестное/битое значение конфигурации (например, легаси-провайдер,
+    #: удалённый из движка): поиск недоступен, но генерацию не роняем
+    UNKNOWN = "unknown"

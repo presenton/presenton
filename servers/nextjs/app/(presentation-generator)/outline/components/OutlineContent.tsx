@@ -171,7 +171,7 @@ const OutlineContent: React.FC<OutlineContentProps> = ({
                 }
                 variant="outline"
                 className={cn(
-                  "h-[58px] w-full rounded-[12px] border-2 border-dashed border-[#D8D8DF] bg-white font-syne text-sm text-[#7A5AF8] shadow-none hover:bg-[#F4F3FF] hover:text-[#7A5AF8]",
+                  "h-[58px] w-full rounded-[12px] border-2 border-dashed border-[#D8D8DF] bg-white font-syne text-sm text-[#2563EB] shadow-none hover:bg-[#EFF6FF] hover:text-[#2563EB]",
                   hasReachedSlideLimit &&
                     "cursor-not-allowed text-[#A0A0A8] opacity-60 hover:bg-white hover:text-[#A0A0A8]"
                 )}

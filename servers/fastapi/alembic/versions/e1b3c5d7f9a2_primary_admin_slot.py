@@ -6,9 +6,9 @@ Revises: d0a2b4c6e8f1
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "e1b3c5d7f9a2"
 down_revision: str | None = "d0a2b4c6e8f1"
@@ -34,9 +34,7 @@ def upgrade() -> None:
         sa.column("admin_slot", sa.String(length=32)),
     )
     primary_admin_id = bind.execute(
-        sa.select(user_table.c.id)
-        .where(user_table.c.is_superuser.is_(True))
-        .limit(1)
+        sa.select(user_table.c.id).where(user_table.c.is_superuser.is_(True)).limit(1)
     ).scalar_one_or_none()
     if primary_admin_id is not None:
         bind.execute(

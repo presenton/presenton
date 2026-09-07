@@ -86,11 +86,7 @@ def _write_template_bundle(root: Path, *, include_raw_layouts: bool = False) -> 
                         "variants": [_component()],
                     }
                 ],
-                **(
-                    {"raw_layouts": {"layouts": [_raw_layout()]}}
-                    if include_raw_layouts
-                    else {}
-                ),
+                **({"raw_layouts": {"layouts": [_raw_layout()]}} if include_raw_layouts else {}),
             }
         ),
         encoding="utf-8",
@@ -176,17 +172,11 @@ def test_default_template_import_normalizes_shapes_and_copies_static(
         == "/app_data/templates/general/static/image.png"
     )
     assert (
-        template.merged_components["components"][0]["variants"][0]["elements"][0][
-            "data"
-        ]
+        template.merged_components["components"][0]["variants"][0]["elements"][0]["data"]
         == "/app_data/templates/general/static/image.png"
     )
-    assert template.assets["thumbnail"] == (
-        "/app_data/templates/general/static/thumbnail.png"
-    )
-    assert template.assets["fonts"] == {
-        "Inter": "/app_data/templates/general/static/inter.ttf"
-    }
+    assert template.assets["thumbnail"] == ("/app_data/templates/general/static/thumbnail.png")
+    assert template.assets["fonts"] == {"Inter": "/app_data/templates/general/static/inter.ttf"}
     assert template.theme == {
         "colors": {"primary": "#3B82F6", "background": "#FFFFFF"},
         "fonts": {
@@ -197,9 +187,7 @@ def test_default_template_import_normalizes_shapes_and_copies_static(
         },
     }
     assert template.assets["images"] == ["/app_data/templates/general/static/image.png"]
-    assert (
-        app_data_dir / "templates/general/static/image.png"
-    ).read_bytes() == b"image"
+    assert (app_data_dir / "templates/general/static/image.png").read_bytes() == b"image"
 
 
 def test_default_template_import_force_replaces_static_assets(tmp_path, monkeypatch):
@@ -290,9 +278,7 @@ def test_default_template_import_updates_existing_database_row(tmp_path, monkeyp
             }
         },
     }
-    assert existing.assets["thumbnail"] == (
-        "/app_data/templates/general/static/thumbnail.png"
-    )
+    assert existing.assets["thumbnail"] == ("/app_data/templates/general/static/thumbnail.png")
     assert (app_data_dir / "templates/general/static/image.png").exists()
 
 
@@ -382,9 +368,7 @@ def test_bundled_general_template_json_matches_template_v2_shapes():
 def test_resolve_default_template_id_maps_public_name_to_json_id():
     templates_root = Path(__file__).resolve().parents[4] / "templates"
 
-    assert default_templates.resolve_default_template_id(
-        "general", templates_root
-    ) == "general"
+    assert default_templates.resolve_default_template_id("general", templates_root) == "general"
 
 
 def test_resolve_default_template_id_rejects_paths(tmp_path):

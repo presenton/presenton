@@ -15,7 +15,7 @@ interface ConfigurationSelectsProps {
 }
 
 const toggleClassName =
-    'h-[22px] w-[36px] border-0 bg-[#D8D8DD] data-[state=checked]:bg-[#7A5AF8] ';
+    'h-[22px] w-[36px] border-0 bg-[#D8D8DD] data-[state=checked]:bg-[#2563EB] ';
 
 const AdvanceSettings = ({
     config,
@@ -92,7 +92,7 @@ const AdvanceSettings = ({
                         type="button"
                         onClick={handleOpenAdvanced}
                         className={cn(
-                            "flex items-center justify-center rounded-full border bg-white text-[#1C1C27] transition hover:bg-[#F7F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5141E5]/25",
+                            "flex items-center justify-center rounded-full border bg-white text-[#1C1C27] transition hover:bg-[#F7F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8]/25",
                             compact
                                 ? "h-[34px] w-[42px] border-[#EDEEEF] shadow-none"
                                 : "h-10 w-10 border-[#E4E5E8] shadow-sm min-[1800px]:h-11 min-[1800px]:w-11 min-[2200px]:h-12 min-[2200px]:w-12"

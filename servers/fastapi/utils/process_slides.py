@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from models.image_prompt import ImagePrompt
 from models.json_path_guide import JsonPathGuide
@@ -14,7 +14,6 @@ from utils.asset_directory_utils import (
 from utils.dict_utils import get_dict_at_path, get_dict_paths_with_key, set_dict_at_path
 from utils.icon_weights import DEFAULT_ICON_WEIGHT, normalize_icon_weight
 from utils.image_generation_error import image_generation_warning
-
 
 IMAGE_PROMPT_KEYS = ("__image_prompt__", "image_prompt", "prompt")
 ICON_QUERY_KEYS = ("__icon_query__", "icon_query", "query")
@@ -61,10 +60,8 @@ def _get_asset_url(asset: dict, asset_type: str, *, template: bool) -> str | Non
     return None
 
 
-def _dict_paths_with_any_key(
-    content: dict, keys: Sequence[str]
-) -> List[JsonPathGuide]:
-    paths: List[JsonPathGuide] = []
+def _dict_paths_with_any_key(content: dict, keys: Sequence[str]) -> list[JsonPathGuide]:
+    paths: list[JsonPathGuide] = []
     for key in keys:
         for path in get_dict_paths_with_key(content, key):
             if path not in paths:
@@ -72,7 +69,7 @@ def _dict_paths_with_any_key(
     return paths
 
 
-def _prompt_value(parent: dict, keys: Sequence[str]) -> Optional[str]:
+def _prompt_value(parent: dict, keys: Sequence[str]) -> str | None:
     for key in keys:
         value = parent.get(key)
         if isinstance(value, str) and value.strip():
@@ -82,7 +79,7 @@ def _prompt_value(parent: dict, keys: Sequence[str]) -> Optional[str]:
 
 def _asset_dicts_with_prompt(
     content: dict, keys: Sequence[str]
-) -> List[tuple[JsonPathGuide, dict, str]]:
+) -> list[tuple[JsonPathGuide, dict, str]]:
     assets = []
     for path in _dict_paths_with_any_key(content, keys):
         parent = get_dict_at_path(content, path)
@@ -95,11 +92,11 @@ def _asset_dicts_with_prompt(
 async def process_slide_and_fetch_assets(
     image_generation_service: ImageGenerationService,
     slide: SlideModel,
-    outline_image_urls: Optional[List[str]] = None,
+    outline_image_urls: list[str] | None = None,
     icon_weight: str = DEFAULT_ICON_WEIGHT,
     allow_image_fallback: bool = False,
-    image_warnings: Optional[List[dict]] = None,
-) -> List[ImageAsset]:
+    image_warnings: list[dict] | None = None,
+) -> list[ImageAsset]:
 
     async_tasks = []
     async_task_meta = []
@@ -109,10 +106,7 @@ async def process_slide_and_fetch_assets(
     image_assets = _asset_dicts_with_prompt(slide.content, IMAGE_PROMPT_KEYS)
     icon_assets = _asset_dicts_with_prompt(slide.content, ICON_QUERY_KEYS)
 
-    for image_index, (image_path, image_parent, image_prompt) in enumerate(
-        image_assets
-    ):
-
+    for image_index, (image_path, image_parent, image_prompt) in enumerate(image_assets):
         if (
             outline_image_urls
             and image_index < len(outline_image_urls)
@@ -128,9 +122,7 @@ async def process_slide_and_fetch_assets(
             continue
 
         async_tasks.append(
-            image_generation_service.generate_image(
-                ImagePrompt(prompt=image_prompt)
-            )
+            image_generation_service.generate_image(ImagePrompt(prompt=image_prompt))
         )
         async_task_meta.append(("image", image_path))
 
@@ -185,7 +177,13 @@ async def process_slide_and_fetch_assets(
             continue
 
         if isinstance(result, BaseException):
-            raise result
+            # Иконка — украшение, а не контент: сбой поиска даёт placeholder
+            # вместо исключения, которое раньше валило весь слайд (а через
+            # него — и всю деку).
+            if not allow_image_fallback:
+                raise result
+            if image_warnings is not None and isinstance(result, Exception):
+                image_warnings.append(image_generation_warning(result))
         icon_dict = get_dict_at_path(slide.content, asset_path)
         # ICON_FINDER_SERVICE.search_icons returns a list of URLs
         if isinstance(result, list) and result:
@@ -211,16 +209,12 @@ async def process_old_and_new_slides_and_fetch_assets(
     icon_weight: str = DEFAULT_ICON_WEIGHT,
     use_template_asset_fields: bool = False,
     allow_image_fallback: bool = False,
-    image_warnings: Optional[List[dict]] = None,
-) -> List[ImageAsset]:
+    image_warnings: list[dict] | None = None,
+) -> list[ImageAsset]:
     resolved_icon_weight = normalize_icon_weight(icon_weight)
-    old_image_assets = _asset_dicts_with_prompt(
-        old_slide_content, IMAGE_PROMPT_KEYS
-    )
+    old_image_assets = _asset_dicts_with_prompt(old_slide_content, IMAGE_PROMPT_KEYS)
     old_icon_assets = _asset_dicts_with_prompt(old_slide_content, ICON_QUERY_KEYS)
-    new_image_assets = _asset_dicts_with_prompt(
-        new_slide_content, IMAGE_PROMPT_KEYS
-    )
+    new_image_assets = _asset_dicts_with_prompt(new_slide_content, IMAGE_PROMPT_KEYS)
     new_icon_assets = _asset_dicts_with_prompt(new_slide_content, ICON_QUERY_KEYS)
 
     old_image_urls = {

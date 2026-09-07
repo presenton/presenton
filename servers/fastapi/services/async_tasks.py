@@ -7,7 +7,6 @@ from enums.async_task_status import AsyncTaskStatus
 from models.sql.async_task import AsyncTaskModel
 from utils.datetime_utils import get_current_utc_datetime
 
-
 LOGGER = logging.getLogger(__name__)
 
 INTERRUPTED_TASK_ERROR = {

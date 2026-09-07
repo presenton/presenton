@@ -1,17 +1,13 @@
 import asyncio
-import os
 import mimetypes
-from typing import List, Optional
+import os
+import uuid
 from urllib.parse import urlparse
 
 import aiohttp
 
-import uuid
 
-
-async def download_file(
-    url: str, save_directory: str, headers: Optional[dict] = None
-) -> Optional[str]:
+async def download_file(url: str, save_directory: str, headers: dict | None = None) -> str | None:
     try:
         os.makedirs(save_directory, exist_ok=True)
 
@@ -22,19 +18,13 @@ async def download_file(
             async with aiohttp.ClientSession(trust_env=True) as session:
                 async with session.head(url, headers=headers) as response:
                     if response.status == 200:
-                        content_disposition = response.headers.get(
-                            "Content-Disposition", ""
-                        )
+                        content_disposition = response.headers.get("Content-Disposition", "")
                         if "filename=" in content_disposition:
-                            filename = content_disposition.split("filename=")[1].strip(
-                                "\"'"
-                            )
+                            filename = content_disposition.split("filename=")[1].strip("\"'")
                         else:
                             content_type = response.headers.get("Content-Type", "")
                             if content_type:
-                                extension = mimetypes.guess_extension(
-                                    content_type.split(";")[0]
-                                )
+                                extension = mimetypes.guess_extension(content_type.split(";")[0])
                                 if extension:
                                     filename = f"{uuid.uuid4()}{extension}"
 
@@ -59,8 +49,8 @@ async def download_file(
 
 
 async def download_files(
-    urls: List[str], save_directory: str, headers: Optional[dict] = None
-) -> List[Optional[str]]:
+    urls: list[str], save_directory: str, headers: dict | None = None
+) -> list[str | None]:
     print(f"Starting download of {len(urls)} files to {save_directory}")
     coroutines = [download_file(url, save_directory, headers) for url in urls]
     results = await asyncio.gather(*coroutines, return_exceptions=True)
@@ -73,8 +63,6 @@ async def download_files(
             final_results.append(result)
 
     successful_downloads = sum(1 for result in final_results if result is not None)
-    print(
-        f"Download completed: {successful_downloads}/{len(urls)} files downloaded successfully"
-    )
+    print(f"Download completed: {successful_downloads}/{len(urls)} files downloaded successfully")
 
     return final_results

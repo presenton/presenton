@@ -67,10 +67,10 @@ async function errorDetail(response: Response): Promise<string> {
 }
 
 const primaryButtonClass =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#7C51F8] px-5 text-xs font-semibold text-white transition hover:bg-[#6D46E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-5 text-xs font-semibold text-white transition hover:bg-[#6D46E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 const inputClass =
-  "h-11 w-full rounded-lg border border-[#E1E1E5] bg-white px-4 text-sm text-[#101323] outline-none transition placeholder:text-[#98A2B3] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15";
+  "h-11 w-full rounded-lg border border-[#E1E1E5] bg-white px-4 text-sm text-[#101323] outline-none transition placeholder:text-[#98A2B3] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15";
 
 export default function AdminPanel({ embedded = false }: AdminPanelProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -480,13 +480,13 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           <TabsList className="h-11 rounded-full border border-[#EDEEEF] bg-[#F9FAFB] p-1">
             <TabsTrigger
               value="users"
-              className="h-9 rounded-full px-5 text-xs text-[#667085] shadow-none data-[state=active]:bg-white data-[state=active]:text-[#5146E5] data-[state=active]:shadow-sm"
+              className="h-9 rounded-full px-5 text-xs text-[#667085] shadow-none data-[state=active]:bg-white data-[state=active]:text-[#1D4ED8] data-[state=active]:shadow-sm"
             >
               Users
             </TabsTrigger>
             <TabsTrigger
               value="keys"
-              className="h-9 rounded-full px-5 text-xs text-[#667085] shadow-none data-[state=active]:bg-white data-[state=active]:text-[#5146E5] data-[state=active]:shadow-sm"
+              className="h-9 rounded-full px-5 text-xs text-[#667085] shadow-none data-[state=active]:bg-white data-[state=active]:text-[#1D4ED8] data-[state=active]:shadow-sm"
             >
               API keys
             </TabsTrigger>
@@ -495,8 +495,8 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           <TabsContent value="users" className="mt-6 space-y-5">
             <section className="rounded-[12px] border border-[#EDEEEF] bg-white p-6">
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F3FF]">
-                  <UserPlus className="h-4 w-4 text-[#5146E5]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
+                  <UserPlus className="h-4 w-4 text-[#1D4ED8]" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-[#101323]">Add user</h2>
@@ -542,8 +542,8 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
             <section className="overflow-hidden rounded-[12px] border border-[#EDEEEF] bg-white">
               <div className="flex items-center justify-between border-b border-[#EDEEEF] px-6 py-5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F3FF]">
-                    <Users className="h-4 w-4 text-[#5146E5]" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
+                    <Users className="h-4 w-4 text-[#1D4ED8]" />
                   </div>
                   <div>
                     <h2 className="text-sm font-semibold text-[#101323]">Accounts</h2>
@@ -555,7 +555,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                 <button
                   type="button"
                   aria-label="Refresh accounts"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F9FAFB] hover:text-[#5146E5]"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F9FAFB] hover:text-[#1D4ED8]"
                   onClick={() => void loadUsers("manual")}
                 >
                   <RefreshCw className={`h-4 w-4 ${busy === "users" ? "animate-spin" : ""}`} />
@@ -606,8 +606,8 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           <TabsContent value="keys" className="mt-6 space-y-5">
             <section className="rounded-[12px] border border-[#EDEEEF] bg-white p-6">
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F3FF]">
-                  <KeyRound className="h-4 w-4 text-[#5146E5]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
+                  <KeyRound className="h-4 w-4 text-[#1D4ED8]" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-[#101323]">Generate API key</h2>
@@ -668,17 +668,22 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
             </section>
 
             <section className="overflow-hidden rounded-[12px] border border-[#EDEEEF] bg-white">
-              <div className="flex items-center justify-between border-b border-[#EDEEEF] px-6 py-5">
-                <div>
-                  <h2 className="text-sm font-semibold text-[#101323]">API keys</h2>
-                  <p className="mt-0.5 text-xs text-[#667085]">
-                    Reveal or copy a key whenever you configure an API or MCP client.
-                  </p>
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#EDEEEF] px-6 py-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF6FF]">
+                    <KeyRound className="h-4 w-4 text-[#1D4ED8]" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold text-[#101323]">API and MCP keys</h2>
+                    <p className="mt-0.5 text-xs text-[#667085]">
+                      Reveal or copy a key whenever you configure an API or MCP client.
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   aria-label="Refresh API keys"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F9FAFB] hover:text-[#5146E5]"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F9FAFB] hover:text-[#1D4ED8]"
                   onClick={() => void loadApiKeys()}
                 >
                   <RefreshCw className={`h-4 w-4 ${busy === "api-keys" ? "animate-spin" : ""}`} />
@@ -721,7 +726,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                         type="button"
                         aria-label={isVisible ? "Hide API key" : "Show API key"}
                         title={isVisible ? "Hide API key" : "Show API key"}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F4F3FF] hover:text-[#5146E5] disabled:opacity-50"
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#EFF6FF] hover:text-[#1D4ED8] disabled:opacity-50"
                         onClick={() => void toggleApiKeyVisibility(apiKey.id)}
                         disabled={busy === `reveal-api-key:${apiKey.id}`}
                       >
@@ -737,7 +742,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                         type="button"
                         aria-label="Copy API key"
                         title="Copy API key"
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F4F3FF] hover:text-[#5146E5] disabled:opacity-50"
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#EFF6FF] hover:text-[#1D4ED8] disabled:opacity-50"
                         onClick={() => void copyApiKey(apiKey.id)}
                         disabled={busy === `reveal-api-key:${apiKey.id}`}
                       >
@@ -778,8 +783,8 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           {dialog?.kind === "reset-password" && (
             <form onSubmit={resetPassword}>
               <DialogHeader className="px-7 pb-5 pt-7 text-left">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#F4F3FF]">
-                  <LockKeyhole className="h-5 w-5 text-[#5146E5]" />
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#EFF6FF]">
+                  <LockKeyhole className="h-5 w-5 text-[#1D4ED8]" />
                 </div>
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
                   Reset password

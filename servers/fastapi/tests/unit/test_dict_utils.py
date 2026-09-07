@@ -100,9 +100,7 @@ def test_deep_update_single_dict_into_list_slot_with_scalar_original():
 
 
 def test_json_path_guide_type_adapter_round_trip():
-    guide = JsonPathGuide(
-        guides=[DictGuide(key="x"), ListGuide(index=0), DictGuide(key="y")]
-    )
+    guide = JsonPathGuide(guides=[DictGuide(key="x"), ListGuide(index=0), DictGuide(key="y")])
     dumped = guide.model_dump()
     restored = TypeAdapter(JsonPathGuide).validate_python(dumped)
     assert restored == guide

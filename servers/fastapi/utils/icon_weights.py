@@ -1,7 +1,6 @@
 from collections.abc import Mapping
 from typing import Any, Literal, TypeAlias
 
-
 DEFAULT_ICON_WEIGHT = "bold"
 ALLOWED_ICON_WEIGHTS = ("bold", "duotone", "fill", "light", "regular", "thin")
 
@@ -32,9 +31,7 @@ def _contains_icon_setting(settings: Mapping[str, Any]) -> bool:
     if "icon_type" in settings or "icon_weight" in settings:
         return True
     nested_settings = settings.get("settings")
-    return isinstance(nested_settings, Mapping) and _contains_icon_setting(
-        nested_settings
-    )
+    return isinstance(nested_settings, Mapping) and _contains_icon_setting(nested_settings)
 
 
 def extract_icon_type_from_settings(settings: Mapping[str, Any] | None) -> str:

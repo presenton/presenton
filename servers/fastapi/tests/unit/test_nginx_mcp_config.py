@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 
-
 NGINX_CONFIG = Path(__file__).resolve().parents[4] / "nginx.conf"
 
 

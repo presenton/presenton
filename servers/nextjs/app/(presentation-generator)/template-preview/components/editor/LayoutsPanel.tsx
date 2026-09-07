@@ -177,7 +177,7 @@ function LayoutRow({
         <div className="flex shrink-0 items-center gap-[10px]">
           <button
             aria-label={`Copy layout ${index + 1} ID`}
-            className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] text-[#191919] transition-colors hover:bg-[#F7F6F9] hover:text-[#7A5AF8]"
+            className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] text-[#191919] transition-colors hover:bg-[#F7F6F9] hover:text-[#2563EB]"
             onClick={(event) => {
               event.stopPropagation();
               onCopy();

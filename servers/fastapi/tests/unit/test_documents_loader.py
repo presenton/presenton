@@ -16,7 +16,7 @@ from services.temp_file_service import TEMP_FILE_SERVICE
 
 
 def test_unwrap_liteparse_json_line_extracts_text_field():
-    inner_text = "Title\n\nBody with \"quotes\""
+    inner_text = 'Title\n\nBody with "quotes"'
     payload = json.dumps({"ok": True, "filePath": "/tmp/test.pdf", "text": inner_text})
 
     assert _unwrap_liteparse_json_line_if_stored(payload) == inner_text
@@ -30,8 +30,7 @@ def test_unwrap_liteparse_json_line_leaves_non_json_text():
 
 def test_clean_extracted_document_text_handles_malformed_json_body():
     malformed = (
-        '{"ok": true, "filePath": "/tmp/test.pdf", "text": '
-        '"hello\\nworld\\u0021 and trailing'
+        '{"ok": true, "filePath": "/tmp/test.pdf", "text": "hello\\nworld\\u0021 and trailing'
     )
     cleaned = clean_extracted_document_text(malformed)
     assert cleaned == "hello\nworld! and trailing"
@@ -42,9 +41,7 @@ def test_clean_extracted_document_text_unwraps_nested_liteparse_payloads():
         {
             "ok": True,
             "filePath": "/tmp/outer.pdf",
-            "text": json.dumps(
-                {"ok": True, "filePath": "/tmp/inner.pdf", "text": "final body"}
-            ),
+            "text": json.dumps({"ok": True, "filePath": "/tmp/inner.pdf", "text": "final body"}),
         }
     )
     assert clean_extracted_document_text(nested) == "final body"
@@ -102,9 +99,7 @@ def test_load_image_converts_to_png_before_ocr(mock_convert, mock_parse):
 
 
 @patch("services.documents_loader.DocumentsLoader.load_office_document")
-def test_load_documents_parses_office_files_without_liteparse(
-    mock_extract, tmp_path, monkeypatch
-):
+def test_load_documents_parses_office_files_without_liteparse(mock_extract, tmp_path, monkeypatch):
     managed_dir = tmp_path / "presenton-temp"
     managed_dir.mkdir()
     monkeypatch.setattr(TEMP_FILE_SERVICE, "base_dir", str(managed_dir))

@@ -5,18 +5,19 @@ Revises: c7b70d0f31b1
 Create Date: 2026-06-20 00:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 import sqlmodel
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "6e4a1b2c3d5f"
-down_revision: Union[str, None] = "c7b70d0f31b1"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "c7b70d0f31b1"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 PRESENTATION_VERSION_DEFAULT = "v1-standard"
@@ -88,9 +89,7 @@ def _upgrade_presentation_version() -> None:
         )
 
     op.execute(
-        "UPDATE presentations "
-        f"SET version = '{PRESENTATION_VERSION_DEFAULT}' "
-        "WHERE version IS NULL"
+        f"UPDATE presentations SET version = '{PRESENTATION_VERSION_DEFAULT}' WHERE version IS NULL"
     )
     with op.batch_alter_table("presentations") as batch_op:
         batch_op.alter_column(

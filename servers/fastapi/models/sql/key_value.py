@@ -1,5 +1,6 @@
 import uuid
-from sqlmodel import Field, Column, JSON, SQLModel
+
+from sqlmodel import JSON, Column, Field, SQLModel
 
 
 class KeyValueSqlModel(SQLModel, table=True):

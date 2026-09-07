@@ -1,12 +1,10 @@
-from typing import List
-
-from models.json_path_guide import JsonPathGuide, DictGuide, ListGuide
+from models.json_path_guide import DictGuide, JsonPathGuide, ListGuide
 
 
-def get_dict_paths_with_key(data: dict, key: str) -> List[JsonPathGuide]:
+def get_dict_paths_with_key(data: dict, key: str) -> list[JsonPathGuide]:
     result = []
 
-    def _find_paths(obj, current_path: List[DictGuide | ListGuide]):
+    def _find_paths(obj, current_path: list[DictGuide | ListGuide]):
         if isinstance(obj, dict):
             if key in obj:
                 result.append(JsonPathGuide(guides=current_path.copy()))
@@ -60,15 +58,11 @@ def deep_update(original: dict, updates: dict) -> dict:
                     if len(original[key]) > 0 and isinstance(original[key][0], dict):
                         deep_update(original[key][0], value[0])
                     else:
-                        original[key][0] = (
-                            value[0] if len(original[key]) > 0 else value[0]
-                        )
+                        original[key][0] = value[0] if len(original[key]) > 0 else value[0]
                 else:
                     min_length = min(len(original[key]), len(value))
                     for i in range(min_length):
-                        if isinstance(original[key][i], dict) and isinstance(
-                            value[i], dict
-                        ):
+                        if isinstance(original[key][i], dict) and isinstance(value[i], dict):
                             deep_update(original[key][i], value[i])
                         else:
                             original[key][i] = value[i]

@@ -88,14 +88,10 @@ def replace_special_placeholders(value: Any) -> Any:
     return value
 
 
-def build_template_example(
-    template_id: str, layout: PresentationLayoutModel
-) -> dict[str, Any]:
+def build_template_example(template_id: str, layout: PresentationLayoutModel) -> dict[str, Any]:
     slides = []
     for slide in layout.slides:
-        example_content = replace_special_placeholders(
-            build_schema_example(slide.json_schema)
-        )
+        example_content = replace_special_placeholders(build_schema_example(slide.json_schema))
         slides.append({"layout": slide.id, "content": example_content})
 
     return {

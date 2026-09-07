@@ -1,7 +1,7 @@
 import asyncio
-from datetime import timedelta
 import json
 import stat
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from api.v1.auth import bootstrap
 from api.v1.auth.users import PASSWORD_HELPER
+from models.sql.access_token import AccessToken
 from models.sql.api_key import ApiKey
 from models.sql.user import User
 from utils.datetime_utils import get_current_utc_datetime
@@ -20,12 +21,12 @@ async def _create_auth_database(database_path):
     async with engine.begin() as connection:
         await connection.run_sync(User.__table__.create)
         await connection.run_sync(ApiKey.__table__.create)
+        # Легаси-токены Telegram-бота (наш форк-стек): bootstrap чистит их при ротации.
+        await connection.run_sync(AccessToken.__table__.create)
     return engine, session_maker
 
 
-def test_reset_auth_recovers_admin_without_replacing_account(
-    monkeypatch, tmp_path
-):
+def test_reset_auth_recovers_admin_without_replacing_account(monkeypatch, tmp_path):
     config_path = tmp_path / "userConfig.json"
     config_path.write_text(
         json.dumps(
@@ -110,18 +111,14 @@ def test_reset_auth_recovers_admin_without_replacing_account(
     assert stat.S_IMODE((tmp_path / "userConfig.json.bak").stat().st_mode) == 0o600
 
 
-def test_reset_auth_without_password_refuses_to_delete_or_replace_admin(
-    monkeypatch, tmp_path
-):
+def test_reset_auth_without_password_refuses_to_delete_or_replace_admin(monkeypatch, tmp_path):
     monkeypatch.setenv("USER_CONFIG_PATH", str(tmp_path / "userConfig.json"))
     monkeypatch.setenv("RESET_AUTH", "true")
     monkeypatch.delenv("AUTH_PASSWORD", raising=False)
     monkeypatch.delenv("AUTH_OVERRIDE_FROM_ENV", raising=False)
 
     async def runner():
-        engine, session_maker = await _create_auth_database(
-            tmp_path / "missing-password.db"
-        )
+        engine, session_maker = await _create_auth_database(tmp_path / "missing-password.db")
         try:
             async with session_maker() as session:
                 admin = User(

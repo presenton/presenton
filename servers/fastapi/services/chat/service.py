@@ -25,9 +25,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.chat import ChatAttachment
 from models.sql.presentation import PresentationModel
 from services.chat.conversation_store import ChatConversationStore
+from services.chat.llm_tools import build_chat_llm_tools
 from services.chat.presentation_context_store import PresentationContextStore
 from services.chat.prompts import build_system_prompt
-from services.chat.llm_tools import build_chat_llm_tools
 from services.chat.tools import ChatToolMode, ChatTools
 from services.documents_loader import DocumentsLoader
 from services.mem0_presentation_memory_service import MEM0_PRESENTATION_MEMORY_SERVICE
@@ -163,25 +163,29 @@ class PresentationChatService:
 
             thinking_summary = self._summarize_model_note(thinking_chunks)
             if thinking_summary:
-                yield "trace", {
-                    "kind": "model_note",
-                    "round": round_index + 1,
-                    "status": "info",
-                    "message": thinking_summary,
-                }
+                yield (
+                    "trace",
+                    {
+                        "kind": "model_note",
+                        "round": round_index + 1,
+                        "status": "info",
+                        "message": thinking_summary,
+                    },
+                )
 
-            completion_tool_calls = list(
-                getattr(completion_chunk, "tool_calls", []) or []
-            )
+            completion_tool_calls = list(getattr(completion_chunk, "tool_calls", []) or [])
             if completion_tool_calls:
                 tool_names = [tool_call.name for tool_call in completion_tool_calls]
                 called_tools.extend(tool_names)
-                yield "trace", {
-                    "kind": "tool_plan",
-                    "round": round_index + 1,
-                    "tools": tool_names,
-                    "message": f"Using tools: {', '.join(tool_names)}",
-                }
+                yield (
+                    "trace",
+                    {
+                        "kind": "tool_plan",
+                        "round": round_index + 1,
+                        "tools": tool_names,
+                        "message": f"Using tools: {', '.join(tool_names)}",
+                    },
+                )
                 messages = self._append_sanitized_assistant_tool_turn(
                     messages,
                     content=getattr(completion_chunk, "content", None),
@@ -215,9 +219,7 @@ class PresentationChatService:
                         "round": round_index + 1,
                         "tool": tool_call.name,
                         "status": "success" if tool_result.get("ok") else "error",
-                        "message": self._summarize_tool_result(
-                            tool_call.name, tool_result
-                        ),
+                        "message": self._summarize_tool_result(tool_call.name, tool_result),
                     }
                     if resolved_tool_focus:
                         complete_trace.update(resolved_tool_focus)
@@ -242,13 +244,16 @@ class PresentationChatService:
             break
         else:
             LOGGER.warning("Max tool rounds reached in chat stream flow")
-            yield "trace", {
-                "kind": "limit",
-                "message": (
-                    "Reached tool-call limit before final answer; "
-                    "attempting best-effort summary."
-                ),
-            }
+            yield (
+                "trace",
+                {
+                    "kind": "limit",
+                    "message": (
+                        "Reached tool-call limit before final answer; "
+                        "attempting best-effort summary."
+                    ),
+                },
+            )
             yield "status", "Finalizing response"
             response_text = await self._try_final_response_without_tools(
                 client=client,
@@ -286,9 +291,7 @@ class PresentationChatService:
         if presentation.generation_mode != self._presentation_type:
             raise HTTPException(
                 status_code=400,
-                detail=(
-                    "Presentation type does not match the stored generation mode."
-                ),
+                detail=("Presentation type does not match the stored generation mode."),
             )
 
         attachment_context, attachment_memory = await self._build_attachment_context(
@@ -345,9 +348,13 @@ class PresentationChatService:
             *history_messages,
             UserMessage(content=model_user_message),
         ]
-        return conversation_id, messages, self._persisted_user_message(
-            user_message,
-            attachments or [],
+        return (
+            conversation_id,
+            messages,
+            self._persisted_user_message(
+                user_message,
+                attachments or [],
+            ),
         )
 
     async def _persist_turn(
@@ -676,14 +683,10 @@ class PresentationChatService:
         if isinstance(element_path, str) and element_path:
             focus_payload["element_path"] = element_path
 
-        target_slide_indices = PresentationChatService._extract_target_slide_indices(
-            parsed_args
-        )
+        target_slide_indices = PresentationChatService._extract_target_slide_indices(parsed_args)
         if target_slide_indices:
             focus_payload["target_slide_indices"] = target_slide_indices
-            focus_payload["target_slide_numbers"] = [
-                index + 1 for index in target_slide_indices
-            ]
+            focus_payload["target_slide_numbers"] = [index + 1 for index in target_slide_indices]
 
         return focus_payload or None
 
@@ -742,14 +745,10 @@ class PresentationChatService:
         if isinstance(element_path, str) and element_path:
             focus_payload["element_path"] = element_path
 
-        target_slide_indices = PresentationChatService._extract_target_slide_indices(
-            result
-        )
+        target_slide_indices = PresentationChatService._extract_target_slide_indices(result)
         if target_slide_indices:
             focus_payload["target_slide_indices"] = target_slide_indices
-            focus_payload["target_slide_numbers"] = [
-                index + 1 for index in target_slide_indices
-            ]
+            focus_payload["target_slide_numbers"] = [index + 1 for index in target_slide_indices]
 
         return focus_payload or None
 
@@ -842,10 +841,7 @@ class PresentationChatService:
                     if isinstance(guidance, list) and guidance:
                         first_guidance = str(guidance[0]).strip()
                         if first_guidance:
-                            return (
-                                f"{tool_name} failed: {error.strip()} "
-                                f"Recovery: {first_guidance}"
-                            )
+                            return f"{tool_name} failed: {error.strip()} Recovery: {first_guidance}"
                 return f"{tool_name} failed: {error.strip()}"
             return f"{tool_name} failed."
 

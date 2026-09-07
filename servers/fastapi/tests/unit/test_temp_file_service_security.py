@@ -17,19 +17,13 @@ def managed_temp_dir(tmp_path, monkeypatch):
 def test_create_temp_file_path_uses_safe_basename(managed_temp_dir):
     upload_dir = TEMP_FILE_SERVICE.create_temp_dir("upload-case")
 
-    created_path = TEMP_FILE_SERVICE.create_temp_file_path(
-        "../../etc/passwd", upload_dir
-    )
+    created_path = TEMP_FILE_SERVICE.create_temp_file_path("../../etc/passwd", upload_dir)
 
     assert created_path == os.path.join(upload_dir, "passwd")
-    assert os.path.commonpath([created_path, str(managed_temp_dir)]) == str(
-        managed_temp_dir
-    )
+    assert os.path.commonpath([created_path, str(managed_temp_dir)]) == str(managed_temp_dir)
 
 
-def test_resolve_temp_path_rejects_paths_outside_managed_temp_dir(
-    managed_temp_dir, tmp_path
-):
+def test_resolve_temp_path_rejects_paths_outside_managed_temp_dir(managed_temp_dir, tmp_path):
     outside_file = tmp_path / "outside.txt"
     outside_file.write_text("secret", encoding="utf-8")
 

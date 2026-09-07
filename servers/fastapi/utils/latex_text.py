@@ -101,11 +101,7 @@ def replace_text_runs(
         else []
     )
     if parsed_runs is None:
-        return [
-            _replace_single_run(
-                templates[0] if templates else None, value, fallback_font
-            )
-        ]
+        return [_replace_single_run(templates[0] if templates else None, value, fallback_font)]
 
     return [
         _build_parsed_run(
@@ -133,17 +129,9 @@ def text_runs_to_tagged_text(runs: Any) -> str:
 
 def normalize_latex(value: str) -> str:
     normalized = value.strip()
-    if (
-        normalized.startswith("$$")
-        and normalized.endswith("$$")
-        and len(normalized) > 4
-    ):
+    if normalized.startswith("$$") and normalized.endswith("$$") and len(normalized) > 4:
         return normalized[2:-2].strip()[:4000]
-    if (
-        normalized.startswith(r"\[")
-        and normalized.endswith(r"\]")
-        and len(normalized) > 4
-    ):
+    if normalized.startswith(r"\[") and normalized.endswith(r"\]") and len(normalized) > 4:
         return normalized[2:-2].strip()[:4000]
     return normalized[:4000]
 
@@ -190,9 +178,7 @@ def _matching_template_run(
     parsed_run: dict[str, str],
     index: int,
 ) -> dict[str, Any] | None:
-    if index < len(templates) and _is_latex_run(templates[index]) == _is_latex_run(
-        parsed_run
-    ):
+    if index < len(templates) and _is_latex_run(templates[index]) == _is_latex_run(parsed_run):
         return templates[index]
     for template in templates:
         if _is_latex_run(template) == _is_latex_run(parsed_run):

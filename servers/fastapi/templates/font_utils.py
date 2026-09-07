@@ -1,6 +1,6 @@
 import re
 import xml.etree.ElementTree as ET
-from typing import Iterable
+from collections.abc import Iterable
 
 from templates.pptx_font_utils import get_static_font_url
 

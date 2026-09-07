@@ -26,9 +26,10 @@ def _png_bytes() -> bytes:
 def test_search_images_with_provider_alias_returns_list(fake_async_session):
     client = _build_client(fake_async_session)
 
-    with patch(
-        "api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"
-    ), patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls:
+    with (
+        patch("api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"),
+        patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls,
+    ):
         service = Mock()
         service.get_image_from_pexels = AsyncMock(
             return_value=["https://img.example.com/a.jpg", "https://img.example.com/b.jpg"]
@@ -48,9 +49,7 @@ def test_search_images_strict_mode_requires_api_key(fake_async_session):
     client = _build_client(fake_async_session)
 
     with patch("api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"):
-        response = client.get(
-            "/images/search?query=ai&provider=pexels&strict_api_key=true"
-        )
+        response = client.get("/images/search?query=ai&provider=pexels&strict_api_key=true")
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Pexels API key is required"
@@ -61,14 +60,14 @@ def test_search_images_uses_configured_key_for_redacted_runtime_secret(
 ):
     client = _build_client(fake_async_session)
 
-    with patch(
-        "api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"
-    ), patch(
-        "api.v1.ppt.endpoints.images.get_pexels_api_key_env",
-        return_value="server-pexels-key",
-    ), patch(
-        "api.v1.ppt.endpoints.images.ImageGenerationService"
-    ) as mock_service_cls:
+    with (
+        patch("api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"),
+        patch(
+            "api.v1.ppt.endpoints.images.get_pexels_api_key_env",
+            return_value="server-pexels-key",
+        ),
+        patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls,
+    ):
         service = Mock()
         service.get_image_from_pexels = AsyncMock(
             side_effect=[
@@ -96,9 +95,10 @@ def test_generate_image_returns_image_path_and_persists_image_asset(fake_async_s
     client = _build_client(fake_async_session)
     generated_asset = ImageAsset(path="/tmp/generated/a.png", is_uploaded=False)
 
-    with patch(
-        "api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"
-    ), patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls:
+    with (
+        patch("api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"),
+        patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls,
+    ):
         service = Mock()
         service.generate_image = AsyncMock(return_value=generated_asset)
         mock_service_cls.return_value = service
@@ -114,9 +114,10 @@ def test_generate_image_returns_image_path_and_persists_image_asset(fake_async_s
 def test_generate_image_returns_placeholder_without_db_write(fake_async_session):
     client = _build_client(fake_async_session)
 
-    with patch(
-        "api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"
-    ), patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls:
+    with (
+        patch("api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"),
+        patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls,
+    ):
         service = Mock()
         service.generate_image = AsyncMock(return_value="/static/images/placeholder.jpg")
         mock_service_cls.return_value = service
@@ -131,9 +132,10 @@ def test_generate_image_returns_placeholder_without_db_write(fake_async_session)
 def test_generate_image_returns_provider_error_status(fake_async_session):
     client = _build_client(fake_async_session)
 
-    with patch(
-        "api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"
-    ), patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls:
+    with (
+        patch("api.v1.ppt.endpoints.images.get_images_directory", return_value="/tmp"),
+        patch("api.v1.ppt.endpoints.images.ImageGenerationService") as mock_service_cls,
+    ):
         service = Mock()
         service.generate_image = AsyncMock(
             side_effect=HTTPException(
@@ -150,14 +152,10 @@ def test_generate_image_returns_provider_error_status(fake_async_session):
     assert fake_async_session.added == []
 
 
-def test_upload_image_accepts_valid_image_and_persists_asset(
-    tmp_path, fake_async_session
-):
+def test_upload_image_accepts_valid_image_and_persists_asset(tmp_path, fake_async_session):
     client = _build_client(fake_async_session)
 
-    with patch(
-        "api.v1.ppt.endpoints.images.get_images_directory", return_value=str(tmp_path)
-    ):
+    with patch("api.v1.ppt.endpoints.images.get_images_directory", return_value=str(tmp_path)):
         response = client.post(
             "/images/upload",
             files={"file": ("slide.png", _png_bytes(), "image/png")},
@@ -177,9 +175,7 @@ def test_upload_image_accepts_valid_image_and_persists_asset(
 def test_upload_image_rejects_non_image_bytes(tmp_path, fake_async_session):
     client = _build_client(fake_async_session)
 
-    with patch(
-        "api.v1.ppt.endpoints.images.get_images_directory", return_value=str(tmp_path)
-    ):
+    with patch("api.v1.ppt.endpoints.images.get_images_directory", return_value=str(tmp_path)):
         response = client.post(
             "/images/upload",
             files={"file": ("slide.png", b"not an image", "image/png")},
@@ -195,9 +191,7 @@ def test_upload_image_rejects_non_image_bytes(tmp_path, fake_async_session):
 def test_upload_image_rejects_unsupported_extension(tmp_path, fake_async_session):
     client = _build_client(fake_async_session)
 
-    with patch(
-        "api.v1.ppt.endpoints.images.get_images_directory", return_value=str(tmp_path)
-    ):
+    with patch("api.v1.ppt.endpoints.images.get_images_directory", return_value=str(tmp_path)):
         response = client.post(
             "/images/upload",
             files={"file": ("slide.txt", _png_bytes(), "image/png")},

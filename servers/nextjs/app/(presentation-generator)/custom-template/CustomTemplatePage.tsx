@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import { YarexMark } from "@/components/Brand";
 import React, {
   useCallback,
   useEffect,
@@ -116,12 +117,7 @@ function StudioTopBar({ activeStep }: { activeStep: StudioStep }) {
           className="pointer-events-auto block h-8 w-8 sm:h-[34px] sm:w-[34px] 2xl:h-[44px] 2xl:w-[44px] shrink-0"
           aria-label="Dashboard"
         >
-          <img
-            src="/logo-with-bg.png"
-            alt="Presenton"
-            className="h-full w-full"
-            draggable={false}
-          />
+          <YarexMark size={36} />
         </a>
 
         <nav
@@ -262,7 +258,7 @@ function UploadPanel({
               onClick={() => inputRef.current?.click()}
               className="flex h-[34px] 2xl:h-[42px] items-center gap-1.5 2xl:gap-2 rounded-[80px] bg-white px-3.5 2xl:px-4 text-[12px] 2xl:text-sm font-semibold text-black shadow-[0_0_4px_rgba(0,0,0,0.06)]"
             >
-              <Upload className="h-3.5 w-3.5 2xl:h-4 2xl:w-4 text-[#7A5AF8]" />
+              <Upload className="h-3.5 w-3.5 2xl:h-4 2xl:w-4 text-[#2563EB]" />
               Upload PPTX File
             </button>
             <input
@@ -366,7 +362,7 @@ function UploadPanel({
         <ul className="mx-auto mt-6 2xl:mt-8 flex max-w-[480px] 2xl:max-w-[600px] items-center justify-between gap-5 2xl:gap-8">
           {["Test in Real Time", "Max 100MB", "5min Generation"].map((item) => (
             <li key={item} className="flex items-center gap-2 2xl:gap-2.5">
-              <span className="h-2.5 w-2.5 2xl:h-3 2xl:w-3 rounded-full bg-[#EBE9FE]" />
+              <span className="h-2.5 w-2.5 2xl:h-3 2xl:w-3 rounded-full bg-[#DBEAFE]" />
               <span className="text-[13px] 2xl:text-[15px] font-normal text-[#3A3A3A]">{item}</span>
             </li>
           ))}
@@ -379,7 +375,7 @@ function UploadPanel({
             i
           </span>
           <p>
-            Presenton sends each slide as a screenshot and HTML reference. Use a
+            Yarex sends each slide as a screenshot and HTML reference. Use a
             vision-enabled model for accurate layouts. Text-only models may produce
             poor results or fail.
           </p>
@@ -602,7 +598,7 @@ function FontFallbackPicker({
                     >
                       <span className="min-w-0 truncate">{option.family}</span>
                       {isSelected ? (
-                        <Check className="h-4 w-4 shrink-0 text-[#5146E5]" />
+                        <Check className="h-4 w-4 shrink-0 text-[#1D4ED8]" />
                       ) : (
                         <span className="shrink-0 text-xs font-semibold text-[#8B8E99]">
                           Aa
@@ -710,7 +706,7 @@ function AnalyzePanel({
             }}
             className="flex h-[34px] 2xl:h-[42px] items-center gap-1.5 2xl:gap-2 rounded-[80px] bg-white px-3.5 2xl:px-4 text-[12px] 2xl:text-sm font-semibold text-black shadow-[0_0_4px_rgba(0,0,0,0.06)]"
           >
-            <Upload className="h-3.5 w-3.5 2xl:h-4 2xl:w-4 text-[#7A5AF8]" />
+            <Upload className="h-3.5 w-3.5 2xl:h-4 2xl:w-4 text-[#2563EB]" />
             Fonts Upload
           </button>
         </div>
@@ -1370,7 +1366,7 @@ function ReviewPanel({
           className={`relative ${enableEditing ? "" : ""}`}
         >
           {enableEditing ? (
-            <div className="relative border border-[#7A5AF8] bg-white shadow-[0_2px_16px_rgba(16,24,40,0.08)]">
+            <div className="relative border border-[#2563EB] bg-white shadow-[0_2px_16px_rgba(16,24,40,0.08)]">
               <SelectionHandles />
               <div className="absolute left-1/2 top-2 z-30 -translate-x-1/2 rounded-[5px] border border-[#E6E7EC] bg-white px-2 py-1.5 shadow-[0_4px_12px_rgba(16,24,40,0.12)] sm:top-3 2xl:px-3 2xl:py-2">
                 <div className="flex items-center gap-1 2xl:gap-1.5">

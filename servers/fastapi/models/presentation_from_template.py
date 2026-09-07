@@ -1,6 +1,7 @@
-from typing import List, Literal
-from pydantic import BaseModel
 import uuid
+from typing import Literal
+
+from pydantic import BaseModel
 
 
 class SlideContentUpdate(BaseModel):
@@ -10,5 +11,5 @@ class SlideContentUpdate(BaseModel):
 
 class EditPresentationRequest(BaseModel):
     presentation_id: uuid.UUID
-    slides: List[SlideContentUpdate]
+    slides: list[SlideContentUpdate]
     export_as: Literal["pptx", "pdf"] = "pptx"

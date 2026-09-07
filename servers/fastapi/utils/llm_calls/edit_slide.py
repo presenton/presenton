@@ -1,14 +1,15 @@
 from datetime import datetime
-from typing import Optional
 
 from llmai import get_client
 from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
+
 from models.presentation_layout import SlideLayoutModel
 from models.sql.slide import SlideModel
-from utils.llm_config import get_llm_config
+from utils.content_quality import get_content_quality_errors
 from utils.llm_client_error_handler import handle_llm_client_exceptions
-from utils.llm_utils import generate_structured_with_schema_retries
+from utils.llm_config import get_llm_config
 from utils.llm_provider import get_model
+from utils.llm_utils import generate_structured_with_schema_retries
 from utils.schema_utils import (
     add_field_in_schema,
     ensure_array_schemas_have_items,
@@ -16,7 +17,7 @@ from utils.schema_utils import (
 )
 
 
-def _resolve_prompt_language(language: Optional[str]) -> str:
+def _resolve_prompt_language(language: str | None) -> str:
     if language is None:
         return "auto-detect"
     s = str(language).strip()
@@ -28,10 +29,10 @@ def _resolve_prompt_language(language: Optional[str]) -> str:
 
 
 def get_system_prompt(
-    tone: Optional[str] = None,
-    verbosity: Optional[str] = None,
-    instructions: Optional[str] = None,
-    memory_context: Optional[str] = None,
+    tone: str | None = None,
+    verbosity: str | None = None,
+    instructions: str | None = None,
+    memory_context: str | None = None,
 ):
     memory_block = (
         "\n    # Retrieved Presentation Memory Context\n"
@@ -91,11 +92,11 @@ def get_user_prompt(prompt: str, slide_data: dict, language: str):
 def get_messages(
     prompt: str,
     slide_data: dict,
-    language: Optional[str],
-    tone: Optional[str] = None,
-    verbosity: Optional[str] = None,
-    instructions: Optional[str] = None,
-    memory_context: Optional[str] = None,
+    language: str | None,
+    tone: str | None = None,
+    verbosity: str | None = None,
+    instructions: str | None = None,
+    memory_context: str | None = None,
 ) -> list[Message]:
     return [
         SystemMessage(
@@ -110,12 +111,12 @@ def get_messages(
 async def get_edited_slide_content(
     prompt: str,
     slide: SlideModel,
-    language: Optional[str],
+    language: str | None,
     slide_layout: SlideLayoutModel,
-    tone: Optional[str] = None,
-    verbosity: Optional[str] = None,
-    instructions: Optional[str] = None,
-    memory_context: Optional[str] = None,
+    tone: str | None = None,
+    verbosity: str | None = None,
+    instructions: str | None = None,
+    memory_context: str | None = None,
 ):
     model = get_model()
 
@@ -161,6 +162,7 @@ async def get_edited_slide_content(
             json_schema=response_schema,
             strict=False,
             validate_schema=True,
+            content_validator=lambda content: get_content_quality_errors(response_schema, content),
         )
 
     except Exception as e:

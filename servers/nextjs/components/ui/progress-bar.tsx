@@ -52,7 +52,7 @@ export const ProgressBar = ({ duration, onComplete }: ProgressBarProps) => {
             </div>
             <div className="w-full bg-white/40 rounded-full h-2 overflow-hidden">
                 <div
-                    className="h-full bg-gradient-to-r from-[#9034EA] via-[#5146E5] to-[#9034EA] rounded-full animate-gradient transition-all duration-300 ease-out"
+                    className="h-full bg-gradient-to-r from-[#9034EA] via-[#1D4ED8] to-[#9034EA] rounded-full animate-gradient transition-all duration-300 ease-out"
                     style={{
                         width: `${progress}%`,
                         backgroundSize: '200% 100%',

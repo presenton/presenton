@@ -18,9 +18,7 @@ def test_codex_gpt_5_6_model_is_preserved(monkeypatch, model):
 
 
 @pytest.mark.parametrize("model", ["gpt-5.6", "gpt-5.2"])
-def test_codex_unsupported_model_falls_back_to_lowest_gpt_5_6_model(
-    monkeypatch, model
-):
+def test_codex_unsupported_model_falls_back_to_lowest_gpt_5_6_model(monkeypatch, model):
     monkeypatch.setattr(llm_provider, "get_llm_provider", lambda: LLMProvider.CODEX)
     monkeypatch.setattr(llm_provider, "get_codex_model_env", lambda: model)
 

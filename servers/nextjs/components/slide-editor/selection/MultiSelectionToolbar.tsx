@@ -42,7 +42,7 @@ export function TemplateV2MultiSelectionToolbar({
       <button
         type="button"
         aria-keyshortcuts="Control+G Meta+G"
-        className="inline-flex h-8 items-center gap-2 rounded-[7px] bg-[#6847F4] px-3 text-[13px] font-semibold text-white transition-colors hover:bg-[#5838DE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2"
+        className="inline-flex h-8 items-center gap-2 rounded-[7px] bg-[#6847F4] px-3 text-[13px] font-semibold text-white transition-colors hover:bg-[#5838DE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
         onClick={onGroup}
       >
         <Group aria-hidden="true" className="size-4" strokeWidth={1.8} />

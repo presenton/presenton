@@ -7,7 +7,6 @@ from services.community_presentations import (
     list_community_presentations,
 )
 
-
 COMMUNITY_ROUTER = APIRouter(prefix="/community/presentations", tags=["Community"])
 
 

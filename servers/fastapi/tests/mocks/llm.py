@@ -1,6 +1,7 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any, Iterable
+from typing import Any
 
 
 @dataclass
@@ -22,5 +23,4 @@ class FakeLLMClient:
 
     def generate(self, **kwargs: Any):
         self.generate_calls.append(kwargs)
-        for event in self._events:
-            yield event
+        yield from self._events

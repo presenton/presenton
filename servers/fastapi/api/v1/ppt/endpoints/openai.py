@@ -1,4 +1,5 @@
-from typing import Annotated, List
+from typing import Annotated
+
 from fastapi import APIRouter, Body, HTTPException
 
 from utils.available_models import (
@@ -9,7 +10,7 @@ from utils.available_models import (
 OPENAI_ROUTER = APIRouter(prefix="/openai", tags=["OpenAI"])
 
 
-@OPENAI_ROUTER.post("/models/available", response_model=List[str])
+@OPENAI_ROUTER.post("/models/available", response_model=list[str])
 async def get_available_models(
     url: Annotated[str, Body()],
     api_key: Annotated[str, Body()],

@@ -3,8 +3,6 @@ name: Test All Applications
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -97,6 +95,9 @@ jobs:
 
       - name: Run Node.js tests
         run: npm test
+
+      - name: TypeScript check (codex-check baseline)
+        run: npx tsc --noEmit -p tsconfig.codex-check.json
 
       - name: Run ESLint
         run: npm run lint

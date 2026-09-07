@@ -122,11 +122,6 @@ export function getDroppedFileUri(event: DragEvent<HTMLElement>) {
 }
 
 export async function readDecomposedFile(filePath: string) {
-  if (typeof window !== "undefined" && window.electron?.readFile) {
-    const result = await window.electron.readFile(filePath);
-    return typeof result === "string" ? result : result?.content || "";
-  }
-
   const response = await fetch("/api/read-file", {
     method: "POST",
     body: JSON.stringify({ filePath }),

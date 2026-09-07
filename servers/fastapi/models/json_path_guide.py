@@ -1,4 +1,3 @@
-from typing import List
 from pydantic import BaseModel
 
 
@@ -11,4 +10,4 @@ class ListGuide(BaseModel):
 
 
 class JsonPathGuide(BaseModel):
-    guides: List[DictGuide | ListGuide]
+    guides: list[DictGuide | ListGuide]

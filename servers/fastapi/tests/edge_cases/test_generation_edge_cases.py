@@ -64,18 +64,22 @@ def test_invalid_llm_payload_raises_structured_http_error(fake_async_session):
     async def failing_outline_stream(*_args, **_kwargs):
         yield HTTPException(status_code=408, detail="LLM timed out")
 
-    with patch.object(
-        presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
-        "store_generation_context",
-        new=AsyncMock(),
-    ), patch.object(
-        presentation_endpoint,
-        "generate_ppt_outline",
-        side_effect=failing_outline_stream,
-    ), patch.object(
-        presentation_endpoint.CONCURRENT_SERVICE,
-        "run_task",
-        new=Mock(),
+    with (
+        patch.object(
+            presentation_endpoint.MEM0_PRESENTATION_MEMORY_SERVICE,
+            "store_generation_context",
+            new=AsyncMock(),
+        ),
+        patch.object(
+            presentation_endpoint,
+            "generate_ppt_outline",
+            side_effect=failing_outline_stream,
+        ),
+        patch.object(
+            presentation_endpoint.CONCURRENT_SERVICE,
+            "run_task",
+            new=Mock(),
+        ),
     ):
         with pytest.raises(HTTPException) as exc:
             _run(

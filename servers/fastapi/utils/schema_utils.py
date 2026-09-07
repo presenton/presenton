@@ -1,12 +1,12 @@
 from copy import deepcopy
-from typing import Any, List
+from typing import Any
 
 from jsonschema.validators import validator_for
 from openai import NOT_GIVEN
 
 from utils.dict_utils import (
-    get_dict_paths_with_key,
     get_dict_at_path,
+    get_dict_paths_with_key,
     has_more_than_n_keys,
 )
 
@@ -23,7 +23,7 @@ supported_string_formats = [
 ]
 
 
-def remove_fields_from_schema(schema: dict, fields_to_remove: List[str]):
+def remove_fields_from_schema(schema: dict, fields_to_remove: list[str]):
     schema = deepcopy(schema)
     properties_paths = get_dict_paths_with_key(schema, "properties")
     for path in properties_paths:
@@ -38,9 +38,7 @@ def remove_fields_from_schema(schema: dict, fields_to_remove: List[str]):
         parent_obj = get_dict_at_path(schema, path)
         if "required" in parent_obj and isinstance(parent_obj["required"], list):
             parent_obj["required"] = [
-                field
-                for field in parent_obj["required"]
-                if field not in fields_to_remove
+                field for field in parent_obj["required"] if field not in fields_to_remove
             ]
 
     return schema
@@ -49,9 +47,7 @@ def remove_fields_from_schema(schema: dict, fields_to_remove: List[str]):
 def add_field_in_schema(schema: dict, field: dict, required: bool = False) -> dict:
 
     if not isinstance(field, dict) or len(field) != 1:
-        raise ValueError(
-            "`field` must be a dict with exactly one entry: {name: schema_dict}"
-        )
+        raise ValueError("`field` must be a dict with exactly one entry: {name: schema_dict}")
 
     field_name, field_schema = next(iter(field.items()))
     if not isinstance(field_name, str):
@@ -104,9 +100,7 @@ def ensure_strict_json_schema(
     defs = json_schema.get("$defs")
     if isinstance(defs, dict):
         for def_name, def_schema in defs.items():
-            ensure_strict_json_schema(
-                def_schema, path=(*path, "$defs", def_name), root=root
-            )
+            ensure_strict_json_schema(def_schema, path=(*path, "$defs", def_name), root=root)
 
     definitions = json_schema.get("definitions")
     if isinstance(definitions, dict):
@@ -127,9 +121,7 @@ def ensure_strict_json_schema(
     if isinstance(properties, dict):
         json_schema["required"] = [prop for prop in properties.keys()]
         json_schema["properties"] = {
-            key: ensure_strict_json_schema(
-                prop_schema, path=(*path, "properties", key), root=root
-            )
+            key: ensure_strict_json_schema(prop_schema, path=(*path, "properties", key), root=root)
             for key, prop_schema in properties.items()
         }
 
@@ -138,9 +130,7 @@ def ensure_strict_json_schema(
     # OpenAI requires array schemas to have "items". Zod tuples may emit prefixItems only.
     items = json_schema.get("items")
     if isinstance(items, dict):
-        json_schema["items"] = ensure_strict_json_schema(
-            items, path=(*path, "items"), root=root
-        )
+        json_schema["items"] = ensure_strict_json_schema(items, path=(*path, "items"), root=root)
     elif typ == "array":
         prefix_items = json_schema.get("prefixItems")
         if (
@@ -168,16 +158,12 @@ def ensure_strict_json_schema(
     if isinstance(all_of, list):
         if len(all_of) == 1:
             json_schema.update(
-                ensure_strict_json_schema(
-                    all_of[0], path=(*path, "allOf", "0"), root=root
-                )
+                ensure_strict_json_schema(all_of[0], path=(*path, "allOf", "0"), root=root)
             )
             json_schema.pop("allOf")
         else:
             json_schema["allOf"] = [
-                ensure_strict_json_schema(
-                    entry, path=(*path, "allOf", str(i)), root=root
-                )
+                ensure_strict_json_schema(entry, path=(*path, "allOf", str(i)), root=root)
                 for i, entry in enumerate(all_of)
             ]
 
@@ -226,9 +212,9 @@ def resolve_ref(*, root: dict[str, object], ref: str) -> object:
     resolved = root
     for key in path:
         value = resolved[key]
-        assert isinstance(
-            value, dict
-        ), f"encountered non-dictionary entry while resolving {ref} - {resolved}"
+        assert isinstance(value, dict), (
+            f"encountered non-dictionary entry while resolving {ref} - {resolved}"
+        )
         resolved = value
 
     return resolved
@@ -276,7 +262,7 @@ def prepare_schema_for_validation(
     return ensure_array_schemas_have_items(prepared_schema)
 
 
-def format_json_path(path: List[Any]) -> str:
+def format_json_path(path: list[Any]) -> str:
     if not path:
         return "$"
 
@@ -293,7 +279,7 @@ def get_schema_validation_errors(
     schema: dict,
     instance: Any,
     strict: bool = False,
-) -> List[str]:
+) -> list[str]:
     prepared_schema = prepare_schema_for_validation(schema, strict=strict)
     validator_cls = validator_for(prepared_schema)
     validator_cls.check_schema(prepared_schema)
@@ -304,9 +290,7 @@ def get_schema_validation_errors(
         key=lambda error: (format_json_path(list(error.path)), error.message),
     )
 
-    return [
-        f"{format_json_path(list(error.path))}: {error.message}" for error in errors
-    ]
+    return [f"{format_json_path(list(error.path))}: {error.message}" for error in errors]
 
 
 def remove_titles_from_schema(schema: dict) -> dict[str, Any]:
@@ -403,12 +387,9 @@ def generate_constraint_sentences(schema: dict) -> str:
                         if prop_type == "array" and "items" in prop_def:
                             items_def = prop_def["items"]
                             if isinstance(items_def, dict) and (
-                                "properties" in items_def
-                                or items_def.get("type") == "object"
+                                "properties" in items_def or items_def.get("type") == "object"
                             ):
-                                extract_constraints_recursive(
-                                    items_def, f"{current_path}[*]"
-                                )
+                                extract_constraints_recursive(items_def, f"{current_path}[*]")
 
             # Also recurse into other nested structures
             for key, value in obj.items():

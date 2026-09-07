@@ -10,7 +10,7 @@ export const EmptyState = () => {
       <Link
         href="/upload"
         aria-label="Create your first presentation"
-        className="group mx-auto flex h-[250px] w-full max-w-[577px] flex-col items-center justify-center gap-[14px] border-x border-[#EDEEEF] bg-white px-5 outline-none transition-colors hover:bg-[#FDFDFF] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#7A5AF8]"
+        className="group mx-auto flex h-[250px] w-full max-w-[577px] flex-col items-center justify-center gap-[14px] border-x border-[#EDEEEF] bg-white px-5 outline-none transition-colors hover:bg-[#FDFDFF] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2563EB]"
         onClick={() =>
           trackEvent(MixpanelEvent.Dashboard_New_Presentation_Clicked, {
             source: "dashboard_empty_state",
@@ -27,7 +27,7 @@ export const EmptyState = () => {
         />
         <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-center font-syne text-sm font-medium">
           <span className="text-[#191919]">No presentations yet.</span>
-          <span className="text-[#7A5AF8]">Get started now</span>
+          <span className="text-[#2563EB]">Get started now</span>
         </span>
       </Link>
     </div>

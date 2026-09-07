@@ -1,10 +1,10 @@
-from dataclasses import dataclass
 import base64
-from datetime import datetime, timedelta, timezone
 import hashlib
 import re
 import secrets
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,6 @@ from api.v1.auth.users import PASSWORD_HELPER
 from models.sql.api_key import ApiKey
 from models.sql.user import User
 from utils.datetime_utils import get_current_utc_datetime
-
 
 API_KEY_PREFIX = "sk-presenton-"
 DEFAULT_EXPIRY_DAYS = 90
@@ -29,7 +28,7 @@ class VerifiedApiKey:
 
 
 def _utc_aware(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def build_api_key(api_key_id: str, secret: str) -> str:
