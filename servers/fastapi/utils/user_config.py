@@ -35,6 +35,9 @@ from utils.get_env import (
     get_bedrock_aws_session_token_env,
     get_bedrock_profile_name_env,
     get_bedrock_model_env,
+    get_conifer_api_key_env,
+    get_conifer_model_env,
+    get_conifer_base_url_env,
     get_fireworks_api_key_env,
     get_fireworks_model_env,
     get_fireworks_base_url_env,
@@ -138,6 +141,9 @@ from utils.set_env import (
     set_bedrock_aws_session_token_env,
     set_bedrock_profile_name_env,
     set_bedrock_model_env,
+    set_conifer_api_key_env,
+    set_conifer_model_env,
+    set_conifer_base_url_env,
     set_fireworks_api_key_env,
     set_fireworks_model_env,
     set_fireworks_base_url_env,
@@ -269,6 +275,9 @@ def get_user_config():
             if existing_config.OPENROUTER_ZDR is not None
             else parse_bool_or_none(get_openrouter_zdr_env())
         ),
+        CONIFER_API_KEY=existing_config.CONIFER_API_KEY or get_conifer_api_key_env(),
+        CONIFER_MODEL=existing_config.CONIFER_MODEL or get_conifer_model_env(),
+        CONIFER_BASE_URL=existing_config.CONIFER_BASE_URL or get_conifer_base_url_env(),
         FIREWORKS_API_KEY=existing_config.FIREWORKS_API_KEY or get_fireworks_api_key_env(),
         FIREWORKS_MODEL=existing_config.FIREWORKS_MODEL or get_fireworks_model_env(),
         FIREWORKS_BASE_URL=existing_config.FIREWORKS_BASE_URL
@@ -460,6 +469,12 @@ def update_env_with_user_config():
         set_openrouter_data_collection_env(user_config.OPENROUTER_DATA_COLLECTION)
     if user_config.OPENROUTER_ZDR is not None:
         set_openrouter_zdr_env(str(user_config.OPENROUTER_ZDR))
+    if user_config.CONIFER_API_KEY:
+        set_conifer_api_key_env(user_config.CONIFER_API_KEY)
+    if user_config.CONIFER_MODEL:
+        set_conifer_model_env(user_config.CONIFER_MODEL)
+    if user_config.CONIFER_BASE_URL:
+        set_conifer_base_url_env(user_config.CONIFER_BASE_URL)
     if user_config.FIREWORKS_API_KEY:
         set_fireworks_api_key_env(user_config.FIREWORKS_API_KEY)
     if user_config.FIREWORKS_MODEL:

@@ -244,6 +244,14 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     icon: "/providers/openrouter-color.svg",
     getApiKeyUrl: "https://openrouter.ai/keys",
   },
+  conifer: {
+    value: "conifer",
+    label: "Conifer",
+    description: "Hundreds of models through Conifer’s OpenAI-compatible API",
+    url: "https://api.conifer.build/v1",
+    icon: "/providers/conifer.png",
+    getApiKeyUrl: "https://conifer.build/console#/keys",
+  },
   cerebras: {
     value: "cerebras",
     label: "Cerebras",

@@ -51,6 +51,28 @@ def test_custom_provider_uses_openai_client_config(monkeypatch):
     assert isinstance(config, OpenAIClientConfig)
 
 
+def test_conifer_provider_uses_openai_client_config(monkeypatch):
+    monkeypatch.setenv("LLM", "conifer")
+    monkeypatch.setenv("CONIFER_API_KEY", "sk-conifer-test")
+    monkeypatch.delenv("CONIFER_BASE_URL", raising=False)
+
+    config = get_llm_config()
+
+    assert isinstance(config, OpenAIClientConfig)
+    assert config.base_url == "https://api.conifer.build/v1"
+    assert config.api_key == "sk-conifer-test"
+
+
+def test_conifer_base_url_override_is_normalized(monkeypatch):
+    monkeypatch.setenv("LLM", "conifer")
+    monkeypatch.setenv("CONIFER_API_KEY", "sk-conifer-test")
+    monkeypatch.setenv("CONIFER_BASE_URL", "http://localhost:8790")
+
+    config = get_llm_config()
+
+    assert config.base_url == "http://localhost:8790/v1"
+
+
 def test_deepseek_disable_thinking_uses_deepseek_payload(monkeypatch):
     monkeypatch.setenv("LLM", "deepseek")
     monkeypatch.setenv("DISABLE_THINKING", "true")

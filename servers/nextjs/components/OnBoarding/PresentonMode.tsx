@@ -130,6 +130,8 @@ const PresentonMode = ({
                 return 'BEDROCK_MODEL';
             case 'openrouter':
                 return 'OPENROUTER_MODEL';
+            case 'conifer':
+                return 'CONIFER_MODEL';
             case 'fireworks':
                 return 'FIREWORKS_MODEL';
             case 'together':
@@ -166,6 +168,8 @@ const PresentonMode = ({
                 return 'BEDROCK_API_KEY';
             case 'openrouter':
                 return 'OPENROUTER_API_KEY';
+            case 'conifer':
+                return 'CONIFER_API_KEY';
             case 'fireworks':
                 return 'FIREWORKS_API_KEY';
             case 'together':
@@ -213,6 +217,8 @@ const PresentonMode = ({
                         ? 'Bedrock API Key (optional)'
                     : llmConfig.LLM === 'openrouter'
                         ? 'OpenRouter API Key'
+                        : llmConfig.LLM === 'conifer'
+                            ? 'Conifer API Key'
                         : llmConfig.LLM === 'fireworks'
                             ? 'Fireworks API Key'
                             : llmConfig.LLM === 'together'
@@ -259,6 +265,8 @@ const PresentonMode = ({
                 return config.BEDROCK_MODEL || '';
             case 'openrouter':
                 return config.OPENROUTER_MODEL || '';
+            case 'conifer':
+                return config.CONIFER_MODEL || '';
             case 'fireworks':
                 return config.FIREWORKS_MODEL || '';
             case 'together':
@@ -325,6 +333,7 @@ const PresentonMode = ({
         if (llmConfig.LLM === 'google' && !currentApiKey) return;
         if (llmConfig.LLM === 'anthropic' && !currentApiKey) return;
         if (llmConfig.LLM === 'openrouter' && !currentApiKey) return;
+        if (llmConfig.LLM === 'conifer' && !currentApiKey) return;
         if (llmConfig.LLM === 'fireworks' && !currentApiKey) return;
         if (llmConfig.LLM === 'together' && !currentApiKey) return;
         if (llmConfig.LLM === 'cerebras' && !currentApiKey) return;
@@ -407,6 +416,8 @@ const PresentonMode = ({
                                     ? 'claude-sonnet-4-20250514'
                                     : llmConfig.LLM === 'openrouter'
                                         ? 'openai/gpt-4o'
+                                        : llmConfig.LLM === 'conifer'
+                                            ? 'claude-haiku-4-5'
                                         : llmConfig.LLM === 'fireworks'
                                             ? 'accounts/fireworks/models/llama-v3p1-8b-instruct'
                                             : llmConfig.LLM === 'together'
@@ -1526,6 +1537,7 @@ const PresentonMode = ({
                                     (llmConfig.LLM === 'google' && !currentApiKey) ||
                                     (llmConfig.LLM === 'anthropic' && !currentApiKey) ||
                                     (llmConfig.LLM === 'openrouter' && !currentApiKey) ||
+                                    (llmConfig.LLM === 'conifer' && !currentApiKey) ||
                                     (llmConfig.LLM === 'fireworks' && !currentApiKey) ||
                                     (llmConfig.LLM === 'together' && !currentApiKey) ||
                                     (llmConfig.LLM === 'cerebras' && !currentApiKey) ||

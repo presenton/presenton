@@ -91,6 +91,8 @@ const getSelectedTextModel = (config?: LLMConfig): string => {
       return config.BEDROCK_MODEL || "";
     case "openrouter":
       return config.OPENROUTER_MODEL || "";
+    case "conifer":
+      return config.CONIFER_MODEL || "";
     case "fireworks":
       return config.FIREWORKS_MODEL || "";
     case "together":

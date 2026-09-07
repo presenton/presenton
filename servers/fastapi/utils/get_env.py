@@ -233,6 +233,18 @@ def get_openrouter_zdr_env():
     return os.getenv("OPENROUTER_ZDR")
 
 
+def get_conifer_api_key_env():
+    return os.getenv("CONIFER_API_KEY")
+
+
+def get_conifer_model_env():
+    return os.getenv("CONIFER_MODEL")
+
+
+def get_conifer_base_url_env():
+    return os.getenv("CONIFER_BASE_URL")
+
+
 def get_fireworks_api_key_env():
     return os.getenv("FIREWORKS_API_KEY")
 

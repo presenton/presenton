@@ -13,6 +13,7 @@ from utils.get_env import (
     get_bedrock_model_env,
     get_can_change_keys_env,
     get_cerebras_api_key_env,
+    get_conifer_api_key_env,
     get_fireworks_api_key_env,
     get_fireworks_model_env,
     get_google_model_env,
@@ -165,6 +166,10 @@ async def check_llm_and_image_provider_api_or_model_availability():
                 raise Exception("OPENROUTER_API_KEY must be provided")
             if not (get_openrouter_model_env() or "").strip():
                 raise Exception("OPENROUTER_MODEL must be provided")
+
+        elif get_llm_provider() == LLMProvider.CONIFER:
+            if not (get_conifer_api_key_env() or "").strip():
+                raise Exception("CONIFER_API_KEY must be provided")
 
         elif get_llm_provider() == LLMProvider.FIREWORKS:
             fireworks_api_key = (get_fireworks_api_key_env() or "").strip()

@@ -10,6 +10,7 @@ class LLMProvider(Enum):
     AZURE = "azure"
     BEDROCK = "bedrock"
     OPENROUTER = "openrouter"
+    CONIFER = "conifer"
     FIREWORKS = "fireworks"
     TOGETHER = "together"
     CEREBRAS = "cerebras"

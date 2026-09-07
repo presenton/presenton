@@ -27,6 +27,7 @@ from llmai.shared import (
     VertexAIClientConfig,
 )
 
+from constants.llm import DEFAULT_CONIFER_BASE_URL
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
     get_azure_openai_api_key_env,
@@ -47,6 +48,8 @@ from utils.get_env import (
     get_codex_account_id_env,
     get_codex_refresh_token_env,
     get_codex_token_expires_env,
+    get_conifer_api_key_env,
+    get_conifer_base_url_env,
     get_custom_llm_api_key_env,
     get_custom_llm_url_env,
     get_deepseek_api_key_env,
@@ -391,6 +394,20 @@ def _get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 api_key=api_key,
                 base_url=base_url or None,
             )
+        case LLMProvider.CONIFER:
+            api_key = (get_conifer_api_key_env() or "").strip()
+            if not api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Conifer API Key is not set",
+                )
+            base_url = (get_conifer_base_url_env() or "").strip()
+            return OpenAIClientConfig(
+                api_key=api_key,
+                base_url=normalize_openai_compatible_base_url(
+                    base_url or DEFAULT_CONIFER_BASE_URL
+                ),
+            )
         case LLMProvider.FIREWORKS:
             api_key = (get_fireworks_api_key_env() or "").strip()
             if not api_key:
@@ -474,7 +491,7 @@ def _get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 status_code=400,
                 detail=(
                     "LLM Provider must be either openai, deepseek, google, vertex, azure, "
-                    "bedrock, openrouter, fireworks, together, cerebras, "
+                    "bedrock, openrouter, conifer, fireworks, together, cerebras, "
                     "anthropic, litellm, lmstudio, ollama, custom, or codex"
                 ),
             )
