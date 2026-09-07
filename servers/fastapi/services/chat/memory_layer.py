@@ -24,7 +24,10 @@ from services.image_generation_service import ImageGenerationService
 from services.mem0_presentation_memory_service import MEM0_PRESENTATION_MEMORY_SERVICE
 from services.temp_file_service import TEMP_FILE_SERVICE
 from templates.presentation_layout import PresentationLayoutModel, SlideLayoutModel
-from templates.v2.content import hydrate_repeated_top_level_groups
+from templates.v2.content import (
+    hydrate_repeated_top_level_groups,
+    repeated_child_source_index,
+)
 from templates.v2.schema import get_template_schema
 from utils.asset_directory_utils import (
     filesystem_image_path_to_app_data_url,
@@ -32,6 +35,7 @@ from utils.asset_directory_utils import (
     normalize_slide_asset_url,
 )
 from utils.icon_weights import DEFAULT_ICON_WEIGHT, extract_icon_type_from_settings
+from utils.infographic_catalog import normalize_infographic_data
 from utils.latex_text import normalize_latex, replace_text_runs, text_runs_to_tagged_text
 from utils.outline_limits import normalize_outline_content
 from utils.outline_utils import get_presentation_title_from_presentation_outline
@@ -124,7 +128,7 @@ CHAT_BUILTIN_THEMES: list[dict[str, Any]] = [
             "fonts": {
                 "textFont": {
                     "name": "Playfair Display",
-                    "url": "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&display=swap",
+                    "url": "/vendor/fonts/serif/playfairdisplay/PlayfairDisplay[wght].ttf",
                 }
             },
         },
@@ -158,8 +162,8 @@ CHAT_BUILTIN_THEMES: list[dict[str, Any]] = [
             },
             "fonts": {
                 "textFont": {
-                    "name": "Overpass",
-                    "url": "https://fonts.googleapis.com/css2?family=Overpass:wght@100..900&display=swap",
+                    "name": "Outfit",
+                    "url": "/vendor/fonts/sans_serif/outfit/Outfit[wght].ttf",
                 }
             },
         },
@@ -193,8 +197,8 @@ CHAT_BUILTIN_THEMES: list[dict[str, Any]] = [
             },
             "fonts": {
                 "textFont": {
-                    "name": "Prompt",
-                    "url": "https://fonts.googleapis.com/css2?family=Prompt:wght@100..900&display=swap",
+                    "name": "Poppins",
+                    "url": "/vendor/fonts/sans_serif/poppins/Poppins-Regular.ttf",
                 }
             },
         },
@@ -229,7 +233,7 @@ CHAT_BUILTIN_THEMES: list[dict[str, Any]] = [
             "fonts": {
                 "textFont": {
                     "name": "Inter",
-                    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+                    "url": "/vendor/fonts/sans_serif/inter/Inter[opsz,wght].ttf",
                 }
             },
         },
@@ -263,8 +267,8 @@ CHAT_BUILTIN_THEMES: list[dict[str, Any]] = [
             },
             "fonts": {
                 "textFont": {
-                    "name": "Instrument Sans",
-                    "url": "https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap",
+                    "name": "DM Sans",
+                    "url": "/vendor/fonts/sans_serif/dmsans/DMSans[opsz,wght].ttf",
                 }
             },
         },
@@ -290,7 +294,7 @@ THEME_COLOR_KEYS = [
 ]
 DEFAULT_THEME_FONT = {
     "name": "Inter",
-    "url": "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+    "url": "/vendor/fonts/sans_serif/inter/Inter[opsz,wght].ttf",
 }
 
 
@@ -3783,8 +3787,15 @@ class PresentationChatMemoryLayer:
             if isinstance(value, list) and children:
                 next_children: list[Any] = []
                 for index, item in enumerate(value):
-                    source_child = copy.deepcopy(children[min(index, len(children) - 1)])
+                    source_index = repeated_child_source_index(
+                        index,
+                        template_count=len(children),
+                        content_count=len(value),
+                        center_when_reduced=element_type == "group",
+                    )
+                    source_child = copy.deepcopy(children[source_index])
                     if isinstance(source_child, dict):
+                        source_child.pop("__presenton_manual_position", None)
                         cls._apply_template_element_content(
                             source_child,
                             item,
@@ -3957,20 +3968,29 @@ class PresentationChatMemoryLayer:
         value: dict[str, Any],
     ) -> None:
         data = value.get("data")
-        if isinstance(data, dict) and data.get("type") in {"progress_bar", "gauge"}:
-            next_data: dict[str, Any] = {"type": data["type"]}
-            for key in ("min_value", "max_value", "value"):
-                raw = data.get(key)
-                if isinstance(raw, (int, float)):
-                    next_data[key] = float(raw)
-            if {"min_value", "max_value", "value"}.issubset(next_data):
-                element["data"] = next_data
+        if isinstance(data, dict):
+            current_data = element.get("data")
+            if isinstance(current_data, dict):
+                incoming_data = copy.deepcopy(data)
+                current_type = current_data.get("type")
+                if isinstance(current_type, str):
+                    incoming_data["type"] = current_type
+                data = {**copy.deepcopy(current_data), **incoming_data}
+            infographic_type = data.get("type")
+            if isinstance(infographic_type, str):
+                element["data"] = normalize_infographic_data(
+                    infographic_type,
+                    data,
+                )
 
         colors = value.get("colors")
         if isinstance(colors, list):
             element["colors"] = [
                 color for color in colors if isinstance(color, str) and color.strip()
             ]
+        text_color = value.get("text_color")
+        if isinstance(text_color, str) and text_color.strip():
+            element["text_color"] = text_color
 
     @classmethod
     def _set_template_runs_text(cls, element: dict[str, Any], text: str) -> None:

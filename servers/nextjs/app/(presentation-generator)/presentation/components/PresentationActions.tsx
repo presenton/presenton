@@ -281,6 +281,7 @@ export const infographicItems = [
   { id: "chevron_process", label: "Chevron Process", icon: ChevronsRight },
   { id: "radial_cycle", label: "Radial Cycle", icon: Circle },
   { id: "conversion_funnel", label: "Conversion Funnel", icon: AreaChart },
+  { id: "vertical_funnel", label: "Vertical Funnel", icon: AreaChart },
   { id: "pyramid", label: "Pyramid", icon: Triangle },
   { id: "segmented_wheel", label: "Segmented Wheel", icon: Circle },
   { id: "customer_journey", label: "Customer Journey", icon: Move },

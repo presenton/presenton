@@ -44,10 +44,10 @@ import {
   EDITOR_STAGE_WIDTH,
 } from "@/components/slide-editor/types";
 import {
-  GOOGLE_FONT_OPTIONS,
-  loadGoogleFontOptions,
-  type GoogleFontOption,
-} from "@/components/slide-editor/text/google-fonts";
+  ensureLocalFontLoaded,
+  LOCAL_FONT_OPTIONS,
+  type LocalFontOption,
+} from "@/components/slide-editor/text/local-fonts";
 import type { RootState } from "@/store/store";
 import { normalizeBackendAssetUrls, resolveBackendAssetUrl } from "@/utils/api";
 import { setupImageUrlConverter } from "@/utils/image-url-converter";
@@ -203,7 +203,7 @@ function TemplateStudioTitle({ compact = false }: { compact?: boolean }) {
     <div
       className={`px-4 text-center ${compact ? "pt-[88px] sm:pt-[96px] 2xl:pt-[112px]" : "pt-[96px] sm:pt-[108px] 2xl:pt-[128px]"}`}
     >
-      <h1 className="font-unbounded text-[36px] font-normal leading-none tracking-[-1.2px] text-[#101323] sm:text-[48px] sm:tracking-[-1.4px] md:text-[56px] 2xl:text-[68px] 2xl:tracking-[-1.8px]">
+      <h1 className="font-syne text-[36px] font-normal leading-none tracking-[-1.2px] text-[#101323] sm:text-[48px] sm:tracking-[-1.4px] md:text-[56px] 2xl:text-[68px] 2xl:tracking-[-1.8px]">
         Template Studio
       </h1>
       <p className="mx-auto mt-3 max-w-[480px] text-center font-syne text-[15px] font-normal leading-[1.4] text-[#101323CC] sm:mt-4 sm:max-w-[520px] sm:text-[16px] 2xl:mt-5 2xl:max-w-[600px] 2xl:text-[18px]">
@@ -399,34 +399,32 @@ function uniqueFontChips(fontsData: FontData): FontItem[] {
   });
 }
 
-function googleFontKey(family: string): string {
+function localFontKey(family: string): string {
   return family.trim().toLowerCase();
 }
 
 function preferredFallbackFont(
   font: FontItem,
-  googleFontOptions: GoogleFontOption[],
-): GoogleFontOption | null {
-  if (googleFontOptions.length === 0) return null;
+  localFontOptions: LocalFontOption[],
+): LocalFontOption | null {
+  if (localFontOptions.length === 0) return null;
 
   const byFamily = new Map(
-    googleFontOptions.map((option) => [googleFontKey(option.family), option]),
+    localFontOptions.map((option) => [localFontKey(option.family), option]),
   );
   const candidates = [
     font.family_name,
     font.original_name,
-    "Poppins",
-    "Inter",
-    "Roboto",
+   
   ];
 
   for (const candidate of candidates) {
     if (!candidate) continue;
-    const option = byFamily.get(googleFontKey(candidate));
+    const option = byFamily.get(localFontKey(candidate));
     if (option) return option;
   }
 
-  return googleFontOptions[0] ?? null;
+  return localFontOptions[0] ?? null;
 }
 
 function FontFallbackPicker({
@@ -438,11 +436,11 @@ function FontFallbackPicker({
   onChange,
 }: {
   fontName: string;
-  options: GoogleFontOption[];
-  selectedOption?: GoogleFontOption;
+  options: LocalFontOption[];
+  selectedOption?: LocalFontOption;
   disabled?: boolean;
   onLoadOptions: () => void;
-  onChange: (option: GoogleFontOption) => void;
+  onChange: (option: LocalFontOption) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -458,7 +456,7 @@ function FontFallbackPicker({
     }
   }, [open]);
 
-  const handleSelect = (option: GoogleFontOption) => {
+  const handleSelect = (option: LocalFontOption) => {
     onChange(option);
     setOpen(false);
   };
@@ -485,9 +483,13 @@ function FontFallbackPicker({
   );
   const visibleOptionCount =
     viewportRows + FONT_FALLBACK_OVERSCAN_ROWS * 2 + 1;
-  const visibleOptions = filteredOptions.slice(
-    firstVisibleIndex,
-    firstVisibleIndex + visibleOptionCount,
+  const visibleOptions = useMemo(
+    () =>
+      filteredOptions.slice(
+        firstVisibleIndex,
+        firstVisibleIndex + visibleOptionCount,
+      ),
+    [filteredOptions, firstVisibleIndex, visibleOptionCount],
   );
 
   useEffect(() => {
@@ -501,6 +503,19 @@ function FontFallbackPicker({
     if (!open || normalizedQuery.length === 0) return;
     onLoadOptions();
   }, [normalizedQuery, onLoadOptions, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    visibleOptions.forEach((option) => {
+      void ensureLocalFontLoaded(option.family);
+    });
+  }, [open, visibleOptions]);
+
+  useEffect(() => {
+    if (selectedOption) {
+      void ensureLocalFontLoaded(selectedOption.family);
+    }
+  }, [selectedOption]);
 
   const handleListScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
@@ -526,7 +541,15 @@ function FontFallbackPicker({
           className="h-11 w-full justify-between rounded-lg border-[#DADDE6] bg-white px-3 font-syne text-sm font-medium text-[#282A32] shadow-none hover:border-[#B8BCC8] hover:bg-white"
         >
           <span className="min-w-0 truncate">
-            {selectedOption?.family ?? "Choose fallback"}
+            <span
+              style={
+                selectedOption
+                  ? { fontFamily: `"${selectedOption.family}"` }
+                  : undefined
+              }
+            >
+              {selectedOption?.family ?? "Choose fallback"}
+            </span>
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-[#61646F]" />
         </Button>
@@ -570,6 +593,7 @@ function FontFallbackPicker({
                       className="absolute left-1 right-1 h-10 cursor-pointer justify-between rounded-lg px-3 font-syne text-sm font-medium text-[#242630] data-[selected=true]:bg-[#F6F5FF]"
                       style={{
                         top: optionIndex * FONT_FALLBACK_OPTION_HEIGHT + 4,
+                        fontFamily: `"${option.family}"`,
                       }}
                     >
                       <span className="min-w-0 truncate">{option.family}</span>
@@ -597,10 +621,10 @@ function AnalyzePanel({
   uploadedFonts,
   isUploading,
   uploadFont,
-  googleFontOptions,
+  localFontOptions,
   selectedFallbackFonts,
   onFallbackFontChange,
-  onLoadGoogleFontOptions,
+  onLoadLocalFontOptions,
   onContinue,
   isAutoContinuing = false,
 }: {
@@ -608,10 +632,10 @@ function AnalyzePanel({
   uploadedFonts: UploadedFont[];
   isUploading: boolean;
   uploadFont: (fontName: string, file: File) => string | null;
-  googleFontOptions: GoogleFontOption[];
-  selectedFallbackFonts: Record<string, GoogleFontOption>;
-  onFallbackFontChange: (fontName: string, option: GoogleFontOption) => void;
-  onLoadGoogleFontOptions: () => void;
+  localFontOptions: LocalFontOption[];
+  selectedFallbackFonts: Record<string, LocalFontOption>;
+  onFallbackFontChange: (fontName: string, option: LocalFontOption) => void;
+  onLoadLocalFontOptions: () => void;
   onContinue: () => void;
   isAutoContinuing?: boolean;
 }) {
@@ -869,10 +893,10 @@ function AnalyzePanel({
                   </p>
                   <FontFallbackPicker
                     fontName={resolvingFontName}
-                    options={googleFontOptions}
+                    options={localFontOptions}
                     selectedOption={resolvingFallback}
                     disabled={isUploading}
-                    onLoadOptions={onLoadGoogleFontOptions}
+                    onLoadOptions={onLoadLocalFontOptions}
                     onChange={(option) =>
                       onFallbackFontChange(resolvingFontName, option)
                     }
@@ -944,8 +968,7 @@ function ResponsiveSlideViewport({
     };
   }, [bottomReserve, fitToAvailableHeight]);
 
-  const widthScale =
-    bounds.width > 0 ? (bounds.width / SLIDE_WIDTH) * 0.98 : 0;
+  const widthScale = bounds.width > 0 ? bounds.width / SLIDE_WIDTH : 0;
   const heightScale =
     fitToAvailableHeight && bounds.maxHeight > 0
       ? bounds.maxHeight / SLIDE_HEIGHT
@@ -1491,13 +1514,11 @@ const CustomTemplatePage = () => {
   const [reviewSlideIndex, setReviewSlideIndex] = useState(0);
   const [templateModalMode, setTemplateModalMode] = useState<"create" | "save" | null>(null);
   const [isSubmittingTemplate, setIsSubmittingTemplate] = useState(false);
-  const [googleFontOptions, setGoogleFontOptions] =
-    useState<GoogleFontOption[]>(GOOGLE_FONT_OPTIONS);
+  const localFontOptions = LOCAL_FONT_OPTIONS;
   const [selectedFallbackFonts, setSelectedFallbackFonts] = useState<
-    Record<string, GoogleFontOption>
+    Record<string, LocalFontOption>
   >({});
   const [isAutoPreviewQueued, setIsAutoPreviewQueued] = useState(false);
-  const googleFontLoadStartedRef = useRef(false);
   const autoPreviewStartedRef = useRef(false);
 
   const {
@@ -1548,20 +1569,20 @@ const CustomTemplatePage = () => {
     [missingFonts, uploadedFontNames],
   );
   const hasPendingMissingFonts = pendingMissingFonts.length > 0;
-  const selectedGoogleFontReplacements = useMemo<
+  const selectedLocalFontReplacements = useMemo<
     Record<string, { fontName: string; fontUrl: string }>
   >(
     () =>
       Object.fromEntries(
         pendingMissingFonts.flatMap((font) => {
           const selectedFont = selectedFallbackFonts[font.name];
-          if (!selectedFont?.family || !selectedFont.cssUrl) return [];
+          if (!selectedFont?.family || !selectedFont.sourceUrl) return [];
           return [
             [
               font.name,
               {
                 fontName: selectedFont.family,
-                fontUrl: selectedFont.cssUrl,
+                fontUrl: selectedFont.sourceUrl,
               },
             ] as const,
           ];
@@ -1569,18 +1590,18 @@ const CustomTemplatePage = () => {
       ),
     [pendingMissingFonts, selectedFallbackFonts],
   );
-  const selectedGoogleFontAssets = useMemo<Record<string, string>>(
+  const selectedLocalFontAssets = useMemo<Record<string, string>>(
     () =>
       Object.fromEntries(
-        Object.values(selectedGoogleFontReplacements).map((font) => [
+        Object.values(selectedLocalFontReplacements).map((font) => [
           font.fontName,
           font.fontUrl,
         ]),
       ),
-    [selectedGoogleFontReplacements],
+    [selectedLocalFontReplacements],
   );
   const handleFallbackFontChange = useCallback(
-    (fontName: string, option: GoogleFontOption) => {
+    (fontName: string, option: LocalFontOption) => {
       setSelectedFallbackFonts((current) => ({
         ...current,
         [fontName]: option,
@@ -1607,20 +1628,10 @@ const CustomTemplatePage = () => {
     ensureTailwindBrowserScript();
   }, []);
 
-  const handleLoadGoogleFontOptions = useCallback(() => {
-    if (googleFontLoadStartedRef.current) return;
-
-    googleFontLoadStartedRef.current = true;
-    loadGoogleFontOptions()
-      .then((options) => setGoogleFontOptions(options))
-      .catch((error) => {
-        googleFontLoadStartedRef.current = false;
-        console.error("Failed to load Google font options", error);
-      });
-  }, []);
+  const handleLoadLocalFontOptions = useCallback(() => {}, []);
 
   useEffect(() => {
-    if (googleFontOptions.length === 0 || pendingMissingFonts.length === 0) return;
+    if (localFontOptions.length === 0 || pendingMissingFonts.length === 0) return;
 
     setSelectedFallbackFonts((current) => {
       let changed = false;
@@ -1636,7 +1647,7 @@ const CustomTemplatePage = () => {
 
       pendingMissingFonts.forEach((font) => {
         if (next[font.name]) return;
-        const fallbackFont = preferredFallbackFont(font, googleFontOptions);
+        const fallbackFont = preferredFallbackFont(font, localFontOptions);
         if (!fallbackFont) return;
         next[font.name] = fallbackFont;
         changed = true;
@@ -1644,7 +1655,7 @@ const CustomTemplatePage = () => {
 
       return changed ? next : current;
     });
-  }, [googleFontOptions, pendingMissingFonts]);
+  }, [localFontOptions, pendingMissingFonts]);
 
   useEffect(() => {
     if (!state.previewData?.fonts) return;
@@ -1717,12 +1728,12 @@ const CustomTemplatePage = () => {
     if (hasPendingMissingFonts) {
       notify.warning(
         "Missing fonts",
-        "Continuing without uploaded font files. Selected Google replacements will be applied.",
+        "Continuing without uploaded font files. Selected local replacements will be applied.",
       );
     }
     const data = await fontUploadAndPreview(
       selectedFile,
-      selectedGoogleFontReplacements,
+      selectedLocalFontReplacements,
     );
     if (data) {
       loadFontAssets(normalizeBackendAssetUrls(data.fonts));
@@ -1734,7 +1745,7 @@ const CustomTemplatePage = () => {
   }, [
     fontUploadAndPreview,
     hasPendingMissingFonts,
-    selectedGoogleFontReplacements,
+    selectedLocalFontReplacements,
     selectedFile,
   ]);
 
@@ -1790,7 +1801,7 @@ const CustomTemplatePage = () => {
           slide_image_urls: state.previewData.slide_image_urls,
           fonts: {
             ...state.previewData.fonts,
-            ...selectedGoogleFontAssets,
+            ...selectedLocalFontAssets,
           },
           name,
           description: description || null,
@@ -1810,7 +1821,7 @@ const CustomTemplatePage = () => {
         setIsSubmittingTemplate(false);
       }
     },
-    [router, selectedGoogleFontAssets, state.previewData],
+    [router, selectedLocalFontAssets, state.previewData],
   );
 
   const handleSaveTemplate = useCallback(
@@ -1913,10 +1924,10 @@ const CustomTemplatePage = () => {
             uploadedFonts={uploadedFonts}
             isUploading={state.isLoading}
             uploadFont={uploadFont}
-            googleFontOptions={googleFontOptions}
+            localFontOptions={localFontOptions}
             selectedFallbackFonts={selectedFallbackFonts}
             onFallbackFontChange={handleFallbackFontChange}
-            onLoadGoogleFontOptions={handleLoadGoogleFontOptions}
+            onLoadLocalFontOptions={handleLoadLocalFontOptions}
             onContinue={handleFontUploadAndPreview}
             isAutoContinuing={isAutoPreviewQueued}
           />

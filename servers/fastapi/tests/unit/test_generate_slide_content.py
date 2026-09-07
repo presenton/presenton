@@ -29,6 +29,53 @@ def test_slide_content_user_prompt_includes_one_indexed_slide_number():
     assert "# Slide Number:\n1" in prompt
 
 
+def test_build_slide_content_schemas_uses_soft_prompt_limits():
+    response_schema = {
+        "type": "object",
+        "properties": {
+            "heading": {"type": "string", "minLength": 10, "maxLength": 20},
+            "items": {
+                "type": "array",
+                "items": {"type": "string", "minLength": 5, "maxLength": 9},
+            },
+        },
+    }
+
+    prompt_schema, provider_schema, validation_schema = (
+        generate_slide_content.build_slide_content_schemas(response_schema)
+    )
+
+    assert prompt_schema["properties"]["heading"]["minLength"] == 16
+    assert prompt_schema["properties"]["heading"]["maxLength"] == 16
+    assert prompt_schema["properties"]["items"]["items"]["minLength"] == 7
+    assert prompt_schema["properties"]["items"]["items"]["maxLength"] == 7
+    assert provider_schema["properties"]["heading"]["minLength"] == 8
+    assert "maxLength" not in provider_schema["properties"]["heading"]
+    assert "minLength" not in validation_schema["properties"]["heading"]
+    assert "maxLength" not in validation_schema["properties"]["heading"]
+    assert response_schema["properties"]["heading"]["minLength"] == 10
+    assert response_schema["properties"]["heading"]["maxLength"] == 20
+
+
+def test_slide_content_prompt_includes_soft_targets_and_length_rules():
+    prompt_schema, _, _ = generate_slide_content.build_slide_content_schemas(
+        {
+            "type": "object",
+            "properties": {
+                "heading": {"type": "string", "minLength": 10, "maxLength": 20}
+            },
+        }
+    )
+
+    prompt = generate_slide_content.get_system_prompt(response_schema=prompt_schema)
+
+    # Форк: схема в промпте рендерится человекочитаемо (_describe_response_schema),
+    # поэтому мягкие таргеты видны как границы "16..16 chars", а не сырой JSON.
+    assert "16..16 chars" in prompt
+    assert "aim for that exact count" in prompt
+    assert "use a shorter natural value instead" in prompt
+
+
 def test_slide_content_generation_skips_schema_without_content_fields(monkeypatch):
     monkeypatch.setattr(
         generate_slide_content,
@@ -129,5 +176,10 @@ def test_slide_content_generation_normalizes_object_schema_and_calls_llm(
     assert result["title"] == "Generated title"
     assert captured["json_schema"]["type"] == "object"
     assert "__speaker_note__" in captured["json_schema"]["properties"]
-    assert captured["response_format"].json_schema == captured["json_schema"]
+    provider_schema = captured["response_format"].json_schema
+    assert provider_schema["properties"]["__speaker_note__"]["minLength"] == 80
+    assert "maxLength" not in provider_schema["properties"]["__speaker_note__"]
+    assert "minLength" not in captured["json_schema"]["properties"]["__speaker_note__"]
+    assert "maxLength" not in captured["json_schema"]["properties"]["__speaker_note__"]
+    assert captured["response_format"].strict is True
     assert "# Slide Number:\n2" in captured["messages"][1].content

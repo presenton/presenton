@@ -29,9 +29,8 @@ import {
   MAX_NUMBER_OF_SLIDES,
 } from "@/utils/presentationLimits";
 import { Button } from "@/components/ui/button";
-import GenerationModeDialog, {
-  type GenerationMode,
-} from "./GenerationModeDialog";
+import GenerationModeDialog from "./GenerationModeDialog";
+import type { GenerationMode } from "@/utils/presentationGenerationMode";
 
 // Types
 interface ConfigurationSelectsProps {
@@ -346,7 +345,7 @@ const LanguageSelect: React.FC<{
       <Command>
         <CommandInput
           placeholder="Search language..."
-          className="font-instrument_sans"
+          className="font-manrope"
         />
         <CommandList>
           <CommandEmpty>No language found.</CommandEmpty>
@@ -360,7 +359,7 @@ const LanguageSelect: React.FC<{
                   onValueChange(currentValue);
                   onOpenChange(false);
                 }}
-                className="font-instrument_sans"
+                className="font-manrope"
               >
                 <Check
                   className={cn(
@@ -397,17 +396,19 @@ export function ConfigurationSelects({
         compact ? "gap-3" : "gap-4 min-[1800px]:gap-5",
       )}
     >
-      <Button
-        type="button"
-        onClick={() => setModeDialogOpen(true)}
-        className={cn(
-          "rounded-full border border-[#EDEEEF] bg-white px-4 py-1 font-syne text-sm font-medium text-[#101323] hover:bg-white",
-          compact ? "h-[34px] shadow-none" : "h-[38px] shadow-sm",
-        )}
-      >
-        {mode === "standard" ? "Standard" : "Smart"}
-        <ChevronUp className="h-4 w-4" />
-      </Button>
+      {showMode ? (
+        <Button
+          type="button"
+          onClick={() => setModeDialogOpen(true)}
+          className={cn(
+            "rounded-full border border-[#EDEEEF] bg-white px-4 py-1 font-syne text-sm font-medium text-[#101323] hover:bg-white",
+            compact ? "h-[34px] shadow-none" : "h-[38px] shadow-sm",
+          )}
+        >
+          {mode === "standard" ? "Standard" : "Smart"}
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+      ) : null}
 
       <SlideCountSelect
         value={config.slides}

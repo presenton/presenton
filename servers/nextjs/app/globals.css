@@ -1,10 +1,32 @@
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/vendor/fonts/sans_serif/manrope/Manrope[wght].ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Syne";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/vendor/fonts/sans_serif/syne/Syne[wght].ttf") format("truetype");
+}
+
+
+
+:root {
+  --font-syne: "Syne", Arial, sans-serif;
+  --font-manrope: "Manrope", Arial, sans-serif;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: var(--font-syne), var(--font-unbounded), var(--font-inter),
-    sans-serif;
+  font-family: var(--font-manrope), var(--font-syne), sans-serif;
 }
 
 @layer utilities {

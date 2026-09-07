@@ -15,6 +15,7 @@ import {
   displayText,
   editorFontRecordToRaw,
   fontScaleFromResize,
+  measureNoWrapTextWidth,
   rawFont,
   rawFontRecordForEditor,
   rawTableCellText,
@@ -726,11 +727,7 @@ export function layoutContainerChildren(
 }
 
 export function estimateTextWidth(text: string, font: ReturnType<typeof rawFont>) {
-  const longestLine = text
-    .split(/\r?\n/)
-    .reduce((longest, line) => Math.max(longest, line.length), 0);
-  const weight = font.bold ? 0.56 : TEXT_AVERAGE_CHAR_EM;
-  return Math.max(font.size, longestLine * font.size * weight);
+  return Math.max(font.size, measureNoWrapTextWidth(text, font));
 }
 
 export function estimateTextHeight(

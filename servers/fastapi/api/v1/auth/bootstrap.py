@@ -9,6 +9,7 @@ from api.v1.auth.config import (
 )
 from api.v1.auth.users import PASSWORD_HELPER
 from models.sql.access_token import AccessToken
+from models.sql.api_key import ApiKey
 from models.sql.async_presentation_generation_status import (
     AsyncPresentationGenerationTaskModel,
 )
@@ -66,6 +67,7 @@ async def bootstrap_database_admin() -> None:
                 admin.hashed_password = PASSWORD_HELPER.hash(env_password)
                 admin.auth_version += 1
                 await session.execute(delete(AccessToken).where(AccessToken.user_id == admin.id))
+                await session.execute(delete(ApiKey))
                 await session.flush()
                 await session.commit()
                 persist_admin_credentials(

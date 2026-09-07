@@ -39,6 +39,7 @@ import type {
   RiskMatrixInfographicData,
   TimelineInfographicItem,
   TransformationHubInfographicData,
+  VerticalFunnelInfographicData,
 } from "@/components/slide-editor/types";
 import {
   appendInfographicColor,
@@ -75,6 +76,7 @@ const TYPE_LABELS: Record<InfographicType, string> = {
   chevron_process: "Chevron Process",
   radial_cycle: "Radial Cycle",
   conversion_funnel: "Conversion Funnel",
+  vertical_funnel: "Vertical Funnel",
   pyramid: "Pyramid",
   segmented_wheel: "Segmented Wheel",
   customer_journey: "Customer Journey",
@@ -329,8 +331,14 @@ export function InfographicDataEditorContent({
                 />
               ) : null}
               {type === "conversion_funnel" ? (
-                <ConversionFunnelEditor
+                <FunnelEditor
                   data={readConversionFunnelData(draft.data)}
+                  onChange={updateData}
+                />
+              ) : null}
+              {type === "vertical_funnel" ? (
+                <FunnelEditor
+                  data={readVerticalFunnelData(draft.data)}
                   onChange={updateData}
                 />
               ) : null}
@@ -1246,12 +1254,14 @@ function RadialCycleEditor({
   );
 }
 
-function ConversionFunnelEditor({
+function FunnelEditor({
   data,
   onChange,
 }: {
-  data: ConversionFunnelInfographicData;
-  onChange: (data: ConversionFunnelInfographicData) => void;
+  data: ConversionFunnelInfographicData | VerticalFunnelInfographicData;
+  onChange: (
+    data: ConversionFunnelInfographicData | VerticalFunnelInfographicData,
+  ) => void;
 }) {
   return (
     <ItemCollectionEditor<ConversionFunnelInfographicItem>
@@ -2548,6 +2558,10 @@ function readConversionFunnelData(
   };
 }
 
+function readVerticalFunnelData(value: unknown): VerticalFunnelInfographicData {
+  return { ...readConversionFunnelData(value), type: "vertical_funnel" };
+}
+
 function readMindMapData(value: unknown): MindMapInfographicData {
   const data = readRecord(value);
   const items = readArray(data.items).map(readMindMapNode);
@@ -2638,6 +2652,7 @@ function readInfographicType(value: unknown): InfographicType {
     value === "chevron_process" ||
     value === "radial_cycle" ||
     value === "conversion_funnel" ||
+    value === "vertical_funnel" ||
     value === "pyramid" ||
     value === "segmented_wheel" ||
     value === "customer_journey" ||

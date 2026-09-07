@@ -1,5 +1,6 @@
 export const MAX_NUMBER_OF_SLIDES = 50;
 export const MAX_OUTLINE_CONTENT_WORDS = 100;
+export const OUTLINE_LINE_BREAK_TOKEN = "<LINE_BREAK>";
 
 const WORD_PATTERN = /\S+/g;
 
@@ -30,7 +31,7 @@ export function limitOutlines<T extends { content?: unknown }>(
     ...outline,
     content: trimTextToWordLimit(
       typeof outline?.content === "string"
-        ? outline.content
+        ? outline.content.replaceAll(OUTLINE_LINE_BREAK_TOKEN, "\n")
         : String(outline?.content ?? "")
     ),
   }));

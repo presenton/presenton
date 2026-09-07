@@ -12,6 +12,10 @@ import { useDispatch, useSelector } from "react-redux";
 import IconsEditor from "@/components/slide-editor/images/IconsEditor";
 import { useTailwindRuntimeReady } from "@/components/runtime/TailwindBrowserRuntime";
 import {
+  localFontOptionsFromUnknown,
+  renderLocalFontFaceCss,
+} from "@/components/slide-editor/text/local-fonts";
+import {
   clearChatHtmlSelection,
   setChatHtmlSelection,
   updateSlideHtmlContent,
@@ -485,29 +489,17 @@ export default function SmartHtmlEditor({
   }, [chatHtmlSelection, slide.id, slideIndex]);
 
   useEffect(() => {
-    if (!tailwindReady || !fonts || typeof fonts !== "object" || Array.isArray(fonts)) {
-      return;
-    }
+    if (!tailwindReady) return;
+    const css = localFontOptionsFromUnknown(fonts)
+      .map(renderLocalFontFaceCss)
+      .join("");
+    if (!css) return;
 
-    const assets: HTMLElement[] = [];
-    Object.entries(fonts as Record<string, unknown>).forEach(([family, source]) => {
-      if (typeof source !== "string" || !source.trim()) return;
-      if (source.includes("fonts.googleapis.com") || source.endsWith(".css")) {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = source;
-        document.head.appendChild(link);
-        assets.push(link);
-        return;
-      }
-      const style = document.createElement("style");
-      const safeFamily = family.replaceAll("'", "\\'");
-      const safeSource = source.replaceAll("'", "\\'");
-      style.textContent = `@font-face{font-family:'${safeFamily}';src:url('${safeSource}');font-display:swap}`;
-      document.head.appendChild(style);
-      assets.push(style);
-    });
-    return () => assets.forEach((asset) => asset.remove());
+    const style = document.createElement("style");
+    style.dataset.slideFontAssets = "true";
+    style.textContent = css;
+    document.head.appendChild(style);
+    return () => style.remove();
   }, [fonts, tailwindReady]);
 
   useSmartChartInjection({

@@ -1,7 +1,7 @@
 """generation quota: таблица generation_usage и колонка user.generation_limit.
 
 Revision ID: d5e6f7a8b9c2
-Revises: e4c7a9b2d6f1
+Revises: 026c0ba8b35c
 Create Date: 2026-08-27
 
 Квоты на генерацию (P4): generation_usage хранит по строке на запуск
@@ -17,7 +17,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "d5e6f7a8b9c2"
-down_revision = "e4c7a9b2d6f1"
+down_revision = "026c0ba8b35c"
 branch_labels = None
 depends_on = None
 

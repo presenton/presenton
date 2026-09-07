@@ -462,7 +462,7 @@ line dash support is already handled in `renderLine()` through
 | Tables | `TemplateV2TableElement` | `TableToolbar`, `TableInlineEditor` | `useTableCellSelection()` | Cell editing uses text toolbar plus Tiptap editor. |
 | Charts | `TemplateV2ChartJsElement` | `ChartToolbar`, chart editor event | `chart-data.ts` | Chart editor is opened by event and updates selected chart. |
 | Design variables | Normal element render | `DesignVariablesToolbar` | `design-variables.ts` | Overrides element properties from predefined options. |
-| Fonts | Text/table/chart renderers | Text toolbar font picker | `google-fonts.ts`, `fontLoading.ts` | Surface waits for fonts before enabling layer. |
+| Fonts | Text/table/chart renderers | Text toolbar font picker | `local-fonts.ts`, `fontLoading.ts` | Surface waits for fonts before enabling layer. |
 
 ## Detailed Feature Explanations
 
@@ -1007,18 +1007,18 @@ the user to edit every raw property.
 Primary files:
 
 - `surface/fontLoading.ts`
-- `text/google-fonts.ts`
+- `text/local-fonts.ts`
 - `text/TextToolbar.tsx`
 - `importing/template-v2-import.ts`
 
-Fonts can come from template assets or Google font options. The editor surface
+Fonts can come from template assets or the bundled local font catalog. The editor surface
 uses `useFontLoadState()` to wait for fonts before enabling the main layer.
 This reduces layout flicker and text measurement mismatches.
 
 `TextToolbar` can load/select fonts from:
 
 - Fonts already included in the template.
-- Google font options defined in `google-fonts.ts`.
+- Bundled font options defined in `local-fonts.ts` and served from `public/vendor/fonts`.
 
 ### Image, SVG, and Asset Loading
 

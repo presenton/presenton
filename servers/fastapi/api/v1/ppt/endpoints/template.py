@@ -1,14 +1,18 @@
 import asyncio
+import base64
+import binascii
 import logging
 import os
 import random
+import uuid
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
 from datetime import datetime
 from functools import partial
+from io import BytesIO
 from typing import Annotated, Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlencode, urlparse
 
 from fastapi import (
     APIRouter,
@@ -20,6 +24,7 @@ from fastapi import (
     HTTPException,
     Path,
     Query,
+    Request,
     Response,
     UploadFile,
 )
@@ -34,6 +39,13 @@ from pydantic import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from api.v1.auth.context import (
+    get_current_owner_id,
+    reset_current_owner_id,
+    reset_current_owner_is_admin,
+    set_current_owner_id,
+    set_current_owner_is_admin,
+)
 from enums.async_task_status import AsyncTaskStatus
 from models.api_error_model import APIErrorModel
 from models.sql.async_task import AsyncTaskModel
@@ -68,6 +80,7 @@ from templates.v2.theme import (
 from utils.asset_directory_utils import resolve_app_path_to_filesystem
 from utils.datetime_utils import get_current_utc_datetime
 from utils.file_utils import get_original_file_name
+from utils.get_env import get_presenton_public_url
 from utils.icon_weights import (
     ALLOWED_ICON_TYPES,
     DEFAULT_ICON_TYPE,
@@ -75,6 +88,7 @@ from utils.icon_weights import (
     extract_icon_type_from_settings,
 )
 from utils.llm_client_error_handler import handle_llm_client_exceptions
+from utils.mcp_public_urls import is_mcp_request
 
 TEMPLATE_ROUTER = APIRouter(prefix="/template", tags=["Templates"])
 LOGGER = logging.getLogger(__name__)
@@ -82,11 +96,47 @@ _TEMPLATE_LAYOUT_PATCH_LOCKS: dict[str, asyncio.Lock] = {}
 _TEMPLATE_LAYOUT_PATCH_LOCKS_GUARD = asyncio.Lock()
 ASYNC_TASK_TYPE_TEMPLATE_CREATE = "template.create"
 SLIDE_LAYOUT_GENERATION_MAX_TOKENS = 16000
+MCP_TEMPLATE_UPLOAD_MAX_TOTAL_BYTES = 100 * 1024 * 1024
+MCP_TEMPLATE_UPLOAD_MAX_BASE64_CHARS = (
+    4 * ((MCP_TEMPLATE_UPLOAD_MAX_TOTAL_BYTES + 2) // 3) + 4 * 32
+)
+
+
+def _build_template_preview_url(request: Request, template_id: str) -> str:
+    public_url = get_presenton_public_url() if is_mcp_request(request) else None
+    if not public_url:
+        forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(
+            ",", 1
+        )[0].strip()
+        scheme = (
+            forwarded_proto
+            if forwarded_proto in {"http", "https"}
+            else request.url.scheme
+        )
+        forwarded_host = (request.headers.get("x-forwarded-host") or "").split(
+            ",", 1
+        )[0].strip()
+        host = forwarded_host or request.headers.get("host") or request.url.netloc
+        public_url = f"{scheme}://{host}".rstrip("/")
+    query = urlencode({"templateV2Id": template_id})
+    return f"{public_url}/template-preview?{query}"
 
 
 class InitTemplateRequest(BaseModel):
-    pptx_url: str
-    slide_image_urls: list[str]
+    pptx_url: str = Field(
+        min_length=1,
+        description=(
+            "Presenton-hosted PPTX URL returned as pptx_url by "
+            "upload_template_assets. External client attachment IDs are not valid."
+        ),
+    )
+    slide_image_urls: list[str] = Field(
+        min_length=1,
+        description=(
+            "Non-empty slide_image_urls returned by upload_template_assets; pass the "
+            "array unchanged."
+        ),
+    )
     fonts: dict[str, Any] = Field(default_factory=dict)
     name: str | None = None
     description: str | None = None
@@ -95,6 +145,77 @@ class InitTemplateRequest(BaseModel):
 
 class CreateTemplateRequest(InitTemplateRequest):
     pass
+
+
+class McpEncodedUpload(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    content_base64: str = Field(
+        min_length=1,
+        max_length=MCP_TEMPLATE_UPLOAD_MAX_BASE64_CHARS,
+        description=(
+            "Standard base64-encoded file contents. A host application's attachment "
+            "ID or filename is not file content."
+        ),
+    )
+    original_font_name: str | None = Field(
+        default=None,
+        description="For fonts, the family name in the source PPTX being replaced",
+    )
+
+
+class McpTemplateUploadRequest(BaseModel):
+    pptx: McpEncodedUpload = Field(
+        description=(
+            "The attached PPTX filename and binary contents encoded as base64. Do not "
+            "send an OpenWebUI or other host attachment UUID."
+        )
+    )
+    fonts: list[McpEncodedUpload] = Field(default_factory=list, max_length=32)
+
+    @model_validator(mode="after")
+    def validate_combined_upload_size(self):
+        encoded_size = len(self.pptx.content_base64) + sum(
+            len(font.content_base64) for font in self.fonts
+        )
+        if encoded_size > MCP_TEMPLATE_UPLOAD_MAX_BASE64_CHARS:
+            raise ValueError("Combined template upload exceeds 100 MiB")
+        return self
+
+
+class McpTemplateUploadResponse(BaseModel):
+    pptx_url: str = Field(
+        description=(
+            "Ready-to-use Presenton PPTX URL. Pass this exact value to "
+            "start_template_generation."
+        )
+    )
+    slide_image_urls: list[str] = Field(
+        min_length=1,
+        description=(
+            "Generated slide previews. Pass this exact array to "
+            "start_template_generation."
+        ),
+    )
+    fonts: dict[str, str] = Field(
+        default_factory=dict,
+        description="Uploaded replacement fonts to pass to the template operation.",
+    )
+
+
+def _decode_mcp_upload(upload: McpEncodedUpload, *, max_bytes: int) -> bytes:
+    try:
+        content = base64.b64decode(upload.content_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid base64 content for '{upload.filename}'",
+        ) from exc
+    if len(content) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"'{upload.filename}' exceeds the allowed upload size",
+        )
+    return content
 
 
 class GenerateTemplateBlocksRequest(BaseModel):
@@ -236,6 +357,10 @@ class TemplateListItem(BaseModel):
     description: str | None = None
     layout_count: int = 0
     thumbnail: str | None = None
+    preview_url: str | None = Field(
+        default=None,
+        description="Absolute URL for viewing this template in the Presenton UI",
+    )
     is_default: bool = False
     created_at: datetime
     updated_at: datetime
@@ -266,11 +391,18 @@ def _template_task_progress_data(
     name: str | None = None,
     thumbnail: str | None = None,
     completed_layout_indices: set[int] | None = None,
+    *,
+    async_task_id: str | None = None,
+    template_v2_id: str | None = None,
+    attempt: int = 1,
 ) -> dict[str, Any]:
     total_layouts = max(created_layouts, 0) + max(remaining_layouts, 0)
     if completed_layout_indices is None:
         completed_layout_indices = set(range(max(created_layouts, 0)))
     return {
+        "async_task_id": async_task_id,
+        "template_v2_id": template_v2_id,
+        "attempt": max(attempt, 1),
         "created_layouts": max(created_layouts, 0),
         "remaining_layouts": max(remaining_layouts, 0),
         "slide_layout_statuses": [
@@ -282,6 +414,16 @@ def _template_task_progress_data(
         ],
         "name": name,
         "thumbnail": thumbnail,
+    }
+
+
+def _template_task_identity_data(task: AsyncTaskModel) -> dict[str, Any]:
+    data = task.data if isinstance(task.data, dict) else {}
+    attempt = data.get("attempt", 1)
+    return {
+        "async_task_id": task.id,
+        "template_v2_id": data.get("template_v2_id"),
+        "attempt": attempt if isinstance(attempt, int) else 1,
     }
 
 
@@ -489,6 +631,7 @@ async def _commit_template_task_progress(
         completed_layout_indices=completed_layout_indices,
         name=name,
         thumbnail=thumbnail,
+        **_template_task_identity_data(task),
     )
     task.updated_at = datetime.now()
     sql_session.add(task)
@@ -755,7 +898,14 @@ async def _prepare_template_source(
             request.pptx_url,
             pptx_path,
         )
-        raise HTTPException(status_code=400, detail="PPTX file not found")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "PPTX file not found. MCP clients must call upload_template_assets "
+                "with the PPTX file contents and use the returned pptx_url; a host "
+                "application attachment ID cannot be used directly."
+            ),
+        )
 
     LOGGER.info(
         "[template.%s] converting PPTX to JSON pptx_path=%s",
@@ -906,6 +1056,7 @@ def _generate_indexed_slide_layouts(
     operation_id="template_list",
 )
 async def list_templates(
+    request: Request,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     default: Annotated[
@@ -957,6 +1108,7 @@ async def list_templates(
                 description=description,
                 layout_count=layout_count,
                 thumbnail=_get_template_thumbnail_from_assets(assets),
+                preview_url=_build_template_preview_url(request, template_id),
                 is_default=is_default,
                 created_at=created_at,
                 updated_at=updated_at,
@@ -992,6 +1144,63 @@ async def upload_template_fonts_and_slides_preview(
         google_font_replacement_names=google_font_replacement_names,
         google_font_names=google_font_names,
         google_font_urls=google_font_urls,
+    )
+
+
+@TEMPLATE_ROUTER.post(
+    "/mcp-upload",
+    response_model=McpTemplateUploadResponse,
+    operation_id="mcp_template_upload",
+)
+async def upload_template_assets_for_mcp(request: McpTemplateUploadRequest):
+    """Upload a template PPTX and replacement fonts in one remote MCP call.
+
+    The browser keeps using the existing multipart endpoint and is unaffected.
+    """
+    pptx_content = _decode_mcp_upload(
+        request.pptx,
+        max_bytes=100 * 1024 * 1024,
+    )
+    if not request.pptx.filename.lower().endswith(".pptx"):
+        raise HTTPException(status_code=400, detail="The template file must be a PPTX")
+
+    pptx_file = UploadFile(
+        file=BytesIO(pptx_content),
+        filename=request.pptx.filename,
+        size=len(pptx_content),
+    )
+    font_files: list[UploadFile] = []
+    original_font_names: list[str] = []
+    total_bytes = len(pptx_content)
+    for font in request.fonts:
+        content = _decode_mcp_upload(font, max_bytes=10 * 1024 * 1024)
+        total_bytes += len(content)
+        if total_bytes > MCP_TEMPLATE_UPLOAD_MAX_TOTAL_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="Combined template upload exceeds 100 MiB",
+            )
+        font_files.append(
+            UploadFile(
+                file=BytesIO(content),
+                filename=font.filename,
+                size=len(content),
+            )
+        )
+        original_font_names.append(
+            (font.original_font_name or "").strip()
+            or os.path.splitext(os.path.basename(font.filename))[0]
+        )
+
+    uploaded = await upload_fonts_and_slides_preview_handler(
+        pptx_file=pptx_file,
+        font_files=font_files or None,
+        original_font_names=original_font_names or None,
+    )
+    return McpTemplateUploadResponse(
+        pptx_url=uploaded.modified_pptx_url,
+        slide_image_urls=uploaded.slide_image_urls,
+        fonts=uploaded.fonts,
     )
 
 
@@ -1043,6 +1252,7 @@ async def init_template(
 def _build_created_template(
     request: CreateTemplateRequest,
     *,
+    template_id: str | None = None,
     pptx_path: str,
     raw_layouts_json: dict[str, Any],
     available_fonts: dict[str, str],
@@ -1052,6 +1262,7 @@ def _build_created_template(
 ) -> TemplateV2:
     icon_type = _template_generated_icon_type(request, generated_layouts)
     return TemplateV2(
+        id=template_id or str(uuid.uuid4()),
         name=(request.name or "").strip() or _derive_template_name(request.pptx_url, pptx_path),
         description=request.description,
         raw_layouts=raw_layouts_json,
@@ -1119,6 +1330,8 @@ async def _create_template_with_task_progress(
     request: CreateTemplateRequest,
     task: AsyncTaskModel,
     sql_session: AsyncSession,
+    *,
+    template_id: str,
 ) -> TemplateV2:
     pptx_path, raw_layouts, raw_layouts_json, available_fonts = await _prepare_template_source(
         request, operation="create"
@@ -1160,6 +1373,7 @@ async def _create_template_with_task_progress(
     )
     template = _build_created_template(
         request,
+        template_id=template_id,
         pptx_path=pptx_path,
         raw_layouts_json=raw_layouts_json,
         available_fonts=available_fonts,
@@ -1188,65 +1402,89 @@ async def _create_template_with_task_progress(
 
 async def _run_create_template_task(
     task_id: str,
-    request: CreateTemplateRequest,
+    owner_id=None,
 ) -> None:
-    async with async_session_maker() as sql_session:
-        task = await sql_session.get(AsyncTaskModel, task_id)
-        if not task:
-            LOGGER.warning(
-                "[template.create.async] task missing task_id=%s",
-                task_id,
-            )
-            return
+    owner_token = set_current_owner_id(owner_id)
+    admin_token = set_current_owner_is_admin(False)
+    try:
+        async with async_session_maker() as sql_session:
+            task = await sql_session.get(AsyncTaskModel, task_id)
+            if not task:
+                LOGGER.warning(
+                    "[template.create.async] task missing task_id=%s",
+                    task_id,
+                )
+                return
 
-        try:
-            task.status = AsyncTaskStatus.PENDING
-            task.message = "Creating template"
-            task.data = _template_task_progress_data(
-                created_layouts=0,
-                remaining_layouts=len(request.slide_image_urls),
-                name=_template_request_name(request),
-                thumbnail=_template_request_thumbnail(request),
-            )
-            task.updated_at = datetime.now()
-            sql_session.add(task)
-            await sql_session.commit()
+            try:
+                if not isinstance(task.payload, dict):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Template task does not contain retry data",
+                    )
+                request = CreateTemplateRequest.model_validate(task.payload)
+                identity = _template_task_identity_data(task)
+                template_id = identity["template_v2_id"]
+                if not isinstance(template_id, str) or not template_id.strip():
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Template task does not contain a template id",
+                    )
 
-            task.message = "Generating slide layouts"
-            template = await _create_template_with_task_progress(
-                request,
-                task,
-                sql_session,
-            )
-            created_layouts = _count_layouts(template.layouts)
+                task.status = AsyncTaskStatus.PENDING
+                task.message = "Creating template"
+                task.error = None
+                task.data = _template_task_progress_data(
+                    created_layouts=0,
+                    remaining_layouts=len(request.slide_image_urls),
+                    name=_template_request_name(request),
+                    thumbnail=_template_request_thumbnail(request),
+                    **identity,
+                )
+                task.updated_at = datetime.now()
+                sql_session.add(task)
+                await sql_session.commit()
 
-            task.status = AsyncTaskStatus.COMPLETED
-            task.message = "Template creation completed"
-            task.data = _template_task_progress_data(
-                created_layouts=created_layouts,
-                remaining_layouts=len(request.slide_image_urls) - created_layouts,
-                name=template.name,
-                thumbnail=_get_template_thumbnail_from_assets(template.assets),
-            )
-            task.updated_at = datetime.now()
-            sql_session.add(task)
-            await sql_session.commit()
-        except Exception as exc:
-            LOGGER.exception(
-                "[template.create.async] template creation failed task_id=%s",
-                task_id,
-            )
-            task.status = AsyncTaskStatus.ERROR
-            task.message = "Template creation failed"
-            api_error = APIErrorModel.from_exception(
-                exc
-                if isinstance(exc, HTTPException)
-                else HTTPException(status_code=500, detail="Template creation failed")
-            )
-            task.error = api_error.model_dump(mode="json")
-            task.updated_at = datetime.now()
-            sql_session.add(task)
-            await sql_session.commit()
+                task.message = "Generating slide layouts"
+                template = await _create_template_with_task_progress(
+                    request,
+                    task,
+                    sql_session,
+                    template_id=template_id,
+                )
+                created_layouts = _count_layouts(template.layouts)
+
+                task.status = AsyncTaskStatus.COMPLETED
+                task.message = "Template creation completed"
+                task.data = _template_task_progress_data(
+                    created_layouts=created_layouts,
+                    remaining_layouts=len(request.slide_image_urls) - created_layouts,
+                    name=template.name,
+                    thumbnail=_get_template_thumbnail_from_assets(template.assets),
+                    **_template_task_identity_data(task),
+                )
+                task.updated_at = datetime.now()
+                sql_session.add(task)
+                await sql_session.commit()
+            except Exception as exc:
+                LOGGER.exception(
+                    "[template.create.async] template creation failed task_id=%s",
+                    task_id,
+                )
+                task.status = AsyncTaskStatus.ERROR
+                task.message = "Template creation failed"
+                api_error = APIErrorModel.from_exception(
+                    exc
+                    if isinstance(exc, HTTPException)
+                    else HTTPException(status_code=500, detail="Template creation failed")
+                )
+                task.error = api_error.model_dump(mode="json")
+                task.updated_at = datetime.now()
+                sql_session.add(task)
+                await sql_session.commit()
+    finally:
+        reset_current_owner_is_admin(admin_token)
+        reset_current_owner_id(owner_token)
 
 
 @TEMPLATE_ROUTER.post(
@@ -1259,23 +1497,118 @@ async def create_template(
     request: CreateTemplateRequest = Body(...),
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    # Reject foreign attachment IDs before persisting an async task. Presenton can
+    # only process files uploaded into its own user-scoped app-data directory.
+    pptx_path = resolve_app_path_to_filesystem(request.pptx_url)
+    if not pptx_path or not os.path.isfile(pptx_path):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "PPTX file not found. MCP clients must call upload_template_assets "
+                "with the PPTX file contents and use the returned pptx_url; a host "
+                "application attachment ID cannot be used directly."
+            ),
+        )
+    template_id = str(uuid.uuid4())
     task = AsyncTaskModel(
         type=ASYNC_TASK_TYPE_TEMPLATE_CREATE,
         status=AsyncTaskStatus.PENDING,
         message="Queued for template creation",
-        data=_template_task_progress_data(
-            created_layouts=0,
-            remaining_layouts=len(request.slide_image_urls),
-            name=_template_request_name(request),
-            thumbnail=_template_request_thumbnail(request),
-        ),
+        payload=request.model_dump(mode="json"),
+    )
+    task.data = _template_task_progress_data(
+        created_layouts=0,
+        remaining_layouts=len(request.slide_image_urls),
+        name=_template_request_name(request),
+        thumbnail=_template_request_thumbnail(request),
+        async_task_id=task.id,
+        template_v2_id=template_id,
     )
     sql_session.add(task)
     await sql_session.commit()
     await sql_session.refresh(task)
 
-    background_tasks.add_task(_run_create_template_task, task.id, request)
+    background_tasks.add_task(
+        _run_create_template_task,
+        task.id,
+        get_current_owner_id(),
+    )
     return task
+
+
+@TEMPLATE_ROUTER.post(
+    "/async/{task_id}/retry",
+    status_code=202,
+    response_model=AsyncTaskModel,
+)
+async def retry_create_template(
+    background_tasks: BackgroundTasks,
+    task_id: str = Path(description="ID of the failed template creation task"),
+    sql_session: AsyncSession = Depends(get_async_session),
+):
+    original_task = await sql_session.get(AsyncTaskModel, task_id)
+    if not original_task:
+        raise HTTPException(status_code=404, detail="No async task found")
+    if original_task.type != ASYNC_TASK_TYPE_TEMPLATE_CREATE:
+        raise HTTPException(
+            status_code=400,
+            detail="Only template creation tasks can be retried",
+        )
+    if original_task.status != AsyncTaskStatus.ERROR:
+        raise HTTPException(
+            status_code=409,
+            detail="Only failed template creation tasks can be retried",
+        )
+    if not isinstance(original_task.payload, dict):
+        raise HTTPException(
+            status_code=409,
+            detail="Template task does not contain retry data",
+        )
+
+    original_identity = _template_task_identity_data(original_task)
+    template_id = original_identity["template_v2_id"]
+    if not isinstance(template_id, str) or not template_id.strip():
+        raise HTTPException(
+            status_code=409,
+            detail="Template task does not contain a template id",
+        )
+    if await sql_session.get(TemplateV2, template_id):
+        raise HTTPException(
+            status_code=409,
+            detail="Template has already been created",
+        )
+
+    try:
+        request = CreateTemplateRequest.model_validate(original_task.payload)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Template task contains invalid retry data",
+        ) from exc
+
+    original_task.status = AsyncTaskStatus.PENDING
+    original_task.message = "Queued for template creation retry"
+    original_task.error = None
+    original_task.data = _template_task_progress_data(
+        created_layouts=0,
+        remaining_layouts=len(request.slide_image_urls),
+        name=_template_request_name(request),
+        thumbnail=_template_request_thumbnail(request),
+        async_task_id=original_task.id,
+        template_v2_id=template_id,
+        attempt=original_identity["attempt"] + 1,
+    )
+    original_task.updated_at = datetime.now()
+    sql_session.add(original_task)
+    await sql_session.commit()
+    await sql_session.refresh(original_task)
+
+    background_tasks.add_task(
+        _run_create_template_task,
+        original_task.id,
+        get_current_owner_id(),
+    )
+    return original_task
 
 
 @TEMPLATE_ROUTER.post(
@@ -1692,6 +2025,7 @@ async def get_template_theme(
     operation_id="template_get",
 )
 async def get_template(
+    request: Request,
     template_id: str = Path(...),
     sql_session: AsyncSession = Depends(get_async_session),
 ):
@@ -1705,6 +2039,7 @@ async def get_template(
         description=template.description,
         layout_count=_count_layouts(template.layouts),
         thumbnail=_get_template_thumbnail_from_assets(template.assets),
+        preview_url=_build_template_preview_url(request, template.id),
         is_default=template.is_default,
         created_at=template.created_at or get_current_utc_datetime(),
         updated_at=template.updated_at or get_current_utc_datetime(),

@@ -7,13 +7,22 @@ import pytest
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import ValidationError
 
+from api.main import app
 from api.v1.ppt.endpoints.presentation import (
     _presentation_response_data,
     check_async_presentation_generation_status,
     generate_presentation_async,
     generate_presentation_sync,
 )
-from models.generate_presentation_request import GeneratePresentationRequest
+from api.v2.ppt.endpoints.presentation import (
+    generate_smart_presentation_async,
+    generate_smart_presentation_sync,
+    run_generate_smart_presentation_task,
+)
+from models.generate_presentation_request import (
+    GeneratePresentationRequest,
+    GenerateSmartPresentationRequest,
+)
 from models.presentation_and_path import PresentationPathAndEditPath
 from models.presentation_with_slides import PresentationWithSlides
 from models.sql.async_task import AsyncTaskModel
@@ -53,6 +62,9 @@ class FakeAsyncSession:
     async def refresh(self, *_args, **_kwargs):
         return None
 
+    async def rollback(self):
+        return None
+
 
 @pytest.mark.parametrize("generation_mode", ["standard", "smart"])
 def test_presentation_responses_include_cloud_compatible_type(generation_mode):
@@ -78,6 +90,52 @@ def test_presentation_responses_include_cloud_compatible_type(generation_mode):
 
 
 class TestPresentationGenerationAPI:
+    def test_smart_async_generation_is_versioned_under_v2(self):
+        paths = app.openapi()["paths"]
+
+        assert "/api/v2/ppt/presentation/generate/smart" in paths
+        assert "/api/v2/ppt/presentation/generate/smart/async" in paths
+        assert "/api/v1/ppt/presentation/generate/smart/async" not in paths
+
+    def test_generate_smart_presentation_sync_returns_export_directly(self):
+        request = GenerateSmartPresentationRequest(
+            content="Create a smart presentation",
+            n_slides=3,
+            export_as="pdf",
+        )
+        presentation = PresentationModel(
+            id=uuid.uuid4(),
+            version=PresentationVersion.V2_STANDARD,
+            content=request.content,
+            n_slides=3,
+            language="",
+            generation_mode="smart",
+        )
+        expected = PresentationPathAndEditPath(
+            presentation_id=presentation.id,
+            path="/exports/smart.pdf",
+            edit_path=f"/presentation?id={presentation.id}",
+        )
+
+        with patch(
+            "api.v2.ppt.endpoints.presentation._create_smart_presentation",
+            new=AsyncMock(return_value=presentation),
+        ), patch(
+            "api.v2.ppt.endpoints.presentation._generate_and_export_smart_presentation",
+            new=AsyncMock(return_value=expected),
+        ) as generate_mock:
+            response = asyncio.run(
+                generate_smart_presentation_sync(
+                    request_http=FakeRequest(),
+                    request=request,
+                    sql_session=FakeAsyncSession(),
+                )
+            )
+
+        assert response == expected
+        assert generate_mock.await_args.kwargs["export_as"] == "pdf"
+        assert "task_id" not in generate_mock.await_args.kwargs
+
     def test_generate_presentation_export_as_pdf(self):
         request = GeneratePresentationRequest(
             content="Create a presentation about artificial intelligence and machine learning",
@@ -171,6 +229,48 @@ class TestPresentationGenerationAPI:
         assert fake_session.commit_count == 1
         assert len(background_tasks.tasks) == 1
 
+    def test_generate_smart_presentation_async_uses_existing_background_flow(self):
+        request = GenerateSmartPresentationRequest(
+            content="Create a smart async presentation",
+            n_slides=4,
+            export_as="pptx",
+        )
+        background_tasks = BackgroundTasks()
+        fake_session = FakeAsyncSession()
+        presentation = PresentationModel(
+            id=uuid.uuid4(),
+            version=PresentationVersion.V2_STANDARD,
+            content=request.content,
+            n_slides=4,
+            language="",
+            generation_mode="smart",
+        )
+
+        with patch(
+            "api.v2.ppt.endpoints.presentation.create_presentation",
+            new=AsyncMock(return_value=presentation),
+        ) as create_mock:
+            task = asyncio.run(
+                generate_smart_presentation_async(
+                    request_http=FakeRequest(),
+                    request=request,
+                    background_tasks=background_tasks,
+                    sql_session=fake_session,
+                )
+            )
+
+        assert task.type == "presentation.smart.generate"
+        assert task.status == "pending"
+        assert task.data == {
+            "created_slides": 0,
+            "remaining_slides": 4,
+            "presentation_id": str(presentation.id),
+        }
+        assert fake_session.added == [task]
+        assert fake_session.commit_count == 1
+        assert len(background_tasks.tasks) == 1
+        create_mock.assert_awaited_once()
+
     def test_presentation_status_reads_async_task(self):
         task = AsyncTaskModel(
             type="presentation.generate",
@@ -182,12 +282,69 @@ class TestPresentationGenerationAPI:
 
         response = asyncio.run(
             check_async_presentation_generation_status(
+                request=FakeRequest(),
                 id=task.id,
                 sql_session=fake_session,
             )
         )
 
         assert response == task
+
+    def test_smart_background_task_completes_and_exports(self):
+        presentation = PresentationModel(
+            id=uuid.uuid4(),
+            version=PresentationVersion.V2_STANDARD,
+            content="Smart deck",
+            n_slides=1,
+            language="",
+            title="Smart deck",
+            generation_mode="smart",
+        )
+        task = AsyncTaskModel(
+            type="presentation.smart.generate",
+            status="pending",
+            data={"presentation_id": str(presentation.id)},
+        )
+        fake_session = FakeAsyncSession(
+            {task.id: task, presentation.id: presentation}
+        )
+
+        class SessionContext:
+            async def __aenter__(self):
+                return fake_session
+
+            async def __aexit__(self, *_args):
+                return None
+
+        async def body_iterator():
+            yield 'data: {"type":"slide_html","index":0}\n\n'
+            yield 'data: {"type":"complete","presentation":{}}\n\n'
+
+        with patch(
+            "api.v2.ppt.endpoints.presentation.async_session_maker",
+            new=lambda: SessionContext(),
+        ), patch(
+            "api.v2.ppt.endpoints.presentation.stream_smart_presentation",
+            new=AsyncMock(
+                return_value=SimpleNamespace(body_iterator=body_iterator())
+            ),
+        ), patch(
+            "api.v2.ppt.endpoints.presentation.export_presentation",
+            new=AsyncMock(return_value=SimpleNamespace(path="/exports/smart.pptx")),
+        ):
+            asyncio.run(
+                run_generate_smart_presentation_task(
+                    task.id,
+                    presentation.id,
+                    "pptx",
+                    None,
+                    None,
+                )
+            )
+
+        assert task.status == "completed"
+        assert task.data["path"] == "/exports/smart.pptx"
+        assert task.data["edit_path"] == f"/presentation?id={presentation.id}"
 
     def test_generate_presentation_with_no_content(self):
         with pytest.raises(ValidationError):

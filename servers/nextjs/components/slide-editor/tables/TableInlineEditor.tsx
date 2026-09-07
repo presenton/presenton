@@ -17,7 +17,7 @@ import {
   textRunsContent,
   type TextSelectionRange,
 } from "@/components/slide-editor/text/text-runs";
-import type { TemplateFontOption } from "@/components/slide-editor/text/google-fonts";
+import type { TemplateFontOption } from "@/components/slide-editor/text/local-fonts";
 import { inlineStyles } from "@/components/slide-editor/toolbar/inlineStyles";
 import { TextToolbar } from "@/components/slide-editor/text/TextToolbar";
 import { TiptapInlineTextEditor } from "@/components/slide-editor/text/TiptapInlineTextEditor";

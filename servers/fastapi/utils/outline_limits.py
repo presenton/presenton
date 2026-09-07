@@ -1,9 +1,34 @@
+import json
 import re
 from typing import Any
 
 from constants.presentation import MAX_OUTLINE_CONTENT_WORDS
 
 OUTLINE_WORD_PATTERN = re.compile(r"\S+")
+LINE_BREAK_TOKEN = "<LINE_BREAK>"
+
+
+def _has_explicit_markdown_prefix(line: str) -> bool:
+    return line.startswith(
+        ("- ", "* ", "+ ", "|", "> ", "### ", "#### ", "##### ", "###### ")
+    ) or bool(re.match(r"^\d+[.)]\s+", line))
+
+
+def normalize_generated_outline_content(value: Any) -> str:
+    """Decode generated line-break tokens and normalize Markdown body lines."""
+    content = "" if value is None else str(value)
+    lines = content.replace(LINE_BREAK_TOKEN, "\n").splitlines()
+    if not lines:
+        return ""
+
+    normalized_lines = [lines[0].strip()]
+    for line in lines[1:]:
+        stripped = line.strip()
+        if not stripped or _has_explicit_markdown_prefix(stripped):
+            normalized_lines.append(stripped)
+        else:
+            normalized_lines.append(f"- {stripped}")
+    return "\n".join(normalized_lines)
 
 
 def count_outline_words(text: str) -> int:
@@ -35,16 +60,38 @@ def normalize_outline_content(value: Any) -> str:
 def normalize_outline_payload(payload: dict[str, Any], max_slides: int) -> dict[str, Any]:
     normalized = dict(payload)
     raw_slides = normalized.get("slides")
+    # Some providers implement structured output through a tool call. Anthropic
+    # can occasionally put the complete JSON response in the tool's `slides`
+    # argument as a JSON string instead of returning the requested array. Accept
+    # that recoverable shape while leaving genuinely invalid output untouched so
+    # Pydantic can report it to the caller.
+    if isinstance(raw_slides, str):
+        try:
+            decoded_slides = json.loads(raw_slides)
+        except (TypeError, ValueError):
+            decoded_slides = None
+
+        if isinstance(decoded_slides, dict):
+            raw_slides = decoded_slides.get("slides")
+        elif isinstance(decoded_slides, list):
+            raw_slides = decoded_slides
+
     if not isinstance(raw_slides, list):
         return normalized
 
     normalized["slides"] = [
         {
             **slide,
-            "content": normalize_outline_content(slide.get("content", "")),
+            "content": normalize_outline_content(
+                normalize_generated_outline_content(slide.get("content", ""))
+            ),
         }
         if isinstance(slide, dict)
-        else {"content": normalize_outline_content(slide)}
+        else {
+            "content": normalize_outline_content(
+                normalize_generated_outline_content(slide)
+            )
+        }
         for slide in raw_slides[:max_slides]
     ]
     return normalized

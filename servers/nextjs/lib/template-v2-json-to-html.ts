@@ -11,6 +11,10 @@ import {
   CHART_BROWSER_SCRIPT_URL,
   CHART_DATALABELS_SCRIPT_URL,
 } from "@/lib/chart-browser";
+import {
+  localFontOptionsFromUnknown,
+  renderLocalFontFaceCss,
+} from "@/components/slide-editor/text/local-fonts";
 
 type JsonRecord = Record<string, unknown>;
 type RenderMode = "absolute" | "flow";
@@ -46,6 +50,7 @@ type InfographicKind =
   | "chevron_process"
   | "radial_cycle"
   | "conversion_funnel"
+  | "vertical_funnel"
   | "pyramid"
   | "segmented_wheel"
   | "customer_journey"
@@ -87,14 +92,6 @@ interface Box {
 interface Point {
   x: number;
   y: number;
-}
-
-interface FontFaceDefinition {
-  family: string;
-  url: string;
-  format?: string;
-  weight?: string;
-  style?: string;
 }
 
 interface TemplateV2HtmlOptions {
@@ -139,7 +136,7 @@ const DEFAULT_CHART_COLORS = [
   "#64748B",
 ];
 
-const CHART_FONT_FAMILY = "Inter, Arial, sans-serif";
+const CHART_FONT_FAMILY = "Manrope, Arial, sans-serif";
 const TEMPLATE_V2_MATH_CSS = `
 .presenton-math{line-height:normal;overflow:visible}
 .presenton-math>.katex{color:inherit;font:inherit;line-height:inherit;white-space:nowrap}
@@ -309,163 +306,10 @@ function renderSlideRoot(
 }
 
 function renderFontAssetTags(fonts: unknown): string {
-  const css = readStringValueOrNull(fonts);
-  if (css) {
-    return `<style>${escapeStyleText(css)}${fontCssFamilyAliases(css)}</style>`;
-  }
-
-  const tags: string[] = [];
-  const records = readRecord(fonts);
-  const embeddedCss = readStringValueOrNull(records.css ?? records.font_css);
-  if (embeddedCss) {
-    tags.push(
-      `<style>${escapeStyleText(embeddedCss)}${fontCssFamilyAliases(embeddedCss)}</style>`
-    );
-  }
-
-  const faceEntries = readArray(records.fonts).length ? records.fonts : fonts;
-  tags.push(...normalizeFontFaces(faceEntries).map(renderFontFaceDefinition));
-
-  const stylesheets = normalizeFontStylesheetUrls(faceEntries);
-  tags.push(
-    ...stylesheets.map(
-      (url) =>
-        `<link rel="stylesheet" href="${escapeAttribute(resolveBackendAssetUrl(url))}">`
-    )
-  );
-
-  return tags.join("");
-}
-
-function normalizeFontFaces(fonts: unknown): FontFaceDefinition[] {
-  if (Array.isArray(fonts)) {
-    return fonts.flatMap((entry) => normalizeFontFaceEntry(undefined, entry));
-  }
-
-  return Object.entries(readRecord(fonts)).flatMap(([family, value]) =>
-    family === "css" || family === "font_css" || family === "fonts"
-      ? []
-      : normalizeFontFaceEntry(family, value)
-  );
-}
-
-function normalizeFontFaceEntry(
-  fallbackFamily: string | undefined,
-  value: unknown
-): FontFaceDefinition[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((entry) => normalizeFontFaceEntry(fallbackFamily, entry));
-  }
-
-  const url = readString(value);
-  if (url) {
-    if (isFontStylesheetUrl(url)) return [];
-    const family = fallbackFamily?.trim();
-    return family
-      ? [
-        {
-          family,
-          url,
-          weight: inferFontWeight(`${family} ${url}`),
-          style: inferFontStyle(`${family} ${url}`),
-        },
-      ]
-      : [];
-  }
-
-  const record = readRecord(value);
-  const family = readString(
-    record.family ?? record.name ?? record.fontFamily ?? record.font_family
-  ) ?? fallbackFamily?.trim();
-  const source = readString(
-    record.url ?? record.src ?? record.href ?? record.data ?? record.source
-  );
-  if (!family || !source || isFontStylesheetUrl(source)) return [];
-
-  return [
-    {
-      family,
-      url: source,
-      format: readString(record.format) ?? undefined,
-      weight:
-        readFontWeight(record.weight ?? record.fontWeight ?? record.font_weight) ??
-        inferFontWeight(`${family} ${source}`),
-      style:
-        readFontStyle(record.style ?? record.fontStyle ?? record.font_style) ??
-        inferFontStyle(`${family} ${source}`),
-    },
-  ];
-}
-
-function normalizeFontStylesheetUrls(fonts: unknown): string[] {
-  if (Array.isArray(fonts)) {
-    return fonts.flatMap(normalizeFontStylesheetUrls);
-  }
-
-  const directUrl = readString(fonts);
-  if (directUrl && isFontStylesheetUrl(directUrl)) return [directUrl];
-
-  return Object.values(readRecord(fonts)).flatMap((value) => {
-    const url = readString(value);
-    if (url && isFontStylesheetUrl(url)) return [url];
-
-    const record = readRecord(value);
-    const source = readString(
-      record.url ?? record.src ?? record.href ?? record.data ?? record.source
-    );
-    return source && isFontStylesheetUrl(source) ? [source] : [];
-  });
-}
-
-function renderFontFaceDefinition(definition: FontFaceDefinition): string {
-  const aliases = fontFamilyAliases(definition.family, definition.weight);
-  const src = `url("${escapeCssUrl(resolveBackendAssetUrl(definition.url))}")${definition.format ? ` format("${escapeCssUrl(definition.format)}")` : ""
-    }`;
-  return aliases
-    .map(
-      (family) =>
-        `<style>@font-face{font-family:${escapeCssFont(
-          family
-        )};src:${src};font-weight:${definition.weight ?? "400"};font-style:${definition.style ?? "normal"
-        };font-display:swap}</style>`
-    )
+  const css = localFontOptionsFromUnknown(fonts)
+    .map(renderLocalFontFaceCss)
     .join("");
-}
-
-function fontCssFamilyAliases(css: string): string {
-  const aliases: string[] = [];
-  const facePattern = /@font-face\s*\{[^}]*font-family\s*:\s*(['"]?)([^;'"}]+)\1[^}]*\}/gi;
-  for (const match of css.matchAll(facePattern)) {
-    const block = match[0];
-    const family = match[2]?.trim();
-    if (!family) continue;
-    const weight = /font-weight\s*:\s*([^;}]+)/i.exec(block)?.[1]?.trim();
-    for (const alias of fontFamilyAliases(family, weight).filter(
-      (item) => item !== family
-    )) {
-      aliases.push(
-        block.replace(
-          /font-family\s*:\s*(['"]?)([^;'"}]+)\1/i,
-          `font-family:${escapeCssFont(alias)}`
-        )
-      );
-    }
-  }
-  return aliases.join("");
-}
-
-function fontFamilyAliases(family: string, weight?: string): string[] {
-  const normalized = family.trim();
-  const aliases = new Set([normalized]);
-  const alias = normalized
-    .replace(/\s+(regular|bold\s*italic|bold|italic|black|semibold|semi\s*bold|medium|light)$/i, "")
-    .trim();
-
-  if (alias && alias !== normalized && (weight || inferFontWeight(normalized))) {
-    aliases.add(alias);
-  }
-
-  return [...aliases];
+  return css ? `<style>${escapeStyleText(css)}</style>` : "";
 }
 
 function renderItem(item: JsonRecord, mode: RenderMode): string {
@@ -579,18 +423,33 @@ function renderTextList(item: JsonRecord, mode: RenderMode): string {
   const marker = readString(item.marker);
   const tag = marker === "number" ? "ol" : "ul";
   const font = readRecord(item.font);
+  const itemGap = Math.max(0, readNumber(item.gap) ?? 0);
+  const rawMarkerGap = readNumber(item.marker_gap ?? item.markerGap);
+  const markerGap = rawMarkerGap == null ? null : Math.max(0, rawMarkerGap);
+  const usesCustomMarkers = marker !== "none" && markerGap != null;
   const entries = readArray(item.items)
-    .map((entry) => {
+    .map((entry, index) => {
       const runs = normalizedListRunsForHtml(entry, font);
       const html = runs
         .map((run) =>
           renderTextRunHtml(run, { ...font, ...readRecord(run.font) }),
         )
         .join("");
-      return `<li style="${textOverflowStyle()}">${html}</li>`;
+      const gapStyle =
+        index > 0 && itemGap > 0
+          ? `margin-top:${cssNumber(itemGap)}px;`
+          : "";
+      if (usesCustomMarkers) {
+        const markerText = marker === "number" ? `${index + 1}.` : "•";
+        return `<li style="${gapStyle}display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:${cssNumber(
+          markerGap
+        )}px;${textOverflowStyle()}"><span aria-hidden="true">${markerText}</span><span>${html}</span></li>`;
+      }
+      return `<li style="${gapStyle}${textOverflowStyle()}">${html}</li>`;
     })
     .join("");
-  const listStyle = `margin:0;padding-left:${marker === "none" ? 0 : 24}px;${marker === "none" ? "list-style-type:none;" : ""
+  const hidesNativeMarkers = marker === "none" || usesCustomMarkers;
+  const listStyle = `margin:0;padding-left:${hidesNativeMarkers ? 0 : 24}px;${hidesNativeMarkers ? "list-style-type:none;" : ""
     }`;
 
   return `<div data-presenton-text="true" style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(
@@ -1116,6 +975,10 @@ const FIXED_INFOGRAPHIC_RENDERERS: Partial<
     designSize: { width: 720, height: 320 },
     renderer: renderConversionFunnelInfographic,
   },
+  vertical_funnel: {
+    designSize: { width: 720, height: 480 },
+    renderer: renderVerticalFunnelInfographic,
+  },
   pyramid: { designSize: { width: 720, height: 400 }, renderer: renderPyramidInfographic },
   segmented_wheel: {
     designSize: { width: 720, height: 460 },
@@ -1250,7 +1113,6 @@ function renderGaugeInfographic(item: JsonRecord, mode: RenderMode): string {
   const highlightColor = infographicHighlightColor(item);
   const baseColor = infographicBaseColor(item);
   const fallbackSize = { width: 160, height: 96 };
-  const textColor = infographicTextColor(item, "#111827");
   const progressPath =
     metrics.ratio > 0
       ? `<path d="${escapeAttribute(
@@ -1264,9 +1126,7 @@ function renderGaugeInfographic(item: JsonRecord, mode: RenderMode): string {
     item
   )}overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 120 72" preserveAspectRatio="xMidYMid meet" style="display:block"><path d="M 12 60 A 48 48 0 0 1 108 60" fill="none" stroke="${escapeAttribute(
     escapeCssColor(baseColor)
-  )}" stroke-width="12" stroke-linecap="round"/>${progressPath}<text x="60" y="52" text-anchor="middle" fill="${escapeAttribute(textColor)}" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">${escapeHtml(
-    metrics.label
-  )}</text></svg></div>`;
+  )}" stroke-width="12" stroke-linecap="round"/>${progressPath}</svg></div>`;
 }
 
 function renderGanttInfographic(item: JsonRecord, mode: RenderMode): string {
@@ -1322,7 +1182,7 @@ function renderGanttInfographic(item: JsonRecord, mode: RenderMode): string {
             )}%;top:0;bottom:0;border-left:1px solid ${gridColor}"></div>`
         )
         .join("");
-      return `<div style="display:grid;grid-template-columns:22% 78%;min-height:0"><div style="display:flex;align-items:center;padding-right:10px;font-size:12px;color:${textColor}">${escapeHtml(
+      return `<div style="display:grid;grid-template-columns:22% 78%;min-height:0;${infographicItemTransformStyle(row)}"><div style="display:flex;align-items:center;padding-right:10px;font-size:12px;color:${textColor}">${escapeHtml(
         readString(row.label) ?? `Workstream ${rowIndex + 1}`
       )}</div><div style="position:relative;border-right:1px solid ${gridColor}">${grid}${tasks}</div></div>`;
     })
@@ -1346,7 +1206,7 @@ function renderTimelineInfographic(item: JsonRecord, mode: RenderMode): string {
   const cards = safeItems
     .map(
       (entry, index) =>
-        `<div style="position:relative;display:flex;min-width:0;flex:1;flex-direction:column;align-items:center;text-align:center">${index < safeItems.length - 1 ? `<div style="position:absolute;left:calc(50% + 47px);right:calc(-50% + 47px);top:112px;height:3px;background:${escapeCssColor(colors[(index + 1) % colors.length])}"></div>` : ""}<div style="height:54px;display:flex;align-items:flex-end;padding-bottom:8px;font-size:15px;font-weight:700;color:${textColor}">${String(index + 1).padStart(2, "0")}</div><div style="z-index:1;display:grid;width:90px;height:90px;box-sizing:border-box;place-items:center;border:3px solid ${escapeCssColor(colors[index % colors.length])};border-radius:999px"><div style="display:grid;width:72px;height:72px;place-items:center;border-radius:999px;background:${escapeCssColor(colors[index % colors.length])};color:#fff">${infographicIconImage(entry.icon, entry.color)}</div></div><div style="padding:12px 6px 0;font-size:15px;font-weight:700;color:${textColor}">${escapeHtml(readString(entry.heading) ?? `Step ${index + 1}`)}</div><div style="padding:5px 8px 0;font-size:10px;line-height:1.25;color:${mutedColor}">${escapeHtml(readString(entry.description) ?? "")}</div></div>`
+        `<div style="position:relative;display:flex;min-width:0;flex:1;flex-direction:column;align-items:center;text-align:center;${infographicItemTransformStyle(entry)}">${index < safeItems.length - 1 ? `<div style="position:absolute;left:calc(50% + 47px);right:calc(-50% + 47px);top:112px;height:3px;background:${escapeCssColor(colors[(index + 1) % colors.length])}"></div>` : ""}<div style="height:54px;display:flex;align-items:flex-end;padding-bottom:8px;font-size:15px;font-weight:700;color:${textColor}">${escapeHtml(readString(entry.label) ?? String(index + 1).padStart(2, "0"))}</div><div style="z-index:1;display:grid;width:90px;height:90px;box-sizing:border-box;place-items:center;border:3px solid ${escapeCssColor(colors[index % colors.length])};border-radius:999px"><div style="display:grid;width:72px;height:72px;place-items:center;border-radius:999px;background:${escapeCssColor(colors[index % colors.length])};color:#fff">${infographicIconImage(entry.icon, entry.color)}</div></div><div style="padding:12px 6px 0;font-size:15px;font-weight:700;color:${textColor}">${escapeHtml(readString(entry.heading) ?? `Step ${index + 1}`)}</div><div style="padding:5px 8px 0;font-size:10px;line-height:1.25;color:${mutedColor}">${escapeHtml(readString(entry.description) ?? "")}</div></div>`
     )
     .join("");
   return `<div style="${frameStyle(item, mode, { width: 720, height: 260 })}${transformStyle(
@@ -1377,7 +1237,7 @@ function renderRoadmapInfographic(item: JsonRecord, mode: RenderMode): string {
     const roadY = roadmapHtmlRoadRatio(ratio) * 100;
     const labelY = roadmapHtmlLabelRatio(ratio) * 100;
     const color = colors[index % colors.length];
-    return `<div style="position:absolute;left:${cssNumber(x)}%;top:calc(${cssNumber(roadY)}% - 31px);width:24px;height:32px;transform:translateX(-50%)"><div style="position:absolute;left:5px;top:15px;width:14px;height:14px;transform:rotate(45deg);background:${escapeCssColor(color)}"></div><div style="position:absolute;left:1px;top:0;width:22px;height:22px;border:1px solid #D1D5DB;border-radius:999px;background:${escapeCssColor(color)};z-index:1"><div style="position:absolute;left:5px;top:5px;width:10px;height:10px;border-radius:999px;background:linear-gradient(to bottom,#FFFFFF 0 50%,#D6D6D6 51% 100%)"></div></div></div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(labelY)}%;width:${cssNumber(Math.min(20, 98 / safeEntries.length))}%;transform:translateX(-50%);text-align:center"><div style="font-size:14px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Stop ${index + 1}`)}</div><div style="padding-top:4px;font-size:10px;line-height:1.2;color:${textColor}">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+    return infographicHtmlItem(entry, `<div style="position:absolute;left:${cssNumber(x)}%;top:calc(${cssNumber(roadY)}% - 31px);width:24px;height:32px;transform:translateX(-50%)"><div style="position:absolute;left:5px;top:15px;width:14px;height:14px;transform:rotate(45deg);background:${escapeCssColor(color)}"></div><div style="position:absolute;left:1px;top:0;width:22px;height:22px;border:1px solid #D1D5DB;border-radius:999px;background:${escapeCssColor(color)};z-index:1"><div style="position:absolute;left:5px;top:5px;width:10px;height:10px;border-radius:999px;background:linear-gradient(to bottom,#FFFFFF 0 50%,#D6D6D6 51% 100%)"></div></div></div></div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(labelY)}%;width:${cssNumber(Math.min(20, 98 / safeEntries.length))}%;transform:translateX(-50%);text-align:center"><div style="font-size:14px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Stop ${index + 1}`)}</div><div style="padding-top:4px;font-size:10px;line-height:1.2;color:${textColor}">${escapeHtml(readString(entry.description) ?? "")}</div></div>`);
   }).join("");
   return `<div style="${frameStyle(item, mode, { width: 720, height: 252 })}${transformStyle(
     item
@@ -1401,7 +1261,7 @@ function renderMilestoneTimelineInfographic(item: JsonRecord, mode: RenderMode):
     const bubbleTop = above ? 5 : 68;
     const labelTop = above ? 40 : 56;
     const triangleTop = above ? 24 : -5;
-    return `<div style="position:absolute;left:${cssNumber(x)}%;top:50%;width:24px;height:24px;transform:translate(-50%,-50%);border:1px solid #E5E7EB;border-radius:999px;background:${escapeCssColor(color)}"></div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(labelTop)}%;width:${cssNumber(Math.min(14, 90 / safeEntries.length))}%;transform:translateX(-50%);text-align:center;font-size:15px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Milestone ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(bubbleTop)}%;width:${cssNumber(Math.min(18, 130 / safeEntries.length))}%;min-width:84px;min-height:62px;box-sizing:border-box;transform:translateX(-50%);border:1px solid #E5E7EB;border-radius:15px;background:${escapeCssColor(color)};padding:10px 8px;text-align:center;font-size:10px;line-height:1.2;color:${bubbleText}">${escapeHtml(readString(entry.description) ?? "")}<span style="position:absolute;left:50%;top:${cssNumber(triangleTop)}px;width:14px;height:14px;transform:translateX(-50%) rotate(45deg);background:${escapeCssColor(color)};${above ? "top:auto;bottom:-7px" : ""}"></span></div>`;
+    return infographicHtmlItem(entry, `<div style="position:absolute;left:${cssNumber(x)}%;top:50%;width:24px;height:24px;transform:translate(-50%,-50%);border:1px solid #E5E7EB;border-radius:999px;background:${escapeCssColor(color)}"></div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(labelTop)}%;width:${cssNumber(Math.min(14, 90 / safeEntries.length))}%;transform:translateX(-50%);text-align:center;font-size:15px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Milestone ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(x)}%;top:${cssNumber(bubbleTop)}%;width:${cssNumber(Math.min(18, 130 / safeEntries.length))}%;min-width:84px;min-height:62px;box-sizing:border-box;transform:translateX(-50%);border:1px solid #E5E7EB;border-radius:15px;background:${escapeCssColor(color)};padding:10px 8px;text-align:center;font-size:10px;line-height:1.2;color:${bubbleText}">${escapeHtml(readString(entry.description) ?? "")}<span style="position:absolute;left:50%;top:${cssNumber(triangleTop)}px;width:14px;height:14px;transform:translateX(-50%) rotate(45deg);background:${escapeCssColor(color)};${above ? "top:auto;bottom:-7px" : ""}"></span></div>`);
   }).join("");
   return `<div style="${frameStyle(item, mode, { width: 720, height: 260 })}${transformStyle(
     item
@@ -1441,7 +1301,7 @@ function renderStaircaseInfographic(item: JsonRecord, mode: RenderMode): string 
     const x = sidePadding + index * itemWidth;
     const y = 102 + index * drop;
     const color = colors[index % colors.length];
-    return `<div style="position:absolute;left:${cssNumber(x + contentInset)}px;top:${cssNumber(y - 53)}px;display:grid;width:24px;height:24px;place-items:center;border-radius:999px;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon, entry.color)}</div><div style="position:absolute;left:${cssNumber(x + contentInset)}px;top:${cssNumber(y - 21)}px;width:${cssNumber(itemWidth * 0.92)}px;font-size:13px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Step ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(x + contentInset + 1)}px;top:${cssNumber(y + 10)}px;width:${cssNumber(itemWidth * 0.88)}px;font-size:9.5px;line-height:1.2;color:${textColor}">${escapeHtml(readString(entry.description) ?? "")}</div>`;
+    return infographicHtmlItem(entry, `<div style="position:absolute;left:${cssNumber(x + contentInset)}px;top:${cssNumber(y - 53)}px;display:grid;width:24px;height:24px;place-items:center;border-radius:999px;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon, entry.color)}</div><div style="position:absolute;left:${cssNumber(x + contentInset)}px;top:${cssNumber(y - 21)}px;width:${cssNumber(itemWidth * 0.92)}px;font-size:13px;font-weight:700;color:${customTextColor ?? escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? `Step ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(x + contentInset + 1)}px;top:${cssNumber(y + 10)}px;width:${cssNumber(itemWidth * 0.88)}px;font-size:9.5px;line-height:1.2;color:${textColor}">${escapeHtml(readString(entry.description) ?? "")}</div>`);
   }).join("");
   return `<div style="${frameStyle(item, mode, { width: 720, height: 340 })}${transformStyle(
     item
@@ -1454,7 +1314,7 @@ function renderSupplyChainInfographic(item: JsonRecord, mode: RenderMode): strin
   const lineColor=dark?"#E0E0E0":"#D2D2D2";
   const pad=safe.length>1?720*.13:720*.5,gap=safe.length>1?(720-pad*2)/(safe.length-1):0,cy=300*.49,rx=safe.length>1?gap*.5:Math.min(720,300)*.16,ry=Math.min(rx,300*.22),radius=Math.min(rx,ry)*.78,k=.55228475;
   const wavePath=safe.map((_,index)=>{const x=pad+index*gap,direction=index%2===0?-1:1,peakY=cy+direction*ry,left=x-rx,right=x+rx,first=`${left} ${cy} C ${left} ${cy+direction*ry*k} ${x-rx*k} ${peakY} ${x} ${peakY}`,second=`C ${x+rx*k} ${peakY} ${right} ${cy+direction*ry*k} ${right} ${cy}`;return `${index===0?"M":"L"} ${first} ${second}`}).join(" ");
-  const nodes=safe.map((entry,index)=>{const x=pad+index*gap, top=index%2===1, color=colors[index%colors.length], diameter=radius*2,titleY=top?cy-radius-68:cy+radius+31; return `<div style="position:absolute;left:${x-radius}px;top:${cy-radius}px;width:${diameter}px;height:${diameter}px;box-sizing:border-box;border:1.5px solid ${lineColor};border-radius:50%;display:grid;place-items:center;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${x-55}px;top:${titleY}px;width:110px;text-align:center;color:${escapeCssColor(text)};font:700 11px Arial">${escapeHtml(readString(entry.heading)??"Stage")}</div><div style="position:absolute;left:${x-55}px;top:${titleY+16}px;width:110px;text-align:center;white-space:pre-line;color:${escapeCssColor(text)};font:9px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div><div style="position:absolute;left:${x-30}px;top:${top?cy-radius-24:cy+radius+4}px;width:60px;text-align:center;color:${escapeCssColor(color)};font:700 19px Arial">${String(index+1).padStart(2,"0")}</div>`}).join("");
+  const nodes=safe.map((entry,index)=>{const x=pad+index*gap, top=index%2===1, color=colors[index%colors.length], diameter=radius*2,titleY=top?cy-radius-68:cy+radius+31; return infographicHtmlItem(entry, `<div style="position:absolute;left:${x-radius}px;top:${cy-radius}px;width:${diameter}px;height:${diameter}px;box-sizing:border-box;border:1.5px solid ${lineColor};border-radius:50%;display:grid;place-items:center;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${x-55}px;top:${titleY}px;width:110px;text-align:center;color:${escapeCssColor(text)};font:700 11px Arial">${escapeHtml(readString(entry.heading)??"Stage")}</div><div style="position:absolute;left:${x-55}px;top:${titleY+16}px;width:110px;text-align:center;white-space:pre-line;color:${escapeCssColor(text)};font:11px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div><div style="position:absolute;left:${x-30}px;top:${top?cy-radius-24:cy+radius+4}px;width:60px;text-align:center;color:${escapeCssColor(color)};font:700 19px Arial">${escapeHtml(readString(entry.label) ?? String(index+1).padStart(2,"0"))}</div>`)}).join("");
   return `<div style="${frameStyle(item,mode,{width:720,height:300})}${transformStyle(item)}position:relative;overflow:hidden;font-family:Arial"><svg viewBox="0 0 720 300" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0"><path d="${wavePath}" fill="none" stroke="${lineColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>${nodes}</div>`;
 }
 
@@ -1468,28 +1328,28 @@ function renderStairStepBlocksInfographic(item: JsonRecord, mode: RenderMode): s
   // inside the 350px design surface instead of clipping it above the frame.
   const firstBlockTop=safe.length>4?190:144;
   const rise=safe.length>1?Math.min(48,(firstBlockTop-topPadding)/(safe.length-1)):0;
-  const content=safe.map((entry,index)=>{const x=80+index*w,y=firstBlockTop-index*rise,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return `<div style="position:absolute;left:${cssNumber(x)}px;top:${cssNumber(y)}px;width:${cssNumber(w+1)}px;height:${blockHeight}px;background:${escapeCssColor(color)};box-sizing:border-box;${dark?"border:1px solid #d6d6d6;":""}"><div style="padding:8px;color:${escapeCssColor(nodeText)};font:700 20px Arial">Step ${String(index+1).padStart(2,"0")}</div><div style="position:absolute;left:9px;bottom:34px;width:22px;height:22px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:9px;bottom:6px;color:${escapeCssColor(nodeText)};font:700 10px Arial">${escapeHtml(readString(entry.heading)??"Step")}</div></div><div style="position:absolute;left:${cssNumber(x+9)}px;top:${cssNumber(y+blockHeight+7)}px;width:${cssNumber(w-14)}px;color:${escapeCssColor(text)};font:9px/1.16 Arial">${escapeHtml(readString(entry.description)??"")}</div>`}).join("");
+  const content=safe.map((entry,index)=>{const x=80+index*w,y=firstBlockTop-index*rise,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return infographicHtmlItem(entry, `<div style="position:absolute;left:${cssNumber(x)}px;top:${cssNumber(y)}px;width:${cssNumber(w+1)}px;height:${blockHeight}px;background:${escapeCssColor(color)};box-sizing:border-box;${dark?"border:1px solid #d6d6d6;":""}"><div style="padding:8px;color:${escapeCssColor(nodeText)};font:700 20px Arial">${escapeHtml(readString(entry.label) ?? `Step ${String(index+1).padStart(2,"0")}`)}</div><div style="position:absolute;left:9px;bottom:34px;width:22px;height:22px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:9px;bottom:6px;color:${escapeCssColor(nodeText)};font:700 10px Arial">${escapeHtml(readString(entry.heading)??"Step")}</div></div><div style="position:absolute;left:${cssNumber(x+9)}px;top:${cssNumber(y+blockHeight+7)}px;width:${cssNumber(w-14)}px;color:${escapeCssColor(text)};font:11px/1.16 Arial">${escapeHtml(readString(entry.description)??"")}</div>`)}).join("");
   return `<div style="${frameStyle(item,mode,{width:720,height:350})}${transformStyle(item)}position:relative;overflow:hidden">${content}</div>`;
 }
 
 function renderMaturityModelInfographic(item: JsonRecord, mode: RenderMode): string {
   const data=infographicData(item),entries=readArray(data.items).map(readRecord).slice(0,7),safe=entries.length?entries:[{heading:"Initial"}],colors=infographicPalette(item);
-  const content=safe.map((entry,index)=>{const reverse=safe.length-1-index,w=446,x=22+index*65,y=31+reverse*65,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:56px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)}"><div style="position:absolute;left:16px;top:0;width:24%;height:100%;display:flex;align-items:center;font:700 16px Arial">${escapeHtml(readString(entry.heading)??"Level")}</div><div style="position:absolute;left:29%;top:12px;height:32px;border-left:1px solid ${escapeCssColor(nodeText)}"></div><div style="position:absolute;left:36%;top:7px;width:49%;height:42px;display:flex;align-items:center;font:10px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div><div style="position:absolute;right:9px;top:13px;width:30px;height:30px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div></div>`}).join("");
+  const content=safe.map((entry,index)=>{const reverse=safe.length-1-index,w=446,x=22+index*65,y=31+reverse*65,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return infographicHtmlItem(entry, `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:56px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)}"><div style="position:absolute;left:16px;top:0;width:24%;height:100%;display:flex;align-items:center;font:700 16px Arial">${escapeHtml(readString(entry.heading)??"Level")}</div><div style="position:absolute;left:29%;top:12px;height:32px;border-left:1px solid ${escapeCssColor(nodeText)}"></div><div style="position:absolute;left:36%;top:7px;width:49%;height:42px;display:flex;align-items:center;font:12px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div><div style="position:absolute;right:9px;top:13px;width:30px;height:30px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div></div>`)}).join("");
   return `<div style="${frameStyle(item,mode,{width:720,height:390})}${transformStyle(item)}position:relative;overflow:hidden">${content}</div>`;
 }
 
 function renderPillarFrameworkInfographic(item: JsonRecord, mode: RenderMode): string {
   const data=infographicData(item),entries=readArray(data.items).map(readRecord).slice(0,7),safe=entries.length?entries:[{heading:"Customer"}],colors=infographicPalette(item); const gap=7,w=(680-gap*(safe.length-1))/safe.length;
   const roofColor=withHash(readString(data.card_color))??"#D6D6D6",roofTextColor=withHash(readString(data.background_text_color))??withHash(readString(item.text_color))??"#4D73BE";
-  const content=safe.map((entry,index)=>{const x=20+index*(w+gap),color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return `<div style="position:absolute;left:${x}px;top:131px;width:${w}px;height:34px;display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:700 13px Arial">${escapeHtml(readString(entry.heading)??"Pillar")}</div><div style="position:absolute;left:${x}px;top:175px;width:${w}px;height:134px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};text-align:center"><div style="height:55px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="padding:2px 8px;font:10px/1.18 Arial">${escapeHtml(readString(entry.description)??"")}</div></div><div style="position:absolute;left:${x}px;top:320px;width:${w}px;height:36px;display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:10px Arial">${escapeHtml(readString(entry.focus)??"")}</div>`}).join("");
-  return `<div style="${frameStyle(item,mode,{width:720,height:380})}${transformStyle(item)}position:relative;overflow:hidden;font-family:Arial"><svg viewBox="0 0 720 380" style="position:absolute;inset:0;width:100%;height:100%"><path d="M20 125 L375 6 L710 125 Z" fill="${escapeAttribute(escapeCssColor(roofColor))}"/></svg><div style="position:absolute;left:190px;top:82px;width:360px;text-align:center;color:${escapeCssColor(roofTextColor)};font:700 17px Arial">${escapeHtml(readString(data.title)??"Growth & Transformation Framework")}</div>${content}</div>`;
+  const content=safe.map((entry,index)=>{const x=20+index*(w+gap),color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);return infographicHtmlItem(entry, `<div style="position:absolute;left:${x}px;top:131px;width:${w}px;height:34px;display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:700 14px Arial">${escapeHtml(readString(entry.heading)??"Pillar")}</div><div style="position:absolute;left:${x}px;top:175px;width:${w}px;height:134px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};text-align:center"><div style="height:55px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="padding:2px 8px;font:12px/1.18 Arial">${escapeHtml(readString(entry.description)??"")}</div></div><div style="position:absolute;left:${x}px;top:320px;width:${w}px;height:36px;display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:11px Arial">${escapeHtml(readString(entry.focus)??"")}</div>`)}).join("");
+  return `<div style="${frameStyle(item,mode,{width:720,height:380})}${transformStyle(item)}position:relative;overflow:hidden;font-family:Arial"><svg viewBox="0 0 720 380" style="position:absolute;inset:0;width:100%;height:100%"><path d="M20 125 L375 6 L710 125 Z" fill="${escapeAttribute(escapeCssColor(roofColor))}"/></svg><div style="position:absolute;left:190px;top:82px;width:360px;text-align:center;color:${escapeCssColor(roofTextColor)};font:700 18px Arial">${escapeHtml(readString(data.title)??"Growth & Transformation Framework")}</div>${content}</div>`;
 }
 
 function renderTransformationHubInfographic(item: JsonRecord, mode: RenderMode): string {
   const data=infographicData(item),entries=readArray(data.items).map(readRecord).slice(0,8),safe=entries.length?entries:[{heading:"Strategy"},{heading:"Process"}],colors=infographicPalette(item),bg=infographicBaseColor(item),dark=isDarkInfographicColor(bg);
   const centerColor=withHash(readString(data.card_color))??"#D6D6D6",centerTextColor=withHash(readString(data.background_text_color))??withHash(readString(item.text_color))??"#111111";
   const leftCount=Math.ceil(safe.length/2),lineColor=dark?"#e0e0e0":"#d2d2d2",lines:string[]=[];
-  const boxes=safe.map((entry,index)=>{const left=index<leftCount,rank=left?index:index-leftCount,count=left?leftCount:safe.length-leftCount,centerY=52.5+rank*(195/Math.max(1,count-1)),x=left?11:511,y=centerY-27,elbow=left?297:423,tip=left?191:511,base=left?198:504,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color);lines.push(`<path d="M360 150 H${elbow} V${centerY} H${base}" fill="none" stroke="${lineColor}" stroke-width="1.5"/><polygon points="${left?`${tip},${centerY} ${base},${centerY-4} ${base},${centerY+4}`:`${tip},${centerY} ${base},${centerY-4} ${base},${centerY+4}`}" fill="${lineColor}"/>`);return `<div style="position:absolute;left:${x}px;top:${y}px;width:180px;height:54px;box-sizing:border-box;border:1px solid ${lineColor};display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:700 15px Arial">${escapeHtml(readString(entry.heading)??"Capability")}</div>`}).join("");
+  const boxes=safe.map((entry,index)=>{const left=index<leftCount,rank=left?index:index-leftCount,count=left?leftCount:safe.length-leftCount,centerY=52.5+rank*(195/Math.max(1,count-1)),x=left?11:511,y=centerY-27,elbow=left?297:423,tip=left?191:511,base=left?198:504,color=colors[index%colors.length],nodeText=blackOrWhiteTextColor(color),offset=infographicItemOffsetValue(entry);lines.push(`<path d="M360 150 H${elbow} V${centerY+offset.y} H${base+offset.x}" fill="none" stroke="${lineColor}" stroke-width="1.5"/><polygon points="${left?`${tip+offset.x},${centerY+offset.y} ${base+offset.x},${centerY-4+offset.y} ${base+offset.x},${centerY+4+offset.y}`:`${tip+offset.x},${centerY+offset.y} ${base+offset.x},${centerY-4+offset.y} ${base+offset.x},${centerY+4+offset.y}`}" fill="${lineColor}"/>`);return infographicHtmlItem(entry, `<div style="position:absolute;left:${x}px;top:${y}px;width:180px;height:54px;box-sizing:border-box;border:1px solid ${lineColor};display:grid;place-items:center;background:${escapeCssColor(color)};color:${escapeCssColor(nodeText)};font:700 15px Arial">${escapeHtml(readString(entry.heading)??"Capability")}</div>`)}).join("");
   return `<div style="${frameStyle(item,mode,{width:720,height:300})}${transformStyle(item)}position:relative;overflow:hidden"><svg viewBox="0 0 720 300" style="position:absolute;inset:0;width:100%;height:100%">${lines.join("")}</svg>${boxes}<div style="position:absolute;left:280.5px;top:70.5px;width:159px;height:159px;border-radius:50%;display:grid;place-items:center;background:${escapeCssColor(centerColor)};color:${escapeCssColor(centerTextColor)};text-align:center;font:700 20px/1.15 Arial;white-space:pre-line">${escapeHtml(readString(data.center_label)??"Business Transformation")}</div></div>`;
 }
 
@@ -1499,14 +1359,14 @@ function renderDiagonalCirclesInfographic(item: JsonRecord, mode: RenderMode): s
   const layout=safe.map((entry,index)=>{const x=154.8+index*90,y=301-index*50.74,color=colors[index%colors.length],calloutLeft=index%2===1,anchorX=x+(calloutLeft?-r*.64:r*.3),anchorY=y+(calloutLeft?-r*.77:r*.954),elbowY=y+(calloutLeft?-r*1.28:r*1.22),direction=calloutLeft?-1:1,arrowTipX=anchorX+direction*r*.82,arrowBaseX=arrowTipX-direction*arrowSize,textX=calloutLeft?Math.max(7.2,arrowTipX-arrowSize-12.96-textW):Math.min(565.2,arrowTipX+arrowSize+12.96);return {anchorX,anchorY,arrowBaseX,arrowTipX,calloutLeft,color,elbowY,entry,index,textX,x,y};});
   const circles=layout.map(({color,x,y})=>`<div style="position:absolute;left:${x-r}px;top:${y-r}px;width:${r*2}px;height:${r*2}px;border-radius:50%;background:${escapeCssColor(color)};opacity:.88"></div>`).join("");
   const connectors=layout.map(({anchorX,anchorY,arrowBaseX,arrowTipX,elbowY})=>`<path d="M${anchorX} ${anchorY} V${elbowY} H${arrowBaseX}" fill="none" stroke="${lineColor}" stroke-width="1.5"/><polygon points="${arrowTipX},${elbowY} ${arrowBaseX},${elbowY-arrowSize*.65} ${arrowBaseX},${elbowY+arrowSize*.65}" fill="${lineColor}"/><circle cx="${anchorX}" cy="${anchorY}" r="3" fill="${lineColor}"/>`).join("");
-  const annotations=layout.map(({calloutLeft,color,elbowY,entry,index,textX,x,y})=>{const nodeText=blackOrWhiteTextColor(color),numberLeft=calloutLeft?x-r*.82:x-r*.05,numberTop=calloutLeft?y-r*.78:y+r*.51,iconLeft=x+r*.62-r*.34,iconTop=y-r*.34-r*.34;return `<div style="position:absolute;left:${numberLeft}px;top:${numberTop}px;width:${r*.7}px;height:${r*.35}px;text-align:center;color:${escapeCssColor(nodeText)};font:700 19px Arial">${String(index+1).padStart(2,"0")}</div><div style="position:absolute;left:${iconLeft}px;top:${iconTop}px;width:${r*.68}px;height:${r*.68}px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${textX}px;top:${elbowY-11.18}px;width:${textW}px;text-align:${calloutLeft?"right":"left"};color:${escapeCssColor(text)}"><div style="height:21.5px;color:${escapeCssColor(color)};font:700 12px Arial">${escapeHtml(readString(entry.heading)??"Pillar")}</div><div style="padding-top:8px;font:9px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div></div>`}).join("");
+  const annotations=layout.map(({calloutLeft,color,elbowY,entry,index,textX,x,y})=>{const nodeText=blackOrWhiteTextColor(color),numberLeft=calloutLeft?x-r*.82:x-r*.05,numberTop=calloutLeft?y-r*.78:y+r*.51,iconLeft=x+r*.62-r*.34,iconTop=y-r*.34-r*.34;return `<div style="position:absolute;left:${numberLeft}px;top:${numberTop}px;width:${r*.7}px;height:${r*.35}px;text-align:center;color:${escapeCssColor(nodeText)};font:700 19px Arial">${escapeHtml(readString(entry.label)??String(index+1).padStart(2,"0"))}</div><div style="position:absolute;left:${iconLeft}px;top:${iconTop}px;width:${r*.68}px;height:${r*.68}px;display:grid;place-items:center">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${textX}px;top:${elbowY-11.18}px;width:${textW}px;text-align:${calloutLeft?"right":"left"};color:${escapeCssColor(text)}"><div style="height:21.5px;color:${escapeCssColor(color)};font:700 12px Arial">${escapeHtml(readString(entry.heading)??"Pillar")}</div><div style="padding-top:8px;font:11px/1.15 Arial">${escapeHtml(readString(entry.description)??"")}</div></div>`}).join("");
   return `<div style="${frameStyle(item,mode,{width:720,height:430})}${transformStyle(item)}position:relative;overflow:hidden">${circles}<svg viewBox="0 0 720 430" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible">${connectors}</svg>${annotations}</div>`;
 }
 
 function renderRiskMatrixInfographic(item: JsonRecord, mode: RenderMode): string {
   const data=infographicData(item),raw=readArray(data.items).map(readRecord).slice(0,4),defaults=[{heading:"Identify"},{heading:"Prioritize"},{heading:"Assess"},{heading:"Respond"}],safe=defaults.map((fallback,index)=>raw[index]??fallback),colors=infographicPalette(item),bg=infographicBaseColor(item),dark=isDarkInfographicColor(bg),text=infographicTextColor(item,dark?"#f0f1f4":"#111111");
   const q=159,cx=360,cy=185,pos=[[194.5,19.5],[366.5,19.5],[194.5,191.5],[366.5,191.5]],sideMargin=10.8,arrowGap=13,arrowLength=28.8,textGap=13,arrowHalf=20.35,arrows:string[]=[];
-  const content=safe.map((entry,index)=>{const [x,y]=pos[index],left=index%2===0,color=colors[index%colors.length],mid=y+q/2,blockEdge=left?x:x+q,arrowBase=blockEdge+(left?-arrowGap:arrowGap),arrowTip=arrowBase+(left?-arrowLength:arrowLength),tx=left?sideMargin:arrowTip+textGap,textWidth=left?Math.max(86.4,arrowTip-textGap-sideMargin):Math.max(86.4,720-sideMargin-tx);arrows.push(`<polygon points="${arrowTip},${mid} ${arrowBase},${mid-arrowHalf} ${arrowBase},${mid+arrowHalf}" fill="${escapeCssColor(color)}"/>`);return `<div style="position:absolute;left:${x}px;top:${y}px;width:${q}px;height:${q}px;border-radius:16px;display:grid;place-items:center;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${tx}px;top:${y+q*.27}px;width:${textWidth}px;text-align:${left?"right":"left"};color:${escapeCssColor(text)}"><div style="height:${q*.11}px;color:${escapeCssColor(color)};font:700 12px Arial">${escapeHtml(readString(entry.heading)??"Activity")}</div><div style="padding-top:${q*.01}px;font:9px/1.1 Arial">${escapeHtml(readString(entry.description)??"")}</div></div>`}).join(""); const label=(readString(data.center_label)??"RISK").padEnd(4," ").slice(0,4);
+  const content=safe.map((entry,index)=>{const [x,y]=pos[index],left=index%2===0,color=colors[index%colors.length],mid=y+q/2,blockEdge=left?x:x+q,arrowBase=blockEdge+(left?-arrowGap:arrowGap),arrowTip=arrowBase+(left?-arrowLength:arrowLength),tx=left?sideMargin:arrowTip+textGap,textWidth=left?Math.max(86.4,arrowTip-textGap-sideMargin):Math.max(86.4,720-sideMargin-tx);arrows.push(`<polygon points="${arrowTip},${mid} ${arrowBase},${mid-arrowHalf} ${arrowBase},${mid+arrowHalf}" fill="${escapeCssColor(color)}"/>`);return `<div style="position:absolute;left:${x}px;top:${y}px;width:${q}px;height:${q}px;border-radius:16px;display:grid;place-items:center;background:${escapeCssColor(color)}">${infographicIconImage(entry.icon,entry.color)}</div><div style="position:absolute;left:${tx}px;top:${y+q*.27}px;width:${textWidth}px;text-align:${left?"right":"left"};color:${escapeCssColor(text)}"><div style="height:${q*.11}px;color:${escapeCssColor(color)};font:700 12px Arial">${escapeHtml(readString(entry.heading)??"Activity")}</div><div style="padding-top:${q*.01}px;font:11px/1.1 Arial">${escapeHtml(readString(entry.description)??"")}</div></div>`}).join(""); const label=(readString(data.center_label)??"RISK").padEnd(4," ").slice(0,4);
   return `<div style="${frameStyle(item,mode,{width:720,height:370})}${transformStyle(item)}position:relative;overflow:hidden"><svg viewBox="0 0 720 370" style="position:absolute;inset:0;width:100%;height:100%">${arrows.join("")}</svg>${content}<div style="position:absolute;left:${cx-q*.375}px;top:${cy-q*.375}px;width:${q*.75}px;height:${q*.75}px;border-radius:16px;background:rgba(255,255,255,.34);display:grid;grid-template-columns:1fr 1fr;color:#fff;font:700 24px Arial;text-align:center;align-items:center">${label.split("").map(letter=>`<span>${escapeHtml(letter)}</span>`).join("")}</div></div>`;
 }
 
@@ -1546,7 +1406,7 @@ function renderChevronProcessInfographic(item: JsonRecord, mode: RenderMode): st
       x + shapeWidth * 0.38, 180,
     ].map(cssNumber).join(" ");
     const lineStart = above ? 164 : 187;
-    return `<polygon points="${points}" fill="${escapeAttribute(escapeCssColor(color))}"/><text x="${cssNumber(anchorX)}" y="188" text-anchor="middle" fill="${escapeAttribute(escapeCssColor(nodeTextColor))}" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">${String(index + 1).padStart(2, "0")}</text><line x1="${cssNumber(anchorX)}" y1="${lineStart}" x2="${cssNumber(anchorX)}" y2="${dotY}" stroke="#D1D1D1" stroke-width="1.5"/><circle cx="${cssNumber(anchorX)}" cy="${dotY}" r="4" fill="${escapeAttribute(escapeCssColor(color))}"/><foreignObject x="${cssNumber(labelX)}" y="${cssNumber(labelY)}" width="${cssNumber(labelWidth)}" height="70"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,Helvetica,sans-serif;color:${escapeCssColor(bodyColor)}"><div style="font-size:13px;font-weight:700;line-height:1.15;color:${escapeCssColor(labelColor)}">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="padding-top:6px;font-size:10px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div></foreignObject>`;
+    return `<polygon points="${points}" fill="${escapeAttribute(escapeCssColor(color))}"/><text x="${cssNumber(anchorX)}" y="188" text-anchor="middle" fill="${escapeAttribute(escapeCssColor(nodeTextColor))}" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">${escapeHtml(readString(entry.label) ?? String(index + 1).padStart(2, "0"))}</text><line x1="${cssNumber(anchorX)}" y1="${lineStart}" x2="${cssNumber(anchorX)}" y2="${dotY}" stroke="#D1D1D1" stroke-width="1.5"/><circle cx="${cssNumber(anchorX)}" cy="${dotY}" r="4" fill="${escapeAttribute(escapeCssColor(color))}"/><foreignObject x="${cssNumber(labelX)}" y="${cssNumber(labelY)}" width="${cssNumber(labelWidth)}" height="70"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,Helvetica,sans-serif;color:${escapeCssColor(bodyColor)}"><div style="font-size:13px;font-weight:700;line-height:1.15;color:${escapeCssColor(labelColor)}">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="padding-top:6px;font-size:10px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div></foreignObject>`;
   }).join("");
   return `<div style="${frameStyle(item, mode, { width: 720, height: 360 })}${transformStyle(
     item
@@ -1565,8 +1425,23 @@ function renderRadialCycleInfographic(item: JsonRecord, mode: RenderMode): strin
   const nodeRadius = safeEntries.length >= 6 ? 60 : 72;
   const startAngle = 270 - 360 / safeEntries.length;
   const centerImage = readString(data.center_image);
+  const centerImageSettings = readRecord(data.center_image_settings);
+  const centerImageFit = readString(centerImageSettings.fit) === "contain" ? "contain" : "cover";
+  const centerImageFocusX = clamp(readNumber(centerImageSettings.focus_x) ?? 50, 0, 100);
+  const centerImageFocusY = clamp(readNumber(centerImageSettings.focus_y) ?? 50, 0, 100);
+  const centerImageScale = clamp(readNumber(centerImageSettings.crop_scale) ?? 1, 0.1, 6);
+  const centerImageFlipX = readBoolean(centerImageSettings.flip_h) === true ? -1 : 1;
+  const centerImageFlipY = readBoolean(centerImageSettings.flip_v) === true ? -1 : 1;
+  const centerImageOpacity = clamp(readNumber(centerImageSettings.opacity) ?? 1, 0, 1);
+  const centerImageRadius = clamp(
+    (Array.isArray(centerImageSettings.border_radius)
+      ? readNumber(centerImageSettings.border_radius[0])
+      : readNumber(centerImageSettings.border_radius)) ?? 999,
+    0,
+    999,
+  );
   const center = centerImage
-    ? `<img alt="" src="${escapeAttribute(centerImage)}" style="position:absolute;left:50%;top:50%;width:156px;height:156px;transform:translate(-50%,-50%);border-radius:999px;object-fit:cover">`
+    ? `<div style="position:absolute;left:50%;top:50%;width:156px;height:156px;transform:translate(-50%,-50%);border-radius:${cssNumber(centerImageRadius)}px;overflow:hidden"><img alt="" src="${escapeAttribute(centerImage)}" style="display:block;width:100%;height:100%;transform:scale(${cssNumber(centerImageScale * centerImageFlipX)},${cssNumber(centerImageScale * centerImageFlipY)});object-fit:${centerImageFit};object-position:${cssNumber(centerImageFocusX)}% ${cssNumber(centerImageFocusY)}%;opacity:${cssNumber(centerImageOpacity)}"></div>`
     : `<div style="position:absolute;left:50%;top:50%;width:156px;height:156px;transform:translate(-50%,-50%);border:1px solid #D1D5DB;border-radius:999px;background:#EEF1F5"></div>`;
   const nodes = safeEntries.map((entry, index) => {
     const angle = ((startAngle + index * (360 / safeEntries.length)) * Math.PI) / 180;
@@ -1574,7 +1449,7 @@ function renderRadialCycleInfographic(item: JsonRecord, mode: RenderMode): strin
     const y = centerY + Math.sin(angle) * orbitY;
     const color = colors[index % colors.length];
     const nodeTextColor = blackOrWhiteTextColor(color);
-    return `<div style="position:absolute;left:${cssNumber(x)}px;top:${cssNumber(y)}px;width:${cssNumber(nodeRadius * 2)}px;height:${cssNumber(nodeRadius * 2)}px;box-sizing:border-box;transform:translate(-50%,-50%);border:1.5px solid #D1D1D1;border-radius:999px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};font-family:Arial,Helvetica,sans-serif;text-align:center"><div style="position:absolute;left:50%;top:10%;display:grid;width:${cssNumber(nodeRadius * 0.5)}px;height:${cssNumber(nodeRadius * 0.5)}px;transform:translateX(-50%);place-items:center;border-radius:999px;background:#FFFFFF;color:#111111;font-size:${cssNumber(Math.max(11, nodeRadius * 0.21))}px;font-weight:700">${String(index + 1).padStart(2, "0")}</div><div style="position:absolute;left:9%;right:9%;top:46%;font-size:${cssNumber(Math.max(9, nodeRadius * 0.14))}px;font-weight:700;line-height:1.1">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="position:absolute;left:9%;right:9%;top:62%;font-size:${cssNumber(Math.max(7, nodeRadius * 0.105))}px;line-height:1.15">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+    return infographicHtmlItem(entry, `<div style="position:absolute;left:${cssNumber(x)}px;top:${cssNumber(y)}px;width:${cssNumber(nodeRadius * 2)}px;height:${cssNumber(nodeRadius * 2)}px;box-sizing:border-box;transform:translate(-50%,-50%);border:1.5px solid #D1D1D1;border-radius:999px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};font-family:Arial,Helvetica,sans-serif;text-align:center"><div style="position:absolute;left:50%;top:10%;display:grid;width:${cssNumber(nodeRadius * 0.5)}px;height:${cssNumber(nodeRadius * 0.5)}px;transform:translateX(-50%);place-items:center;border-radius:999px;background:#FFFFFF;color:#111111;font-size:${cssNumber(Math.max(11, nodeRadius * 0.21))}px;font-weight:700">${escapeHtml(readString(entry.label) ?? String(index + 1).padStart(2, "0"))}</div><div style="position:absolute;left:9%;right:9%;top:46%;font-size:${cssNumber(Math.max(10, nodeRadius * 0.16))}px;font-weight:700;line-height:1.1">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="position:absolute;left:9%;right:9%;top:62%;font-size:${cssNumber(Math.max(8, nodeRadius * 0.125))}px;line-height:1.15">${escapeHtml(readString(entry.description) ?? "")}</div></div>`);
   }).join("");
   return `<div style="${frameStyle(item, mode, { width: 560, height: 520 })}${transformStyle(
     item
@@ -1612,11 +1487,53 @@ function renderConversionFunnelInfographic(item: JsonRecord, mode: RenderMode): 
   const labels = safeEntries.map((entry, index) => {
     const x = index * columnWidth + columnWidth * 0.13;
     const value = clamp(readNumber(entry.value) ?? 0, 0, 100);
-    return `<div style="position:absolute;left:${cssNumber(x)}px;top:68%;width:${cssNumber(columnWidth * 0.78)}px;color:${escapeCssColor(textColor)};font-family:Arial,Helvetica,sans-serif"><div style="font-size:19px;font-weight:700">${Math.round(value)}%</div><div style="padding-top:7px;font-size:12px;font-weight:700">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="padding-top:12px;font-size:9.5px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+    return `<div style="position:absolute;left:${cssNumber(x)}px;top:68%;width:${cssNumber(columnWidth * 0.78)}px;color:${escapeCssColor(textColor)};font-family:Arial,Helvetica,sans-serif"><div style="font-size:19px;font-weight:700">${Math.round(value)}%</div><div style="padding-top:7px;font-size:12px;font-weight:700">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="padding-top:12px;font-size:11px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
   }).join("");
   return `<div style="${frameStyle(item, mode, { width: 720, height: 320 })}${transformStyle(
     item
   )}position:relative;overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 720 320" preserveAspectRatio="none" style="position:absolute;inset:0;display:block">${fills}<path d="${curvePath}" fill="none" stroke="${escapeAttribute(escapeCssColor(colors[(safeEntries.length + 1) % colors.length]))}" stroke-width="6" stroke-linejoin="round"/>${separators}<rect x=".75" y=".75" width="718.5" height="318.5" fill="none" stroke="#D1D1D1" stroke-width="1.5"/></svg>${labels}</div>`;
+}
+
+function renderVerticalFunnelInfographic(item: JsonRecord, mode: RenderMode): string {
+  const data = infographicData(item);
+  const entries = readArray(data.items).map(readRecord).slice(0, 8);
+  const safeEntries = entries.length > 0 ? entries : [{ value: 50, heading: "Stage" }];
+  const colors = infographicPalette(item);
+  const background = infographicBaseColor(item);
+  const dark = isDarkInfographicColor(background);
+  const textColor = infographicTextColor(item, dark ? "#F0F1F4" : "#111111");
+  const top = 38;
+  const bottom = 38;
+  const funnelCenterX = 360;
+  const maxFunnelWidth = 300;
+  const stageHeight = (480 - top - bottom) / safeEntries.length;
+  const valueAt = (index: number) => clamp(readNumber(safeEntries[index]?.value) ?? 0, 0, 100);
+  const widthAt = (value: number) => Math.max(4, (value / 100) * maxFunnelWidth);
+  const guides = safeEntries.map((_, index) => {
+    const y = top + index * stageHeight;
+    return `<line x1="140" y1="${cssNumber(y)}" x2="615" y2="${cssNumber(y)}" stroke="#D1D5DB" stroke-width="1"/>`;
+  }).join("");
+  const fills = safeEntries.map((_, index) => {
+    const y0 = top + index * stageHeight;
+    const y1 = y0 + stageHeight;
+    const topWidth = widthAt(valueAt(index));
+    const bottomWidth = widthAt(valueAt(Math.min(index + 1, safeEntries.length - 1)));
+    const points = [
+      `${cssNumber(funnelCenterX - topWidth / 2)},${cssNumber(y0)}`,
+      `${cssNumber(funnelCenterX + topWidth / 2)},${cssNumber(y0)}`,
+      `${cssNumber(funnelCenterX + bottomWidth / 2)},${cssNumber(y1)}`,
+      `${cssNumber(funnelCenterX - bottomWidth / 2)},${cssNumber(y1)}`,
+    ].join(" ");
+    return `<polygon points="${points}" fill="${escapeAttribute(escapeCssColor(colors[index % colors.length]))}"/>`;
+  }).join("");
+  const labels = safeEntries.map((entry, index) => {
+    const y = top + index * stageHeight;
+    const value = valueAt(index);
+    return `<div style="position:absolute;left:18px;top:${cssNumber(y - 12)}px;width:185px;color:${escapeCssColor(textColor)};font-family:Arial,Helvetica,sans-serif"><div style="font-size:15px;font-weight:700;line-height:1.1">${escapeHtml(readString(entry.heading) ?? `Stage ${index + 1}`)}</div><div style="padding-top:5px;font-size:10px;line-height:1.15">${escapeHtml(readString(entry.description) ?? "")}</div></div><div style="position:absolute;left:628px;top:${cssNumber(y - 12)}px;width:74px;color:${escapeCssColor(textColor)};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;line-height:1.1">${cssNumber(value)}%</div>`;
+  }).join("");
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 480 })}${transformStyle(
+    item
+  )}position:relative;overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 720 480" preserveAspectRatio="none" style="position:absolute;inset:0;display:block">${guides}${fills}</svg>${labels}</div>`;
 }
 
 function renderPyramidInfographic(item: JsonRecord, mode: RenderMode): string {
@@ -1657,7 +1574,7 @@ function renderPyramidInfographic(item: JsonRecord, mode: RenderMode): string {
     const insideTextColor = blackOrWhiteTextColor(color);
     const layout = pyramidHtmlCalloutLayout(shape.placement);
     const lineX = Math.min(layout.lineStart, layout.lineEnd);
-    return `<div style="position:absolute;left:${cssNumber(shape.x - 24)}px;top:${cssNumber(shape.y - 21)}px;display:grid;width:48px;height:48px;place-items:center">${infographicIconImage(shape.entry.icon, shape.entry.color)}</div><div style="position:absolute;left:${cssNumber(shape.x - 64.8)}px;top:${cssNumber(shape.y + 22)}px;width:129.6px;text-align:center;color:${escapeCssColor(insideTextColor)};font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700">${escapeHtml(readString(shape.entry.heading) ?? `Level ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(lineX)}px;top:${cssNumber(layout.lineY)}px;width:${cssNumber(Math.abs(layout.lineEnd - layout.lineStart))}px;border-top:1.25px solid #D1D1D1"></div><div style="position:absolute;left:${cssNumber(layout.textX)}px;top:${cssNumber(layout.lineY - 6)}px;width:${cssNumber(layout.textWidth)}px;color:${escapeCssColor(outsideTextColor)};font-family:Arial,Helvetica,sans-serif;text-align:${layout.align}"><div style="font-size:12px;font-weight:700;line-height:1.15">${escapeHtml(readString(shape.entry.heading) ?? `Level ${index + 1}`)}</div><div style="padding-top:7px;font-size:9.5px;line-height:1.2">${escapeHtml(readString(shape.entry.description) ?? "")}</div></div>`;
+    return `<div style="position:absolute;left:${cssNumber(shape.x - 24)}px;top:${cssNumber(shape.y - 21)}px;display:grid;width:48px;height:48px;place-items:center">${infographicIconImage(shape.entry.icon, shape.entry.color)}</div><div style="position:absolute;left:${cssNumber(shape.x - 64.8)}px;top:${cssNumber(shape.y + 22)}px;width:129.6px;text-align:center;color:${escapeCssColor(insideTextColor)};font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700">${escapeHtml(readString(shape.entry.heading) ?? `Level ${index + 1}`)}</div><div style="position:absolute;left:${cssNumber(lineX)}px;top:${cssNumber(layout.lineY)}px;width:${cssNumber(Math.abs(layout.lineEnd - layout.lineStart))}px;border-top:1.25px solid #D1D1D1"></div><div style="position:absolute;left:${cssNumber(layout.textX)}px;top:${cssNumber(layout.lineY - 6)}px;width:${cssNumber(layout.textWidth)}px;color:${escapeCssColor(outsideTextColor)};font-family:Arial,Helvetica,sans-serif;text-align:${layout.align}"><div style="font-size:13px;font-weight:700;line-height:1.15">${escapeHtml(readString(shape.entry.heading) ?? `Level ${index + 1}`)}</div><div style="padding-top:7px;font-size:10.5px;line-height:1.2">${escapeHtml(readString(shape.entry.description) ?? "")}</div></div>`;
   }).join("");
   return `<div style="${frameStyle(item, mode, { width: 720, height: 400 })}${transformStyle(
     item
@@ -1967,9 +1884,10 @@ function renderImpactEffortInfographic(item: JsonRecord, mode: RenderMode): stri
     const calloutLeft = left
       ? position.outerX - calloutGap - calloutWidth
       : position.outerX + 113 + calloutGap;
-    return `<div style="position:absolute;left:${calloutLeft}px;top:${calloutTop}px;width:${calloutWidth}px;text-align:${left ? "right" : "left"};color:${escapeCssColor(textColor)}"><div style="font-size:13px;font-weight:700;color:${escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? defaults[index])}</div><div style="padding-top:7px;font-size:10px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+    return `<div style="position:absolute;left:${calloutLeft}px;top:${calloutTop}px;width:${calloutWidth}px;text-align:${left ? "right" : "left"};color:${escapeCssColor(textColor)}"><div style="font-size:14px;font-weight:700;color:${escapeCssColor(color)}">${escapeHtml(readString(entry.heading) ?? defaults[index])}</div><div style="padding-top:7px;font-size:12px;line-height:1.2">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
   }).join("");
   const corners = positions.map((position, index) => {
+    const entry = entries[index] ?? {};
     const color = colors[index % colors.length];
     const nodeTextColor = blackOrWhiteTextColor(color);
     const blockWidth = 113;
@@ -1977,9 +1895,9 @@ function renderImpactEffortInfographic(item: JsonRecord, mode: RenderMode): stri
     const thickness = 42;
     const horizontalY = position.horizontal === "top" ? position.outerY : position.outerY + blockHeight - thickness;
     const verticalX = position.vertical === "left" ? position.outerX : position.outerX + blockWidth - thickness;
-    return `<rect x="${position.outerX}" y="${horizontalY}" width="${blockWidth}" height="${thickness}" fill="${escapeCssColor(color)}"/><rect x="${verticalX}" y="${position.outerY}" width="${thickness}" height="${blockHeight}" fill="${escapeCssColor(color)}"/><circle cx="${position.circleX}" cy="${position.circleY}" r="20" fill="${escapeCssColor(color)}"/><text x="${position.circleX}" y="${position.circleY + 7}" text-anchor="middle" fill="${escapeAttribute(escapeCssColor(nodeTextColor))}" font-size="17" font-weight="700">${String(index + 1).padStart(2, "0")}</text>`;
+    return `<rect x="${position.outerX}" y="${horizontalY}" width="${blockWidth}" height="${thickness}" fill="${escapeCssColor(color)}"/><rect x="${verticalX}" y="${position.outerY}" width="${thickness}" height="${blockHeight}" fill="${escapeCssColor(color)}"/><circle cx="${position.circleX}" cy="${position.circleY}" r="20" fill="${escapeCssColor(color)}"/><text x="${position.circleX}" y="${position.circleY + 7}" text-anchor="middle" fill="${escapeAttribute(escapeCssColor(nodeTextColor))}" font-size="17" font-weight="700">${escapeHtml(readString(entry.label) ?? String(index + 1).padStart(2, "0"))}</text>`;
   }).join("");
-  return `<div style="${frameStyle(item, mode, { width: 720, height: 420 })}${transformStyle(item)}overflow:hidden;font-family:Arial,Helvetica,sans-serif"><svg viewBox="0 0 720 420" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0"><line x1="190" y1="220" x2="516" y2="220" stroke="#d1d1d1" stroke-width="2"/><line x1="353" y1="40" x2="353" y2="401" stroke="#d1d1d1" stroke-width="2"/><path d="M 190 220 l 12 -7 v 14 z M 516 220 l -12 -7 v 14 z M 353 40 l -7 12 h 14 z M 353 401 l -7 -12 h 14 z" fill="#d1d1d1"/><circle cx="353" cy="220" r="13" fill="#d1d1d1"/>${corners}</svg>${callouts}<div style="position:absolute;left:367px;top:225px;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.x_axis_label) ?? "Impact")}</div><div style="position:absolute;left:323px;top:196px;transform:rotate(-90deg);color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.y_axis_label) ?? "Effort")}</div><div style="position:absolute;left:148px;top:212px;width:34px;text-align:right;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.low_label) ?? "Low")}</div><div style="position:absolute;left:524px;top:212px;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.high_label) ?? "High")}</div><div style="position:absolute;left:333px;top:15px;width:40px;text-align:center;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.high_label) ?? "High")}</div><div style="position:absolute;left:333px;top:403px;width:40px;text-align:center;color:${escapeCssColor(textColor)};font-size:11px">${escapeHtml(readString(data.low_label) ?? "Low")}</div></div>`;
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 420 })}${transformStyle(item)}overflow:hidden;font-family:Arial,Helvetica,sans-serif"><svg viewBox="0 0 720 420" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0"><line x1="190" y1="220" x2="516" y2="220" stroke="#d1d1d1" stroke-width="2"/><line x1="353" y1="40" x2="353" y2="401" stroke="#d1d1d1" stroke-width="2"/><path d="M 190 220 l 12 -7 v 14 z M 516 220 l -12 -7 v 14 z M 353 40 l -7 12 h 14 z M 353 401 l -7 -12 h 14 z" fill="#d1d1d1"/><circle cx="353" cy="220" r="13" fill="#d1d1d1"/>${corners}</svg>${callouts}<div style="position:absolute;left:367px;top:225px;color:${escapeCssColor(textColor)};font-size:12px">${escapeHtml(readString(data.x_axis_label) ?? "Impact")}</div><div style="position:absolute;left:323px;top:196px;transform:rotate(-90deg);color:${escapeCssColor(textColor)};font-size:12px">${escapeHtml(readString(data.y_axis_label) ?? "Effort")}</div><div style="position:absolute;left:148px;top:212px;width:34px;text-align:right;color:${escapeCssColor(textColor)};font-size:12px">${escapeHtml(readString(data.low_label) ?? "Low")}</div><div style="position:absolute;left:524px;top:212px;color:${escapeCssColor(textColor)};font-size:12px">${escapeHtml(readString(data.high_label) ?? "High")}</div><div style="position:absolute;left:333px;top:15px;width:40px;text-align:center;color:${escapeCssColor(textColor)};font-size:12px">${escapeHtml(readString(data.high_label) ?? "High")}</div><div style="position:absolute;left:333px;top:403px;width:40px;text-align:center;color:${escapeCssColor(textColor)};font-size:12px">${escapeHtml(readString(data.low_label) ?? "Low")}</div></div>`;
 }
 
 function renderComparisonMatrixInfographic(item: JsonRecord, mode: RenderMode): string {
@@ -1991,14 +1909,14 @@ function renderComparisonMatrixInfographic(item: JsonRecord, mode: RenderMode): 
   const cardColor = withHash(readString(data.card_color)) ?? "#E4E4E7";
   const backgroundTextColor =
     withHash(readString(data.background_text_color)) ?? "#111111";
-  const criteriaRows = safeCriteria.map((criterion) => `<div style="display:grid;place-items:center;border-top:1px solid #d1d5db;font-size:11px">${escapeHtml(criterion)}</div>`).join("");
+  const criteriaRows = safeCriteria.map((criterion) => `<div style="display:grid;place-items:center;border-top:1px solid #d1d5db;font-size:12px">${escapeHtml(criterion)}</div>`).join("");
   const columns = entries.map((entry, index) => {
     const values = readArray(entry.values).map((value) => readString(value) ?? "");
     const color = colors[index % colors.length];
     const columnTextColor = blackOrWhiteTextColor(color);
-    return `<div style="position:relative;display:grid;grid-template-rows:110px repeat(${safeCriteria.length},1fr);background:${escapeCssColor(color)};color:${escapeCssColor(columnTextColor)}"><div style="display:grid;place-items:center;padding:20px 8px 8px;text-align:center;font-size:13px;font-weight:700"><span style="position:absolute;top:-24px;display:grid;width:54px;height:54px;place-items:center;border-radius:50%;background:${escapeCssColor(cardColor)};border:3px solid ${escapeCssColor(color)}">${infographicIconImage(entry.icon, entry.color, backgroundTextColor)}</span>${escapeHtml(readString(entry.heading) ?? `Option ${index + 1}`)}</div>${safeCriteria.map((_, valueIndex) => `<div style="display:grid;place-items:center;border-top:1px solid rgba(255,255,255,.35);font-size:11px">${escapeHtml(values[valueIndex] ?? "")}</div>`).join("")}</div>`;
+    return `<div style="position:relative;display:grid;grid-template-rows:110px repeat(${safeCriteria.length},1fr);background:${escapeCssColor(color)};color:${escapeCssColor(columnTextColor)}"><div style="display:grid;place-items:center;padding:20px 8px 8px;text-align:center;font-size:14px;font-weight:700"><span style="position:absolute;top:-24px;display:grid;width:54px;height:54px;place-items:center;border-radius:50%;background:${escapeCssColor(cardColor)};border:3px solid ${escapeCssColor(color)}">${infographicIconImage(entry.icon, entry.color, backgroundTextColor)}</span>${escapeHtml(readString(entry.heading) ?? `Option ${index + 1}`)}</div>${safeCriteria.map((_, valueIndex) => `<div style="display:grid;place-items:center;border-top:1px solid rgba(255,255,255,.35);font-size:12px">${escapeHtml(values[valueIndex] ?? "")}</div>`).join("")}</div>`;
   }).join("");
-  return `<div style="${frameStyle(item, mode, { width: 720, height: 340 })}${transformStyle(item)}overflow:hidden;padding:54px 22px 28px;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif"><div style="display:grid;height:258px;grid-template-columns:130px repeat(${Math.max(1, entries.length)},1fr);gap:4px"><div style="display:grid;grid-template-rows:110px repeat(${safeCriteria.length},1fr);background:${escapeCssColor(cardColor)};color:${escapeCssColor(backgroundTextColor)}"><div style="display:grid;place-items:center;font-size:13px;font-weight:700">Criteria</div>${criteriaRows}</div>${columns}</div></div>`;
+  return `<div style="${frameStyle(item, mode, { width: 720, height: 340 })}${transformStyle(item)}overflow:hidden;padding:54px 22px 28px;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif"><div style="display:grid;height:258px;grid-template-columns:130px repeat(${Math.max(1, entries.length)},1fr);gap:4px"><div style="display:grid;grid-template-rows:110px repeat(${safeCriteria.length},1fr);background:${escapeCssColor(cardColor)};color:${escapeCssColor(backgroundTextColor)}"><div style="display:grid;place-items:center;font-size:14px;font-weight:700">Criteria</div>${criteriaRows}</div>${columns}</div></div>`;
 }
 
 function renderHierarchyInfographic(item: JsonRecord, mode: RenderMode, kind: "org_chart" | "decision_tree"): string {
@@ -2081,7 +1999,7 @@ function renderHierarchyInfographic(item: JsonRecord, mode: RenderMode, kind: "o
     const color = colors[Math.min(depths[index], colors.length - 1)];
     const nodeTextColor = blackOrWhiteTextColor(color);
     const radius = depths[index] === 0 ? 58 : depths[index] === 1 ? 44 : 28;
-    return kind === "decision_tree" ? `<div style="position:absolute;left:${x - radius}px;top:${y - radius}px;display:grid;width:${radius * 2}px;height:${radius * 2}px;place-items:center;border-radius:50%;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};text-align:center;font-size:${depths[index] === 2 ? 9 : 11}px;font-weight:${depths[index] === 2 ? 400 : 700};padding:8px;box-sizing:border-box">${escapeHtml(readString(entry.heading) ?? "")}</div>` : `<div style="position:absolute;left:${x - orgChartBoxWidth / 2}px;top:${y - orgChartBoxHeight / 2}px;width:${orgChartBoxWidth}px;height:${orgChartBoxHeight}px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};text-align:center;padding:9px 8px;box-sizing:border-box"><div style="font-size:12px;font-weight:700">${escapeHtml(readString(entry.heading) ?? "")}</div><div style="padding-top:4px;font-size:10px">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
+    return kind === "decision_tree" ? `<div style="position:absolute;left:${x - radius}px;top:${y - radius}px;display:grid;width:${radius * 2}px;height:${radius * 2}px;place-items:center;border-radius:50%;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};text-align:center;font-size:${depths[index] === 2 ? 9 : 11}px;font-weight:${depths[index] === 2 ? 400 : 700};padding:8px;box-sizing:border-box">${escapeHtml(readString(entry.heading) ?? "")}</div>` : `<div style="position:absolute;left:${x - orgChartBoxWidth / 2}px;top:${y - orgChartBoxHeight / 2}px;width:${orgChartBoxWidth}px;height:${orgChartBoxHeight}px;background:${escapeCssColor(color)};color:${escapeCssColor(nodeTextColor)};text-align:center;padding:7px 8px;box-sizing:border-box"><div style="font-size:14px;font-weight:700">${escapeHtml(readString(entry.heading) ?? "")}</div><div style="padding-top:3px;font-size:12px">${escapeHtml(readString(entry.description) ?? "")}</div></div>`;
   }).join("");
   return `<div style="${frameStyle(item, mode, { width: 720, height: 360 })}${transformStyle(item)}overflow:hidden;font-family:Arial,Helvetica,sans-serif"><svg viewBox="0 0 720 360" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0;fill:none;stroke:${dark ? "#e4e4e7" : "#d1d1d1"};stroke-width:2">${connectors}</svg>${nodes}</div>`;
 }
@@ -2130,6 +2048,29 @@ function infographicIconImage(
 
 function infographicTextColor(item: JsonRecord, fallback: string): string {
   return withHash(readString(item.text_color)) ?? fallback;
+}
+
+function infographicItemOffsetValue(item: JsonRecord) {
+  const offset = readRecord(item.__presenton_offset);
+  return {
+    x: readNumber(offset.x) ?? 0,
+    y: readNumber(offset.y) ?? 0,
+  };
+}
+
+function infographicHtmlItem(item: JsonRecord, content: string): string {
+  const offset = infographicItemOffsetValue(item);
+  if (offset.x === 0 && offset.y === 0) return content;
+  return `<div data-presenton-infographic-item="true" style="position:absolute;inset:0;transform:translate(${cssNumber(
+    offset.x,
+  )}px,${cssNumber(offset.y)}px)">${content}</div>`;
+}
+
+function infographicItemTransformStyle(item: JsonRecord): string {
+  const offset = infographicItemOffsetValue(item);
+  return offset.x === 0 && offset.y === 0
+    ? ""
+    : `transform:translate(${cssNumber(offset.x)}px,${cssNumber(offset.y)}px);`;
 }
 
 function mindMapHtmlLayout(count: number, width: number, height: number) {
@@ -2896,6 +2837,7 @@ function infographicKindFromValue(value: string | null): InfographicKind {
     value === "chevron_process" ||
     value === "radial_cycle" ||
     value === "conversion_funnel" ||
+    value === "vertical_funnel" ||
     value === "pyramid" ||
     value === "segmented_wheel" ||
     value === "customer_journey" ||
@@ -3824,10 +3766,6 @@ function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function readStringValueOrNull(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
 function readStringValue(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
 }
@@ -3843,66 +3781,6 @@ function readNumber(value: unknown): number | null {
 
 function readBoolean(value: unknown): boolean {
   return value === true || value === "true" || value === "1";
-}
-
-function readFontWeight(value: unknown): string | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(Math.round(value));
-  }
-  const text = readString(value);
-  if (!text) return undefined;
-  const normalized = text.toLowerCase().replace(/\s+/g, "");
-  const namedWeights: Record<string, string> = {
-    thin: "100",
-    extralight: "200",
-    ultralight: "200",
-    light: "300",
-    regular: "400",
-    normal: "400",
-    medium: "500",
-    semibold: "600",
-    demibold: "600",
-    bold: "700",
-    extrabold: "800",
-    ultrabold: "800",
-    black: "900",
-    heavy: "900",
-  };
-  if (namedWeights[normalized]) return namedWeights[normalized];
-  return /^\d{3}$/.test(normalized) ? normalized : undefined;
-}
-
-function inferFontWeight(value: string): string | undefined {
-  const normalized = decodeFontHint(value).toLowerCase();
-  if (/\b(black|heavy)\b/.test(normalized)) return "900";
-  if (/\b(extra|ultra)[\s_-]?bold\b/.test(normalized)) return "800";
-  if (/\bbold\b/.test(normalized)) return "700";
-  if (/\b(semi|demi)[\s_-]?bold\b/.test(normalized)) return "600";
-  if (/\bmedium\b/.test(normalized)) return "500";
-  if (/\bregular\b|\bnormal\b/.test(normalized)) return "400";
-  if (/\blight\b/.test(normalized)) return "300";
-  if (/\b(extra|ultra)[\s_-]?light\b/.test(normalized)) return "200";
-  if (/\bthin\b/.test(normalized)) return "100";
-  return undefined;
-}
-
-function readFontStyle(value: unknown): string | undefined {
-  const text = readString(value)?.toLowerCase();
-  return text === "italic" || text === "oblique" || text === "normal"
-    ? text
-    : undefined;
-}
-
-function inferFontStyle(value: string): string | undefined {
-  return /\bitalic\b/i.test(decodeFontHint(value)) ? "italic" : undefined;
-}
-
-function decodeFontHint(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
 }
 
 function paddingStyle(padding: JsonRecord): string {
@@ -4088,8 +3966,4 @@ function escapeCssUrl(value: string): string {
     .replaceAll("'", "\\'")
     .replaceAll("\n", "")
     .replaceAll("\r", "");
-}
-
-function isFontStylesheetUrl(url: string): boolean {
-  return /\.css(\?|$)/i.test(url) || /fonts\.googleapis\.com/.test(url);
 }

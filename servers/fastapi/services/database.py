@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, with_loader_criteria
 from sqlmodel import SQLModel
 
 from api.v1.auth.context import get_current_owner_id
-from models.sql.access_token import AccessToken
+from models.sql.api_key import ApiKey
 from models.sql.async_presentation_generation_status import (
     AsyncPresentationGenerationTaskModel,
 )
@@ -146,7 +146,7 @@ async def create_db_and_tables():
                         AsyncPresentationGenerationTaskModel.__table__,
                         OllamaPullStatus.__table__,
                         User.__table__,
-                        AccessToken.__table__,
+                        ApiKey.__table__,
                         ProviderSettings.__table__,
                         PresentonCloudProvider.__table__,
                         GenerationUsageModel.__table__,

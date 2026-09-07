@@ -21,7 +21,6 @@ export interface PresentationData {
   version?: string;
   generation_mode?: "standard" | "smart";
   type?: "standard" | "smart";
-  community_design_ids?: number[] | null;
   components?: any;
   fonts?: any;
   structure?: any;

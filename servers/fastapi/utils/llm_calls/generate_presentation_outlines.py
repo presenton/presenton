@@ -27,6 +27,7 @@ from utils.llm_utils import (
     serialize_structured_content,
     stream_generate_events,
 )
+from utils.outline_limits import LINE_BREAK_TOKEN
 from utils.schema_utils import prepare_schema_for_validation
 from utils.web_search import (
     build_web_search_query,
@@ -38,6 +39,14 @@ from utils.web_search import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+DIRECT_CONTENT_VOICE_RULES = """Content voice rules:
+- Write the content itself, not commentary about the presentation medium.
+- Never refer to "this presentation", "this slide", "this deck", "the following slide", "the previous slide", or similar phrases.
+- Never use meta-introductions such as "this presentation explores", "this slide presents", "we will discuss", "here we show", or equivalent wording.
+- Start directly with the subject, claim, finding, action, or relevant fact.
+- Treat the supplied current date as context only. Do not mention it or begin content with it unless the user explicitly requests the date or it is substantively relevant to the source content.
+"""
 
 
 @dataclass(frozen=True)
@@ -85,10 +94,18 @@ def get_system_prompt(
     toc_block = f"{toc_instruction}\n" if toc_instruction else ""
 
     slide_outline_structure = (
-        "Each slide content:\n"
-        "   - Must have a ## title.\n"
-        # "   - Must have content either in multiple bullet points or table or both.\n"
-        "   - Must be in Markdown format.\n"
+        "Each slide content must be a complete multiline Markdown document.\n"
+        f"Use the literal token `{LINE_BREAK_TOKEN}` wherever the final Markdown requires a line break.\n"
+        "Do not replace the token with spaces or another separator.\n"
+        "After line-break tokens are decoded, each slide content must follow these rules:\n"
+        "   - Its first line must be exactly `## <title>` and contain only the slide title.\n"
+        "   - It must contain at least one non-empty body line after the title.\n"
+        "   - Never put the title and body content in the same segment.\n"
+        f"   - Put `{LINE_BREAK_TOKEN}` between every Markdown block.\n"
+        "   - Every non-empty body line must use explicit Markdown syntax; never return bare text or paragraph lines.\n"
+        "   - Use a suitable Markdown structure: bullet lists, numbered lists, tables, blockquotes, or level-three-or-lower subheadings.\n"
+        "   - The title slide must put presenter, date, and overview below the title rather than appending them to the title line.\n"
+        f"   - Before responding, verify that every slide content contains `{LINE_BREAK_TOKEN}` immediately after its title segment.\n"
         "   - Don't use **bold** and __italic__ text.\n"
         "   - First slide title must be the same as the presentation title."
     )
@@ -119,6 +136,7 @@ def get_system_prompt(
         "If Language is not auto-detect, generate every presentation title and slide "
         "outline in exactly that language, even if Content asks for a different language.\n"
         "Generate flow based on user **content** and use **context** just for reference.\n"
+        f"{DIRECT_CONTENT_VOICE_RULES}\n"
         "Presentation title should be plain text, not markdown. It should be a concise title for the presentation.\n"
         "Each slide content should contain the content for that slide.\n"
         f"Never generate more than {MAX_NUMBER_OF_SLIDES} slide outlines, even if the user asks for more. "

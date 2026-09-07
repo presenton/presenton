@@ -6,25 +6,22 @@ import pytest
 from llmai.shared import (
     AssistantMessage,
     AssistantToolCall,
-    GoogleClientConfig,
     ImageContentPart,
     SystemMessage,
-    ToolResponseMessage,
     UserMessage,
 )
 from pydantic import BaseModel, Field, ValidationError
 
-from templates.v2.generation import (
+from templates.v2.certified_generation import (
     CLUSTER_SIMILAR_COMPONENTS_SYSTEM_PROMPT,
-    CONTENT_ICON_PLACEHOLDER_URL,
-    CONTENT_IMAGE_PLACEHOLDER_URL,
     GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT,
+)
+from templates.v2.generation import (
     _generate_preview_candidate,
     _messages_for_json_repair_retry,
     _messages_for_model_validation_retry,
     _slide_image_content,
     _validate_similarity_groups,
-    generate_slide_layout,
     generate_template,
     merge_similar_components,
 )
@@ -116,67 +113,6 @@ def _generated_layout(layout_id: str = "title_slide") -> dict:
     }
 
 
-def _generated_layout_with_images() -> dict:
-    layout = _generated_layout("image_slide")
-    layout["components"][0]["elements"] = [
-        {
-            "type": "image",
-            "position": {"x": 0, "y": 0},
-            "size": {"width": 320, "height": 180},
-            "decorative": False,
-            "name": "hero_image",
-            "data": "/app_data/images/source-photo.png",
-            "prompt": "Team reviewing dashboard",
-            "is_icon": False,
-        },
-        {
-            "type": "image",
-            "position": {"x": 340, "y": 0},
-            "size": {"width": 48, "height": 48},
-            "decorative": False,
-            "name": "status_icon",
-            "data": "/app_data/icons/source-icon.svg",
-            "prompt": "growth chart",
-            "is_icon": True,
-        },
-        {
-            "type": "image",
-            "position": {"x": 400, "y": 0},
-            "size": {"width": 80, "height": 40},
-            "decorative": True,
-            "name": "logo",
-            "data": "/app_data/images/logo.png",
-            "is_icon": False,
-        },
-        {
-            "type": "group",
-            "position": {"x": 0, "y": 220},
-            "size": {"width": 180, "height": 120},
-            "name": "nested_media",
-            "children": [
-                {
-                    "type": "image",
-                    "position": {"x": 0, "y": 0},
-                    "size": {"width": 180, "height": 120},
-                    "decorative": False,
-                    "name": "nested_image",
-                    "data": "/app_data/images/nested-photo.png",
-                    "is_icon": False,
-                }
-            ],
-        },
-    ]
-    return layout
-
-
-def _contains_key(value, key: str) -> bool:
-    if isinstance(value, dict):
-        return key in value or any(_contains_key(child, key) for child in value.values())
-    if isinstance(value, list):
-        return any(_contains_key(item, key) for item in value)
-    return False
-
-
 def test_template_image_supports_optional_overlay_color():
     image = TemplateImage.model_validate(
         {
@@ -200,211 +136,6 @@ def test_template_image_supports_optional_overlay_color():
 
     assert image.color == "rgba(0, 0, 0, 0.35)"
     assert image_without_overlay.color is None
-
-
-def test_generate_slide_layout_requests_complete_layout(monkeypatch, caplog):
-    preview_tool_call = AssistantToolCall(
-        id="preview-call-1",
-        name="previewSlide",
-        arguments=json.dumps(_generated_layout()),
-    )
-    client = _FakeClient(
-        responses=[
-            _FakeResponse(None, tool_calls=[preview_tool_call]),
-            _FakeResponse(_generated_layout()),
-        ]
-    )
-    monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
-    monkeypatch.setattr("templates.v2.generation.get_llm_config", lambda: {})
-    monkeypatch.setattr("templates.v2.generation.get_model", lambda: "test-model")
-    monkeypatch.setattr(
-        PreviewSlideTool,
-        "render",
-        lambda _self, _layout: ImageContentPart(
-            data=b"rendered-preview",
-            mime_type="image/png",
-        ),
-    )
-    caplog.set_level(logging.INFO, logger="templates.v2.generation")
-
-    result = generate_slide_layout(
-        _raw_layout(),
-        2,
-        "https://example.com/slide-3.png",
-    )
-
-    assert result == SlideLayout.model_validate(_generated_layout())
-    result_element = result.model_dump(mode="json")["components"][0]["elements"][0]
-    assert result_element["decorative"] is False
-    assert "fixed" not in result_element
-    assert len(client.calls) == 2
-    preview_call = client.calls[0]
-    assert isinstance(preview_call["tools"][0], PreviewSlideTool)
-    assert preview_call["tools"][0].input_schema is SlideLayout
-    assert preview_call["tool_choice"] == {
-        "mode": "auto",
-        "tools": ["previewSlide"],
-    }
-    assert preview_call["response_format"].json_schema == slide_layout_llm_json_schema()
-    assert preview_call["response_format"].name == "SlideLayoutResponse"
-    assert "max_tokens" not in preview_call
-    assert preview_call["messages"][0].content == GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
-    user_content = preview_call["messages"][1].content
-    assert user_content[0].url == "https://example.com/slide-3.png"
-    payload = json.loads(user_content[1])
-    assert payload[0]["id"] == "source_slide"
-    assert payload[0]["elements"][0]["runs"][0]["text"] == ("Original title")
-    assert not _contains_key(payload, "decorative")
-
-    final_call = client.calls[1]
-    assert final_call["response_format"].json_schema == slide_layout_llm_json_schema()
-    assert final_call["response_format"].name == "SlideLayoutResponse"
-    assert "max_tokens" not in final_call
-    assert isinstance(final_call["messages"][-2], ToolResponseMessage)
-    feedback = final_call["messages"][-1]
-    assert isinstance(feedback, UserMessage)
-    assert feedback.content[0].data == b"rendered-preview"
-    assert "Review this rendered candidate" in feedback.content[1]
-    messages = [record.getMessage() for record in caplog.records]
-    assert any("slide 3: preview slide called" in message for message in messages)
-    assert any("slide 3: preview slide rendered" in message for message in messages)
-    assert any("slide 3: slide layout JSON returned" in message for message in messages)
-
-
-def test_generate_slide_layout_accepts_direct_schema_response(monkeypatch, caplog):
-    client = _FakeClient(responses=[_FakeResponse(_generated_layout())])
-    monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
-    monkeypatch.setattr("templates.v2.generation.get_llm_config", lambda: {})
-    monkeypatch.setattr("templates.v2.generation.get_model", lambda: "test-model")
-    monkeypatch.setattr(
-        PreviewSlideTool,
-        "render",
-        lambda _self, _layout: pytest.fail("preview should not be rendered"),
-    )
-    caplog.set_level(logging.INFO, logger="templates.v2.generation")
-
-    result = generate_slide_layout(
-        _raw_layout(),
-        0,
-        "https://example.com/slide-1.png",
-    )
-
-    assert result == SlideLayout.model_validate(_generated_layout())
-    assert len(client.calls) == 1
-    call = client.calls[0]
-    assert call["tool_choice"] == {
-        "mode": "auto",
-        "tools": ["previewSlide"],
-    }
-    assert call["response_format"].json_schema == slide_layout_llm_json_schema()
-    assert call["response_format"].name == "SlideLayoutResponse"
-    messages = [record.getMessage() for record in caplog.records]
-    assert any("slide 1: slide layout JSON returned" in message for message in messages)
-
-
-def test_generate_slide_layout_omits_response_format_when_structured_outputs_disabled(
-    monkeypatch,
-):
-    """LLM_STRUCTURED_OUTPUTS=false: no response_format, fenced JSON text parsed."""
-    monkeypatch.setenv("LLM_STRUCTURED_OUTPUTS", "false")
-    client = _FakeClient(
-        responses=[_FakeResponse(f"```json\n{json.dumps(_generated_layout())}\n```")]
-    )
-    monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
-    monkeypatch.setattr("templates.v2.generation.get_llm_config", lambda: {})
-    monkeypatch.setattr("templates.v2.generation.get_model", lambda: "test-model")
-    monkeypatch.setattr(
-        PreviewSlideTool,
-        "render",
-        lambda _self, _layout: pytest.fail("preview should not be rendered"),
-    )
-
-    result = generate_slide_layout(
-        _raw_layout(),
-        0,
-        "https://example.com/slide-1.png",
-    )
-
-    assert result == SlideLayout.model_validate(_generated_layout())
-    assert len(client.calls) == 1
-    assert "response_format" not in client.calls[0]
-
-
-def test_generate_slide_layout_replaces_content_image_urls(monkeypatch):
-    client = _FakeClient(responses=[_FakeResponse(_generated_layout_with_images())])
-    monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
-    monkeypatch.setattr("templates.v2.generation.get_llm_config", lambda: {})
-    monkeypatch.setattr("templates.v2.generation.get_model", lambda: "test-model")
-    monkeypatch.setattr(
-        PreviewSlideTool,
-        "render",
-        lambda _self, _layout: pytest.fail("preview should not be rendered"),
-    )
-
-    result = generate_slide_layout(
-        _raw_layout(),
-        0,
-        "https://example.com/slide-1.png",
-    )
-
-    elements = result.model_dump(mode="json")["components"][0]["elements"]
-    assert elements[0]["data"] == CONTENT_IMAGE_PLACEHOLDER_URL
-    assert elements[0]["fit"] == "cover"
-    assert elements[0]["prompt"] == "Team reviewing dashboard"
-    assert elements[1]["data"] == CONTENT_ICON_PLACEHOLDER_URL
-    assert elements[1]["prompt"] == "growth chart"
-    assert elements[2]["data"] == "/app_data/images/logo.png"
-    assert elements[3]["children"][0]["data"] == CONTENT_IMAGE_PLACEHOLDER_URL
-    assert elements[3]["children"][0]["fit"] == "cover"
-
-
-def test_generate_slide_layout_passes_max_tokens_when_provided(monkeypatch):
-    client = _FakeClient(responses=[_FakeResponse(_generated_layout())])
-    monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
-    monkeypatch.setattr("templates.v2.generation.get_llm_config", lambda: {})
-    monkeypatch.setattr("templates.v2.generation.get_model", lambda: "test-model")
-    monkeypatch.setattr(
-        PreviewSlideTool,
-        "render",
-        lambda _self, _layout: pytest.fail("preview should not be rendered"),
-    )
-
-    result = generate_slide_layout(
-        _raw_layout(),
-        0,
-        "https://example.com/slide-1.png",
-        max_tokens=16000,
-    )
-
-    assert result == SlideLayout.model_validate(_generated_layout())
-    assert client.calls[0]["max_tokens"] == 16000
-
-
-def test_generate_slide_layout_uses_json_schema_response_for_google(monkeypatch):
-    client = _FakeClient(responses=[_FakeResponse(_generated_layout())])
-    monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
-    monkeypatch.setattr(
-        "templates.v2.generation.get_llm_config",
-        lambda: GoogleClientConfig(api_key="test-key"),
-    )
-    monkeypatch.setattr("templates.v2.generation.get_model", lambda: "gemini-test")
-    monkeypatch.setattr(
-        PreviewSlideTool,
-        "render",
-        lambda _self, _layout: pytest.fail("preview should not be rendered"),
-    )
-
-    result = generate_slide_layout(
-        _raw_layout(),
-        0,
-        "https://example.com/slide-1.png",
-    )
-
-    assert result == SlideLayout.model_validate(_generated_layout())
-    call = client.calls[0]
-    assert call["response_format"].json_schema == slide_layout_llm_json_schema()
-    assert call["response_format"].name == "SlideLayoutResponse"
-    assert call["messages"][0].content == GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
 
 
 def test_generate_preview_candidate_returns_last_preview_tool_json(monkeypatch, caplog):
@@ -500,73 +231,6 @@ def test_generate_preview_candidate_preserves_provider_response_messages(monkeyp
     assert follow_up_messages[3].id == "preview-call-1"
     assert follow_up_messages[4].content[0].data == b"rendered-preview"
     assert "Original slide image:" not in follow_up_messages[4].content
-
-
-def test_generate_slide_layout_allows_second_preview_then_returns_final_json(
-    monkeypatch,
-    caplog,
-):
-    first_preview_tool_call = AssistantToolCall(
-        id="preview-call-1",
-        name="previewSlide",
-        arguments=json.dumps(_generated_layout("first_candidate")),
-    )
-    second_preview_tool_call = AssistantToolCall(
-        id="preview-call-2",
-        name="previewSlide",
-        arguments=json.dumps(_generated_layout("second_candidate")),
-    )
-    client = _FakeClient(
-        responses=[
-            _FakeResponse(None, tool_calls=[first_preview_tool_call]),
-            _FakeResponse(None, tool_calls=[second_preview_tool_call]),
-            _FakeResponse(_generated_layout("final_candidate")),
-        ]
-    )
-    render_calls = []
-
-    def fake_render(_self, layout):
-        render_calls.append(layout.id)
-        return ImageContentPart(
-            data=b"rendered-preview",
-            mime_type="image/png",
-        )
-
-    monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
-    monkeypatch.setattr("templates.v2.generation.get_llm_config", lambda: {})
-    monkeypatch.setattr("templates.v2.generation.get_model", lambda: "test-model")
-    monkeypatch.setattr(PreviewSlideTool, "render", fake_render)
-    caplog.set_level(logging.INFO, logger="templates.v2.generation")
-
-    result = generate_slide_layout(
-        _raw_layout(),
-        0,
-        "https://example.com/slide-1.png",
-    )
-
-    assert result == SlideLayout.model_validate(_generated_layout("final_candidate"))
-    assert render_calls == ["first_candidate", "second_candidate"]
-    assert len(client.calls) == 3
-    second_call = client.calls[1]
-    assert isinstance(second_call["messages"][-2], ToolResponseMessage)
-    assert second_call["messages"][-2].id == "preview-call-1"
-    second_feedback = second_call["messages"][-1]
-    assert isinstance(second_feedback, UserMessage)
-    assert second_feedback.content[0].data == b"rendered-preview"
-    assert "one more time" in second_feedback.content[1]
-    third_call = client.calls[2]
-    assert "tools" not in third_call
-    assert "tool_choice" not in third_call
-    assert isinstance(third_call["messages"][-2], ToolResponseMessage)
-    assert third_call["messages"][-2].id == "preview-call-2"
-    final_feedback = third_call["messages"][-1]
-    assert isinstance(final_feedback, UserMessage)
-    assert final_feedback.content[0].data == b"rendered-preview"
-    assert "maximum number of previewSlide calls" in final_feedback.content[1]
-    messages = [record.getMessage() for record in caplog.records]
-    assert any("slide 1: preview slide called" in message for message in messages)
-    assert any("preview_call=2" in message for message in messages)
-    assert any("slide 1: slide layout JSON returned" in message for message in messages)
 
 
 def test_generate_template_generates_each_slide_and_preserves_order(monkeypatch):
@@ -697,7 +361,7 @@ def test_merge_similar_components_clusters_by_global_component_index(monkeypatch
     monkeypatch.setattr("templates.v2.generation.get_client", lambda **_kwargs: client)
     monkeypatch.setattr("templates.v2.generation.get_llm_config", lambda: {})
     monkeypatch.setattr("templates.v2.generation.get_model", lambda: "test-model")
-    caplog.set_level(logging.INFO, logger="templates.v2.generation")
+    caplog.set_level(logging.INFO, logger="templates.v2.certified_generation")
 
     merged = merge_similar_components(layouts)
 
@@ -710,29 +374,20 @@ def test_merge_similar_components_clusters_by_global_component_index(monkeypatch
     assert [variant.id for variant in merged.components[1].variants] == ["metric_grid"]
 
     call = client.calls[0]
-    assert call["response_format"].json_schema.__name__ == "SimilarComponentsList"
+    assert call["response_format"].json_schema["title"] == "SimilarComponentsList"
     assert call["response_format"].name == "SimilarComponentsResponse"
     assert call["messages"][0].content == CLUSTER_SIMILAR_COMPONENTS_SYSTEM_PROMPT
     payload = json.loads(call["messages"][1].content)
-    assert payload == {
-        "components": [
-            {
-                "index": 0,
-                "id": "title_block",
-                "description": ("Reusable prominent title text block for opening slides."),
-            },
-            {
-                "index": 1,
-                "id": "metric_grid",
-                "description": ("Reusable grid presenting several business metrics and labels."),
-            },
-            {
-                "index": 2,
-                "id": "section_heading",
-                "description": ("Reusable prominent heading text block for section slides."),
-            },
-        ]
-    }
+    assert [component["index"] for component in payload["components"]] == [0, 1, 2]
+    assert [component["id"] for component in payload["components"]] == [
+        "title_block",
+        "metric_grid",
+        "section_heading",
+    ]
+    assert all("editable_schema" in component for component in payload["components"])
+    assert all("position" in component for component in payload["components"])
+    assert all("content_bounds" in component for component in payload["components"])
+    assert all("element_hierarchy" in component for component in payload["components"])
     messages = "\n".join(record.getMessage() for record in caplog.records)
     assert "similar_components" not in messages
     assert "schema=SimilarComponentsResponse" in messages
@@ -1021,42 +676,80 @@ def test_slide_layout_does_not_accept_fixed_component_metadata():
         SlideLayout.model_validate(layout)
 
 
-def test_direct_generation_prompt_uses_decorative_element_metadata():
-    assert "Convert the provided raw slide elements to components" in (
+def test_semantic_generation_prompt_uses_reference_only_metadata():
+    assert "return semantic metadata for its existing source elements" in (
         GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
     )
-    assert "# Decorative and Content Element Rules:" in (GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT)
-    assert "`decorative=true`" in GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
-    assert "`decorative=false`" in GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
+    assert "Assign every source index once" in GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
+    assert "decorative=true" in GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
+    assert "decorative=false" in GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
     assert "fixed visual scaffolding" in GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
     assert "connector and branching lines" in GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
+    assert "Component ids must be unique" in GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
     assert "a ring around a replaceable topic icon is decorative" in (
         GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
     )
 
 
-def test_direct_generation_prompt_covers_repeatable_layout_capacity_and_infographics():
-    prompt = GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
+def test_certified_generation_prompts_split_flexible_and_visual_decisions():
+    from templates.v2 import certified_generation
 
-    assert "# Regular Repeatable Region Rules:" in prompt
-    assert "one complete representative child prototype" in prompt
-    assert "# Repeatable Timeline and Staggered Item Rules:" in prompt
-    assert "Order repeated item groups from the center outward" in prompt
-    assert "# Connector and Vector Path Rules:" in prompt
-    assert "# Content Capacity and Min/Max Rules:" in prompt
-    assert "sum(item widths) + sum(gaps)" in prompt
-    assert "An `infographic` renders the graphic only" in prompt
-    assert "valid `data` object" in prompt
-    assert "# Final Layout Self-Check:" in prompt
-    assert "minimum-content state" in prompt
-    assert "Must use `previewSlide` tool at least once" in prompt
+    flexible_prompt = certified_generation.GENERATE_FLEXIBLE_REGIONS_SYSTEM_PROMPT
+    visual_prompt = certified_generation.DETECT_VISUAL_DATA_REGIONS_SYSTEM_PROMPT
+    capacity_prompt = certified_generation.GENERATE_TEXT_CAPACITY_SYSTEM_PROMPT
+
+    assert "repeatable regions" in flexible_prompt
+    assert "one source index per leaf" in flexible_prompt
+    assert "Every flow needs at least two items" in flexible_prompt
+    assert "Collapse one-child helper flows" in flexible_prompt
+    assert "cover component element_indices exactly once" in flexible_prompt
+    assert "Treat group as a fallback only after" in flexible_prompt
+    assert "Never use group merely because items are semantically related" in flexible_prompt
+    assert "If homogeneous direct items share one row or column rule" in flexible_prompt
+    assert "wrapper mode collectively across all sibling items" in flexible_prompt
+    assert "child subflows swap order, mirror sides, or use different offsets" in (
+        flexible_prompt
+    )
+    assert "copy column beside a card or visual cluster" in flexible_prompt
+    assert "complete item group preserve the fixed relation" in flexible_prompt
+    assert "an aligned subsection" in flexible_prompt
+    assert "vertically aligned title and description in a column flow" in flexible_prompt
+    assert "use group only when none fits" in flexible_prompt
+    assert "chart, infographic, table, or text list" in visual_prompt
+    assert "Use kind=infographic for either a complete infographic image" in visual_prompt
+    assert "data.type=progress_bar or data.type=gauge" in visual_prompt
+    assert "metric renderers draw no text" in visual_prompt
+    assert "center value-label color" not in visual_prompt
+    assert "Atomicity is mandatory" in visual_prompt
+    assert "one table or chart becomes exactly one typed replacement" in visual_prompt
+    assert "Never emit table cells, rows, headers, borders" in visual_prompt
+    assert "Never emit or leave any chart internal" in visual_prompt
+    assert "geometrically enclosed sibling elements" in visual_prompt
+    assert "preserve clear padding on all four sides" in visual_prompt
+    assert "derive each value from filled length" in visual_prompt
+    assert "structured table as one atomic editable element" in (
+        certified_generation.GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
+    )
+    assert "structured chart as one atomic editable element" in (
+        certified_generation.GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT
+    )
+    assert "capacity growth" in capacity_prompt.lower()
+    assert "Omit a full no-op" in capacity_prompt
+    assert "left-aligned slide or section title" in capacity_prompt
+    assert "Items entirely below its span do not block" in capacity_prompt
+    assert "callout description should normally get positive bottom_lines" in (
+        capacity_prompt
+    )
+    assert "intersection of safe directions" in capacity_prompt
+    assert "smallest shared positive bottom_lines value" in capacity_prompt
+    assert "previewSlide" not in flexible_prompt
 
 
 def test_component_clustering_prompt_uses_structure_instead_of_example_content():
     prompt = CLUSTER_SIMILAR_COMPONENTS_SYSTEM_PROMPT
 
     assert "same structural role" in prompt
-    assert "Ignore the example content entirely" in prompt
+    assert "Ignore example content" in prompt
     assert "repeated-item arrangement" in prompt
 
 

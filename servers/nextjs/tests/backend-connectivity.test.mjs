@@ -19,7 +19,7 @@ test.before(async () => {
   await writeFile(
     entryFile,
     [
-      `export { assertBackendReachable, BackendConnectionError } from ${JSON.stringify(path.resolve("utils/api.ts"))};`,
+      `export { assertBackendReachable, BackendConnectionError, normalizeBackendAssetUrls, resolveBackendAssetUrl } from ${JSON.stringify(path.resolve("utils/api.ts"))};`,
       `export { clearOllamaModelsCache, isOllamaModelAvailable } from ${JSON.stringify(path.resolve("utils/providerUtils.ts"))};`,
     ].join("\n"),
   );
@@ -41,6 +41,25 @@ test.after(async () => {
   if (temporaryDirectory) {
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
+});
+
+test("Next.js public font URLs are not rewritten as backend assets", () => {
+  const fontUrl =
+    "/vendor/fonts/sans_serif/poppins/Poppins-Regular.ttf";
+
+  assert.equal(connectivity.resolveBackendAssetUrl(fontUrl), fontUrl);
+});
+
+test("font URLs remain unchanged when normalizing a template response", () => {
+  const fontUrl =
+    "/vendor/fonts/sans_serif/poppins/Poppins-Regular.ttf";
+  const response = {
+    fonts: {
+      Poppins: fontUrl,
+    },
+  };
+
+  assert.deepEqual(connectivity.normalizeBackendAssetUrls(response), response);
 });
 
 test("backend reachability accepts a JSON health response", async () => {

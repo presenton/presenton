@@ -2,28 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// Bundled-шрифты апстрима: локальные @font-face для превью слайдов.
+// Electron/Linux in-page renderer и chart-скрипты удалены нашим P12 (2fb34e93) — графики
+// рендерятся скриптами, которые сам template-v2-json-to-html встраивает в HTML слайда.
+import {
+  localFontOptionsFromUnknown,
+  renderLocalFontFaceCss,
+} from "@/components/slide-editor/text/local-fonts";
+
 const SLIDE_WIDTH = 1280;
 const SLIDE_HEIGHT = 720;
 
-function escapeAttribute(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
 function fontAssets(fonts: unknown) {
-  if (!fonts || typeof fonts !== "object" || Array.isArray(fonts)) return "";
-  return Object.entries(fonts as Record<string, unknown>)
-    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
-    .map(([family, url]) => {
-      if (url.includes("fonts.googleapis.com") || url.endsWith(".css")) {
-        return `<link rel="stylesheet" href="${escapeAttribute(url)}">`;
-      }
-      return `<style>@font-face{font-family:'${family.replaceAll("'", "\\'")}';src:url('${url.replaceAll("'", "\\'")}');font-display:swap}</style>`;
-    })
-    .join("\n");
+  const css = localFontOptionsFromUnknown(fonts)
+    .map(renderLocalFontFaceCss)
+    .join("");
+  return css ? `<style>${css.replaceAll("</style", "<\\/style")}</style>` : "";
 }
 
 function previewDocument(html: string, fonts: unknown) {

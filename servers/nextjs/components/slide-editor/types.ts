@@ -55,6 +55,7 @@ export type InfographicType =
   | "chevron_process"
   | "radial_cycle"
   | "conversion_funnel"
+  | "vertical_funnel"
   | "pyramid"
   | "segmented_wheel"
   | "customer_journey"
@@ -182,6 +183,11 @@ export type ConversionFunnelInfographicData = {
   items: ConversionFunnelInfographicItem[];
 };
 
+export type VerticalFunnelInfographicData = {
+  type: "vertical_funnel";
+  items: ConversionFunnelInfographicItem[];
+};
+
 export type PyramidInfographicData = {
   type: "pyramid";
   items: TimelineInfographicItem[];
@@ -280,6 +286,7 @@ export type InfographicData = (
   | TransformationHubInfographicData
   | RiskMatrixInfographicData
   | ConversionFunnelInfographicData
+  | VerticalFunnelInfographicData
   | MindMapInfographicData
 ) & {
   card_color?: string | null;
@@ -474,6 +481,8 @@ export type TextListElement = ElementBase & {
   type: "text-list";
   font?: Font | null;
   marker?: Marker | null;
+  gap?: number | null;
+  marker_gap?: number | null;
   items: TextListItem[];
   max_items?: number | null;
   min_items?: number | null;

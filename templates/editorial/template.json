@@ -33,7 +33,7 @@
     "Playfair Display Bold": "static/Playfair Display Bold Italic.ttf",
     "DM Sans Bold": "static/DM Sans Bold.ttf",
     "DM Sans": "static/DM Sans Regular.ttf",
-    "Playfair Display": "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+    "Playfair Display": "/vendor/fonts/serif/playfairdisplay/PlayfairDisplay[wght].ttf"
   },
   "merged_components": [
     {

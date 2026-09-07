@@ -79,7 +79,7 @@ def test_hydrate_repeated_top_level_groups_maps_items_to_whole_groups():
     assert "applied_title" not in elements[0]
 
 
-def test_hydrate_repeated_top_level_groups_uses_center_out_prefix_for_minimum():
+def test_hydrate_repeated_top_level_groups_centers_reduced_content():
     elements = _repeated_groups()
     content = {
         "timeline": [
@@ -96,6 +96,6 @@ def test_hydrate_repeated_top_level_groups_uses_center_out_prefix_for_minimum():
 
     assert hydrated is not None
     assert [element["name"] for element in hydrated] == [
-        "timeline_4",
         "timeline_5",
+        "timeline_3",
     ]

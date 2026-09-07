@@ -185,7 +185,7 @@ export function OutlineItem({
           id={`outline-item-${index}`}
           className="flex min-w-0 basis-full flex-col gap-[10px]"
         >
-          <p className="flex h-[22px] w-fit items-center rounded-[80px] border border-[#EDEEEF] bg-white px-2.5 font-unbounded text-[10px] font-light tracking-[-0.1px] text-black">
+          <p className="flex h-[22px] w-fit items-center rounded-[80px] border border-[#EDEEEF] bg-white px-2.5 font-syne text-[10px] font-light tracking-[-0.1px] text-black">
             Slide: {index}
           </p>
 

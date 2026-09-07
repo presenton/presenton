@@ -1,13 +1,14 @@
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from enums.async_task_status import AsyncTaskStatus
 from models.sql.async_task import AsyncTaskModel
 from services.database import get_async_session
+from utils.mcp_public_urls import absolute_mcp_result_links
 
 API_V1_ASYNC_TASKS_ROUTER = APIRouter(
     prefix="/api/v1/async-tasks",
@@ -66,10 +67,14 @@ async def list_async_tasks(
     response_model=AsyncTaskModel,
 )
 async def check_async_task_status(
+    request: Request,
     id: str = Path(description="ID of the async task"),
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     task = await sql_session.get(AsyncTaskModel, id)
     if not task:
         raise HTTPException(status_code=404, detail="No async task found")
-    return task
+    response = task.model_dump(mode="python")
+    if task.data:
+        response["data"] = absolute_mcp_result_links(request, task.data)
+    return response

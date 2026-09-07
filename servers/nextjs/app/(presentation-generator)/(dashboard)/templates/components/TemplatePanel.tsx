@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import CreateCustomTemplate from "./CreateCustomTemplate";
 import Link from "next/link";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
@@ -22,9 +23,11 @@ const LayoutPreview = () => {
     defaultTemplates,
     customTemplates,
     processingTemplateTasks,
+    retryTemplateTask,
     loading,
     error,
   } = useTemplateSummaries({ includeProcessingTemplateTasks: true });
+  const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     const requestedTab = new URLSearchParams(window.location.search).get("tab");
@@ -57,13 +60,31 @@ const LayoutPreview = () => {
     setTab(nextTab);
   }, []);
 
+  const handleRetryTemplate = useCallback(
+    async (taskId: string) => {
+      setRetryingTaskId(taskId);
+      try {
+        await retryTemplateTask(taskId);
+        toast.success("Template generation restarted");
+      } catch (error) {
+        toast.error("Could not retry template generation", {
+          description:
+            error instanceof Error ? error.message : "An unexpected error occurred",
+        });
+      } finally {
+        setRetryingTaskId(null);
+      }
+    },
+    [retryTemplateTask]
+  );
+
   const activeTemplates = tab === "default" ? defaultTemplates : customTemplates;
 
   return (
     <div className="min-h-screen relative font-syne">
       <div className="sticky top-0 right-0 z-50 py-[28px] px-6 backdrop-blur">
         <div className="flex xl:flex-row flex-col gap-6 xl:gap-0 items-center justify-between">
-          <h3 className="text-[28px] tracking-[-0.84px] font-unbounded font-normal text-[#101828] flex items-center gap-2">
+          <h3 className="text-[28px] tracking-[-0.84px] font-syne font-normal text-[#101828] flex items-center gap-2">
             Templates
           </h3>
           <div className="flex gap-2.5 max-sm:w-full max-md:justify-center max-sm:flex-wrap">
@@ -98,7 +119,12 @@ const LayoutPreview = () => {
             <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               <CreateCustomTemplate />
               {processingTemplateTasks.map((task) => (
-                <ProcessingTemplateListCard key={task.id} task={task} />
+                <ProcessingTemplateListCard
+                  key={task.id}
+                  task={task}
+                  retrying={retryingTaskId === task.id}
+                  onRetry={() => void handleRetryTemplate(task.id)}
+                />
               ))}
               {customTemplates.map((template) => (
                 <TemplateListCard

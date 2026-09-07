@@ -247,6 +247,9 @@ class TextList(BaseModel):  # Konva Group
     rotation: float | None = None
     font: Font | None = None
     marker: Marker | None = None
+    # gap/marker_gap — новый апстримовый контроль отступов списков
+    gap: float | None = None
+    marker_gap: float | None = None
     items: list[list[TextRunValue]]
 
     # Schema
@@ -328,6 +331,8 @@ class Chart(BaseModel):
     title: str | None = None
     title_color: str | None = None
     legend_color: str | None = None
+    # text_color — новая апстримовая настройка цвета текста диаграммы
+    text_color: str | None = None
 
     # PPTX chart model emitted by the template-v2 converter.
     colors: list[str] | None = None
@@ -412,6 +417,7 @@ class InfographicType(str, Enum):
     CHEVRON_PROCESS = "chevron_process"
     RADIAL_CYCLE = "radial_cycle"
     CONVERSION_FUNNEL = "conversion_funnel"
+    VERTICAL_FUNNEL = "vertical_funnel"
     PYRAMID = "pyramid"
     SEGMENTED_WHEEL = "segmented_wheel"
     CUSTOMER_JOURNEY = "customer_journey"
@@ -424,17 +430,33 @@ class InfographicType(str, Enum):
 
 
 class ProgressBarInfographicData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["progress_bar"]
     max_value: float
     min_value: float
     value: float
 
+    @model_validator(mode="after")
+    def _validate_range(self) -> ProgressBarInfographicData:
+        if self.max_value <= self.min_value:
+            raise ValueError("max_value must be greater than min_value")
+        return self
+
 
 class GaugeInfographicData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["gauge"]
     max_value: float
     min_value: float
     value: float
+
+    @model_validator(mode="after")
+    def _validate_range(self) -> GaugeInfographicData:
+        if self.max_value <= self.min_value:
+            raise ValueError("max_value must be greater than min_value")
+        return self
 
 
 StructuralInfographicType = Literal[
@@ -453,6 +475,7 @@ StructuralInfographicType = Literal[
     "chevron_process",
     "radial_cycle",
     "conversion_funnel",
+    "vertical_funnel",
     "pyramid",
     "segmented_wheel",
     "customer_journey",
@@ -481,15 +504,20 @@ class StructuralInfographicData(BaseModel):
         return normalize_infographic_data(infographic_type, value)  # type: ignore[arg-type]
 
 
+InfographicData = Annotated[
+    ProgressBarInfographicData | GaugeInfographicData | StructuralInfographicData,
+    Field(discriminator="type"),
+]
+
+
 class Infographic(BaseModel):
     type: Literal["infographic"]
     position: Position | None = None
     size: Size | None = None
     rotation: float | None = None
-    data: Annotated[
-        ProgressBarInfographicData | GaugeInfographicData | StructuralInfographicData,
-        Field(discriminator="type"),
-    ]
+    # Инфографика из каталога (StructuralInfographicData extra="allow")
+    # покрывает и старые типы progress_bar/gauge — единый union апстрима.
+    data: InfographicData
 
     # Design
     colors: list[str] = Field(default_factory=list)
@@ -587,6 +615,7 @@ __all__ = [
     "ImageFit",
     "IconType",
     "Infographic",
+    "InfographicData",
     "InfographicType",
     "GaugeInfographicData",
     "LayoutAlignment",

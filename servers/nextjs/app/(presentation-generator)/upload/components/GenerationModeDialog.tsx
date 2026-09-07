@@ -3,8 +3,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-
-export type GenerationMode = "standard" | "smart";
+import type { GenerationMode } from "@/utils/presentationGenerationMode";
 
 type GenerationModeDialogProps = {
   open: boolean;

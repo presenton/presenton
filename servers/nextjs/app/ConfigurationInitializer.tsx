@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { setCanChangeKeys, setLLMConfig } from '@/store/slices/userConfig';
 import { hasValidLLMConfig, normalizeLLMConfig } from '@/utils/storeHelpers';
 import { usePathname, useRouter } from 'next/navigation';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 import { isOllamaModelAvailable } from '@/utils/providerUtils';
 import { LLMConfig } from '@/types/llm_config';
 import {
@@ -48,6 +49,9 @@ function ConfigurationLoadingScreen() {
 
 export function ConfigurationInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
+  const canChangeKeys = useSelector(
+    (state: RootState) => state.userConfig.can_change_keys
+  );
 
   const route = usePathname();
   const shouldShowStartupSplash = !route?.startsWith("/pdf-maker");
@@ -82,19 +86,31 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
     let selectedProvider: string | undefined;
     const revalidateProviderConfiguration = async () => {
       try {
-        const configResponse = await fetch('/api/user-config', {
-          cache: 'no-store',
-        });
+        const configResponse = await fetch(
+          canChangeKeys ? '/api/user-config' : '/api/runtime-config',
+          {
+            cache: 'no-store',
+          }
+        );
         if (!configResponse.ok) {
           await assertBackendReachable();
-          throw new Error(`user-config returned ${configResponse.status}`);
+          throw new Error(`provider config returned ${configResponse.status}`);
         }
 
-        const config = normalizeLLMConfig(await configResponse.json());
+        const payload = await configResponse.json();
+        const config = normalizeLLMConfig(
+          canChangeKeys ? payload : (payload.config || {})
+        );
+        const isConfigured = canChangeKeys
+          ? hasValidLLMConfig(config)
+          : Boolean(payload.configured);
         selectedProvider = config.LLM;
         dispatch(setLLMConfig(config));
 
-        if (!hasValidLLMConfig(config)) {
+        // A regular user's runtime config intentionally contains redacted
+        // credentials. Trust the server-side validity result instead of
+        // trying to validate secrets that the browser is not allowed to see.
+        if (!isConfigured) {
           if (!cancelled) {
             notify.warning(
               "Provider setup required",
@@ -155,7 +171,7 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
     return () => {
       cancelled = true;
     };
-  }, [dispatch, isSettingsRoute, route, router]);
+  }, [canChangeKeys, dispatch, isSettingsRoute, route, router]);
 
   useEffect(() => {
     if (!shouldShowStartupSplash) {

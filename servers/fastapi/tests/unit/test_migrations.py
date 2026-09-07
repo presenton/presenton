@@ -75,6 +75,9 @@ def test_upgrade_from_baseline_stamp_skips_existing_theme_column(tmp_path):
         assert "theme" in columns
         assert "fonts" in columns
         assert "async_tasks" in tables
+        assert "api_keys" in tables
+        assert "access_tokens" not in tables
+        assert "mcp_credentials" not in tables
         assert "presenton_oauth_identity" not in tables
         assert "presenton_cloud_provider" in tables
         assert "access_token_encrypted" in provider_columns
@@ -800,8 +803,44 @@ def test_upgrade_from_previous_head_adds_template_v2_theme(tmp_path):
         engine.dispose()
 
 
+def test_upgrade_from_template_v2_theme_adds_unified_keys_and_task_payload(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'async-task-payload.db'}"
+    engine = create_engine(database_url)
+    try:
+        config = _alembic_config(database_url)
+        command.upgrade(config, migrations.REVISION_TEMPLATE_V2_THEME)
+        command.upgrade(config, "head")
+
+        with engine.connect() as connection:
+            version = connection.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar_one()
+            async_task_columns = {
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(async_tasks)"))
+            }
+            tables = {
+                row[0]
+                for row in connection.execute(
+                    text("SELECT name FROM sqlite_master WHERE type = 'table'")
+                )
+            }
+
+        assert version == migrations.REVISION_HEAD
+        assert "payload" in async_task_columns
+        assert "api_keys" in tables
+        assert "access_tokens" not in tables
+    finally:
+        engine.dispose()
+
+
 def test_upgrade_from_theme_revision_adds_generation_quota(tmp_path):
-    """Миграция P4: таблица generation_usage + колонка user.generation_limit."""
+    """Миграция P4: таблица generation_usage + колонка user.generation_limit.
+
+    Покрывает последовательные ревизии e4c7a9b2d6f1 → 026c0ba8b35c
+    (UNIFIED_API_KEYS, апстрим) → d5e6f7a8b9c2 (GENERATION_QUOTA, наша,
+    REVISION_HEAD): сначала применяются обе, затем проверяется наша.
+    """
     database_url = f"sqlite:///{tmp_path / 'generation-quota.db'}"
     engine = create_engine(database_url)
     try:

@@ -9,19 +9,27 @@ from typing import Any
 from .schema import get_repeated_top_level_group_schema_name
 
 
+def repeated_child_source_index(
+    index: int,
+    *,
+    template_count: int,
+    content_count: int,
+    center_when_reduced: bool,
+) -> int:
+    """Return the template child used for a repeated content item."""
+    if center_when_reduced and content_count < template_count:
+        start = (template_count - content_count) // 2
+        return start + index
+    return min(index, template_count - 1)
+
+
 def hydrate_repeated_top_level_groups(
     elements: list[Any],
     content: Any,
     *,
     apply_item: Callable[[dict[str, Any], Any], dict[str, Any]],
 ) -> list[Any] | None:
-    """Map one generated array item to each complete positioned group.
-
-    Repeated top-level groups are one schema array even though each source group
-    can have different positions and decorative connector geometry. Hydrating
-    the array at the child level would discard the first item and duplicate the
-    content child inside every positioned group.
-    """
+    """Map one generated array item to each complete positioned group."""
     if not isinstance(content, dict):
         return None
 
@@ -35,7 +43,13 @@ def hydrate_repeated_top_level_groups(
 
     hydrated: list[Any] = []
     for index, value in enumerate(values):
-        source = copy.deepcopy(elements[min(index, len(elements) - 1)])
+        source_index = repeated_child_source_index(
+            index,
+            template_count=len(elements),
+            content_count=len(values),
+            center_when_reduced=True,
+        )
+        source = copy.deepcopy(elements[source_index])
         if not isinstance(source, dict):
             return None
         hydrated.append(apply_item(source, value))

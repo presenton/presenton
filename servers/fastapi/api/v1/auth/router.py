@@ -15,14 +15,12 @@ from api.v1.auth.config import (
 )
 from api.v1.auth.presenton_oauth import PRESENTON_OAUTH_ROUTER
 from api.v1.auth.principal import resolve_request_principal
-from api.v1.auth.rate_limit import LOGIN_RATE_LIMITER, login_rate_limit_key
 from api.v1.auth.schemas import (
     AuthCredentialsRequest,
     LoginCredentialsRequest,
     TelegramAuthRequest,
 )
 from api.v1.auth.telegram import InitDataError, parse_and_verify_init_data
-from api.v1.auth.token import TOKEN_ROUTER
 from api.v1.auth.users import (
     PASSWORD_HELPER,
     get_jwt_strategy,
@@ -38,7 +36,6 @@ from utils.get_env import (
 )
 
 API_V1_AUTH_ROUTER = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
-API_V1_AUTH_ROUTER.include_router(TOKEN_ROUTER)
 API_V1_AUTH_ROUTER.include_router(PRESENTON_OAUTH_ROUTER)
 
 
@@ -196,36 +193,21 @@ async def login(
     if not await _account_count(session):
         raise HTTPException(status_code=428, detail="Login setup is required")
     username = normalize_username(body.username)
-    rate_limit_key = login_rate_limit_key(
-        _login_client_host(request),
-        username,
-    )
-    retry_after = await LOGIN_RATE_LIMITER.retry_after(rate_limit_key)
-    if retry_after is not None:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many failed login attempts. Please try again later.",
-            headers={"Retry-After": str(retry_after)},
-        )
     user = await session.scalar(
         select(User).where(func.lower(User.username) == username.casefold())
     )
     if user is None or not user.is_active:
         PASSWORD_HELPER.hash(body.password)
-        await LOGIN_RATE_LIMITER.record_failure(rate_limit_key)
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     verified, replacement_hash = PASSWORD_HELPER.verify_and_update(
         body.password, user.hashed_password
     )
     if not verified:
-        await LOGIN_RATE_LIMITER.record_failure(rate_limit_key)
         raise HTTPException(status_code=401, detail="Unauthorized")
     if replacement_hash:
         user.hashed_password = replacement_hash
         await session.commit()
-    await LOGIN_RATE_LIMITER.clear(rate_limit_key)
-
     token = await get_jwt_strategy().write_token(user)
     response = JSONResponse(
         {

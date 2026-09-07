@@ -96,3 +96,14 @@ def test_ollama_accepts_selected_available_experimental_model(monkeypatch):
     monkeypatch.setattr(model_availability, "list_available_ollama_models", list_models)
 
     asyncio.run(check_llm_and_image_provider_api_or_model_availability())
+
+
+def test_custom_provider_does_not_require_model_catalog_membership(monkeypatch):
+    """A stale or incomplete /v1/models catalog must not crash startup."""
+    monkeypatch.setenv("CAN_CHANGE_KEYS", "false")
+    monkeypatch.setenv("LLM", "custom")
+    monkeypatch.setenv("CUSTOM_LLM_URL", "http://custom-provider:8080/v1")
+    monkeypatch.setenv("CUSTOM_MODEL", "model-not-advertised-by-provider")
+    monkeypatch.setenv("DISABLE_IMAGE_GENERATION", "true")
+
+    asyncio.run(check_llm_and_image_provider_api_or_model_availability())

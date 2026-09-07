@@ -1,6 +1,8 @@
 from starlette.requests import Request
 
 from api.v1.auth.config import SESSION_COOKIE_NAME
+
+# Наш вариант имени с подчёркиванием — как выбрано в files.py/presentation.py.
 from api.v1.ppt.endpoints.presentation import _build_export_cookie_header
 
 

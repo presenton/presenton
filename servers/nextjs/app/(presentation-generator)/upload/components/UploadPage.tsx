@@ -33,13 +33,12 @@ import {
   clampSlideCountValue,
   parseLimitedSlideCount,
 } from "@/utils/presentationLimits";
-import CommunityReferencePicker from "./CommunityReferencePicker";
 import {
-  CommunityPresentationApi,
-  type CommunityPresentation,
-} from "../../services/api/community";
-
-type GenerationMode = "smart" | "standard";
+  type GenerationMode,
+  type PresentationGenerationMode,
+  getInitialGenerationMode,
+  isGenerationModeAvailable,
+} from "@/utils/presentationGenerationMode";
 
 const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 const FILE_TYPE_WORD = new Set([".doc", ".docx", ".docm", ".odt", ".rtf"]);
@@ -137,16 +136,20 @@ const getDocumentPaths = (files: unknown): string[] => {
     .filter((filePath): filePath is string => typeof filePath === "string");
 };
 
-const UploadPage = () => {
+type UploadPageProps = {
+  presentationGenerationMode: PresentationGenerationMode;
+};
+
+const UploadPage = ({ presentationGenerationMode }: UploadPageProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useDispatch();
   const llmConfig = useSelector((state: RootState) => state.userConfig.llm_config);
 
   const [files, setFiles] = useState<File[]>([]);
-  const [generationMode, setGenerationMode] = useState<GenerationMode>("standard");
-  const [communityReference, setCommunityReference] =
-    useState<CommunityPresentation | null>(null);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>(() =>
+    getInitialGenerationMode(presentationGenerationMode),
+  );
   const [config, setConfig] = useState<PresentationConfig>({
     slides: null,
     language: LanguageType.Auto,
@@ -162,39 +165,20 @@ const UploadPage = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedPrompt = params.get("prompt")?.trim();
-    const requestedCommunityId = Number(params.get("communityId"));
-    let active = true;
 
-    if (params.get("mode") === "smart") {
-      setGenerationMode("smart");
+    const requestedMode = params.get("mode");
+    if (
+      (requestedMode === "standard" || requestedMode === "smart") &&
+      isGenerationModeAvailable(presentationGenerationMode, requestedMode)
+    ) {
+      setGenerationMode(requestedMode);
+    } else {
+      setGenerationMode(getInitialGenerationMode(presentationGenerationMode));
     }
     if (requestedPrompt) {
       setConfig((current) => ({ ...current, prompt: requestedPrompt }));
     }
-    if (Number.isSafeInteger(requestedCommunityId) && requestedCommunityId > 0) {
-      CommunityPresentationApi.getById(requestedCommunityId)
-        .then((presentation) => {
-          if (!active) return;
-          setCommunityReference(presentation);
-          trackEvent(MixpanelEvent.Smart_Mode_Reference_Selected, {
-            pathname,
-            reference_id: presentation.id,
-            source: "url_parameter",
-          });
-        })
-        .catch((loadError) => {
-          if (!active) return;
-          notify.error(
-            "Could not select the community design",
-            loadError instanceof Error ? loadError.message : undefined
-          );
-        });
-    }
-
-    return () => {
-      active = false;
-    };
-  }, [pathname]);
+  }, [pathname, presentationGenerationMode]);
 
   useEffect(() => {
     if (llmConfig?.WEB_GROUNDING !== undefined) {
@@ -232,7 +216,6 @@ const UploadPage = () => {
       include_title_slide: !!config.includeTitleSlide,
       web_search: !!config.webSearch,
       generation_mode: generationMode,
-      community_reference_id: communityReference?.id ?? null,
       has_prompt: Boolean(trimmedPrompt),
       prompt_char_count: trimmedPrompt.length,
       prompt_word_count: trimmedPrompt ? trimmedPrompt.split(/\s+/).filter(Boolean).length : 0,
@@ -265,6 +248,7 @@ const UploadPage = () => {
   };
 
   const handleGenerationModeChange = (mode: GenerationMode) => {
+    if (!isGenerationModeAvailable(presentationGenerationMode, mode)) return;
     if (mode === generationMode) return;
     const previousMode = generationMode;
     setGenerationMode(mode);
@@ -284,30 +268,6 @@ const UploadPage = () => {
 
     const params = new URLSearchParams({ id: presentationId });
     return `/outline?${params.toString()}`;
-  };
-
-  const handleCommunityReferenceChange = (
-    presentation: CommunityPresentation | null,
-    source: "community_picker" | "prompt_reference"
-  ) => {
-    const previousReferenceId = communityReference?.id ?? null;
-    setCommunityReference(presentation);
-    if (presentation) {
-      trackEvent(MixpanelEvent.Smart_Mode_Reference_Selected, {
-        pathname,
-        reference_id: presentation.id,
-        previous_reference_id: previousReferenceId,
-        source,
-      });
-      return;
-    }
-    if (previousReferenceId !== null) {
-      trackEvent(MixpanelEvent.Smart_Mode_Reference_Removed, {
-        pathname,
-        reference_id: previousReferenceId,
-        source,
-      });
-    }
   };
 
   const ensureStockImageProviderReady = async (): Promise<boolean> => {
@@ -358,15 +318,11 @@ const UploadPage = () => {
       return false;
     }
 
-    if (
-      !config.prompt.trim() &&
-      files.length === 0 &&
-      !(generationMode === "smart" && communityReference)
-    ) {
+    if (!config.prompt.trim() && files.length === 0) {
       trackUploadValidationFailure("prompt_or_document_missing");
       notify.warning(
         "Input required",
-        "Provide a prompt, upload a document, or select a community reference."
+        "Provide a prompt or upload a document."
       );
       return false;
     }
@@ -465,10 +421,6 @@ const UploadPage = () => {
       include_title_slide: !!config?.includeTitleSlide,
       web_search: !!config?.webSearch,
       generation_mode: generationMode,
-      community_design_ids:
-        generationMode === "smart" && communityReference
-          ? [communityReference.id]
-          : undefined,
     });
 
     dispatch(setPptGenUploadState({
@@ -528,10 +480,6 @@ const UploadPage = () => {
       include_title_slide: !!config?.includeTitleSlide,
       web_search: !!config?.webSearch,
       generation_mode: generationMode,
-      community_design_ids:
-        generationMode === "smart" && communityReference
-          ? [communityReference.id]
-          : undefined,
     });
 
     dispatch(setPptGenUploadState({
@@ -584,11 +532,7 @@ const UploadPage = () => {
         duration={loadingState.duration}
         extra_info={loadingState.extra_info}
       />
-      <div
-        className={`mx-auto max-w-[760px] space-y-[18px] px-4 lg:max-w-[780px] xl:max-w-[900px] min-[1600px]:max-w-[1050px] min-[1920px]:max-w-[1280px] ${
-          generationMode === "smart" ? "mb-[75px]" : "mb-8"
-        }`}
-      >
+      <div className="mx-auto mb-8 max-w-[760px] space-y-[18px] px-4 lg:max-w-[780px] xl:max-w-[900px] min-[1600px]:max-w-[1050px] min-[1920px]:max-w-[1280px]">
         <div className="flex min-h-[34px] w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <CurrentConfig webSearchEnabled={config.webSearch} />
@@ -596,7 +540,11 @@ const UploadPage = () => {
           <ConfigurationSelects
             compact
             mode={generationMode}
-            onModeChange={handleGenerationModeChange}
+            onModeChange={
+              presentationGenerationMode === "both"
+                ? handleGenerationModeChange
+                : undefined
+            }
             config={config}
             onConfigChange={handleConfigChange}
           />
@@ -604,15 +552,7 @@ const UploadPage = () => {
 
         <PromptInput
           value={config.prompt}
-          variant={generationMode}
-          references={
-            generationMode === "smart" && communityReference
-              ? [{ id: String(communityReference.id), label: communityReference.title || "Community design" }]
-              : []
-          }
-          onRemoveReference={() =>
-            handleCommunityReferenceChange(null, "prompt_reference")
-          }
+         
           onChange={(value) => handleConfigChange("prompt", value)}
           onSubmit={handleGeneratePresentation}
           hasAttachments={files.length > 0}
@@ -627,17 +567,6 @@ const UploadPage = () => {
         />
 
       </div>
-
-      {generationMode === "smart" && (
-        <div className="px-4 sm:px-6">
-          <CommunityReferencePicker
-            selectedId={communityReference?.id ?? null}
-            onSelect={(presentation) =>
-              handleCommunityReferenceChange(presentation, "community_picker")
-            }
-          />
-        </div>
-      )}
     </Wrapper>
   );
 };

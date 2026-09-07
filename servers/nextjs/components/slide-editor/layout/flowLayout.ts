@@ -1,5 +1,6 @@
 import {
   displayText,
+  measureNoWrapTextWidth,
   rawFont,
   rawTextContent,
 } from "@/components/slide-editor/text/template-v2-text";
@@ -562,11 +563,7 @@ function intrinsicTextMainSize(
 }
 
 function estimateTextWidth(text: string, font: ReturnType<typeof rawFont>) {
-  const longestLine = text
-    .split(/\r?\n/)
-    .reduce((longest, line) => Math.max(longest, line.length), 0);
-  const weight = font.bold ? 0.56 : TEXT_AVERAGE_CHAR_EM;
-  return Math.max(font.size, longestLine * font.size * weight);
+  return Math.max(font.size, measureNoWrapTextWidth(text, font));
 }
 
 function estimateTextHeight(

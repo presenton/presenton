@@ -34,3 +34,22 @@ class GeneratePresentationRequest(BaseModel):
     include_title_slide: bool = Field(default=True, description="Whether to include a title slide")
     files: list[str] | None = Field(default=None, description="Files to use for the presentation")
     export_as: Literal["pptx", "pdf"] = Field(default="pptx", description="Export format")
+
+
+class GenerateSmartPresentationRequest(BaseModel):
+    content: str = Field(default="", description="Prompt for the presentation")
+    n_slides: int | None = Field(default=None, ge=1)
+    language: str | None = None
+    instructions: str | None = None
+    tone: Tone = Tone.DEFAULT
+    verbosity: Verbosity = Verbosity.STANDARD
+    web_search: bool = False
+    include_table_of_contents: bool = False
+    include_title_slide: bool = True
+    files: list[str] | None = Field(
+        default=None,
+        description="Previously uploaded Presenton file paths",
+    )
+    community_design_ids: list[int] | None = None
+    export_as: Literal["pptx", "pdf"] = "pptx"
+

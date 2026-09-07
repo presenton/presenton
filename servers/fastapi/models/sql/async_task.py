@@ -31,6 +31,11 @@ class AsyncTaskModel(SQLModel, table=True):
     message: str | None = None
     error: dict[str, Any] | None = Field(sa_column=Column(JSON), default=None)
     data: dict[str, Any] | None = Field(sa_column=Column(JSON), default=None)
+    payload: dict[str, Any] | None = Field(
+        default=None,
+        exclude=True,
+        sa_column=Column(JSON, nullable=True),
+    )
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),

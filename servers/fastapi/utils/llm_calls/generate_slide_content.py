@@ -1,5 +1,7 @@
 import json
+from copy import deepcopy
 from datetime import datetime
+from typing import Any
 
 from llmai import get_client
 from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
@@ -95,6 +97,89 @@ English
 """
 
 ASSET_ONLY_FIELDS = ["__image_url__", "__icon_url__"]
+
+# Апстрим: мягкие лимиты слов в промпте — цель по 0.8 от жёсткого потолка
+# схемы, чтобы провайдер не подрезал текст у самой границы.
+SLIDE_CONTENT_LENGTH_RATIO = 0.8
+
+SLIDE_CONTENT_LENGTH_RULES = """
+
+# Character Budget Rules
+Treat the maximum shown for every field as an absolute ceiling, counting spaces and punctuation. When minimum and maximum are equal, aim for that exact count; however, if an exact count would require a clipped word, invented abbreviation, padding, repetition, or unsupported fact, use a shorter natural value instead. Never exceed the maximum.
+
+For targets below 10 characters, use a complete familiar word or source-supported label. For longer fields, rephrase with complete natural wording. Before returning JSON, silently check every constrained string and shorten any value over its ceiling. Never invent numbers or measurements.
+"""
+
+
+def _scale_string_length_constraints(
+    value: Any,
+    *,
+    markdown_targets: bool = False,
+    remove_min_length: bool = False,
+    remove_max_length: bool = False,
+) -> Any:
+    if isinstance(value, dict):
+        scaled = {
+            key: _scale_string_length_constraints(
+                item,
+                markdown_targets=markdown_targets,
+                remove_min_length=remove_min_length,
+                remove_max_length=remove_max_length,
+            )
+            for key, item in value.items()
+        }
+        if scaled.get("type") != "string":
+            return scaled
+
+        minimum = scaled.get("minLength")
+        if isinstance(minimum, int):
+            if remove_min_length:
+                scaled.pop("minLength", None)
+            else:
+                scaled["minLength"] = max(
+                    1, int(minimum * SLIDE_CONTENT_LENGTH_RATIO)
+                )
+
+        maximum = scaled.get("maxLength")
+        if isinstance(maximum, int):
+            soft_maximum = max(1, int(maximum * SLIDE_CONTENT_LENGTH_RATIO))
+            if remove_max_length:
+                scaled.pop("maxLength", None)
+            else:
+                scaled["maxLength"] = soft_maximum
+                if markdown_targets:
+                    scaled["minLength"] = soft_maximum
+        return scaled
+
+    if isinstance(value, list):
+        return [
+            _scale_string_length_constraints(
+                item,
+                markdown_targets=markdown_targets,
+                remove_min_length=remove_min_length,
+                remove_max_length=remove_max_length,
+            )
+            for item in value
+        ]
+
+    return deepcopy(value)
+
+
+def build_slide_content_schemas(response_schema: dict) -> tuple[dict, dict, dict]:
+    prompt_schema = _scale_string_length_constraints(
+        response_schema,
+        markdown_targets=True,
+    )
+    provider_schema = _scale_string_length_constraints(
+        response_schema,
+        remove_max_length=True,
+    )
+    validation_schema = _scale_string_length_constraints(
+        provider_schema,
+        remove_min_length=True,
+        remove_max_length=True,
+    )
+    return prompt_schema, provider_schema, validation_schema
 
 
 _MAX_SCHEMA_DESCRIPTION_LINES = 60
@@ -236,13 +321,14 @@ def get_system_prompt(
 
     output_fields_instructions = "# Output Fields:\n" + _get_schema_markdown(response_schema)
 
-    return SLIDE_CONTENT_SYSTEM_PROMPT.format(
+    system_prompt = SLIDE_CONTENT_SYSTEM_PROMPT.format(
         markdown_emphasis_rules=markdown_emphasis_rules,
         user_instructions=user_instructions,
         tone_instructions=tone_instructions,
         verbosity_instructions=verbosity_instructions,
         output_fields_instructions=output_fields_instructions,
     )
+    return system_prompt + SLIDE_CONTENT_LENGTH_RULES
 
 
 def _get_slide_number_section(slide_number: int | None) -> str:
@@ -352,14 +438,18 @@ async def get_slide_content_from_type_and_outline(
     if response_schema is None:
         return {}
 
+    prompt_schema, provider_schema, validation_schema = build_slide_content_schemas(
+        response_schema
+    )
+
     client = get_client(config=get_llm_config())
     model = get_model()
 
     try:
         response_format = JSONSchemaResponse(
             name="response",
-            json_schema=response_schema,
-            strict=False,
+            json_schema=provider_schema,
+            strict=True,
         )
         messages = get_messages(
             outline.content,
@@ -367,7 +457,7 @@ async def get_slide_content_from_type_and_outline(
             tone,
             verbosity,
             instructions,
-            response_schema,
+            prompt_schema,
             slide_number=slide_number,
         )
 
@@ -376,7 +466,7 @@ async def get_slide_content_from_type_and_outline(
             model,
             messages=messages,
             response_format=response_format,
-            json_schema=response_schema,
+            json_schema=validation_schema,
             strict=False,
             validate_schema=True,
             content_validator=_content_validator(response_schema, language),

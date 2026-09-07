@@ -822,6 +822,8 @@ function adaptTextList(raw: UnknownRecord): SlideElement {
     type: "text-list",
     font,
     marker,
+    gap: clampOptional(readNumber(raw, "gap"), 0, 720),
+    marker_gap: clampOptional(readNumber(raw, "marker_gap"), 0, 720),
     items: adaptTextListItems(readArray(raw, "items")),
     max_items: readNumber(raw, "max_items"),
     min_items: readNumber(raw, "min_items"),
@@ -1047,6 +1049,7 @@ function adaptInfographic(raw: UnknownRecord): SlideElement {
         "chevron_process",
         "radial_cycle",
         "conversion_funnel",
+        "vertical_funnel",
         "pyramid",
         "segmented_wheel",
         "customer_journey",
@@ -1079,6 +1082,7 @@ function adaptInfographic(raw: UnknownRecord): SlideElement {
         "chevron_process",
         "radial_cycle",
         "conversion_funnel",
+        "vertical_funnel",
         "pyramid",
         "segmented_wheel",
         "customer_journey",
@@ -1149,6 +1153,7 @@ function adaptInfographicData(
     | "chevron_process"
     | "radial_cycle"
     | "conversion_funnel"
+    | "vertical_funnel"
     | "pyramid"
     | "segmented_wheel"
     | "customer_journey"
@@ -1271,7 +1276,7 @@ function adaptInfographicData(
     return { type, center_label: truncateString(readString(data.center_label) ?? "RISK", 4), items: defaults.map((heading, index) => items[index] ?? { heading }) };
   }
 
-  if (type === "conversion_funnel") {
+  if (type === "conversion_funnel" || type === "vertical_funnel") {
     const items = readArray(data, "items")
       .map(asRecord)
       .filter((item): item is UnknownRecord => Boolean(item))

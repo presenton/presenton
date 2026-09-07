@@ -1,21 +1,21 @@
 import asyncio
+import json
 import os
 import re
 import struct
 import tempfile
-import urllib
 import xml.etree.ElementTree as ET
 import zipfile
 from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
 
-import aiohttp
 from fontTools.ttLib import TTFont
 from pptx import Presentation
 from pydantic import BaseModel
 
 DEFAULT_GOOGLE_FONT_WEIGHTS = (400, 700)
+STATIC_FONT_CATALOG_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts.json"
 PPT_NS = {
     "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
     "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
@@ -157,42 +157,35 @@ def normalize_font_family_name(raw_name: str) -> str:
     return normalized
 
 
+@lru_cache(maxsize=1)
+def get_static_font_catalog() -> dict[str, tuple[str, str]]:
+    """Return normalized family names mapped to packaged font names and URLs."""
+    with STATIC_FONT_CATALOG_PATH.open(encoding="utf-8") as font_file:
+        raw_catalog = json.load(font_file)
+    catalog: dict[str, tuple[str, str]] = {}
+    for item in raw_catalog:
+        family = str(item.get("font_name") or "").strip()
+        url = str(item.get("font_url") or "").strip()
+        normalized = normalize_font_family_name(family).casefold()
+        if family and url and normalized:
+            catalog[normalized] = (family, url)
+    return catalog
+
+
+def get_static_font_url(font_name: str) -> str | None:
+    """Resolve a font family to its same-origin packaged asset URL."""
+    normalized = normalize_font_family_name(font_name).casefold()
+    entry = get_static_font_catalog().get(normalized)
+    return entry[1] if entry else None
+
+
 def build_google_fonts_stylesheet_url(
     family_name: str,
     weights: Sequence[int] | None = DEFAULT_GOOGLE_FONT_WEIGHTS,
     variants: Sequence[str] | None = None,
 ) -> str:
-    encoded_family = urllib.parse.quote_plus(family_name)
-    requested_variants = set(variants or [])
-    requested_weights = set(weights or [])
-    if requested_variants:
-        requested_weights = {400}
-        if "bold" in requested_variants or "bold_italic" in requested_variants:
-            requested_weights.add(700)
-    if requested_weights:
-        normalized_weights = sorted(
-            {int(weight) for weight in requested_weights if int(weight) > 0}
-        )
-        if "italic" in requested_variants or "bold_italic" in requested_variants:
-            italic_weights = set()
-            if "italic" in requested_variants:
-                italic_weights.add(400)
-            if "bold_italic" in requested_variants:
-                italic_weights.add(700)
-            weights_param = ";".join(
-                [*(f"0,{weight}" for weight in normalized_weights)]
-                + [*(f"1,{weight}" for weight in sorted(italic_weights))]
-            )
-            return (
-                "https://fonts.googleapis.com/css2"
-                f"?family={encoded_family}:ital,wght@{weights_param}&display=swap"
-            )
-        weight_selector = ";".join(str(weight) for weight in normalized_weights)
-        return (
-            "https://fonts.googleapis.com/css2"
-            f"?family={encoded_family}:wght@{weight_selector}&display=swap"
-        )
-    return f"https://fonts.googleapis.com/css2?family={encoded_family}&display=swap"
+    del weights, variants
+    return get_static_font_url(family_name) or ""
 
 
 def _resolve_theme_typeface(
@@ -259,54 +252,20 @@ def extract_fonts_from_oxml(xml_content: str) -> list[str]:
         return []
 
 
-# Helper: Fetch TTF/OTF file URLs for a Google Fonts family via Webfonts Developer API
+# Обратная совместимость: имя сохранено, но теперь шрифты берутся
+# из локально упакованного каталога (bundled fonts), без обращений к Google.
 async def get_google_font_file_urls(family_name: str, api_key: str) -> list[str]:
-    encoded_family = urllib.parse.quote_plus(family_name)
-    api_url = (
-        f"https://www.googleapis.com/webfonts/v1/webfonts?family={encoded_family}&key={api_key}"
-    )
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=20)) as resp:
-                if resp.status != 200:
-                    return []
-                data = await resp.json()
-                items = data.get("items", []) or []
-                if not items:
-                    return []
-                urls: list[str] = []
-                # Take first matching family
-                files = (items[0] or {}).get("files", {}) or {}
-                for _variant, url in files.items():
-                    if not url:
-                        continue
-                    # Prefer directly loadable TTF/OTF files; upgrade to https.
-                    fixed_url = url.replace("http://", "https://")
-                    lower = fixed_url.lower()
-                    if lower.endswith(".ttf") or lower.endswith(".otf"):
-                        urls.append(fixed_url)
-                return urls
-    except Exception:
-        return []
+    del api_key
+    font_url = get_static_font_url(family_name)
+    return [font_url] if font_url else []
 
 
 async def check_google_font_availability(
     font_name: str, variants: Sequence[str] | None = None
 ) -> bool:
-    """Return True when Google Fonts serves the requested family/variants."""
-    try:
-        url = build_google_fonts_stylesheet_url(font_name, variants=variants)
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
-                if response.status != 200:
-                    return False
-                css = await response.text()
-                if "@font-face" not in css:
-                    return False
-                return "fonts.gstatic.com/l/font?kit=" not in css
-    except Exception as exc:
-        print(f"Error checking Google Font availability for {font_name}: {exc}")
-        return False
+    """Return True when the requested family exists in the packaged catalog."""
+    del variants
+    return get_static_font_url(font_name) is not None
 
 
 def extract_raw_fonts_and_embedded_details(
@@ -877,32 +836,17 @@ async def get_available_and_unavailable_fonts_for_pptx(
             continue
         fonts_to_check.setdefault(normalized_name, set()).add(variant)
 
-    availability_results: list[bool] = []
-    if fonts_to_check:
-        availability_results = await asyncio.gather(
-            *[
-                check_google_font_availability(
-                    font,
-                    variants=normalize_font_variants(variants),
-                )
-                for font, variants in sorted(fonts_to_check.items())
-            ]
-        )
-
     available_fonts: list[FontAvailability] = []
     unavailable_fonts: list[FontAvailability] = []
 
     for (_normalized_name, variant), (font_name, font_url) in sorted(found_fonts_with_url.items()):
         available_fonts.append((font_name, font_url, [variant]))
 
-    for (font, variants), is_available in zip(sorted(fonts_to_check.items()), availability_results):
+    for font, variants in sorted(fonts_to_check.items()):
         normalized_font_variants = normalize_font_variants(variants)
-        if is_available:
-            google_fonts_url = build_google_fonts_stylesheet_url(
-                font,
-                variants=normalized_font_variants,
-            )
-            available_fonts.append((font, google_fonts_url, normalized_font_variants))
+        static_font_url = get_static_font_url(font)
+        if static_font_url:
+            available_fonts.append((font, static_font_url, normalized_font_variants))
         else:
             unavailable_fonts.append((font, None, normalized_font_variants))
 

@@ -23,12 +23,12 @@ const NumberOfSlide = ({ value, onValueChange }: { value: string, onValueChange:
     return (
         <Select value={value || ""} onValueChange={onValueChange} name="slides">
             <SelectTrigger
-                className="w-[180px] font-instrument_sans font-medium bg-blue-100 border-blue-200 focus-visible:ring-blue-300"
+                className="w-[180px] font-manrope font-medium bg-blue-100 border-blue-200 focus-visible:ring-blue-300"
                 data-testid="slides-select"
             >
                 <SelectValue placeholder="Select Slides" />
             </SelectTrigger>
-            <SelectContent className="font-instrument_sans">
+            <SelectContent className="font-manrope">
                 {/* Sticky custom input at the top */}
                 <div
                     className="sticky top-0 z-10 bg-white  p-2 border-b"
@@ -74,7 +74,7 @@ const NumberOfSlide = ({ value, onValueChange }: { value: string, onValueChange:
                     <SelectItem
                         key={option}
                         value={option}
-                        className="font-instrument_sans text-sm font-medium"
+                        className="font-manrope text-sm font-medium"
                         role="option"
                     >
                         {option} slides

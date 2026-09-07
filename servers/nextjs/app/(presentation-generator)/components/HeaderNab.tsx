@@ -23,7 +23,7 @@ const HeaderNav = () => {
         onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/dashboard" })}
       >
         <LayoutDashboard className="w-5 h-5" />
-        <span className="text-sm font-medium font-inter">
+        <span className="text-sm font-medium font-manrope">
           Dashboard
         </span>
       </Link>
@@ -36,7 +36,7 @@ const HeaderNav = () => {
           onClick={() => trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/settings" })}
         >
           <Settings className="w-5 h-5" />
-          <span className="text-sm font-medium font-inter">
+          <span className="text-sm font-medium font-manrope">
             Settings
           </span>
         </Link>

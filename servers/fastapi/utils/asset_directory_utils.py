@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from api.v1.auth.assets import (
@@ -17,7 +18,8 @@ from utils.path_helpers import get_resource_path
 
 
 def _owned_directory(root_name: str) -> str:
-    directory = os.path.join(get_app_data_directory_env(), root_name)
+    app_data_directory = get_app_data_directory_env() or "/tmp/presenton"
+    directory = os.path.join(app_data_directory, root_name)
     owner_id = get_current_owner_id()
     if owner_id is not None:
         directory = os.path.join(directory, "users", str(owner_id))
@@ -99,7 +101,8 @@ def resolve_app_path_to_filesystem(path_or_url: str) -> str | None:
     Resolve an app-served path or URL to an actual filesystem path.
 
     Handles:
-    - Path strings: /app_data/images/..., /static/..., absolute paths, relative
+    - Path strings: /app_data/images/..., /static/..., /vendor/fonts/...,
+      absolute paths, relative
     - file:// URLs returned by export runtimes
         - HTTP URLs whose path component is an absolute filesystem path:
       When img src is /Users/.../images/xxx.png, browser resolves to
@@ -130,6 +133,16 @@ def resolve_app_path_to_filesystem(path_or_url: str) -> str | None:
         relative = path[len("/static/") :]
         static_root = get_resource_path("static")
         return _existing_file_within(os.path.join(static_root, relative), static_root)
+
+    if path.startswith("/vendor/fonts/"):
+        relative = path.lstrip("/")
+        nextjs_public_root = (
+            Path(__file__).resolve().parents[2] / "nextjs" / "public"
+        )
+        return _existing_file_within(
+            os.path.join(nextjs_public_root, relative),
+            str(nextjs_public_root),
+        )
 
     if os.path.isabs(path):
         return _resolve_allowed_absolute_file(path)

@@ -406,7 +406,7 @@
               "rotation": 0,
               "font": {
                 "size": 64,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.84,
                 "letter_spacing": -1.6
@@ -419,7 +419,7 @@
                   "text": "Pitch Deck",
                   "font": {
                     "size": 64,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.84,
                     "letter_spacing": -1.6
@@ -444,7 +444,7 @@
               "rotation": 0,
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.28
               },
@@ -456,7 +456,7 @@
                   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.28
                   }
@@ -489,7 +489,7 @@
               },
               "font": {
                 "size": 56,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.84
               },
@@ -502,7 +502,7 @@
                   "text": "Meet OurTeam",
                   "font": {
                     "size": 56,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.84
                   }
@@ -525,7 +525,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.44
               },
@@ -538,7 +538,7 @@
                   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.44
                   }
@@ -571,7 +571,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -584,7 +584,7 @@
                   "text": "Our Impact in Numbers",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -651,7 +651,7 @@
                   },
                   "font": {
                     "size": 20,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   },
@@ -664,7 +664,7 @@
                       "text": "Proven Results\nThrough Data",
                       "font": {
                         "size": 20,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       }
@@ -690,7 +690,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.44
               },
@@ -703,7 +703,7 @@
                   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.44
                   }
@@ -828,7 +828,7 @@
                   "rotation": 0,
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   },
@@ -840,7 +840,7 @@
                       "text": "John Doe",
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       }
@@ -864,7 +864,7 @@
                   "rotation": 0,
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   },
@@ -876,7 +876,7 @@
                       "text": "Jan 1, 2025",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       }
@@ -919,7 +919,7 @@
               "rotation": 0,
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -931,7 +931,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -1028,7 +1028,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -1041,7 +1041,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -1129,7 +1129,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -1142,7 +1142,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -1238,7 +1238,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -1251,7 +1251,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -1350,7 +1350,7 @@
                   },
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   },
@@ -1363,7 +1363,7 @@
                       "text": "www.yourwebsite.com",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       }
@@ -1468,7 +1468,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -1481,7 +1481,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -1541,7 +1541,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -1554,7 +1554,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -1656,7 +1656,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -1668,7 +1668,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -1771,7 +1771,7 @@
               },
               "font": {
                 "size": 56,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.84
               },
@@ -1784,7 +1784,7 @@
                   "text": "Our Infographic",
                   "font": {
                     "size": 56,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.84
                   }
@@ -1807,7 +1807,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 1.2
               },
@@ -1820,7 +1820,7 @@
                   "text": "Lorem ipsum dolor sit amet,",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   }
@@ -1843,7 +1843,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.28
               },
@@ -1856,7 +1856,7 @@
                   "text": "Concise paragraph describing context. Keep it short and readable across one or two lines.",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.28
                   }
@@ -1969,7 +1969,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -1982,7 +1982,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -2005,7 +2005,7 @@
                       },
                       "font": {
                         "size": 13,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -2018,7 +2018,7 @@
                           "text": "Concise supporting text under the first icon explaining the point.",
                           "font": {
                             "size": 13,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -2102,7 +2102,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -2115,7 +2115,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -2138,7 +2138,7 @@
                       },
                       "font": {
                         "size": 13,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -2151,7 +2151,7 @@
                           "text": "Concise supporting text under the second icon explaining the point.",
                           "font": {
                             "size": 13,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -2235,7 +2235,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -2248,7 +2248,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -2271,7 +2271,7 @@
                       },
                       "font": {
                         "size": 13,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -2284,7 +2284,7 @@
                           "text": "Concise supporting text under the third icon explaining the point.",
                           "font": {
                             "size": 13,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -2368,7 +2368,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -2381,7 +2381,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -2404,7 +2404,7 @@
                       },
                       "font": {
                         "size": 13,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -2417,7 +2417,7 @@
                           "text": "Concise supporting text under the fourth icon explaining the point.",
                           "font": {
                             "size": 13,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -2576,7 +2576,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -2589,7 +2589,7 @@
                           "text": "Customizable Workflows",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -2612,7 +2612,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -2625,7 +2625,7 @@
                           "text": "Lorem ipsum dolor sit amet, dolor sit amet.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -2752,7 +2752,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -2765,7 +2765,7 @@
                           "text": "Multi-Device Access",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -2788,7 +2788,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -2801,7 +2801,7 @@
                           "text": "Lorem ipsum dolor sit amet.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -2928,7 +2928,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -2941,7 +2941,7 @@
                           "text": "Scalable Architecture",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -2964,7 +2964,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -2977,7 +2977,7 @@
                           "text": "Lorem ipsum dolor sit amet.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -3104,7 +3104,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -3117,7 +3117,7 @@
                           "text": "Detailed Reports",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -3140,7 +3140,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -3153,7 +3153,7 @@
                           "text": "Lorem ipsum dolor sit amet.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -3308,7 +3308,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -3321,7 +3321,7 @@
                   "text": "Key Product Features",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -3344,7 +3344,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -3357,7 +3357,7 @@
                   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -3442,7 +3442,7 @@
                   },
                   "font": {
                     "size": 56,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.84
                   },
@@ -3455,7 +3455,7 @@
                       "text": "Our Commitment",
                       "font": {
                         "size": 56,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.84
                       }
@@ -3478,7 +3478,7 @@
                   },
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.44
                   },
@@ -3491,7 +3491,7 @@
                       "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       }
@@ -3527,7 +3527,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -3540,7 +3540,7 @@
                   "text": "Table of Contents",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -3621,7 +3621,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -3634,7 +3634,7 @@
                   "text": "Data Table or Chart",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -3657,7 +3657,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -3670,7 +3670,7 @@
                   "text": "Present structured information in a flexible table or visualize it with a chart.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -4338,7 +4338,7 @@
                       },
                       "font": {
                         "size": 20,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -4351,7 +4351,7 @@
                           "text": "Sample Title",
                           "font": {
                             "size": 20,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -4374,7 +4374,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -4387,7 +4387,7 @@
                           "text": "Short description for the image or item.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -4475,7 +4475,7 @@
                       },
                       "font": {
                         "size": 20,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -4488,7 +4488,7 @@
                           "text": "Another Item",
                           "font": {
                             "size": 20,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -4511,7 +4511,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -4524,7 +4524,7 @@
                           "text": "Concise supporting text.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -4612,7 +4612,7 @@
                       },
                       "font": {
                         "size": 20,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -4625,7 +4625,7 @@
                           "text": "Third Item",
                           "font": {
                             "size": 20,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -4648,7 +4648,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -4661,7 +4661,7 @@
                           "text": "Concise supporting text.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -4708,7 +4708,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -4721,7 +4721,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -4823,7 +4823,7 @@
                       },
                       "font": {
                         "size": 40,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -4836,7 +4836,7 @@
                           "text": "10K+",
                           "font": {
                             "size": 40,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -4859,7 +4859,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -4872,7 +4872,7 @@
                           "text": "Total\nUsers",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -4895,7 +4895,7 @@
                       },
                       "font": {
                         "size": 12,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -4908,7 +4908,7 @@
                           "text": "active users across multiple industries",
                           "font": {
                             "size": 12,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -4981,7 +4981,7 @@
                       },
                       "font": {
                         "size": 40,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -4994,7 +4994,7 @@
                           "text": "150%",
                           "font": {
                             "size": 40,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -5017,7 +5017,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -5030,7 +5030,7 @@
                           "text": "Revenue\nGrowth",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -5053,7 +5053,7 @@
                       },
                       "font": {
                         "size": 12,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -5066,7 +5066,7 @@
                           "text": "year-over-year revenue growth",
                           "font": {
                             "size": 12,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -5139,7 +5139,7 @@
                       },
                       "font": {
                         "size": 40,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -5152,7 +5152,7 @@
                           "text": "95%",
                           "font": {
                             "size": 40,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -5175,7 +5175,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -5188,7 +5188,7 @@
                           "text": "Customer\nSatisfaction",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -5211,7 +5211,7 @@
                       },
                       "font": {
                         "size": 12,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -5224,7 +5224,7 @@
                           "text": "retention rate with an average rating of 4.8/5",
                           "font": {
                             "size": 12,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -5327,7 +5327,7 @@
                       },
                       "font": {
                         "size": 24,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -5340,7 +5340,7 @@
                           "text": "Your Title Here",
                           "font": {
                             "size": 24,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -5363,7 +5363,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       },
@@ -5376,7 +5376,7 @@
                           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.44
                           }
@@ -5409,7 +5409,7 @@
                       },
                       "font": {
                         "size": 24,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -5422,7 +5422,7 @@
                           "text": "Your Title Here",
                           "font": {
                             "size": 24,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -5445,7 +5445,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       },
@@ -5458,7 +5458,7 @@
                           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.44
                           }
@@ -5491,7 +5491,7 @@
                       },
                       "font": {
                         "size": 24,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -5504,7 +5504,7 @@
                           "text": "Your Title Here",
                           "font": {
                             "size": 24,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -5527,7 +5527,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       },
@@ -5540,7 +5540,7 @@
                           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.44
                           }
@@ -5573,7 +5573,7 @@
                       },
                       "font": {
                         "size": 24,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -5586,7 +5586,7 @@
                           "text": "Your Title Here",
                           "font": {
                             "size": 24,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -5609,7 +5609,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       },
@@ -5622,7 +5622,7 @@
                           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.44
                           }
@@ -5693,7 +5693,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -5706,7 +5706,7 @@
                           "text": "01",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -5729,7 +5729,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -5742,7 +5742,7 @@
                           "text": "Introduction",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -5765,7 +5765,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -5778,7 +5778,7 @@
                           "text": "A brief description of our company and goals.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -5838,7 +5838,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -5851,7 +5851,7 @@
                           "text": "02",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -5874,7 +5874,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -5887,7 +5887,7 @@
                           "text": "Our Team",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -5910,7 +5910,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -5923,7 +5923,7 @@
                           "text": "Leadership and core contributors.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -5983,7 +5983,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -5996,7 +5996,7 @@
                           "text": "03",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -6019,7 +6019,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -6032,7 +6032,7 @@
                           "text": "Timeline",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -6055,7 +6055,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -6068,7 +6068,7 @@
                           "text": "High-level execution plan and milestones.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -6128,7 +6128,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -6141,7 +6141,7 @@
                           "text": "04",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -6164,7 +6164,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -6177,7 +6177,7 @@
                           "text": "Recommendations",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -6200,7 +6200,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -6213,7 +6213,7 @@
                           "text": "Key suggestions based on initial requirements.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -6273,7 +6273,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -6286,7 +6286,7 @@
                           "text": "05",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -6309,7 +6309,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -6322,7 +6322,7 @@
                           "text": "Solution",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -6345,7 +6345,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -6358,7 +6358,7 @@
                           "text": "What we propose and why it works.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -6418,7 +6418,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -6431,7 +6431,7 @@
                           "text": "06",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -6454,7 +6454,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -6467,7 +6467,7 @@
                           "text": "Market",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -6490,7 +6490,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -6503,7 +6503,7 @@
                           "text": "Audience, segments, and opportunity size.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -6563,7 +6563,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -6576,7 +6576,7 @@
                           "text": "07",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -6599,7 +6599,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -6612,7 +6612,7 @@
                           "text": "Business Model",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -6635,7 +6635,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -6648,7 +6648,7 @@
                           "text": "How we create and capture value.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -6708,7 +6708,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -6721,7 +6721,7 @@
                           "text": "08",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -6744,7 +6744,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -6757,7 +6757,7 @@
                           "text": "Conclusion",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -6780,7 +6780,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -6793,7 +6793,7 @@
                           "text": "Closing notes and next steps.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -6853,7 +6853,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -6866,7 +6866,7 @@
                           "text": "09",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -6889,7 +6889,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -6902,7 +6902,7 @@
                           "text": "Business Model",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -6925,7 +6925,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -6938,7 +6938,7 @@
                           "text": "How we create and capture value.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -6998,7 +6998,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -7011,7 +7011,7 @@
                           "text": "10",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -7034,7 +7034,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -7047,7 +7047,7 @@
                           "text": "Conclusion",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -7070,7 +7070,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -7083,7 +7083,7 @@
                           "text": "Closing notes and next steps.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -7196,7 +7196,7 @@
                   },
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2,
                     "opacity": 0
@@ -7207,7 +7207,7 @@
                       "text": "Column 1",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2,
                         "opacity": 0
@@ -7222,7 +7222,7 @@
                   },
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2,
                     "opacity": 0
@@ -7233,7 +7233,7 @@
                       "text": "Column 2",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2,
                         "opacity": 0
@@ -7248,7 +7248,7 @@
                   },
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2,
                     "opacity": 0
@@ -7259,7 +7259,7 @@
                       "text": "Column 3",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2,
                         "opacity": 0
@@ -7277,7 +7277,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7288,7 +7288,7 @@
                         "text": "Row A",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7303,7 +7303,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7314,7 +7314,7 @@
                         "text": "✓",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7329,7 +7329,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7340,7 +7340,7 @@
                         "text": "-",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7357,7 +7357,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7368,7 +7368,7 @@
                         "text": "Row B",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7383,7 +7383,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7394,7 +7394,7 @@
                         "text": "Text",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7409,7 +7409,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7420,7 +7420,7 @@
                         "text": "123",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7437,7 +7437,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7448,7 +7448,7 @@
                         "text": "Row C",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7463,7 +7463,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7474,7 +7474,7 @@
                         "text": "More text",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7489,7 +7489,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -7500,7 +7500,7 @@
                         "text": "456",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -7603,7 +7603,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 1.2
               },
@@ -7616,7 +7616,7 @@
                   "text": "Column 1",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   }
@@ -7639,7 +7639,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 1.2
               },
@@ -7652,7 +7652,7 @@
                   "text": "Column 2",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   }
@@ -7675,7 +7675,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 1.2
               },
@@ -7688,7 +7688,7 @@
                   "text": "Column 3",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   }
@@ -7711,7 +7711,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -7724,7 +7724,7 @@
                   "text": "Row A",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -7747,7 +7747,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -7760,7 +7760,7 @@
                   "text": "-",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -7783,7 +7783,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -7796,7 +7796,7 @@
                   "text": "Row B",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -7819,7 +7819,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -7832,7 +7832,7 @@
                   "text": "Text",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -7855,7 +7855,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -7868,7 +7868,7 @@
                   "text": "123",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -7891,7 +7891,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -7904,7 +7904,7 @@
                   "text": "Row C",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -7927,7 +7927,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -7940,7 +7940,7 @@
                   "text": "More text",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -7963,7 +7963,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -7976,7 +7976,7 @@
                   "text": "456",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -8015,7 +8015,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -8027,7 +8027,7 @@
                   "text": "Our Journey at a Glance",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -8071,7 +8071,7 @@
                 "type": "text",
                 "font": {
                   "size": 16,
-                  "family": "Albert Sans",
+                  "family": "Inter",
                   "color": "#6B7280",
                   "line_height": 1.2
                 },
@@ -8084,7 +8084,7 @@
                     "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                     "font": {
                       "size": 16,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2
                     }
@@ -8202,7 +8202,7 @@
                         "type": "text",
                         "font": {
                           "size": 16,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#FFFFFF",
                           "line_height": 1.2
                         },
@@ -8215,7 +8215,7 @@
                             "text": "2018",
                             "font": {
                               "size": 16,
-                              "family": "Albert Sans",
+                              "family": "Inter",
                               "color": "#FFFFFF",
                               "line_height": 1.2
                             }
@@ -8372,7 +8372,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -8384,7 +8384,7 @@
                           "text": "Founded in 2020",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -8407,7 +8407,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       },
@@ -8419,7 +8419,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.2
                           }
@@ -8477,7 +8477,7 @@
                         "type": "text",
                         "font": {
                           "size": 16,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#FFFFFF",
                           "line_height": 1.2
                         },
@@ -8490,7 +8490,7 @@
                             "text": "2019",
                             "font": {
                               "size": 16,
-                              "family": "Albert Sans",
+                              "family": "Inter",
                               "color": "#FFFFFF",
                               "line_height": 1.2
                             }
@@ -8647,7 +8647,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -8659,7 +8659,7 @@
                           "text": "First Product in 2021",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -8682,7 +8682,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       },
@@ -8694,7 +8694,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.2
                           }
@@ -8752,7 +8752,7 @@
                         "type": "text",
                         "font": {
                           "size": 16,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#FFFFFF",
                           "line_height": 1.2
                         },
@@ -8765,7 +8765,7 @@
                             "text": "2020",
                             "font": {
                               "size": 16,
-                              "family": "Albert Sans",
+                              "family": "Inter",
                               "color": "#FFFFFF",
                               "line_height": 1.2
                             }
@@ -8922,7 +8922,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -8934,7 +8934,7 @@
                           "text": "Key Milestone in 2022",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -8957,7 +8957,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       },
@@ -8969,7 +8969,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.2
                           }
@@ -9027,7 +9027,7 @@
                         "type": "text",
                         "font": {
                           "size": 16,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#FFFFFF",
                           "line_height": 1.2
                         },
@@ -9040,7 +9040,7 @@
                             "text": "2021",
                             "font": {
                               "size": 16,
-                              "family": "Albert Sans",
+                              "family": "Inter",
                               "color": "#FFFFFF",
                               "line_height": 1.2
                             }
@@ -9197,7 +9197,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -9209,7 +9209,7 @@
                           "text": "Global Expansion in 2024",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -9232,7 +9232,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       },
@@ -9244,7 +9244,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.2
                           }
@@ -9515,7 +9515,7 @@
               "rotation": 0,
               "font": {
                 "size": 64,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.84,
                 "letter_spacing": -1.6
@@ -9528,7 +9528,7 @@
                   "text": "Pitch Deck",
                   "font": {
                     "size": 64,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.84,
                     "letter_spacing": -1.6
@@ -9553,7 +9553,7 @@
               "rotation": 0,
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.28
               },
@@ -9565,7 +9565,7 @@
                   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.28
                   }
@@ -9684,7 +9684,7 @@
                   "rotation": 0,
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   },
@@ -9696,7 +9696,7 @@
                       "text": "John Doe",
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       }
@@ -9720,7 +9720,7 @@
                   "rotation": 0,
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   },
@@ -9732,7 +9732,7 @@
                       "text": "Jan 1, 2025",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       }
@@ -9769,7 +9769,7 @@
               "rotation": 0,
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -9781,7 +9781,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -9955,7 +9955,7 @@
               },
               "font": {
                 "size": 56,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.84
               },
@@ -9968,7 +9968,7 @@
                   "text": "Our Infographic",
                   "font": {
                     "size": 56,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.84
                   }
@@ -9991,7 +9991,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 1.2
               },
@@ -10004,7 +10004,7 @@
                   "text": "Lorem ipsum dolor sit amet,",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   }
@@ -10027,7 +10027,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.28
               },
@@ -10040,7 +10040,7 @@
                   "text": "Concise paragraph describing context. Keep it short and readable across one or two lines.",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.28
                   }
@@ -10147,7 +10147,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -10160,7 +10160,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -10183,7 +10183,7 @@
                       },
                       "font": {
                         "size": 13,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -10196,7 +10196,7 @@
                           "text": "Concise supporting text under the first icon explaining the point.",
                           "font": {
                             "size": 13,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -10280,7 +10280,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -10293,7 +10293,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -10316,7 +10316,7 @@
                       },
                       "font": {
                         "size": 13,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -10329,7 +10329,7 @@
                           "text": "Concise supporting text under the second icon explaining the point.",
                           "font": {
                             "size": 13,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -10413,7 +10413,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -10426,7 +10426,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -10449,7 +10449,7 @@
                       },
                       "font": {
                         "size": 13,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -10462,7 +10462,7 @@
                           "text": "Concise supporting text under the third icon explaining the point.",
                           "font": {
                             "size": 13,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -10546,7 +10546,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -10559,7 +10559,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -10582,7 +10582,7 @@
                       },
                       "font": {
                         "size": 13,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -10595,7 +10595,7 @@
                           "text": "Concise supporting text under the fourth icon explaining the point.",
                           "font": {
                             "size": 13,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -10636,7 +10636,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -10649,7 +10649,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -10845,7 +10845,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -10858,7 +10858,7 @@
                   "text": "Key Product Features",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -10881,7 +10881,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -10894,7 +10894,7 @@
                   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -11045,7 +11045,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -11058,7 +11058,7 @@
                           "text": "Customizable Workflows",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -11081,7 +11081,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -11094,7 +11094,7 @@
                           "text": "Lorem ipsum dolor sit amet, dolor sit amet.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -11221,7 +11221,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -11234,7 +11234,7 @@
                           "text": "Multi-Device Access",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -11257,7 +11257,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -11270,7 +11270,7 @@
                           "text": "Lorem ipsum dolor sit amet.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -11397,7 +11397,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -11410,7 +11410,7 @@
                           "text": "Scalable Architecture",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -11433,7 +11433,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -11446,7 +11446,7 @@
                           "text": "Lorem ipsum dolor sit amet.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -11573,7 +11573,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -11586,7 +11586,7 @@
                           "text": "Detailed Reports",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -11609,7 +11609,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -11622,7 +11622,7 @@
                           "text": "Lorem ipsum dolor sit amet.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -11663,7 +11663,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -11676,7 +11676,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -11904,7 +11904,7 @@
               },
               "font": {
                 "size": 56,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.84
               },
@@ -11917,7 +11917,7 @@
                   "text": "Meet OurTeam",
                   "font": {
                     "size": 56,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.84
                   }
@@ -11940,7 +11940,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.44
               },
@@ -11953,7 +11953,7 @@
                   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.44
                   }
@@ -12060,7 +12060,7 @@
                       },
                       "font": {
                         "size": 20,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -12073,7 +12073,7 @@
                           "text": "Sample Title",
                           "font": {
                             "size": 20,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -12096,7 +12096,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -12109,7 +12109,7 @@
                           "text": "Short description for the image or item.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -12197,7 +12197,7 @@
                       },
                       "font": {
                         "size": 20,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -12210,7 +12210,7 @@
                           "text": "Another Item",
                           "font": {
                             "size": 20,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -12233,7 +12233,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -12246,7 +12246,7 @@
                           "text": "Concise supporting text.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -12334,7 +12334,7 @@
                       },
                       "font": {
                         "size": 20,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -12347,7 +12347,7 @@
                           "text": "Third Item",
                           "font": {
                             "size": 20,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -12370,7 +12370,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.36
                       },
@@ -12383,7 +12383,7 @@
                           "text": "Concise supporting text.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.36
                           }
@@ -12424,7 +12424,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -12437,7 +12437,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -12591,7 +12591,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -12604,7 +12604,7 @@
                   "text": "Our Impact in Numbers",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -12671,7 +12671,7 @@
                   },
                   "font": {
                     "size": 20,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   },
@@ -12684,7 +12684,7 @@
                       "text": "Proven Results\nThrough Data",
                       "font": {
                         "size": 20,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       }
@@ -12710,7 +12710,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.44
               },
@@ -12723,7 +12723,7 @@
                   "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.44
                   }
@@ -12819,7 +12819,7 @@
                       },
                       "font": {
                         "size": 40,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -12832,7 +12832,7 @@
                           "text": "10K+",
                           "font": {
                             "size": 40,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -12855,7 +12855,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -12868,7 +12868,7 @@
                           "text": "Total\nUsers",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -12891,7 +12891,7 @@
                       },
                       "font": {
                         "size": 12,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -12904,7 +12904,7 @@
                           "text": "active users across multiple industries",
                           "font": {
                             "size": 12,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -12977,7 +12977,7 @@
                       },
                       "font": {
                         "size": 40,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -12990,7 +12990,7 @@
                           "text": "150%",
                           "font": {
                             "size": 40,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -13013,7 +13013,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -13026,7 +13026,7 @@
                           "text": "Revenue\nGrowth",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -13049,7 +13049,7 @@
                       },
                       "font": {
                         "size": 12,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -13062,7 +13062,7 @@
                           "text": "year-over-year revenue growth",
                           "font": {
                             "size": 12,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -13135,7 +13135,7 @@
                       },
                       "font": {
                         "size": 40,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -13148,7 +13148,7 @@
                           "text": "95%",
                           "font": {
                             "size": 40,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -13171,7 +13171,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -13184,7 +13184,7 @@
                           "text": "Customer\nSatisfaction",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -13207,7 +13207,7 @@
                       },
                       "font": {
                         "size": 12,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -13220,7 +13220,7 @@
                           "text": "retention rate with an average rating of 4.8/5",
                           "font": {
                             "size": 12,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -13261,7 +13261,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -13274,7 +13274,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -13457,7 +13457,7 @@
                   },
                   "font": {
                     "size": 56,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.84
                   },
@@ -13470,7 +13470,7 @@
                       "text": "Our Commitment",
                       "font": {
                         "size": 56,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.84
                       }
@@ -13493,7 +13493,7 @@
                   },
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.44
                   },
@@ -13506,7 +13506,7 @@
                       "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       }
@@ -13592,7 +13592,7 @@
                       },
                       "font": {
                         "size": 24,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -13605,7 +13605,7 @@
                           "text": "Your Title Here",
                           "font": {
                             "size": 24,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -13628,7 +13628,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       },
@@ -13641,7 +13641,7 @@
                           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.44
                           }
@@ -13674,7 +13674,7 @@
                       },
                       "font": {
                         "size": 24,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -13687,7 +13687,7 @@
                           "text": "Your Title Here",
                           "font": {
                             "size": 24,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -13710,7 +13710,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       },
@@ -13723,7 +13723,7 @@
                           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.44
                           }
@@ -13756,7 +13756,7 @@
                       },
                       "font": {
                         "size": 24,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -13769,7 +13769,7 @@
                           "text": "Your Title Here",
                           "font": {
                             "size": 24,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -13792,7 +13792,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       },
@@ -13805,7 +13805,7 @@
                           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.44
                           }
@@ -13838,7 +13838,7 @@
                       },
                       "font": {
                         "size": 24,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -13851,7 +13851,7 @@
                           "text": "Your Title Here",
                           "font": {
                             "size": 24,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -13874,7 +13874,7 @@
                       },
                       "font": {
                         "size": 16,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.44
                       },
@@ -13887,7 +13887,7 @@
                           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                           "font": {
                             "size": 16,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.44
                           }
@@ -13939,7 +13939,7 @@
                   },
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   },
@@ -13952,7 +13952,7 @@
                       "text": "www.yourwebsite.com",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       }
@@ -14162,7 +14162,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -14175,7 +14175,7 @@
                   "text": "Table of Contents",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -14232,7 +14232,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -14245,7 +14245,7 @@
                           "text": "01",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -14268,7 +14268,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -14281,7 +14281,7 @@
                           "text": "Introduction",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -14304,7 +14304,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -14317,7 +14317,7 @@
                           "text": "A brief description of our company and goals.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -14377,7 +14377,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -14390,7 +14390,7 @@
                           "text": "02",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -14413,7 +14413,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -14426,7 +14426,7 @@
                           "text": "Our Team",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -14449,7 +14449,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -14462,7 +14462,7 @@
                           "text": "Leadership and core contributors.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -14522,7 +14522,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -14535,7 +14535,7 @@
                           "text": "03",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -14558,7 +14558,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -14571,7 +14571,7 @@
                           "text": "Timeline",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -14594,7 +14594,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -14607,7 +14607,7 @@
                           "text": "High-level execution plan and milestones.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -14667,7 +14667,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -14680,7 +14680,7 @@
                           "text": "04",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -14703,7 +14703,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -14716,7 +14716,7 @@
                           "text": "Recommendations",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -14739,7 +14739,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -14752,7 +14752,7 @@
                           "text": "Key suggestions based on initial requirements.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -14812,7 +14812,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -14825,7 +14825,7 @@
                           "text": "05",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -14848,7 +14848,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -14861,7 +14861,7 @@
                           "text": "Solution",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -14884,7 +14884,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -14897,7 +14897,7 @@
                           "text": "What we propose and why it works.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -14957,7 +14957,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -14970,7 +14970,7 @@
                           "text": "06",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -14993,7 +14993,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -15006,7 +15006,7 @@
                           "text": "Market",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -15029,7 +15029,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -15042,7 +15042,7 @@
                           "text": "Audience, segments, and opportunity size.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -15102,7 +15102,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -15115,7 +15115,7 @@
                           "text": "07",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -15138,7 +15138,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -15151,7 +15151,7 @@
                           "text": "Business Model",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -15174,7 +15174,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -15187,7 +15187,7 @@
                           "text": "How we create and capture value.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -15247,7 +15247,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -15260,7 +15260,7 @@
                           "text": "08",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -15283,7 +15283,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -15296,7 +15296,7 @@
                           "text": "Conclusion",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -15319,7 +15319,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -15332,7 +15332,7 @@
                           "text": "Closing notes and next steps.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -15392,7 +15392,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -15405,7 +15405,7 @@
                           "text": "09",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -15428,7 +15428,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -15441,7 +15441,7 @@
                           "text": "Business Model",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -15464,7 +15464,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -15477,7 +15477,7 @@
                           "text": "How we create and capture value.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -15537,7 +15537,7 @@
                       },
                       "font": {
                         "size": 48,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#BFF4FF",
                         "line_height": 0.8
                       },
@@ -15550,7 +15550,7 @@
                           "text": "10",
                           "font": {
                             "size": 48,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#BFF4FF",
                             "line_height": 0.8
                           }
@@ -15573,7 +15573,7 @@
                       },
                       "font": {
                         "size": 22,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 0.96
                       },
@@ -15586,7 +15586,7 @@
                           "text": "Conclusion",
                           "font": {
                             "size": 22,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 0.96
                           }
@@ -15609,7 +15609,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.28
                       },
@@ -15622,7 +15622,7 @@
                           "text": "Closing notes and next steps.",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.28
                           }
@@ -15690,7 +15690,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -15703,7 +15703,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -15854,7 +15854,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -15867,7 +15867,7 @@
                   "text": "Data Table or Chart",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -15890,7 +15890,7 @@
               },
               "font": {
                 "size": 16,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -15903,7 +15903,7 @@
                   "text": "Present structured information in a flexible table or visualize it with a chart.",
                   "font": {
                     "size": 16,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -15975,7 +15975,7 @@
                   },
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2,
                     "opacity": 0
@@ -15986,7 +15986,7 @@
                       "text": "Column 1",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2,
                         "opacity": 0
@@ -16001,7 +16001,7 @@
                   },
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2,
                     "opacity": 0
@@ -16012,7 +16012,7 @@
                       "text": "Column 2",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2,
                         "opacity": 0
@@ -16027,7 +16027,7 @@
                   },
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2,
                     "opacity": 0
@@ -16038,7 +16038,7 @@
                       "text": "Column 3",
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2,
                         "opacity": 0
@@ -16056,7 +16056,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16067,7 +16067,7 @@
                         "text": "Row A",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16082,7 +16082,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16093,7 +16093,7 @@
                         "text": "✓",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16108,7 +16108,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16119,7 +16119,7 @@
                         "text": "-",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16136,7 +16136,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16147,7 +16147,7 @@
                         "text": "Row B",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16162,7 +16162,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16173,7 +16173,7 @@
                         "text": "Text",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16188,7 +16188,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16199,7 +16199,7 @@
                         "text": "123",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16216,7 +16216,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16227,7 +16227,7 @@
                         "text": "Row C",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16242,7 +16242,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16253,7 +16253,7 @@
                         "text": "More text",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16268,7 +16268,7 @@
                     },
                     "font": {
                       "size": 14,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2,
                       "opacity": 0
@@ -16279,7 +16279,7 @@
                         "text": "456",
                         "font": {
                           "size": 14,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#6B7280",
                           "line_height": 1.2,
                           "opacity": 0
@@ -16382,7 +16382,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 1.2
               },
@@ -16395,7 +16395,7 @@
                   "text": "Column 1",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   }
@@ -16418,7 +16418,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 1.2
               },
@@ -16431,7 +16431,7 @@
                   "text": "Column 2",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   }
@@ -16454,7 +16454,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 1.2
               },
@@ -16467,7 +16467,7 @@
                   "text": "Column 3",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 1.2
                   }
@@ -16490,7 +16490,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16503,7 +16503,7 @@
                   "text": "Row A",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -16526,7 +16526,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16539,7 +16539,7 @@
                   "text": "-",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -16562,7 +16562,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16575,7 +16575,7 @@
                   "text": "Row B",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -16598,7 +16598,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16611,7 +16611,7 @@
                   "text": "Text",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -16634,7 +16634,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16647,7 +16647,7 @@
                   "text": "123",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -16670,7 +16670,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16683,7 +16683,7 @@
                   "text": "Row C",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -16706,7 +16706,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16719,7 +16719,7 @@
                   "text": "More text",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -16742,7 +16742,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16755,7 +16755,7 @@
                   "text": "456",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -16788,7 +16788,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -16801,7 +16801,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -17118,7 +17118,7 @@
               },
               "font": {
                 "size": 48,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#111827",
                 "line_height": 0.88
               },
@@ -17130,7 +17130,7 @@
                   "text": "Our Journey at a Glance",
                   "font": {
                     "size": 48,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#111827",
                     "line_height": 0.88
                   }
@@ -17174,7 +17174,7 @@
                 "type": "text",
                 "font": {
                   "size": 16,
-                  "family": "Albert Sans",
+                  "family": "Inter",
                   "color": "#6B7280",
                   "line_height": 1.2
                 },
@@ -17187,7 +17187,7 @@
                     "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.",
                     "font": {
                       "size": 16,
-                      "family": "Albert Sans",
+                      "family": "Inter",
                       "color": "#6B7280",
                       "line_height": 1.2
                     }
@@ -17299,7 +17299,7 @@
                         "type": "text",
                         "font": {
                           "size": 16,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#FFFFFF",
                           "line_height": 1.2
                         },
@@ -17312,7 +17312,7 @@
                             "text": "2018",
                             "font": {
                               "size": 16,
-                              "family": "Albert Sans",
+                              "family": "Inter",
                               "color": "#FFFFFF",
                               "line_height": 1.2
                             }
@@ -17469,7 +17469,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -17481,7 +17481,7 @@
                           "text": "Founded in 2020",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -17504,7 +17504,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       },
@@ -17516,7 +17516,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.2
                           }
@@ -17574,7 +17574,7 @@
                         "type": "text",
                         "font": {
                           "size": 16,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#FFFFFF",
                           "line_height": 1.2
                         },
@@ -17587,7 +17587,7 @@
                             "text": "2019",
                             "font": {
                               "size": 16,
-                              "family": "Albert Sans",
+                              "family": "Inter",
                               "color": "#FFFFFF",
                               "line_height": 1.2
                             }
@@ -17744,7 +17744,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -17756,7 +17756,7 @@
                           "text": "First Product in 2021",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -17779,7 +17779,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       },
@@ -17791,7 +17791,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.2
                           }
@@ -17849,7 +17849,7 @@
                         "type": "text",
                         "font": {
                           "size": 16,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#FFFFFF",
                           "line_height": 1.2
                         },
@@ -17862,7 +17862,7 @@
                             "text": "2020",
                             "font": {
                               "size": 16,
-                              "family": "Albert Sans",
+                              "family": "Inter",
                               "color": "#FFFFFF",
                               "line_height": 1.2
                             }
@@ -18019,7 +18019,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -18031,7 +18031,7 @@
                           "text": "Key Milestone in 2022",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -18054,7 +18054,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       },
@@ -18066,7 +18066,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.2
                           }
@@ -18124,7 +18124,7 @@
                         "type": "text",
                         "font": {
                           "size": 16,
-                          "family": "Albert Sans",
+                          "family": "Inter",
                           "color": "#FFFFFF",
                           "line_height": 1.2
                         },
@@ -18137,7 +18137,7 @@
                             "text": "2021",
                             "font": {
                               "size": 16,
-                              "family": "Albert Sans",
+                              "family": "Inter",
                               "color": "#FFFFFF",
                               "line_height": 1.2
                             }
@@ -18294,7 +18294,7 @@
                       },
                       "font": {
                         "size": 18,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#111827",
                         "line_height": 1.2
                       },
@@ -18306,7 +18306,7 @@
                           "text": "Global Expansion in 2024",
                           "font": {
                             "size": 18,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#111827",
                             "line_height": 1.2
                           }
@@ -18329,7 +18329,7 @@
                       },
                       "font": {
                         "size": 14,
-                        "family": "Albert Sans",
+                        "family": "Inter",
                         "color": "#6B7280",
                         "line_height": 1.2
                       },
@@ -18341,7 +18341,7 @@
                           "text": "Lorem ipsum dolor",
                           "font": {
                             "size": 14,
-                            "family": "Albert Sans",
+                            "family": "Inter",
                             "color": "#6B7280",
                             "line_height": 1.2
                           }
@@ -18382,7 +18382,7 @@
               },
               "font": {
                 "size": 14,
-                "family": "Albert Sans",
+                "family": "Inter",
                 "color": "#6B7280",
                 "line_height": 1.2
               },
@@ -18394,7 +18394,7 @@
                   "text": "www.yourwebsite.com",
                   "font": {
                     "size": 14,
-                    "family": "Albert Sans",
+                    "family": "Inter",
                     "color": "#6B7280",
                     "line_height": 1.2
                   }
@@ -18441,6 +18441,6 @@
     }
   ],
   "fonts": {
-    "Albert Sans": "https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400&display=swap"
+    "Inter": "/vendor/fonts/sans_serif/inter/Inter[opsz,wght].ttf"
   }
 }
