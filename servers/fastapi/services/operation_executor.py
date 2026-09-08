@@ -68,7 +68,16 @@ async def load_document_snapshot(session: AsyncSession, document_id) -> dict:
             )
         ).all()
     )
-    return document_snapshot(presentation, slides)
+    snap = document_snapshot(presentation, slides)
+    last = (
+        await session.scalars(
+            select(OperationModel)
+            .where(OperationModel.document_id == uuid.UUID(str(document_id)))
+            .order_by(OperationModel.created_at.desc())
+        )
+    ).first()
+    snap["lastOperationId"] = str(last.operation_id) if last is not None else None
+    return snap
 
 
 async def _load_operation(session: AsyncSession, document_id, operation_id) -> OperationModel | None:

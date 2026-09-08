@@ -590,6 +590,25 @@ class OperationExecutorTests(unittest.IsolatedAsyncioTestCase):
 
 
 
+    async def test_snapshot_exposes_last_operation_id(self):
+        async with self.sessions() as session:
+            applied = await execute_operation(
+                session,
+                document_id=self.document_id,
+                base_revision=7,
+                operations=[{
+                    "scope": "document",
+                    "targetIds": [],
+                    "operationType": "UpdateMetadata",
+                    "payload": {"title": "Snap"},
+                }],
+                operation_id=str(uuid.uuid4()),
+            )
+            snapshot = await load_document_snapshot(session, self.document_id)
+        self.assertEqual(snapshot["lastOperationId"], applied["operationId"])
+        self.assertEqual(snapshot["title"], "Snap")
+
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

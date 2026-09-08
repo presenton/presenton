@@ -2412,7 +2412,7 @@ async def stream_presentation(
             extra_objects=generated_assets,
             actor_source="ai",
         )
-        presentation = await sql_session.get(PresentationModel, id)
+        updated_presentation = await sql_session.get(PresentationModel, id)
         slides = list(
             (
                 await sql_session.scalars(
@@ -2424,7 +2424,7 @@ async def stream_presentation(
         )
 
         response = PresentationWithSlides(
-            **_presentation_response_data(presentation),
+            **_presentation_response_data(updated_presentation),
             slides=slides,
         )
 

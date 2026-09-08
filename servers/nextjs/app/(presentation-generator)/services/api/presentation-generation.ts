@@ -230,6 +230,14 @@ export class PresentationGenerationApi {
     );
   }
 
+  static async undoDocumentOperation(documentId: string, operationId: string) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/editor/v1/documents/${documentId}/operations/${operationId}/undo`),
+      { method: "POST", headers: getHeader(), cache: "no-cache" }
+    );
+    return await ApiResponseHandler.handleResponse(response, "Failed to undo");
+  }
+
   static async updatePresentationContent(body: unknown) {
     try {
       const response = await fetch(
