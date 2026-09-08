@@ -126,6 +126,9 @@ class ImageGenerationService:
         except Exception as exc:
             print(f"Image outbox lease skipped: {exc}")
 
+        self.is_image_generation_disabled = is_image_generation_disabled()
+        self.image_gen_func = self.get_image_gen_func()
+
         if self.is_image_generation_disabled:
             print("Image generation is disabled. Using placeholder image.")
             await self._complete_image_job(job_id, worker_id, "skipped")
