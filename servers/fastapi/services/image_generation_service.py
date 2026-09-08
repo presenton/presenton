@@ -41,6 +41,19 @@ from utils.image_provider import (
 from utils.asset_directory_utils import absolute_fastapi_asset_url
 from utils.image_generation_error import normalize_image_generation_error
 import uuid
+from PIL import Image, UnidentifiedImageError
+
+
+def _require_decodable_image(path: str) -> None:
+    """Refuse HTTP-success / written bytes that are not an actual image."""
+    try:
+        with Image.open(path) as image:
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="Generated or uploaded image bytes could not be decoded.",
+        ) from exc
 
 
 COMFYUI_MAX_SEED = 0xFFFFFFFFFFFFFFFF
@@ -124,6 +137,7 @@ class ImageGenerationService:
                 if image_path.startswith("http"):
                     return image_path
                 elif os.path.exists(image_path):
+                    _require_decodable_image(image_path)
                     return ImageAsset(
                         path=image_path,
                         is_uploaded=False,

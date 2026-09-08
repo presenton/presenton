@@ -5,20 +5,12 @@ import { RootState } from '@/store/store';
 import { PresentationGenerationApi } from '../../services/api/presentation-generation';
 import { addToHistory } from '@/store/slices/undoRedoSlice';
 import type { PresentationData } from '@/store/slices/presentationGeneration';
-import type { Slide } from '../../types/slide';
 import type { AutoSaveSnapshot } from '../utils/autoSaveDiff';
 import {
     createAutoSaveSnapshot,
-    fingerprintValue,
     getAutoSaveChanges,
 } from '../utils/autoSaveDiff';
-
-const savedDocumentFromSnapshot = (snapshot: AutoSaveSnapshot) => ({
-    id: snapshot.presentationId,
-    ...JSON.parse(snapshot.persistedMetadataFingerprint),
-    n_slides: snapshot.slideOrder.length,
-    slides: snapshot.slideOrder.map(id => JSON.parse(snapshot.slideFingerprints[id])),
-});
+import { buildAutoSaveOperations } from '../utils/autoSaveOperations';
 
 interface UseAutoSaveOptions {
     debounceMs?: number;
@@ -41,7 +33,7 @@ export const useAutoSave = ({
     const autoSavePausedRef = useRef(true);
     const wasAutoSavePausedRef = useRef(false);
     const pendingSaveRef = useRef(false);
-    const saveLatestRef = useRef<() => Promise<void>>(async () => undefined);
+    const saveLatestRef = useRef<(options?: { force?: boolean }) => Promise<void>>(async () => undefined);
     const isSavingRef = useRef(false);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -54,9 +46,10 @@ export const useAutoSave = ({
         autoSavePausedRef.current = autoSavePaused;
     }, [presentationData, autoSavePaused]);
 
-    const saveLatest = useCallback(async () => {
+    const saveLatest = useCallback(async (options?: { force?: boolean }) => {
         const data = latestDataRef.current;
-        if (!data || autoSavePausedRef.current) return;
+        if (!data) return;
+        if (!options?.force && autoSavePausedRef.current) return;
         if (isSavingRef.current) {
             pendingSaveRef.current = true;
             return;
@@ -68,12 +61,13 @@ export const useAutoSave = ({
             return;
         }
 
-        const changes = getAutoSaveChanges(acknowledged, data);
-        if (
-            !changes.structuralChange &&
-            !changes.metadataChanged &&
-            changes.changedSlides.length === 0
-        ) return;
+        const operations = buildAutoSaveOperations(acknowledged, data);
+        if (operations.length === 0) return;
+        const baseRevision = acknowledged.revision;
+        if (!baseRevision) {
+            setSaveError('A saved revision is required. Reload before editing.');
+            return;
+        }
 
         try {
             isSavingRef.current = true;
@@ -81,60 +75,15 @@ export const useAutoSave = ({
             setSaveError(null);
             console.log('🔄 Auto-saving presentation data...');
 
-            if (changes.structuralChange) {
-                // Serialize once after the debounce window. The API accepts the
-                // serialized body and avoids a second whole-deck stringify.
-                await PresentationGenerationApi.updatePresentationContent(
-                    JSON.stringify({ ...data, ...(!changes.metadataChanged ? JSON.parse(acknowledged.persistedMetadataFingerprint) : {}), base_document: savedDocumentFromSnapshot(acknowledged) })
-                );
-                const next = createAutoSaveSnapshot(data);
-                next.persistedMetadataFingerprint = changes.metadataChanged ? fingerprintValue({title:data.title,theme:data.theme}) : acknowledged.persistedMetadataFingerprint;
-                acknowledgedDataRef.current = next;
-            } else {
-                let firstError: unknown = null;
-                const nextAcknowledged: AutoSaveSnapshot = {
-                    ...acknowledged,
-                    slideFingerprints: { ...acknowledged.slideFingerprints },
-                };
-
-                if (changes.metadataChanged) {
-                    try {
-                        await PresentationGenerationApi.updatePresentationContent({
-                            id: data.id,
-                            base_document: savedDocumentFromSnapshot(acknowledged),
-                            title: data.title,
-                            theme: data.theme,
-                        });
-                        nextAcknowledged.metadataFingerprint = fingerprintValue({
-                            title: data.title,
-                            theme: data.theme,
-                        });
-                        nextAcknowledged.persistedMetadataFingerprint = nextAcknowledged.metadataFingerprint;
-                        acknowledgedDataRef.current = nextAcknowledged;
-                    } catch (error) {
-                        firstError = error;
-                    }
-                }
-
-                for (const slide of changes.changedSlides) {
-                    try {
-                        await PresentationGenerationApi.updatePresentationSlide(
-                            slide as Slide,
-                            JSON.parse(acknowledged.slideFingerprints[slide.id]) as Slide
-                        );
-                        nextAcknowledged.slideFingerprints[slide.id] =
-                            fingerprintValue(slide);
-                        acknowledgedDataRef.current = nextAcknowledged;
-                    } catch (error) {
-                        firstError ??= error;
-                    }
-                }
-
-                if (firstError) throw firstError;
-                const next = createAutoSaveSnapshot(data);
-                next.persistedMetadataFingerprint = nextAcknowledged.persistedMetadataFingerprint;
-                acknowledgedDataRef.current = next;
-            }
+            const result = await PresentationGenerationApi.submitDocumentOperations(data.id, {
+                operationId: crypto.randomUUID(),
+                baseRevision,
+                operations,
+            });
+            const next = createAutoSaveSnapshot(data);
+            const resulting = Number(result?.resultingRevision);
+            next.revision = Number.isFinite(resulting) ? resulting : acknowledged.revision;
+            acknowledgedDataRef.current = next;
 
             console.log('✅ Auto-save successful');
         } catch (error) {
@@ -243,5 +192,6 @@ export const useAutoSave = ({
         isSaving,
         saveError,
         retrySave: () => void saveLatestRef.current(),
+        flushPendingSave: () => saveLatestRef.current({ force: true }),
     };
 };

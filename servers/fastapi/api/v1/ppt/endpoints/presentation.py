@@ -2403,19 +2403,25 @@ async def stream_presentation(
         for slide in slides:
             slide.ui = _apply_template_content_to_ui(slide.ui, slide.content)
 
-        # Moved this here to make sure new slides are generated before deleting the old ones
-        await sql_session.execute(
-            delete(SlideModel).where(
-                SlideModel.presentation == id,
-                SlideModel.owner_id == get_current_owner_id(),
-            )
-        )
-        await sql_session.commit()
+        from services.operation_executor import persist_generated_slides
 
-        sql_session.add(presentation)
-        sql_session.add_all(slides)
-        sql_session.add_all(generated_assets)
-        await sql_session.commit()
+        await persist_generated_slides(
+            sql_session,
+            id,
+            slides,
+            extra_objects=generated_assets,
+            actor_source="ai",
+        )
+        presentation = await sql_session.get(PresentationModel, id)
+        slides = list(
+            (
+                await sql_session.scalars(
+                    select(SlideModel)
+                    .where(SlideModel.presentation == id)
+                    .order_by(SlideModel.index)
+                )
+            ).all()
+        )
 
         response = PresentationWithSlides(
             **_presentation_response_data(presentation),
@@ -3155,29 +3161,46 @@ async def edit_presentation_with_new_content(
         select(SlideModel).where(SlideModel.presentation == data.presentation_id)
     )
 
-    new_slides = []
-    slides_to_delete = []
+    operations = []
     for each_slide in slides:
-        updated_content = None
         new_slide_data = list(
             filter(lambda x: x.index == each_slide.index, data.slides)
         )
-        if new_slide_data:
-            updated_content = deep_update(each_slide.content, new_slide_data[0].content)
-            new_slide = each_slide.get_new_slide(presentation.id, updated_content)
-            _hydrate_template_slide_ui(new_slide, presentation.layout)
-            new_slides.append(new_slide)
-            slides_to_delete.append(each_slide.id)
-
-    await sql_session.execute(
-        delete(SlideModel).where(
-            SlideModel.id.in_(slides_to_delete),
-            SlideModel.owner_id == get_current_owner_id(),
+        if not new_slide_data:
+            continue
+        updated_content = deep_update(each_slide.content, new_slide_data[0].content)
+        staged = each_slide.get_new_slide(presentation.id, updated_content)
+        _hydrate_template_slide_ui(staged, presentation.layout)
+        operations.append(
+            {
+                "scope": "slide",
+                "targetIds": [str(each_slide.id)],
+                "operationType": "UpdateSlide",
+                "payload": {
+                    "layout_group": staged.layout_group,
+                    "layout": staged.layout,
+                    "content": staged.content,
+                    "html_content": staged.html_content,
+                    "speaker_note": staged.speaker_note,
+                    "properties": staged.properties,
+                    "ui": staged.ui,
+                },
+            }
         )
-    )
+    if operations:
+        from services.operation_executor import execute_operation, load_document_snapshot
 
-    sql_session.add_all(new_slides)
-    await sql_session.commit()
+        snapshot = await load_document_snapshot(sql_session, presentation.id)
+        await execute_operation(
+            sql_session,
+            document_id=presentation.id,
+            base_revision=snapshot["revision"],
+            operations=operations,
+            operation_id=str(uuid.uuid4()),
+            actor_source="ai",
+        )
+    else:
+        await sql_session.commit()
 
     presentation_and_path = await export_presentation(
         presentation.id,

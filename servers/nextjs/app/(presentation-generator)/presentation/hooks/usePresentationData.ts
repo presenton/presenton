@@ -8,6 +8,7 @@ import { applyPresentationThemeToElement } from "../utils/applyPresentationTheme
 import { normalizeBackendAssetUrls } from "@/utils/api";
 import { useFontLoader } from "../../hooks/useFontLoad";
 import { DashboardApi } from "../../services/api/dashboard";
+import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import TemplateService from "../../services/api/template";
 import {
   DEFAULT_TEMPLATE_THEME,
@@ -41,7 +42,16 @@ export const usePresentationData = (
       }
 
       const normalizedData = normalizeBackendAssetUrls(data);
-
+      if (normalizedData && typeof normalizedData.revision !== "number") {
+        try {
+          const snapshot = await PresentationGenerationApi.getDocumentSnapshot(presentationId);
+          if (typeof snapshot?.revision === "number") {
+            normalizedData.revision = snapshot.revision;
+          }
+        } catch {
+          /* snapshot is optional for older decks; autosave will refuse writes */
+        }
+      }
 
       if (normalizedData) {
         const templateId = resolveTemplateIdFromPresentation(normalizedData);

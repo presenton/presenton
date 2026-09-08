@@ -568,7 +568,7 @@ const PresentationHeader = ({
 
   return (
     <>
-      <div className="py-[18px] px-4 sticky top-0 bg-white z-50 shadow-sm font-syne flex justify-between items-center gap-4">
+      <div className="py-[18px] px-4 sticky top-0 bg-white z-50 shadow-sm font-syne flex justify-between items-center gap-4 overflow-x-auto">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <img
             onClick={() => {

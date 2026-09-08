@@ -1007,10 +1007,10 @@ const Chat = ({
       );
     }
 
-    if (typeof currentSlide === "number") {
+    if (typeof frozenSlideIndex === "number") {
       contextLines.push(
-        `UI context: the currently selected slide is slide ${currentSlide + 1
-        } (zero-based index ${currentSlide}).`
+        `UI context: the currently selected slide is slide ${frozenSlideIndex + 1
+        } (zero-based index ${frozenSlideIndex}). Target this slide unless the user names another.`
       );
     }
 
@@ -1322,11 +1322,37 @@ const Chat = ({
     dispatch(setPresentationData(nextPresentation));
 
     try {
-      for (const slideIndex of preview.slideIndices) {
-        const slide = nextSlides[slideIndex];
-        if (slide) {
-          await PresentationGenerationApi.updatePresentationSlide(slide);
-        }
+      const snapshot = await PresentationGenerationApi.getDocumentSnapshot(
+        String((currentPresentation as { id?: string }).id || ""),
+      );
+      const operations = preview.slideIndices.flatMap((slideIndex) => {
+        const slide = nextSlides[slideIndex] as Record<string, unknown> | undefined;
+        const id = typeof slide?.id === "string" ? slide.id : null;
+        if (!slide || !id) return [];
+        return [{
+          scope: "slide" as const,
+          targetIds: [id],
+          operationType: "UpdateSlide" as const,
+          payload: {
+            layout_group: slide.layout_group,
+            layout: slide.layout,
+            content: slide.content,
+            html_content: slide.html_content,
+            speaker_note: slide.speaker_note,
+            properties: slide.properties,
+            ui: slide.ui,
+          },
+        }];
+      });
+      if (operations.length) {
+        await PresentationGenerationApi.submitDocumentOperations(
+          String((currentPresentation as { id?: string }).id),
+          {
+            operationId: crypto.randomUUID(),
+            baseRevision: Number(snapshot?.revision),
+            operations,
+          },
+        );
       }
       await onPresentationChanged?.();
       notify.success(
@@ -1672,7 +1698,7 @@ const Chat = ({
     };
 
     const assistantMessageId = createMessageId();
-    const previewSlideIndex = typeof currentSlide === "number" ? currentSlide : 0;
+    const previewSlideIndex = typeof frozenSlideIndex === "number" ? frozenSlideIndex : 0;
     const originalPreviewSlide = clonePreviewSlide(
       getPresentationSlide(presentationData, previewSlideIndex),
     );
@@ -1704,6 +1730,17 @@ const Chat = ({
     if (selectionContext) dispatch(clearChatHtmlSelection());
     setErrorMessage(null);
     setHasChatMutationStarted(false);
+    const frozenSlideIndex =
+      typeof currentSlide === "number" ? currentSlide : undefined;
+    try {
+      await onBeforeSend?.();
+    } catch (error) {
+      notify.error(
+        "Could not save local edits",
+        error instanceof Error ? error.message : "Save your changes before chatting.",
+      );
+      return;
+    }
     setIsSending(true);
     setActiveAssistantMessageId(assistantMessageId);
     refreshQueuedRef.current = false;
@@ -1725,7 +1762,7 @@ const Chat = ({
       attachment_image_count: imagesForMessage.length,
       attachment_document_count: attachedDocuments.length,
       link_count: chatLinks.length,
-      has_selected_slide: typeof currentSlide === "number",
+      has_selected_slide: typeof frozenSlideIndex === "number",
       has_selected_template_target: Boolean(selectedTemplateV2Target),
       has_selected_html_element: Boolean(selectionContext),
     });
@@ -1733,7 +1770,6 @@ const Chat = ({
     abortControllerRef.current = streamAbortController;
 
     try {
-      await onBeforeSend?.();
       const response = await chatAdapter.streamMessage(
         {
           resourceId: activeResourceId,

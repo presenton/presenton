@@ -10,6 +10,7 @@ from services.operation_executor import (
     execute_operation,
     get_operation_receipt,
     load_document_snapshot,
+    undo_operation,
 )
 from services.proposal_store import PROPOSAL_STORE, load_proposal
 
@@ -52,6 +53,7 @@ async def create_document_proposal(
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     return await PROPOSAL_STORE.create(
+        sql_session,
         document_id,
         request.baseRevision,
         [op.model_dump() for op in request.operations],
@@ -111,3 +113,12 @@ async def get_document_operation(
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     return await get_operation_receipt(sql_session, document_id, operation_id)
+
+
+@EDITOR_ROUTER.post("/{document_id}/operations/{operation_id}/undo")
+async def undo_document_operation(
+    document_id: uuid.UUID,
+    operation_id: uuid.UUID,
+    sql_session: AsyncSession = Depends(get_async_session),
+):
+    return await undo_operation(sql_session, document_id, operation_id)

@@ -161,22 +161,32 @@ async def _apply_operations(
             source_id = payload.get("sourceSlideId")
             insert_after = payload.get("insertAfterId")
             index = payload.get("index")
+            requested_id = payload.get("id")
+            if requested_id:
+                new_id = str(requested_id)
+                if new_id in slide_map:
+                    raise HTTPException(409, f"Slide already exists: {new_id}")
+            else:
+                new_id = None
             if source_id:
                 require_slides([source_id])
                 source = slide_map[source_id]
                 new_slide = source.get_new_slide(presentation.id)
                 new_slide.index = -1
+                if new_id:
+                    new_slide.id = uuid.UUID(new_id)
             else:
                 new_slide = SlideModel(
-                    id=uuid.uuid4(),
+                    id=uuid.UUID(new_id) if new_id else uuid.uuid4(),
                     presentation=presentation.id,
                     layout_group=payload.get("layout_group") or "blank",
                     layout=payload.get("layout") or "__blank_slide__",
                     index=-1,
-                    content={},
-                    speaker_note="",
+                    content=payload.get("content") or {},
+                    html_content=payload.get("html_content"),
+                    speaker_note=payload.get("speaker_note") or "",
                     ui=payload.get("ui"),
-                    properties=None,
+                    properties=payload.get("properties"),
                 )
                 new_slide.owner_id = presentation.owner_id
             slide_map[str(new_slide.id)] = new_slide
@@ -203,7 +213,10 @@ async def _apply_operations(
             for slide_id in targets:
                 order.remove(slide_id)
                 anchor = payload.get("insertAfterId")
-                if anchor and anchor in order:
+                index = payload.get("index")
+                if index is not None and 0 <= index <= len(order):
+                    order.insert(index, slide_id)
+                elif anchor and anchor in order:
                     order.insert(order.index(anchor) + 1, slide_id)
                 else:
                     order.append(slide_id)
@@ -380,6 +393,7 @@ async def execute_operation(
         "changedElementIds": [],
         "proposalId": proposal_id,
         "appliedAt": datetime.now(timezone.utc).isoformat(),
+        "inverseOperations": invert_operations(operations, current),
     }
     session.add(
         OperationModel(
@@ -412,6 +426,195 @@ async def get_operation_receipt(session: AsyncSession, document_id, operation_id
     if operation is None:
         raise HTTPException(404, "Operation not found.")
     return operation.receipt or {}
-    if operation is None:
-        raise HTTPException(404, "Operation not found.")
-    return operation.receipt or {}
+
+
+def _as_slide_dict(slide) -> dict:
+    if isinstance(slide, dict):
+        return {
+            "id": str(slide.get("id")),
+            "index": slide.get("index"),
+            **{key: slide.get(key) for key in MUTABLE_FIELDS},
+        }
+    return {
+        "id": str(slide.id),
+        "index": slide.index,
+        **{key: getattr(slide, key) for key in MUTABLE_FIELDS},
+    }
+
+
+def build_index_aligned_stream_operations(existing_slides, generated_slides) -> list[dict]:
+    """Map generated slides onto the live deck by index.
+
+    Overlapping indices become UpdateSlide on the *existing* UUID.
+    Extra generated slides are InsertSlide.
+    Extra existing slides are DeleteSlide.
+    Never delete-all + insert: that rewrites every slide id.
+    """
+    def by_index(items):
+        return sorted(items, key=lambda item: item["index"] if item["index"] is not None else 0)
+
+    existing = by_index(_as_slide_dict(slide) for slide in (existing_slides or []))
+    generated = by_index(_as_slide_dict(slide) for slide in (generated_slides or []))
+    if not generated:
+        raise HTTPException(422, "Generated presentation must contain at least one slide.")
+    if any(not item["id"] or item["id"] == "None" for item in generated):
+        raise HTTPException(422, "Generated slides must include ids.")
+
+    operations: list[dict] = []
+    overlap = min(len(existing), len(generated))
+    for index in range(overlap):
+        operations.append(
+            {
+                "scope": "slide",
+                "targetIds": [existing[index]["id"]],
+                "operationType": "UpdateSlide",
+                "payload": {key: generated[index].get(key) for key in MUTABLE_FIELDS},
+            }
+        )
+    for index in range(len(existing), len(generated)):
+        payload = {key: generated[index].get(key) for key in MUTABLE_FIELDS}
+        payload["id"] = generated[index]["id"]
+        payload["index"] = index
+        operations.append(
+            {
+                "scope": "document",
+                "targetIds": [],
+                "operationType": "InsertSlide",
+                "payload": payload,
+            }
+        )
+    for index in range(len(generated), len(existing)):
+        operations.append(
+            {
+                "scope": "slide",
+                "targetIds": [existing[index]["id"]],
+                "operationType": "DeleteSlide",
+                "payload": {},
+            }
+        )
+    return operations
+
+
+
+def invert_operations(operations: list[dict], before_snapshot: dict) -> list[dict]:
+    """Build inverse ops from the pre-apply snapshot. Apply in reverse order."""
+    slides = {slide["id"]: slide for slide in (before_snapshot.get("slides") or [])}
+    order = [slide["id"] for slide in (before_snapshot.get("slides") or [])]
+    inverse: list[dict] = []
+    for operation in reversed(operations or []):
+        op_type = operation.get("operationType")
+        targets = operation.get("targetIds") or []
+        payload = operation.get("payload") or {}
+        if op_type == "UpdateMetadata":
+            inverse.append(
+                {
+                    "scope": "document",
+                    "targetIds": [],
+                    "operationType": "UpdateMetadata",
+                    "payload": {
+                        key: before_snapshot.get(key)
+                        for key in ("title", "theme")
+                        if key in payload
+                    },
+                }
+            )
+        elif op_type == "UpdateSlide":
+            for slide_id in targets:
+                old = slides.get(slide_id)
+                if not old:
+                    continue
+                inverse.append(
+                    {
+                        "scope": "slide",
+                        "targetIds": [slide_id],
+                        "operationType": "UpdateSlide",
+                        "payload": {key: old.get(key) for key in MUTABLE_FIELDS},
+                    }
+                )
+        elif op_type == "InsertSlide":
+            new_id = str(payload.get("id") or "")
+            if new_id:
+                inverse.append(
+                    {
+                        "scope": "slide",
+                        "targetIds": [new_id],
+                        "operationType": "DeleteSlide",
+                        "payload": {},
+                    }
+                )
+        elif op_type == "DeleteSlide":
+            for slide_id in targets:
+                old = slides.get(slide_id)
+                if not old:
+                    continue
+                inverse.append(
+                    {
+                        "scope": "document",
+                        "targetIds": [],
+                        "operationType": "InsertSlide",
+                        "payload": {
+                            "id": old["id"],
+                            "index": old.get("index") if old.get("index") is not None else len(order),
+                            **{key: old.get(key) for key in MUTABLE_FIELDS},
+                        },
+                    }
+                )
+        elif op_type == "MoveSlide":
+            for slide_id in targets:
+                if slide_id in order:
+                    inverse.append(
+                        {
+                            "scope": "slide",
+                            "targetIds": [slide_id],
+                            "operationType": "MoveSlide",
+                            "payload": {"index": order.index(slide_id)},
+                        }
+                    )
+        elif op_type == "DuplicateSlide":
+            # inverse cannot know the new UUID here; persist_generated path unused
+            continue
+    return inverse
+
+
+async def undo_operation(session: AsyncSession, document_id, operation_id) -> dict:
+    receipt = await get_operation_receipt(session, document_id, operation_id)
+    inverse = receipt.get("inverseOperations") or []
+    if not inverse:
+        raise HTTPException(409, "Operation has no inverse; cannot undo.")
+    snapshot = await load_document_snapshot(session, document_id)
+    return await execute_operation(
+        session,
+        document_id=document_id,
+        base_revision=snapshot["revision"],
+        operations=inverse,
+        operation_id=str(uuid.uuid4()),
+        actor_source="undo",
+        idempotency_key=f"undo:{operation_id}",
+    )
+
+
+async def persist_generated_slides(
+    session: AsyncSession,
+    document_id,
+    generated_slides,
+    *,
+    extra_objects=None,
+    actor_source: str = "ai",
+    operation_id=None,
+) -> dict:
+    if extra_objects:
+        session.add_all(list(extra_objects))
+        await session.flush()
+    snapshot = await load_document_snapshot(session, document_id)
+    operations = build_index_aligned_stream_operations(
+        snapshot.get("slides") or [],
+        generated_slides,
+    )
+    return await execute_operation(
+        session,
+        document_id=document_id,
+        base_revision=snapshot["revision"],
+        operations=operations,
+        operation_id=operation_id or str(uuid.uuid4()),
+        actor_source=actor_source,
+    )

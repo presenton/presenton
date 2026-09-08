@@ -191,6 +191,45 @@ export class PresentationGenerationApi {
     }
   }
 
+  static async getDocumentSnapshot(documentId: string) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/editor/v1/documents/${documentId}/snapshot`),
+      { method: "GET", headers: getHeader(), cache: "no-store" }
+    );
+    return await ApiResponseHandler.handleResponse(
+      response,
+      "Failed to load document revision"
+    );
+  }
+
+  static async submitDocumentOperations(
+    documentId: string,
+    body: {
+      operationId: string;
+      baseRevision: number;
+      operations: Array<{
+        scope: string;
+        targetIds: string[];
+        operationType: string;
+        payload: Record<string, unknown>;
+      }>;
+    }
+  ) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/editor/v1/documents/${documentId}/operations`),
+      {
+        method: "POST",
+        headers: getHeader(),
+        body: JSON.stringify(body),
+        cache: "no-cache",
+      }
+    );
+    return await ApiResponseHandler.handleResponse(
+      response,
+      "Failed to save presentation"
+    );
+  }
+
   static async updatePresentationContent(body: unknown) {
     try {
       const response = await fetch(

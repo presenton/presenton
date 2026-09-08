@@ -19,6 +19,8 @@ from models.sql.api_key import ApiKey
 from models.sql.image_asset import ImageAsset
 from models.sql.key_value import KeyValueSqlModel
 from models.sql.operation import OperationModel
+from models.sql.proposal import ProposalModel
+from models.sql.outbox import DocumentJobModel
 from models.sql.ollama_pull_status import OllamaPullStatus
 from models.sql.presentation_layout_code import PresentationLayoutCodeModel
 from models.sql.presentation import PresentationModel
@@ -132,6 +134,8 @@ async def create_db_and_tables():
                         PresentationModel.__table__,
                         SlideModel.__table__,
                         OperationModel.__table__,
+                        ProposalModel.__table__,
+                        DocumentJobModel.__table__,
                         KeyValueSqlModel.__table__,
                         TemplateV2.__table__,
                         ChatHistoryMessageModel.__table__,

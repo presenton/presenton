@@ -262,7 +262,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   // Pause while the chat assistant is mutating the deck: the assistant edits
   // slide.ui directly in the database, so a debounced autosave firing with the
   // pre-edit Redux state would overwrite (revert) the assistant's change.
-  const { isSaving, saveError, retrySave } = useAutoSave({
+  const { isSaving, saveError, retrySave, flushPendingSave } = useAutoSave({
     debounceMs: 2000,
     enabled:
       !!presentationData &&
@@ -967,7 +967,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
             aria-controls="presentation-mobile-assistant"
             aria-expanded={isMobileAssistantOpen}
             onClick={() => setIsMobileAssistantOpen(true)}
-            className="fixed bottom-5 right-5 z-40 inline-flex h-11 items-center gap-2 rounded-full border border-white/70 px-4 text-sm font-semibold text-[#101323] shadow-[0_8px_24px_rgba(74,58,155,0.24)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2 xl:hidden"
+            className="fixed bottom-5 left-4 z-40 inline-flex h-11 items-center gap-2 rounded-full border border-white/70 px-4 text-sm font-semibold text-[#101323] shadow-[0_8px_24px_rgba(74,58,155,0.24)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2 xl:hidden"
             style={{
               background:
                 "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
@@ -1036,6 +1036,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
                 variant={isTemplateV2Presentation ? "template-v2" : "presentation"}
                 currentSlide={selectedSlide}
                 presentationData={presentationData}
+                onBeforeSend={flushPendingSave}
                 onPresentationChanged={handlePresentationChanged}
                 onChatSendingStateChange={handleChatSendingStateChange}
                 onChatMutationStateChange={handleChatMutationStateChange}
