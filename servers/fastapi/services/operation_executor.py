@@ -165,6 +165,36 @@ async def _apply_operations(
                 raise HTTPException(422, "ApplyBrandPack requires brandPackId")
             metadata["theme"] = presentation_theme_from_pack(load_brand_pack(str(pack_id)))
             continue
+        if op_type in {"UpdateChartType", "UpdateChartData"}:
+            from copy import deepcopy
+            from services.chart_data import (
+                change_chart_type,
+                iter_chart_elements,
+                replace_chart_values,
+            )
+            for slide_id in targets:
+                slide = slide_map[slide_id]
+                ui = deepcopy(slide.ui or {})
+                charts = list(iter_chart_elements(ui))
+                if not charts:
+                    raise HTTPException(422, "No chart element on slide")
+                chart = charts[0]
+                if op_type == "UpdateChartType":
+                    updated = change_chart_type(chart, str(payload.get("chartType") or ""))
+                else:
+                    updated = replace_chart_values(
+                        chart,
+                        categories=payload.get("categories"),
+                        series=payload.get("series"),
+                        unit=payload.get("unit"),
+                        period=payload.get("period"),
+                        source=payload.get("source"),
+                    )
+                chart.clear()
+                chart.update(updated)
+                slide.ui = ui
+                session.add(slide)
+            continue
         require_slides(targets)
         if op_type == "UpdateSlide":
             for slide_id in targets:
@@ -543,6 +573,20 @@ def invert_operations(operations: list[dict], before_snapshot: dict) -> list[dic
                     "payload": {"theme": before_snapshot.get("theme")},
                 }
             )
+        elif op_type in {"UpdateChartType", "UpdateChartData"}:
+            slides = {slide["id"]: slide for slide in (before_snapshot.get("slides") or [])}
+            for slide_id in targets:
+                old = slides.get(slide_id)
+                if not old:
+                    continue
+                inverse.append(
+                    {
+                        "scope": "slide",
+                        "targetIds": [slide_id],
+                        "operationType": "UpdateSlide",
+                        "payload": {"ui": old.get("ui")},
+                    }
+                )
         elif op_type == "UpdateSlide":
             for slide_id in targets:
                 old = slides.get(slide_id)
