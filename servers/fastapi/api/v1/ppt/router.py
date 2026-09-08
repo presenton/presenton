@@ -17,6 +17,7 @@ from api.v1.ppt.endpoints.outlines import OUTLINES_ROUTER
 from api.v1.ppt.endpoints.slide import SLIDE_ROUTER
 from api.v1.ppt.endpoints.template import TEMPLATE_ROUTER
 from api.v1.ppt.endpoints.brand_packs import BRAND_PACKS_ROUTER
+from api.v1.ppt.endpoints.r1 import R1_ROUTER
 from api.v1.ppt.endpoints.presentation import PRESENTATION_ROUTER
 from api.v1.ppt.endpoints.editor import EDITOR_ROUTER
 from api.v1.ppt.endpoints.theme import THEMES_ROUTER
@@ -46,3 +47,4 @@ API_V1_PPT_ROUTER.include_router(CHAT_ROUTER)
 API_V1_PPT_ROUTER.include_router(TEMPLATE_ROUTER)
 API_V1_PPT_ROUTER.include_router(COMMUNITY_ROUTER)
 API_V1_PPT_ROUTER.include_router(BRAND_PACKS_ROUTER)
+API_V1_PPT_ROUTER.include_router(R1_ROUTER)
