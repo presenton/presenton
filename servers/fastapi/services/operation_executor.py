@@ -158,6 +158,13 @@ async def _apply_operations(
             if "theme" in payload:
                 metadata["theme"] = payload["theme"]
             continue
+        if op_type == "ApplyBrandPack":
+            from services.brand_pack import load_brand_pack, presentation_theme_from_pack
+            pack_id = payload.get("brandPackId")
+            if not pack_id:
+                raise HTTPException(422, "ApplyBrandPack requires brandPackId")
+            metadata["theme"] = presentation_theme_from_pack(load_brand_pack(str(pack_id)))
+            continue
         require_slides(targets)
         if op_type == "UpdateSlide":
             for slide_id in targets:
@@ -525,6 +532,15 @@ def invert_operations(operations: list[dict], before_snapshot: dict) -> list[dic
                         for key in ("title", "theme")
                         if key in payload
                     },
+                }
+            )
+        elif op_type == "ApplyBrandPack":
+            inverse.append(
+                {
+                    "scope": "document",
+                    "targetIds": [],
+                    "operationType": "UpdateMetadata",
+                    "payload": {"theme": before_snapshot.get("theme")},
                 }
             )
         elif op_type == "UpdateSlide":
