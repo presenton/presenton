@@ -12,6 +12,7 @@ from api.v1.auth.context import (
     set_current_owner_is_admin,
 )
 from services.export_task_service import ExportTaskService
+from templates import fonts_and_slides_preview
 from utils.asset_directory_utils import resolve_app_path_to_filesystem
 
 
@@ -87,6 +88,45 @@ def test_server_side_file_resolution_rejects_other_users_and_symlink_escape(
         )
     finally:
         reset_current_owner_is_admin(admin_token)
+        reset_current_owner_id(owner_token)
+
+
+def test_server_side_file_resolution_allows_packaged_nextjs_fonts():
+    resolved = resolve_app_path_to_filesystem(
+        "/vendor/fonts/sans_serif/poppins/Poppins-Regular.ttf"
+    )
+
+    assert resolved is not None
+    assert resolved.endswith(
+        "servers/nextjs/public/vendor/fonts/sans_serif/poppins/Poppins-Regular.ttf"
+    )
+
+
+def test_template_preview_pptx_remains_resolvable_for_its_owner(
+    monkeypatch,
+    tmp_path,
+):
+    app_data = tmp_path / "app_data"
+    owner_id = uuid.uuid4()
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(app_data))
+
+    owner_token = set_current_owner_id(owner_id)
+    try:
+        session_dir = fonts_and_slides_preview._get_template_preview_session_dir(
+            uuid.uuid4()
+        )
+        pptx_path = os.path.join(session_dir, "presentation.pptx")
+        with open(pptx_path, "wb") as pptx_file:
+            pptx_file.write(b"pptx")
+        (pptx_url,) = fonts_and_slides_preview._public_urls_for_local_paths(
+            [pptx_path]
+        )
+
+        assert pptx_url.startswith(f"/app_data/uploads/users/{owner_id}/")
+        assert resolve_app_path_to_filesystem(pptx_url) == os.path.realpath(
+            pptx_path
+        )
+    finally:
         reset_current_owner_id(owner_token)
 
 

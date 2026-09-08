@@ -182,7 +182,7 @@ function makeTableCell({
 function makeBulletListElement(marker: Marker): SlideElement {
   const baseFont = {
     size: 18,
-    family: "Inter",
+    family: "Manrope",
     color: "#111111",
     bold: false,
     italic: false,
@@ -656,6 +656,9 @@ function infographicTypeFromPaletteId(id?: string): InfographicType | null {
     case "conversion_funnel":
     case "conversion-funnel":
       return "conversion_funnel";
+    case "vertical_funnel":
+    case "vertical-funnel":
+      return "vertical_funnel";
     case "pyramid":
       return "pyramid";
     case "segmented_wheel":
@@ -1160,6 +1163,43 @@ function makeInfographicElement(infographicType: InfographicType): SlideElement 
     };
   }
 
+  if (infographicType === "vertical_funnel") {
+    return {
+      type: "infographic",
+      position: { ...DEFAULT_INFOGRAPHIC_INSERT_POSITION },
+      size: { width: 720, height: 480 },
+      data: {
+        type: "vertical_funnel",
+        items: [
+          {
+            value: 100,
+            heading: "Awareness",
+            description: "The full audience entering the funnel.",
+          },
+          {
+            value: 60,
+            heading: "Interest",
+            description: "People engaging with the offering.",
+          },
+          {
+            value: 35,
+            heading: "Consideration",
+            description: "Prospects evaluating the solution.",
+          },
+          {
+            value: 20,
+            heading: "Conversion",
+            description: "People completing the target action.",
+          },
+        ],
+      },
+      colors: ["FFFFFF", "102E79", "24468E", "4D73BE", "7CA2E5"],
+      text_color: null,
+      decorative: false,
+      name: "vertical_funnel",
+    };
+  }
+
   if (infographicType === "pyramid") {
     return {
       type: "infographic",
@@ -1544,7 +1584,7 @@ function createDefaultInfographicInsertElements(kind?: string): SlideElement[] {
 
 function makeSimpleTableElement(): SlideElement {
   const baseFont: Font = {
-    family: "Inter",
+    family: "Manrope",
     size: 14,
     color: "#344054",
     line_height: 1.2,

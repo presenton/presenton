@@ -349,7 +349,7 @@ export default function AuthGate() {
               <p className="font-syne text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7A5AF8]">
                 Secure instance
               </p>
-              <h1 className="mt-1 font-unbounded text-xl font-normal leading-tight tracking-[-0.03em] text-black sm:text-[22px]">
+              <h1 className="mt-1 font-syne text-xl font-normal leading-tight tracking-[-0.03em] text-black sm:text-[22px]">
                 {isSetupMode ? "Create your admin login" : "Sign in to continue"}
               </h1>
             </div>

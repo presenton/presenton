@@ -20,8 +20,6 @@ from services.export_task_service import EXPORT_TASK_SERVICE
 from templates.pptx_font_utils import (
     FontDetail,
     _font_style_variant,
-    build_google_fonts_stylesheet_url,
-    check_google_font_availability,
     extract_used_font_variants_from_pptx,
     extract_used_fonts_from_pptx,
     get_available_and_unavailable_fonts_for_pptx,
@@ -29,7 +27,7 @@ from templates.pptx_font_utils import (
     extract_font_name_from_file,
     extract_raw_fonts_and_embedded_details,
     get_font_details,
-    get_google_font_file_urls,
+    get_static_font_url,
     get_index_of_matching_font_detail_or_none,
     normalize_font_family_name,
     normalize_font_variants,
@@ -37,9 +35,9 @@ from templates.pptx_font_utils import (
 )
 from utils.asset_directory_utils import (
     absolute_fastapi_asset_url,
+    get_uploads_directory,
     resolve_app_path_to_filesystem,
 )
-from utils.download_helpers import download_file
 from utils.get_env import get_app_data_directory_env
 from utils.font_uploads import (
     download_font_uploads,
@@ -166,19 +164,24 @@ ET.register_namespace("r", PPT_NS["r"])
 
 def _preview_dimensions_from_document(width: float, height: float) -> Tuple[int, int]:
     try:
-        resolved_width = int(round(float(width)))
-        resolved_height = int(round(float(height)))
+        source_width = float(width)
+        source_height = float(height)
     except (TypeError, ValueError):
         return PREVIEW_WIDTH, PREVIEW_HEIGHT
 
-    if resolved_width <= 0 or resolved_height <= 0:
+    if source_width <= 0 or source_height <= 0:
         return PREVIEW_WIDTH, PREVIEW_HEIGHT
 
-    return resolved_width, resolved_height
+    # export-core normalizes PPTX-to-JSON coordinates to a 1280px-wide canvas.
+    # Capture previews in that same coordinate space so decks whose native PPTX
+    # dimensions are larger (for example 1707x960) do not render as a smaller
+    # 1280x720 slide in the top-left of a larger image.
+    normalized_height = int(round(source_height * PREVIEW_WIDTH / source_width))
+    return PREVIEW_WIDTH, max(1, normalized_height)
 
 
 def _preview_dimensions_from_pptx(pptx_path: str) -> Tuple[int, int]:
-    """Read the canvas size used by export-core from the PPTX package."""
+    """Derive export-core's normalized canvas from the PPTX aspect ratio."""
     try:
         with zipfile.ZipFile(pptx_path, "r") as archive:
             presentation_xml = archive.read("ppt/presentation.xml")
@@ -270,14 +273,17 @@ def _preview_asset_url_to_data_uri(
     parsed = urllib.parse.urlparse(url)
     fallback_url = url
     if parsed.scheme in ("http", "https"):
-        if not parsed.path.startswith(("/app_data/", "/static/")):
+        if not parsed.path.startswith(
+            ("/app_data/", "/static/", "/vendor/fonts/")
+        ):
             return url
         candidate = urllib.parse.unquote(parsed.path)
     elif parsed.scheme == "file":
         candidate = urllib.parse.unquote(parsed.path)
-    elif url.startswith(("/app_data/", "/static/")):
+    elif url.startswith(("/app_data/", "/static/", "/vendor/fonts/")):
         candidate = url
-        fallback_url = absolute_fastapi_asset_url(candidate)
+        if not url.startswith("/vendor/fonts/"):
+            fallback_url = absolute_fastapi_asset_url(candidate)
     elif (
         not parsed.scheme
         and relative_asset_root
@@ -392,16 +398,22 @@ def _font_stylesheet_links_for_slide_html(
             and _normalized_css_font_family(font_name) not in declared_font_names
         }
     )
-    return "\n".join(
-        f'<link href="{html.escape(build_google_fonts_stylesheet_url(font_name), quote=True)}" rel="stylesheet">'
-        for font_name in font_names
-    )
+    rules: List[str] = []
+    for font_name in font_names:
+        font_url = get_static_font_url(font_name)
+        if not font_url:
+            continue
+        rules.append(
+            '<style>@font-face{'
+            f'font-family:"{html.escape(font_name, quote=True)}";'
+            f'src:url("{html.escape(font_url, quote=True)}");'
+            'font-display:swap}</style>'
+        )
+    return "\n".join(rules)
 
 
 def _is_font_stylesheet_url(url: str) -> bool:
-    return bool(re.search(r"\.css(?:\?|$)", url, flags=re.IGNORECASE)) or (
-        "fonts.googleapis.com" in url
-    )
+    return bool(re.search(r"\.css(?:\?|$)", url, flags=re.IGNORECASE))
 
 
 def _font_stylesheet_links_for_urls(urls: List[str]) -> str:
@@ -651,7 +663,7 @@ def _get_fonts_directory() -> str:
 
 def _get_template_preview_session_dir(session_id: uuid.UUID) -> str:
     session_dir = os.path.join(
-        _app_data_directory(), "uploads", "template-previews", str(session_id)
+        get_uploads_directory(), "template-previews", str(session_id)
     )
     os.makedirs(session_dir, exist_ok=True)
     return session_dir
@@ -754,6 +766,7 @@ async def render_pptx_slides_to_images(
     max_slides: Optional[int],
     logger,
     font_stylesheet_urls: Optional[List[str]] = None,
+    preview_fonts: Optional[Dict[str, str]] = None,
 ) -> List[str]:
     local_font_css = ""
     if font_paths_for_install:
@@ -779,11 +792,24 @@ async def render_pptx_slides_to_images(
         f"Rendering {len(slide_layouts)} slide previews from PPTX-to-JSON at {width}x{height}"
     )
 
-    fonts: Dict[str, object] = {}
+    fonts: Dict[str, object] = {
+        family: _preview_asset_url_to_data_uri(url)
+        for family, url in (preview_fonts or {}).items()
+        if family and url
+    }
     if local_font_css:
         fonts["css"] = local_font_css
     if font_stylesheet_urls:
-        fonts["fonts"] = font_stylesheet_urls
+        if preview_fonts:
+            fonts.update(
+                {
+                    f"stylesheet_{index}": url
+                    for index, url in enumerate(font_stylesheet_urls)
+                    if url
+                }
+            )
+        else:
+            fonts["fonts"] = font_stylesheet_urls
 
     rendered = await EXPORT_TASK_SERVICE.render_jsons_to_images(
         data=slide_layouts,
@@ -1121,7 +1147,7 @@ def _trim_pptx_to_max_slides(
 
 async def check_fonts_in_pptx_handler(pptx_file: UploadFile) -> FontCheckResponse:
     """
-    Extract fonts from a PPTX file and check their availability in Google Fonts.
+    Extract fonts from a PPTX file and check their availability in the packaged catalog.
 
     Returns:
         FontCheckResponse with available and unavailable fonts
@@ -1239,7 +1265,7 @@ async def _build_upload_preview_font_urls(
             fonts[actual_name] = font_url
             logger.info(f"Added custom font: {actual_name} -> {font_url}")
 
-    logger.info("Checking for Google Fonts availability")
+    logger.info("Checking the packaged font catalog")
     all_fonts = set(raw_fonts)
     normalized_original_font_names = {
         normalize_font_family_name(name) for name in (original_font_names or [])
@@ -1252,27 +1278,14 @@ async def _build_upload_preview_font_urls(
     }
     fonts_to_check = sorted(font for font in all_fonts if font)
 
-    tasks = [
-        check_google_font_availability(
-            font,
-            variants=_variants_for_font_name(font, variants_by_normalized_name),
-        )
-        for font in fonts_to_check
-    ]
-    results = await asyncio.gather(*tasks)
+    del variants_by_normalized_name
+    for font in fonts_to_check:
+        static_font_url = get_static_font_url(font)
+        if static_font_url:
+            fonts[font] = static_font_url
+            logger.info(f"Added packaged font: {font} -> {static_font_url}")
 
-    for font, is_available in zip(fonts_to_check, results):
-        if is_available:
-            google_fonts_url = build_google_fonts_stylesheet_url(
-                font,
-                variants=_variants_for_font_name(font, variants_by_normalized_name),
-            )
-            fonts[font] = google_fonts_url
-            logger.info(f"Added Google Font: {font} -> {google_fonts_url}")
-
-    logger.info(
-        f"Found {len([k for k, v in fonts.items() if 'fonts.googleapis.com' in v])} available Google Fonts"
-    )
+    logger.info(f"Found {len(fonts)} available embedded, custom, or packaged fonts")
     return fonts
 
 
@@ -1409,9 +1422,7 @@ async def upload_fonts_and_preview_handler(
                 max_slides=slide_cap,
                 logger=logger,
                 session_dir=session_dir,
-                font_stylesheet_urls=[
-                    url for url in fonts.values() if _is_font_stylesheet_url(url)
-                ],
+                preview_fonts=fonts,
             )
 
         modified_pptx_path_out = ""
@@ -1458,7 +1469,7 @@ def _add_google_font_replacements_to_mapping(
             continue
         if original_name in font_mapping:
             logger.info(
-                f"Skipping Google font mapping for {original_name}; custom font mapping already exists"
+                f"Skipping packaged font mapping for {original_name}; custom font mapping already exists"
             )
             continue
 
@@ -1474,7 +1485,7 @@ def _add_google_font_replacements_to_mapping(
                     requested_variant
                 ] = replacement_name
 
-        logger.info(f"Google font mapping: {original_name} -> {replacement_name}")
+        logger.info(f"Packaged font mapping: {original_name} -> {replacement_name}")
 
 
 async def upload_fonts_and_fix_fonts_in_pptx(
@@ -1697,6 +1708,7 @@ async def create_slide_previews(
     logger,
     session_dir: str,
     font_stylesheet_urls: Optional[List[str]] = None,
+    preview_fonts: Optional[Dict[str, str]] = None,
 ) -> List[str]:
     del temp_dir, font_mapping, explicit_font_aliases, protected_font_names
 
@@ -1706,6 +1718,7 @@ async def create_slide_previews(
         max_slides=max_slides,
         logger=logger,
         font_stylesheet_urls=font_stylesheet_urls,
+        preview_fonts=preview_fonts,
     )
     logger.info("Generated slide previews from PPTX-to-JSON with Chromium")
 
@@ -1867,63 +1880,15 @@ async def _download_available_google_fonts(
     logger,
     variants_by_normalized_name: Optional[Dict[str, Set[str]]] = None,
 ) -> List[str]:
-    if not candidate_google_fonts:
-        return []
-
-    api_key = (os.environ.get("GOOGLE_FONTS_API_KEY") or "").strip()
-    if not api_key:
-        logger.warning("GOOGLE_FONTS_API_KEY not set; skipping Google Fonts download")
-        return []
-
-    logger.info(f"Checking and downloading {len(candidate_google_fonts)} Google Fonts")
-    availability = await asyncio.gather(
-        *[
-            check_google_font_availability(
-                f,
-                variants=_variants_for_font_name(f, variants_by_normalized_name or {}),
-            )
-            for f in candidate_google_fonts
-        ]
+    del temp_dir, variants_by_normalized_name
+    available_fonts = [
+        family for family in candidate_google_fonts if get_static_font_url(family)
+    ]
+    logger.info(
+        f"Resolved {len(available_fonts)} font(s) from the packaged catalog; "
+        "browser assets do not require backend downloads"
     )
-
-    google_download_dir = os.path.join(temp_dir, "google_fonts")
-    await asyncio.to_thread(os.makedirs, google_download_dir, exist_ok=True)
-
-    downloaded_paths: List[str] = []
-    for family, is_available in zip(candidate_google_fonts, availability):
-        if not is_available:
-            continue
-        file_urls = await get_google_font_file_urls(family, api_key)
-        if not file_urls:
-            logger.warning(f"Webfonts API returned no TTF/OTF URLs for '{family}'")
-            continue
-        extract_dir = os.path.join(google_download_dir, family.replace(" ", "_"))
-        await asyncio.to_thread(os.makedirs, extract_dir, exist_ok=True)
-        downloaded_for_family = 0
-        for idx, file_url in enumerate(file_urls):
-            filename = (
-                os.path.basename(urllib.parse.urlparse(file_url).path)
-                or f"{family}_{idx}.ttf"
-            )
-            dest_path = os.path.join(extract_dir, filename)
-            try:
-                downloaded_path = await download_file(file_url, extract_dir)
-                if not downloaded_path or not os.path.exists(downloaded_path):
-                    raise RuntimeError(
-                        f"download_file returned invalid path for {file_url}"
-                    )
-                if os.path.abspath(downloaded_path) != os.path.abspath(dest_path):
-                    await asyncio.to_thread(shutil.move, downloaded_path, dest_path)
-                downloaded_paths.append(dest_path)
-                downloaded_for_family += 1
-            except Exception as exc:
-                logger.warning(
-                    f"Failed to download font file for '{family}' from {file_url}: {exc}"
-                )
-        if downloaded_for_family:
-            logger.info(f"Downloaded {downloaded_for_family} file(s) for '{family}'")
-
-    return downloaded_paths
+    return []
 
 
 async def _persist_files_to_session(pairs: List[Tuple[str, str]]) -> List[str]:

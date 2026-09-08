@@ -15,6 +15,7 @@ from models.sql.async_presentation_generation_status import (
 )
 from models.sql.chat_history_message import ChatHistoryMessageModel
 from models.sql.font_upload import FontUpload
+from models.sql.api_key import ApiKey
 from models.sql.image_asset import ImageAsset
 from models.sql.key_value import KeyValueSqlModel
 from models.sql.ollama_pull_status import OllamaPullStatus
@@ -26,7 +27,6 @@ from models.sql.template_v2 import TemplateV2
 from models.sql.slide import SlideModel
 from models.sql.webhook_subscription import WebhookSubscription
 from models.sql.user import User
-from models.sql.access_token import AccessToken
 from models.sql.provider_settings import ProviderSettings
 from models.sql.presenton_cloud_provider import PresentonCloudProvider
 from api.v1.auth.context import get_current_owner_id
@@ -143,7 +143,7 @@ async def create_db_and_tables():
                         AsyncPresentationGenerationTaskModel.__table__,
                         OllamaPullStatus.__table__,
                         User.__table__,
-                        AccessToken.__table__,
+                        ApiKey.__table__,
                         ProviderSettings.__table__,
                         PresentonCloudProvider.__table__,
                     ],

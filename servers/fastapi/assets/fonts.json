@@ -1,0 +1,383 @@
+[
+    {
+        "font_name": "Abril Fatface",
+        "font_url": "/vendor/fonts/display/abrilfatface/AbrilFatface-Regular.ttf"
+    },
+    {
+        "font_name": "Anton",
+        "font_url": "/vendor/fonts/display/anton/Anton-Regular.ttf"
+    },
+    {
+        "font_name": "Archivo Black",
+        "font_url": "/vendor/fonts/display/archivoblack/ArchivoBlack-Regular.ttf"
+    },
+    {
+        "font_name": "Bebas Neue",
+        "font_url": "/vendor/fonts/display/bebasneue/BebasNeue-Regular.ttf"
+    },
+    {
+        "font_name": "Black Ops One",
+        "font_url": "/vendor/fonts/display/blackopsone/BlackOpsOne-Regular.ttf"
+    },
+    {
+        "font_name": "Bungee",
+        "font_url": "/vendor/fonts/display/bungee/Bungee-Regular.ttf"
+    },
+    {
+        "font_name": "Cinzel",
+        "font_url": "/vendor/fonts/display/cinzel/Cinzel[wght].ttf"
+    },
+    {
+        "font_name": "Fugaz One",
+        "font_url": "/vendor/fonts/display/fugazone/FugazOne-Regular.ttf"
+    },
+    {
+        "font_name": "League Spartan",
+        "font_url": "/vendor/fonts/display/leaguespartan/LeagueSpartan[wght].ttf"
+    },
+    {
+        "font_name": "Lilita One",
+        "font_url": "/vendor/fonts/display/lilitaone/LilitaOne-Regular.ttf"
+    },
+    {
+        "font_name": "Oswald",
+        "font_url": "/vendor/fonts/display/oswald/Oswald[wght].ttf"
+    },
+    {
+        "font_name": "Righteous",
+        "font_url": "/vendor/fonts/display/righteous/Righteous-Regular.ttf"
+    },
+    {
+        "font_name": "Russo One",
+        "font_url": "/vendor/fonts/display/russoone/RussoOne-Regular.ttf"
+    },
+    {
+        "font_name": "Staatliches",
+        "font_url": "/vendor/fonts/display/staatliches/Staatliches-Regular.ttf"
+    },
+    {
+        "font_name": "Unbounded",
+        "font_url": "/vendor/fonts/display/unbounded/Unbounded[wght].ttf"
+    },
+    {
+        "font_name": "Architects Daughter",
+        "font_url": "/vendor/fonts/handwritten/architectsdaughter/ArchitectsDaughter-Regular.ttf"
+    },
+    {
+        "font_name": "Caveat",
+        "font_url": "/vendor/fonts/handwritten/caveat/Caveat[wght].ttf"
+    },
+    {
+        "font_name": "Coming Soon",
+        "font_url": "/vendor/fonts/handwritten/comingsoon/ComingSoon-Regular.ttf"
+    },
+    {
+        "font_name": "Gloria Hallelujah",
+        "font_url": "/vendor/fonts/handwritten/gloriahallelujah/GloriaHallelujah.ttf"
+    },
+    {
+        "font_name": "Indie Flower",
+        "font_url": "/vendor/fonts/handwritten/indieflower/IndieFlower-Regular.ttf"
+    },
+    {
+        "font_name": "Kalam",
+        "font_url": "/vendor/fonts/handwritten/kalam/Kalam-Regular.ttf"
+    },
+    {
+        "font_name": "Nanum Pen Script",
+        "font_url": "/vendor/fonts/handwritten/nanumpenscript/NanumPenScript-Regular.ttf"
+    },
+    {
+        "font_name": "Patrick Hand",
+        "font_url": "/vendor/fonts/handwritten/patrickhand/PatrickHand-Regular.ttf"
+    },
+    {
+        "font_name": "Schoolbell",
+        "font_url": "/vendor/fonts/handwritten/schoolbell/Schoolbell-Regular.ttf"
+    },
+    {
+        "font_name": "Shadows Into Light",
+        "font_url": "/vendor/fonts/handwritten/shadowsintolight/ShadowsIntoLight.ttf"
+    },
+    {
+        "font_name": "Anonymous Pro",
+        "font_url": "/vendor/fonts/monospace/anonymouspro/AnonymousPro-Regular.ttf"
+    },
+    {
+        "font_name": "Cutive Mono",
+        "font_url": "/vendor/fonts/monospace/cutivemono/CutiveMono-Regular.ttf"
+    },
+    {
+        "font_name": "DM Mono",
+        "font_url": "/vendor/fonts/monospace/dmmono/DMMono-Regular.ttf"
+    },
+    {
+        "font_name": "Fira Code",
+        "font_url": "/vendor/fonts/monospace/firacode/FiraCode[wght].ttf"
+    },
+    {
+        "font_name": "Fira Mono",
+        "font_url": "/vendor/fonts/monospace/firamono/FiraMono-Regular.ttf"
+    },
+    {
+        "font_name": "IBM Plex Mono",
+        "font_url": "/vendor/fonts/monospace/ibmplexmono/IBMPlexMono-Regular.ttf"
+    },
+    {
+        "font_name": "Inconsolata",
+        "font_url": "/vendor/fonts/monospace/inconsolata/Inconsolata[wdth,wght].ttf"
+    },
+    {
+        "font_name": "JetBrains Mono",
+        "font_url": "/vendor/fonts/monospace/jetbrainsmono/JetBrainsMono[wght].ttf"
+    },
+    {
+        "font_name": "Noto Sans Mono",
+        "font_url": "/vendor/fonts/monospace/notosansmono/NotoSansMono[wdth,wght].ttf"
+    },
+    {
+        "font_name": "PT Mono",
+        "font_url": "/vendor/fonts/monospace/ptmono/PTM55FT.ttf"
+    },
+    {
+        "font_name": "Red Hat Mono",
+        "font_url": "/vendor/fonts/monospace/redhatmono/RedHatMono[wght].ttf"
+    },
+    {
+        "font_name": "Roboto Mono",
+        "font_url": "/vendor/fonts/monospace/robotomono/RobotoMono[wght].ttf"
+    },
+    {
+        "font_name": "Source Code Pro",
+        "font_url": "/vendor/fonts/monospace/sourcecodepro/SourceCodePro[wght].ttf"
+    },
+    {
+        "font_name": "Space Mono",
+        "font_url": "/vendor/fonts/monospace/spacemono/SpaceMono-Regular.ttf"
+    },
+    {
+        "font_name": "Ubuntu Mono",
+        "font_url": "/vendor/fonts/monospace/ubuntumono/UbuntuMono-Regular.ttf"
+    },
+    {
+        "font_name": "DM Sans",
+        "font_url": "/vendor/fonts/sans_serif/dmsans/DMSans[opsz,wght].ttf"
+    },
+    {
+        "font_name": "Inter",
+        "font_url": "/vendor/fonts/sans_serif/inter/Inter[opsz,wght].ttf"
+    },
+    {
+        "font_name": "Lato",
+        "font_url": "/vendor/fonts/sans_serif/lato/Lato-Regular.ttf"
+    },
+    {
+        "font_name": "Manrope",
+        "font_url": "/vendor/fonts/sans_serif/manrope/Manrope[wght].ttf"
+    },
+    {
+        "font_name": "Montserrat",
+        "font_url": "/vendor/fonts/sans_serif/montserrat/Montserrat[wght].ttf"
+    },
+    {
+        "font_name": "Mulish",
+        "font_url": "/vendor/fonts/sans_serif/mulish/Mulish[wght].ttf"
+    },
+    {
+        "font_name": "Nunito Sans",
+        "font_url": "/vendor/fonts/sans_serif/nunitosans/NunitoSans[YTLC,opsz,wdth,wght].ttf"
+    },
+    {
+        "font_name": "Open Sans",
+        "font_url": "/vendor/fonts/sans_serif/opensans/OpenSans[wdth,wght].ttf"
+    },
+    {
+        "font_name": "Outfit",
+        "font_url": "/vendor/fonts/sans_serif/outfit/Outfit[wght].ttf"
+    },
+    {
+        "font_name": "Plus Jakarta Sans",
+        "font_url": "/vendor/fonts/sans_serif/plusjakartasans/PlusJakartaSans[wght].ttf"
+    },
+    {
+        "font_name": "Poppins",
+        "font_url": "/vendor/fonts/sans_serif/poppins/Poppins-Regular.ttf"
+    },
+    {
+        "font_name": "Roboto",
+        "font_url": "/vendor/fonts/sans_serif/roboto/Roboto[wdth,wght].ttf"
+    },
+    {
+        "font_name": "Rubik",
+        "font_url": "/vendor/fonts/sans_serif/rubik/Rubik[wght].ttf"
+    },
+    {
+        "font_name": "Source Sans 3",
+        "font_url": "/vendor/fonts/sans_serif/sourcesans3/SourceSans3[wght].ttf"
+    },
+    {
+        "font_name": "Work Sans",
+        "font_url": "/vendor/fonts/sans_serif/worksans/WorkSans[wght].ttf"
+    },
+    {
+        "font_name": "Alex Brush",
+        "font_url": "/vendor/fonts/script/alexbrush/AlexBrush-Regular.ttf"
+    },
+    {
+        "font_name": "Allura",
+        "font_url": "/vendor/fonts/script/allura/Allura-Regular.ttf"
+    },
+    {
+        "font_name": "Dancing Script",
+        "font_url": "/vendor/fonts/script/dancingscript/DancingScript[wght].ttf"
+    },
+    {
+        "font_name": "Great Vibes",
+        "font_url": "/vendor/fonts/script/greatvibes/GreatVibes-Regular.ttf"
+    },
+    {
+        "font_name": "Italianno",
+        "font_url": "/vendor/fonts/script/italianno/Italianno-Regular.ttf"
+    },
+    {
+        "font_name": "Parisienne",
+        "font_url": "/vendor/fonts/script/parisienne/Parisienne-Regular.ttf"
+    },
+    {
+        "font_name": "Pinyon Script",
+        "font_url": "/vendor/fonts/script/pinyonscript/PinyonScript-Regular.ttf"
+    },
+    {
+        "font_name": "Sacramento",
+        "font_url": "/vendor/fonts/script/sacramento/Sacramento-Regular.ttf"
+    },
+    {
+        "font_name": "Tangerine",
+        "font_url": "/vendor/fonts/script/tangerine/Tangerine-Regular.ttf"
+    },
+    {
+        "font_name": "Yellowtail",
+        "font_url": "/vendor/fonts/script/yellowtail/Yellowtail-Regular.ttf"
+    },
+    {
+        "font_name": "Cardo",
+        "font_url": "/vendor/fonts/serif/cardo/Cardo-Regular.ttf"
+    },
+    {
+        "font_name": "Cormorant Garamond",
+        "font_url": "/vendor/fonts/serif/cormorantgaramond/CormorantGaramond[wght].ttf"
+    },
+    {
+        "font_name": "Crimson Pro",
+        "font_url": "/vendor/fonts/serif/crimsonpro/CrimsonPro[wght].ttf"
+    },
+    {
+        "font_name": "DM Serif Display",
+        "font_url": "/vendor/fonts/serif/dmserifdisplay/DMSerifDisplay-Regular.ttf"
+    },
+    {
+        "font_name": "EB Garamond",
+        "font_url": "/vendor/fonts/serif/ebgaramond/EBGaramond[wght].ttf"
+    },
+    {
+        "font_name": "Fraunces",
+        "font_url": "/vendor/fonts/serif/fraunces/Fraunces[SOFT,WONK,opsz,wght].ttf"
+    },
+    {
+        "font_name": "Libre Baskerville",
+        "font_url": "/vendor/fonts/serif/librebaskerville/LibreBaskerville[wght].ttf"
+    },
+    {
+        "font_name": "Lora",
+        "font_url": "/vendor/fonts/serif/lora/Lora[wght].ttf"
+    },
+    {
+        "font_name": "Merriweather",
+        "font_url": "/vendor/fonts/serif/merriweather/Merriweather[opsz,wdth,wght].ttf"
+    },
+    {
+        "font_name": "Newsreader",
+        "font_url": "/vendor/fonts/serif/newsreader/Newsreader[opsz,wght].ttf"
+    },
+    {
+        "font_name": "Noto Serif",
+        "font_url": "/vendor/fonts/serif/notoserif/NotoSerif[wdth,wght].ttf"
+    },
+    {
+        "font_name": "Playfair Display",
+        "font_url": "/vendor/fonts/serif/playfairdisplay/PlayfairDisplay[wght].ttf"
+    },
+    {
+        "font_name": "Source Serif 4",
+        "font_url": "/vendor/fonts/serif/sourceserif4/SourceSerif4[opsz,wght].ttf"
+    },
+    {
+        "font_name": "Spectral",
+        "font_url": "/vendor/fonts/serif/spectral/Spectral-Regular.ttf"
+    },
+    {
+        "font_name": "Vollkorn",
+        "font_url": "/vendor/fonts/serif/vollkorn/Vollkorn[wght].ttf"
+    },
+    {
+        "font_name": "Aleo",
+        "font_url": "/vendor/fonts/slab_serif/aleo/Aleo[wght].ttf"
+    },
+    {
+        "font_name": "Alfa Slab One",
+        "font_url": "/vendor/fonts/slab_serif/alfaslabone/AlfaSlabOne-Regular.ttf"
+    },
+    {
+        "font_name": "Arvo",
+        "font_url": "/vendor/fonts/slab_serif/arvo/Arvo-Regular.ttf"
+    },
+    {
+        "font_name": "Bevan",
+        "font_url": "/vendor/fonts/slab_serif/bevan/Bevan-Regular.ttf"
+    },
+    {
+        "font_name": "BioRhyme",
+        "font_url": "/vendor/fonts/slab_serif/biorhyme/BioRhyme[wdth,wght].ttf"
+    },
+    {
+        "font_name": "Bitter",
+        "font_url": "/vendor/fonts/slab_serif/bitter/Bitter[wght].ttf"
+    },
+    {
+        "font_name": "Bree Serif",
+        "font_url": "/vendor/fonts/slab_serif/breeserif/BreeSerif-Regular.ttf"
+    },
+    {
+        "font_name": "Crete Round",
+        "font_url": "/vendor/fonts/slab_serif/creteround/CreteRound-Regular.ttf"
+    },
+    {
+        "font_name": "Patua One",
+        "font_url": "/vendor/fonts/slab_serif/patuaone/PatuaOne-Regular.ttf"
+    },
+    {
+        "font_name": "Roboto Slab",
+        "font_url": "/vendor/fonts/slab_serif/robotoslab/RobotoSlab[wght].ttf"
+    },
+    {
+        "font_name": "Rokkitt",
+        "font_url": "/vendor/fonts/slab_serif/rokkitt/Rokkitt[wght].ttf"
+    },
+    {
+        "font_name": "Slabo 27px",
+        "font_url": "/vendor/fonts/slab_serif/slabo27px/Slabo27px-Regular.ttf"
+    },
+    {
+        "font_name": "Suez One",
+        "font_url": "/vendor/fonts/slab_serif/suezone/SuezOne-Regular.ttf"
+    },
+    {
+        "font_name": "Ultra",
+        "font_url": "/vendor/fonts/slab_serif/ultra/Ultra-Regular.ttf"
+    },
+    {
+        "font_name": "Zilla Slab",
+        "font_url": "/vendor/fonts/slab_serif/zillaslab/ZillaSlab-Regular.ttf"
+    }
+]
+

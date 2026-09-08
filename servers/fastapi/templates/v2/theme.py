@@ -491,6 +491,7 @@ def _collect_element_profile(
     named_color_categories = {
         "title_color": "text",
         "legend_color": "text",
+        "text_color": "text",
         "axis_color": "stroke",
         "grid_color": "stroke",
     }

@@ -95,7 +95,7 @@ const FinalStep = () => {
             <div className='flex flex-col items-center justify-center'>
 
                 <img src="/final_onboarding.png" alt="presenton" className='w-[118px] h-[98px]  object-contain' />
-                <h1 className='text-black text-[30px] font-normal font-unbounded py-2.5'>Welcome on board!</h1>
+                <h1 className='text-black text-[30px] font-normal font-syne py-2.5'>Welcome on board!</h1>
                 <p className='text-[#000000CC] text-xl font-normal font-syne'>You’re all set. Let’s create your first presentation.</p>
 
                 {trackingEnabled !== null && (

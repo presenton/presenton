@@ -44,3 +44,21 @@ class GeneratePresentationRequest(BaseModel):
     trigger_webhook: bool = Field(
         default=False, description="Whether to trigger subscribed webhooks"
     )
+
+
+class GenerateSmartPresentationRequest(BaseModel):
+    content: str = Field(default="", description="Prompt for the presentation")
+    n_slides: Optional[int] = Field(default=None, ge=1)
+    language: Optional[str] = None
+    instructions: Optional[str] = None
+    tone: Tone = Tone.DEFAULT
+    verbosity: Verbosity = Verbosity.STANDARD
+    web_search: bool = False
+    include_table_of_contents: bool = False
+    include_title_slide: bool = True
+    files: Optional[List[str]] = Field(
+        default=None,
+        description="Previously uploaded Presenton file paths",
+    )
+    community_design_ids: Optional[List[int]] = None
+    export_as: Literal["pptx", "pdf"] = "pptx"

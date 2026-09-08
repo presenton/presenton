@@ -36,13 +36,12 @@ import {
   mergeFontForTextSelection,
 } from "@/components/slide-editor/model/element-model";
 import {
-  ensureGoogleFontLoaded,
+  ensureLocalFontLoaded,
   ensureTemplateFontLoaded,
-  GOOGLE_FONT_OPTIONS,
-  loadGoogleFontOptions,
-  type GoogleFontOption,
+  LOCAL_FONT_OPTIONS,
+  type LocalFontOption,
   type TemplateFontOption,
-} from "@/components/slide-editor/text/google-fonts";
+} from "@/components/slide-editor/text/local-fonts";
 import {
   fontForTextSelection,
   latexTextRunRangeAtCursor,
@@ -93,7 +92,7 @@ const FONT_MENU_MAX_VISIBLE_ROWS = 8;
 const FONT_MENU_OVERSCAN_ROWS = 4;
 
 type TextToolbarPanel = "marker" | "settings";
-type FontPickerSource = "template" | "google";
+type FontPickerSource = "template" | "local";
 type ToolbarSurfaceRect = {
   height: number;
   left: number;
@@ -221,7 +220,7 @@ export function TextToolbar({
         void ensureTemplateFontLoaded(templateFont);
         return;
       }
-      void ensureGoogleFontLoaded(family);
+      void ensureLocalFontLoaded(family);
     },
     [templateFonts],
   );
@@ -434,7 +433,7 @@ export function TextToolbar({
           <FontFamilyPicker
             selectedFamily={font.family}
             templateFonts={templateFonts}
-            googleFonts={GOOGLE_FONT_OPTIONS}
+            localFonts={LOCAL_FONT_OPTIONS}
             onSelect={updateFontFamily}
           />
           <Divider />
@@ -756,58 +755,39 @@ function uniqueFontFamilies(families: string[]) {
 function FontFamilyPicker({
   selectedFamily,
   templateFonts,
-  googleFonts,
+  localFonts,
   onSelect,
 }: {
   selectedFamily: string;
   templateFonts: TemplateFontOption[];
-  googleFonts: GoogleFontOption[];
+  localFonts: LocalFontOption[];
   onSelect: (family: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(selectedFamily);
   const [searching, setSearching] = useState(false);
-  const [loadedGoogleFonts, setLoadedGoogleFonts] = useState<
-    GoogleFontOption[] | null
-  >(null);
   const [activeSource, setActiveSource] = useState<FontPickerSource>(() =>
     templateFonts.some(({ family }) => family === selectedFamily)
       ? "template"
-      : "google",
+      : "local",
   );
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const googleFontLoadStartedRef = useRef(false);
-  const loadFullGoogleFonts = useCallback(() => {
-    if (googleFontLoadStartedRef.current) return;
-
-    googleFontLoadStartedRef.current = true;
-    void loadGoogleFontOptions().then(
-      (options) => {
-        setLoadedGoogleFonts(options);
-      },
-      () => {
-        googleFontLoadStartedRef.current = false;
-      },
-    );
-  }, []);
-
   useEffect(() => {
     if (!open) return;
-    loadFullGoogleFonts();
     setQuery(selectedFamily);
     setSearching(false);
     setActiveSource(
       templateFonts.some(({ family }) => family === selectedFamily)
         ? "template"
-        : "google",
+        : "local",
     );
     window.setTimeout(() => {
       searchInputRef.current?.focus();
       searchInputRef.current?.select();
     }, 0);
-  }, [loadFullGoogleFonts, open, selectedFamily, templateFonts]);
+  }, [open, selectedFamily, templateFonts]);
 
   useEffect(() => {
     if (!open || typeof document === "undefined") return;
@@ -840,7 +820,6 @@ function FontFamilyPicker({
     onSelect(family);
     setOpen(false);
   };
-  const resolvedGoogleFonts = loadedGoogleFonts ?? googleFonts;
   const templateFontFamilySet = useMemo(
     () => new Set(templateFonts.map(({ family }) => family)),
     [templateFonts],
@@ -851,20 +830,20 @@ function FontFamilyPicker({
     () => templateFonts.map(({ family }) => family),
     [templateFonts],
   );
-  const googleFamilies = useMemo(
+  const localFamilies = useMemo(
     () =>
-      resolvedGoogleFonts
+      localFonts
         .filter(({ family }) => !templateFontFamilySet.has(family))
         .map(({ family }) => family),
-    [resolvedGoogleFonts, templateFontFamilySet],
+    [localFonts, templateFontFamilySet],
   );
   const activeFamilies =
     activeSource === "template" && templateFamilies.length > 0
       ? templateFamilies
-      : googleFamilies;
+      : localFamilies;
   const searchFamilies = useMemo(
-    () => uniqueFontFamilies([...templateFamilies, ...googleFamilies]),
-    [googleFamilies, templateFamilies],
+    () => uniqueFontFamilies([...templateFamilies, ...localFamilies]),
+    [localFamilies, templateFamilies],
   );
   const visibleFamilies = useMemo(
     () =>
@@ -879,13 +858,13 @@ function FontFamilyPicker({
     ? "All Fonts"
     : activeSource === "template" && templateFamilies.length > 0
       ? "Template Fonts"
-      : "Google Fonts";
+      : "Local Fonts";
   const swapFontSource = () => {
     setSearching(false);
     setQuery(selectedFamily);
     setActiveSource((current) => {
-      if (current === "template") return "google";
-      return templateFamilies.length > 0 ? "template" : "google";
+      if (current === "template") return "local";
+      return templateFamilies.length > 0 ? "template" : "local";
     });
     window.setTimeout(() => {
       searchInputRef.current?.focus();
@@ -1020,7 +999,7 @@ function FontMenuSection({
   }, [families]);
 
   return (
-    <div style={textToolbarStyles.fontMenuSection}>
+    <div   onClick={onSwap} style={textToolbarStyles.fontMenuSection}>
       <div style={textToolbarStyles.fontMenuHeading}>
         <span>{title}</span>
         <button
@@ -1029,7 +1008,7 @@ function FontMenuSection({
           title="Swap font source"
           style={textToolbarStyles.fontSourceSwapButton}
           onMouseDown={(event) => event.preventDefault()}
-          onClick={onSwap}
+        
         >
           <Repeat2 size={14} strokeWidth={2.1} aria-hidden="true" />
         </button>
@@ -1335,7 +1314,7 @@ const textToolbarStyles = {
     background: "transparent",
     color: "#0B1220",
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+      "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
     fontSize: 14,
     fontWeight: 400,
     cursor: "pointer",
@@ -1386,7 +1365,7 @@ const textToolbarStyles = {
     padding: "0 12px",
     color: "#111827",
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+      "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
   },
   fontSearchInput: {
     minWidth: 0,
@@ -1396,7 +1375,7 @@ const textToolbarStyles = {
     background: "transparent",
     color: "#111827",
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+      "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
     fontSize: 14,
     fontWeight: 400,
     padding: 0,
@@ -1425,6 +1404,7 @@ const textToolbarStyles = {
     gap: 4,
     minHeight: 0,
     padding: "8px 10px 0",
+    cursor: "pointer",
   },
   fontMenuHeading: {
     height: 26,
@@ -1438,7 +1418,7 @@ const textToolbarStyles = {
     justifyContent: "space-between",
     gap: 8,
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+      "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
     fontSize: 12,
     fontWeight: 500,
     lineHeight: 1,
@@ -1486,7 +1466,7 @@ const textToolbarStyles = {
     padding: "0 8px 0 4px",
     textAlign: "left",
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+      "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
     fontSize: 13,
     fontWeight: 400,
     lineHeight: 1,
@@ -1507,7 +1487,7 @@ const textToolbarStyles = {
     padding: "0 8px",
     color: "#6B7280",
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+      "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
     fontSize: 13,
   },
   fontMenuCheck: {
@@ -1549,7 +1529,7 @@ const textToolbarStyles = {
     background: "transparent",
     color: "#0B1220",
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+      "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
     fontSize: 14,
     fontWeight: 400,
     textAlign: "center",
@@ -1768,7 +1748,7 @@ const textToolbarStyles = {
     padding: "0 8px",
     color: "#111827",
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+      "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
     fontSize: 12,
     fontWeight: 400,
     lineHeight: 1,

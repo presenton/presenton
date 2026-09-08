@@ -132,4 +132,5 @@ def test_slide_content_generation_normalizes_object_schema_and_calls_llm(
     assert captured["json_schema"]["type"] == "object"
     assert "__speaker_note__" in captured["json_schema"]["properties"]
     assert captured["response_format"].json_schema == captured["json_schema"]
+    assert captured["response_format"].strict is True
     assert "# Slide Number:\n2" in captured["messages"][1].content

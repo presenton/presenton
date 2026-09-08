@@ -8,9 +8,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from api.v1.admin.router import API_V1_ADMIN_ROUTER
 from api.v1.auth.config import SESSION_COOKIE_NAME
 from api.v1.auth.router import API_V1_AUTH_ROUTER
-from api.v1.auth.rate_limit import LOGIN_RATE_LIMITER, login_rate_limit_key
 from api.v1.auth.users import PASSWORD_HELPER
-from models.sql.access_token import AccessToken
+from models.sql.api_key import ApiKey
 from models.sql.presenton_cloud_provider import PresentonCloudProvider
 from models.sql.provider_settings import ProviderSettings
 from models.sql.user import User
@@ -26,7 +25,7 @@ def _build_client(tmp_path) -> tuple[TestClient, object]:
     async def create_user_table():
         async with engine.begin() as connection:
             await connection.run_sync(User.__table__.create)
-            await connection.run_sync(AccessToken.__table__.create)
+            await connection.run_sync(ApiKey.__table__.create)
             await connection.run_sync(ProviderSettings.__table__.create)
             await connection.run_sync(PresentonCloudProvider.__table__.create)
 
@@ -72,7 +71,7 @@ def test_login_sets_http_only_jwt_cookie_for_username_only_account(
     asyncio.run(engine.dispose())
 
 
-def test_admin_access_key_passes_internal_auth_check(monkeypatch, tmp_path):
+def test_admin_can_assign_normal_user_key_for_rest_api(monkeypatch, tmp_path):
     monkeypatch.setenv("USER_CONFIG_PATH", str(tmp_path / "userConfig.json"))
     monkeypatch.delenv("DISABLE_AUTH", raising=False)
     client, engine = _build_client(tmp_path)
@@ -84,7 +83,18 @@ def test_admin_access_key_passes_internal_auth_check(monkeypatch, tmp_path):
         "/api/v1/auth/login",
         json={"username": "admin", "password": "secret123"},
     )
-    token_response = client.post("/api/v1/auth/token/create")
+    user_response = client.post(
+        "/api/v1/admin/users",
+        json={"username": "api-user", "password": "secret456"},
+    )
+    token_response = client.post(
+        "/api/v1/admin/api-keys",
+        json={
+            "user_id": user_response.json()["id"],
+            "label": "Automation",
+            "expiry_days": 90,
+        },
+    )
     token = token_response.json()["token"]
     client.cookies.clear()
 
@@ -93,10 +103,20 @@ def test_admin_access_key_passes_internal_auth_check(monkeypatch, tmp_path):
         headers={"Authorization": f"Bearer {token}"},
     )
 
-    assert token_response.status_code == 200
+    assert user_response.status_code == 201
+    assert token_response.status_code == 201
+    assert token.startswith("sk-presenton-")
+    assert not token.startswith("sk-presenton-mcp-")
     assert response.status_code == 200
     assert response.json()["method"] == "api_key"
-    assert response.json()["role"] == "admin"
+    assert response.json()["role"] == "user"
+    assert response.json()["username"] == "api-user"
+
+    legacy_response = client.get(
+        "/api/v1/auth/verify",
+        headers={"Authorization": "Bearer sk-presenton-legacy-plaintext"},
+    )
+    assert legacy_response.status_code == 401
 
     asyncio.run(engine.dispose())
 
@@ -132,7 +152,7 @@ def test_legacy_six_character_password_can_still_log_in(monkeypatch, tmp_path):
     asyncio.run(engine.dispose())
 
 
-def test_failed_logins_are_rate_limited(monkeypatch, tmp_path):
+def test_repeated_failed_logins_are_not_rate_limited(monkeypatch, tmp_path):
     monkeypatch.setenv("USER_CONFIG_PATH", str(tmp_path / "userConfig.json"))
     monkeypatch.delenv("DISABLE_AUTH", raising=False)
     client, engine = _build_client(tmp_path)
@@ -140,26 +160,13 @@ def test_failed_logins_are_rate_limited(monkeypatch, tmp_path):
         "/api/v1/auth/setup",
         json={"username": "rate-admin", "password": "secret123"},
     )
-    key = login_rate_limit_key("testclient", "rate-admin")
-    asyncio.run(LOGIN_RATE_LIMITER.clear(key))
-
-    try:
-        for _ in range(5):
-            response = client.post(
-                "/api/v1/auth/login",
-                json={"username": "rate-admin", "password": "wrong-password"},
-            )
-            assert response.status_code == 401
-
-        blocked = client.post(
+    for _ in range(10):
+        response = client.post(
             "/api/v1/auth/login",
             json={"username": "rate-admin", "password": "wrong-password"},
         )
-        assert blocked.status_code == 429
-        assert int(blocked.headers["retry-after"]) > 0
-    finally:
-        asyncio.run(LOGIN_RATE_LIMITER.clear(key))
-        asyncio.run(engine.dispose())
+        assert response.status_code == 401
+    asyncio.run(engine.dispose())
 
 
 def test_database_rejects_a_second_primary_administrator(monkeypatch, tmp_path):

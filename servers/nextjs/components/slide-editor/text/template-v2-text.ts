@@ -415,7 +415,7 @@ export function rawTextListRenderItems(
       .map((run) => renderTextRun(run, baseFont));
 
     return {
-      marker: textListMarkerPrefix(element.marker, index),
+      marker: textListMarkerText(element.marker, index),
       markerFont,
       runs: runs.length > 0 ? runs : [{ text: " ", font: markerFont }],
     };
@@ -883,6 +883,7 @@ export function layoutTextListRenderItems(
     marker: RenderTextRun & { width: number } | null;
     segments: Array<RenderTextRun & { width: number }>;
     indentWidth: number;
+    gapBefore: number;
     height: number;
     width: number;
   };
@@ -893,11 +894,23 @@ export function layoutTextListRenderItems(
       ? items
       : [{ marker: "", markerFont: font, runs: [{ text: " ", font }] }];
 
-  for (const item of sourceItems) {
-    const markerWidth = item.marker
+  const itemGap = Math.max(0, readNumber(element.gap) ?? 0);
+  const explicitMarkerGap = readNumber(
+    element.marker_gap ?? element.markerGap,
+  );
+
+  sourceItems.forEach((item, itemIndex) => {
+    const markerTextWidth = item.marker
       ? measureRenderText(item.marker, item.markerFont)
       : 0;
-    const contentWidth = Math.max(1, width - markerWidth);
+    const markerGap = item.marker
+      ? Math.max(
+          0,
+          explicitMarkerGap ?? measureRenderText(" ", item.markerFont),
+        )
+      : 0;
+    const indentWidth = markerTextWidth + markerGap;
+    const contentWidth = Math.max(1, width - indentWidth);
     const contentLines = layoutRenderTextRuns(
       item.runs.length > 0 ? item.runs : [{ text: " ", font: item.markerFont }],
       contentWidth,
@@ -908,7 +921,7 @@ export function layoutTextListRenderItems(
     lines.forEach((line, lineIndex) => {
       const marker =
         lineIndex === 0 && item.marker
-          ? { text: item.marker, font: item.markerFont, width: markerWidth }
+          ? { text: item.marker, font: item.markerFont, width: markerTextWidth }
           : null;
       const markerHeight = marker
         ? marker.font.size * (marker.font.lineHeight ?? textLineHeight)
@@ -922,25 +935,27 @@ export function layoutTextListRenderItems(
         font.size * textLineHeight,
       );
       const lineWidth =
-        markerWidth + line.reduce((sum, segment) => sum + segment.width, 0);
+        indentWidth + line.reduce((sum, segment) => sum + segment.width, 0);
       plannedLines.push({
         marker,
         segments: line,
-        indentWidth: markerWidth,
+        indentWidth,
+        gapBefore: itemIndex > 0 && lineIndex === 0 ? itemGap : 0,
         height: lineHeight,
         width: lineWidth,
       });
     });
-  }
+  });
 
   const contentHeight = plannedLines.reduce(
-    (sum, line) => sum + line.height,
+    (sum, line) => sum + line.gapBefore + line.height,
     0,
   );
   let y = verticalTextStartY(verticalAlign, height, contentHeight, false);
   const tokens: LaidToken[] = [];
 
   for (const line of plannedLines) {
+    y += line.gapBefore;
     const startX = lineStartX(align, width, line.width, false);
     let x = startX;
 
@@ -1208,8 +1223,21 @@ export function scaleRawTextMetrics(
     return element;
   }
 
+  const gap = readNumber(element.gap);
+  const markerGap = readNumber(element.marker_gap);
+  const camelMarkerGap = readNumber(element.markerGap);
+
   return stripUndefined({
     ...element,
+    gap: gap == null ? element.gap : scaleTextMetric(gap, scale),
+    marker_gap:
+      markerGap == null
+        ? element.marker_gap
+        : scaleTextMetric(markerGap, scale),
+    markerGap:
+      camelMarkerGap == null
+        ? element.markerGap
+        : scaleTextMetric(camelMarkerGap, scale),
     font: scaleRawFontMetrics(element.font, scale),
     runs: scaleRawTextRunsMetrics(element.runs, scale),
     items: scaleRawTextListItemsMetrics(element.items, scale),
@@ -1370,10 +1398,15 @@ function rawRunRecordContent(value: unknown) {
 }
 
 function textListMarkerPrefix(value: unknown, index: number) {
+  const marker = textListMarkerText(value, index);
+  return marker ? `${marker} ` : "";
+}
+
+function textListMarkerText(value: unknown, index: number) {
   const marker = readString(value);
   if (marker === "none") return "";
-  if (marker === "number") return `${index + 1}. `;
-  return "• ";
+  if (marker === "number") return `${index + 1}.`;
+  return "•";
 }
 
 function rawTextListItemWithRuns(source: unknown, runs: TextRun[]): unknown {

@@ -248,6 +248,8 @@ class TextList(BaseModel):  # Konva Group
     rotation: Optional[float] = None
     font: Optional[Font] = None
     marker: Optional[Marker] = None
+    gap: Optional[float] = None
+    marker_gap: Optional[float] = None
     items: list[list[TextRunValue]]
 
     # Schema
@@ -329,6 +331,7 @@ class Chart(BaseModel):
     title: Optional[str] = None
     title_color: Optional[str] = None
     legend_color: Optional[str] = None
+    text_color: Optional[str] = None
 
     # PPTX chart model emitted by the template-v2 converter.
     colors: Optional[list[str]] = None
@@ -400,6 +403,7 @@ class InfographicType(str, Enum):
     CHEVRON_PROCESS = "chevron_process"
     RADIAL_CYCLE = "radial_cycle"
     CONVERSION_FUNNEL = "conversion_funnel"
+    VERTICAL_FUNNEL = "vertical_funnel"
     PYRAMID = "pyramid"
     SEGMENTED_WHEEL = "segmented_wheel"
     CUSTOMER_JOURNEY = "customer_journey"
@@ -412,17 +416,33 @@ class InfographicType(str, Enum):
 
 
 class ProgressBarInfographicData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["progress_bar"]
     max_value: float
     min_value: float
     value: float
 
+    @model_validator(mode="after")
+    def _validate_range(self) -> "ProgressBarInfographicData":
+        if self.max_value <= self.min_value:
+            raise ValueError("max_value must be greater than min_value")
+        return self
+
 
 class GaugeInfographicData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["gauge"]
     max_value: float
     min_value: float
     value: float
+
+    @model_validator(mode="after")
+    def _validate_range(self) -> "GaugeInfographicData":
+        if self.max_value <= self.min_value:
+            raise ValueError("max_value must be greater than min_value")
+        return self
 
 
 StructuralInfographicType = Literal[
@@ -441,6 +461,7 @@ StructuralInfographicType = Literal[
     "chevron_process",
     "radial_cycle",
     "conversion_funnel",
+    "vertical_funnel",
     "pyramid",
     "segmented_wheel",
     "customer_journey",
@@ -469,19 +490,22 @@ class StructuralInfographicData(BaseModel):
         return normalize_infographic_data(infographic_type, value)  # type: ignore[arg-type]
 
 
+InfographicData = Annotated[
+    Union[
+        ProgressBarInfographicData,
+        GaugeInfographicData,
+        StructuralInfographicData,
+    ],
+    Field(discriminator="type"),
+]
+
+
 class Infographic(BaseModel):
     type: Literal["infographic"]
     position: Optional[Position] = None
     size: Optional[Size] = None
     rotation: Optional[float] = None
-    data: Annotated[
-        Union[
-            ProgressBarInfographicData,
-            GaugeInfographicData,
-            StructuralInfographicData,
-        ],
-        Field(discriminator="type"),
-    ]
+    data: InfographicData
 
     # Design
     colors: List[str] = Field(default_factory=list)
@@ -581,6 +605,7 @@ __all__ = [
     "ImageFit",
     "IconType",
     "Infographic",
+    "InfographicData",
     "InfographicType",
     "GaugeInfographicData",
     "LayoutAlignment",

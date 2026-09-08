@@ -77,23 +77,11 @@ export enum MixpanelEvent {
   Outline_Presentation_Generation_Started = 'Outline Presentation Generation Started',
 
   Smart_Mode_Selected = 'Smart Mode Selected',
-  Smart_Mode_Reference_Selected = 'Smart Mode Reference Selected',
-  Smart_Mode_Reference_Removed = 'Smart Mode Reference Removed',
   Smart_Mode_Generation_Started = 'Smart Mode Generation Started',
   Smart_Mode_Generation_Completed = 'Smart Mode Generation Completed',
   Smart_Mode_Generation_Failed = 'Smart Mode Generation Failed',
   Smart_Mode_Select_Edit_Toggled = 'Smart Mode Select Edit Toggled',
   Smart_Mode_Element_Selected = 'Smart Mode Element Selected',
-
-  Community_Page_Viewed = 'Community Page Viewed',
-  Community_Presentations_Loaded = 'Community Presentations Loaded',
-  Community_Presentations_Load_Failed = 'Community Presentations Load Failed',
-  Community_Filters_Changed = 'Community Filters Changed',
-  Community_Presentation_Previewed = 'Community Presentation Previewed',
-  Community_Presentation_Preview_Loaded = 'Community Presentation Preview Loaded',
-  Community_Presentation_Preview_Failed = 'Community Presentation Preview Failed',
-  Community_Design_Used = 'Community Design Used',
-  Community_Prompt_Used = 'Community Prompt Used',
 
   Presentation_Editor_Viewed = 'Presentation Editor Viewed',
   Presentation_Mode_Entered = 'Presentation Mode Entered',

@@ -37,6 +37,27 @@ export type SchemaField = {
   value: string;
   minChars?: number;
   maxChars?: number;
+  minItems?: number;
+  maxItems?: number;
+};
+
+type DensityLengthField = Pick<
+  SchemaField,
+  "label" | "minChars" | "maxChars"
+>;
+
+const CONTENT_ELEMENT_TYPES = new Set([
+  "text",
+  "image",
+  "text-list",
+  "table",
+  "chart",
+  "infographic",
+]);
+
+type ComparableSchemaNode = {
+  name: string;
+  schema: UnknownRecord;
 };
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -91,6 +112,7 @@ export function applyTemplateContentDensity(
   readArray(layoutRecord.components).forEach((component) => {
     if (isRecord(component)) {
       applyDensityToElements(component.elements, density);
+      resizeRepeatedComponentElements(component, density);
     }
   });
 
@@ -133,15 +155,8 @@ function applyDensityToElement(
     setElementRunsText(element, exactDensityText(name, targetLength, density));
   } else if (isEditableContent && type === "text-list") {
     applyTextListDensity(element, name, density);
-  } else if (isEditableContent && type === "image") {
-    const promptLabel = element.is_icon === true ? `${name} icon` : `${name} image`;
-    element.prompt = exactDensityText(
-      promptLabel,
-      densityTextLength({}, density),
-      density,
-    );
   } else if (isEditableContent && type === "table") {
-    applyTableDensity(element, name, density);
+    Object.assign(element, applyTableDensity(element, density));
   }
 
   resizeRepeatedChildren(element, density);
@@ -185,53 +200,709 @@ function applyTextListDensity(
   });
 }
 
-function applyTableDensity(
-  element: UnknownRecord,
-  name: string,
-  density: ContentDensity,
+function densityTargetCount(
+  density: Exclude<Density, "">,
+  currentCount: number,
+  minimum?: number,
+  maximum?: number,
 ) {
-  const columnCount = densityCount(
-    element.min_columns,
-    element.max_columns,
-    density,
-  );
-  const rowCount = densityCount(
-    element.min_rows,
-    element.max_rows,
-    density,
-  );
-  const cellTextLength = densityTextLength({}, density);
-  const currentColumns = readArray(element.columns);
-  const currentRows = readArray(element.rows);
+  const clampCount = (value: number) =>
+    Math.min(100, Math.max(0, Math.round(value)));
+  const minCount = clampCount(minimum ?? currentCount);
+  const maxCount = clampCount(Math.max(minCount, maximum ?? currentCount));
 
-  element.columns = Array.from({ length: columnCount }, (_, columnIndex) =>
-    cellWithText(
-      currentColumns[columnIndex] ??
-        currentColumns[currentColumns.length - 1],
-      exactDensityText(
-        `${name} column ${columnIndex + 1}`,
-        cellTextLength,
-        density,
-      ),
+  if (density === "Low") return minCount;
+  if (density === "High") return maxCount;
+  return clampCount(minCount + (maxCount - minCount) / 2);
+}
+
+function densityTargetLength(
+  field: DensityLengthField,
+  density: Exclude<Density, "">,
+  currentLength: number,
+) {
+  const clampPreviewLength = (length: number) =>
+    Math.min(2_000, Math.max(1, Math.round(length)));
+  const contentLength = Math.max(1, currentLength || field.label.length);
+  const hasMin = typeof field.minChars === "number";
+  const hasMax = typeof field.maxChars === "number";
+
+  if (!hasMin && !hasMax) {
+    if (density === "Low") {
+      return clampPreviewLength(Math.max(12, contentLength * 0.55));
+    }
+    if (density === "Medium") {
+      return clampPreviewLength(Math.max(24, contentLength * 1.2));
+    }
+    return clampPreviewLength(Math.max(48, contentLength * 1.8));
+  }
+
+  const minLength = Math.max(
+    1,
+    field.minChars ??
+      Math.min(field.maxChars ?? contentLength, Math.max(12, contentLength)),
+  );
+  const maxLength = Math.max(
+    minLength,
+    field.maxChars ??
+      Math.max(minLength * 2, Math.round(contentLength * 1.6)),
+  );
+
+  if (density === "Low") return clampPreviewLength(minLength);
+  if (density === "High") return clampPreviewLength(maxLength);
+  return clampPreviewLength(minLength + (maxLength - minLength) / 2);
+}
+
+function textAtTargetLength(
+  value: string,
+  label: string,
+  targetLength: number,
+) {
+  const normalizedValue = value.replace(/\s+/g, " ").trim();
+  const fallback = `${label} provides a clear supporting point.`;
+  const source = normalizedValue || fallback;
+  const supportingDetail =
+    "This supporting detail adds useful context and helps explain the key message clearly.";
+  let expanded = source;
+
+  while (expanded.length < targetLength) {
+    expanded = `${expanded} ${supportingDetail}`;
+  }
+
+  if (expanded.length <= targetLength) return expanded;
+
+  const clipped = expanded.slice(0, targetLength).trimEnd();
+  const finalSpace = clipped.lastIndexOf(" ");
+  if (finalSpace >= Math.floor(targetLength * 0.72)) {
+    return clipped.slice(0, finalSpace).trimEnd();
+  }
+  return clipped;
+}
+
+function comparableContentSchema(element: UnknownRecord): UnknownRecord {
+  const type = readString(element.type);
+
+  if (type === "text") {
+    return {
+      type: "string",
+      minLength: readNumber(element.min_length),
+      maxLength: readNumber(element.max_length),
+    };
+  }
+
+  if (type === "image") {
+    return {
+      type: "image",
+      promptKey: element.is_icon === true ? "icon_query" : "image_prompt",
+    };
+  }
+
+  if (type === "text-list") {
+    return {
+      type: "array",
+      minItems: readNumber(element.min_items),
+      maxItems: readNumber(element.max_items),
+      items: {
+        type: "string",
+        minLength: readNumber(element.min_item_length),
+        maxLength: readNumber(element.max_item_length),
+      },
+    };
+  }
+
+  if (type === "table") {
+    const limits = tableTextLimits(element);
+    return {
+      type: "table",
+      minRows: readNumber(element.min_rows),
+      maxRows: readNumber(element.max_rows),
+      minColumns: readNumber(element.min_columns),
+      maxColumns: readNumber(element.max_columns),
+      headerMinimum: limits.header.minimum,
+      headerMaximum: limits.header.maximum,
+      bodyMinimum: limits.body.minimum,
+      bodyMaximum: limits.body.maximum,
+    };
+  }
+
+  if (type === "chart") {
+    return {
+      type: "chart",
+      hasTitle: readString(element.title).trim().length > 0,
+    };
+  }
+
+  if (type === "infographic") {
+    const data = isRecord(element.data) ? element.data : {};
+    return {
+      type: "infographic",
+      infographicType: readString(data.type),
+    };
+  }
+
+  return { type };
+}
+
+function comparableObjectSchema(nodes: ComparableSchemaNode[]): UnknownRecord {
+  const properties: UnknownRecord = {};
+  nodes.forEach((node) => {
+    let key = node.name;
+    let suffix = 2;
+    while (Object.prototype.hasOwnProperty.call(properties, key)) {
+      key = `${node.name}_${suffix}`;
+      suffix += 1;
+    }
+    properties[key] = node.schema;
+  });
+
+  return {
+    type: "object",
+    properties,
+  };
+}
+
+function numericNameToken(value: string) {
+  return value.match(/_\d+(?=_|$)/)?.[0] ?? null;
+}
+
+function prefixNameToken(value: string) {
+  const separatorIndex = value.indexOf("_");
+  return separatorIndex > 0 ? value.slice(0, separatorIndex + 1) : null;
+}
+
+function normalizationTokenForNodes(
+  nodes: ComparableSchemaNode[],
+  strategy: "numeric" | "none" | "prefix",
+) {
+  if (strategy === "none") return null;
+  const tokenForName =
+    strategy === "numeric" ? numericNameToken : prefixNameToken;
+  const tokens = nodes.map((node) => tokenForName(node.name)).filter(Boolean);
+  if (tokens.length === 0) return null;
+  return tokens.every((token) => token === tokens[0]) ? tokens[0] : null;
+}
+
+function normalizeComparableSchema(value: unknown, token: string | null): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeComparableSchema(item, token));
+  }
+  if (!isRecord(value)) return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      token ? key.replace(token, "") : key,
+      normalizeComparableSchema(child, token),
+    ]),
+  );
+}
+
+function stableComparableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableComparableValue);
+  if (!isRecord(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, stableComparableValue(value[key])]),
+  );
+}
+
+function normalizedRepeatedItemSchema(
+  nodes: ComparableSchemaNode[],
+  strategy: "numeric" | "none" | "prefix",
+) {
+  const token = normalizationTokenForNodes(nodes, strategy);
+  const itemSchema =
+    nodes.length === 1 && nodes[0].schema.type === "object"
+      ? nodes[0].schema
+      : comparableObjectSchema(nodes);
+  return stableComparableValue(normalizeComparableSchema(itemSchema, token));
+}
+
+function repeatedRootNamesMatch(nodeSets: ComparableSchemaNode[][]) {
+  if (
+    nodeSets.length === 0 ||
+    nodeSets.some((nodes) => nodes.length !== 1)
+  ) {
+    return false;
+  }
+
+  const names = nodeSets.map((nodes) => nodes[0].name);
+  if (names.every((name) => name === names[0])) return true;
+  const normalizedNames = names.map((name) => {
+    const token = numericNameToken(name);
+    return token ? name.replace(token, "") : name;
+  });
+  return normalizedNames.every((name) => name === normalizedNames[0]);
+}
+
+function flattenedContentNodes(nodes: ComparableSchemaNode[]) {
+  const flattened: ComparableSchemaNode[] = [];
+  const visit = (node: ComparableSchemaNode) => {
+    const properties = isRecord(node.schema.properties)
+      ? node.schema.properties
+      : null;
+    if (node.schema.type !== "object" || !properties) {
+      flattened.push(node);
+      return;
+    }
+
+    Object.entries(properties).forEach(([name, schema]) => {
+      if (isRecord(schema)) visit({ name, schema });
+    });
+  };
+  nodes.forEach(visit);
+  return flattened;
+}
+
+function normalizedNodeNamesAreUnique(
+  nodes: ComparableSchemaNode[],
+  strategy: "numeric" | "none" | "prefix",
+) {
+  if (nodes.length === 0) return false;
+  const token = normalizationTokenForNodes(nodes, strategy);
+  const names = nodes.map((node) =>
+    token ? node.name.replace(token, "") : node.name,
+  );
+  return new Set(names).size === names.length;
+}
+
+function repeatedChildrenSchema(
+  element: UnknownRecord,
+  childNodeSets: ComparableSchemaNode[][],
+) {
+  if (childNodeSets.some((nodes) => nodes.length === 0)) return null;
+
+  const childCount = childNodeSets.length;
+  const maxChildren = readNumber(element.max_children);
+  if (childCount < 2 && !(maxChildren != null && maxChildren > childCount)) {
+    return null;
+  }
+
+  for (const strategy of ["numeric", "none", "prefix"] as const) {
+    const itemSchemas = childNodeSets.map((nodes) =>
+      normalizedRepeatedItemSchema(nodes, strategy),
+    );
+    const first = JSON.stringify(itemSchemas[0]);
+    if (itemSchemas.every((schema) => JSON.stringify(schema) === first)) {
+      const isGroup = readString(element.type) === "group";
+      return {
+        type: "array",
+        minItems: isGroup
+          ? Math.floor(childCount / 2)
+          : readNumber(element.min_children),
+        maxItems: isGroup ? childCount : maxChildren,
+        items: itemSchemas[0],
+      } satisfies UnknownRecord;
+    }
+  }
+
+  if (repeatedRootNamesMatch(childNodeSets)) {
+    const flattenedNodeSets = childNodeSets.map(flattenedContentNodes);
+    for (const strategy of ["numeric", "none", "prefix"] as const) {
+      if (
+        !flattenedNodeSets.every((nodes) =>
+          normalizedNodeNamesAreUnique(nodes, strategy),
+        )
+      ) {
+        continue;
+      }
+
+      const itemSchemas = flattenedNodeSets.map((nodes) =>
+        normalizedRepeatedItemSchema(nodes, strategy),
+      );
+      const first = JSON.stringify(itemSchemas[0]);
+      if (itemSchemas.every((schema) => JSON.stringify(schema) === first)) {
+        const isGroup = readString(element.type) === "group";
+        return {
+          type: "array",
+          minItems: isGroup
+            ? Math.floor(childCount / 2)
+            : readNumber(element.min_children),
+          maxItems: isGroup ? childCount : maxChildren,
+          items: itemSchemas[0],
+        } satisfies UnknownRecord;
+      }
+    }
+  }
+
+  return null;
+}
+
+function comparableSchemaNodesForElement(
+  value: unknown,
+): ComparableSchemaNode[] {
+  if (!isRecord(value)) return [];
+  const type = readString(value.type);
+  const name = readString(value.name).trim();
+
+  if (
+    CONTENT_ELEMENT_TYPES.has(type) &&
+    value.decorative === false &&
+    name
+  ) {
+    return [{ name, schema: comparableContentSchema(value) }];
+  }
+
+  if (type === "container") {
+    const childNodes = comparableSchemaNodesForElement(value.child);
+    if (!name || childNodes.length === 0) return childNodes;
+    return [{ name, schema: comparableObjectSchema(childNodes) }];
+  }
+
+  if (type !== "flex" && type !== "grid" && type !== "group") return [];
+  const children = readArray(value.children);
+  const childNodeSets = children.map(comparableSchemaNodesForElement);
+  const childNodes = childNodeSets.flat();
+  if (!name || childNodes.length === 0) return childNodes;
+
+  const arraySchema = repeatedChildrenSchema(value, childNodeSets);
+
+  return [
+    {
+      name,
+      schema: arraySchema ?? comparableObjectSchema(childNodes),
+    },
+  ];
+}
+
+function isRepeatableStructuralElement(element: UnknownRecord) {
+  const type = readString(element.type);
+  const children = readArray(element.children);
+  if (type !== "flex" && type !== "grid" && type !== "group") return false;
+
+  return Boolean(
+    repeatedChildrenSchema(
+      element,
+      children.map(comparableSchemaNodesForElement),
     ),
   );
-  element.rows = Array.from({ length: rowCount }, (_, rowIndex) => {
-    const sourceRow = readArray(
-      currentRows[rowIndex] ?? currentRows[currentRows.length - 1],
-    );
-    return Array.from({ length: columnCount }, (_, columnIndex) =>
-      cellWithText(
-        sourceRow[columnIndex] ??
-          sourceRow[sourceRow.length - 1] ??
-          currentColumns[columnIndex],
-        exactDensityText(
-          `${name} row ${rowIndex + 1} column ${columnIndex + 1}`,
-          cellTextLength,
-          density,
-        ),
-      ),
-    );
+}
+
+function repeatedItemsAtDensity(
+  items: unknown[],
+  targetCount: number,
+  centerWhenReduced: boolean,
+) {
+  if (items.length === 0 || targetCount === 0) return [];
+  const start =
+    centerWhenReduced && targetCount < items.length
+      ? Math.floor((items.length - targetCount) / 2)
+      : 0;
+
+  return Array.from({ length: targetCount }, (_, index) => {
+    const sourceIndex =
+      targetCount < items.length
+        ? start + index
+        : Math.min(index, items.length - 1);
+    const source = cloneLayout(items[sourceIndex]);
+    if (!isRecord(source)) return source;
+    delete source.__presenton_manual_position;
+    if (index >= items.length) normalizeRepeatedNames(source, index);
+    return source;
   });
+}
+
+function tableCellAtDensity(
+  value: unknown,
+  density: Exclude<Density, "">,
+  label: string,
+  minChars?: number,
+  maxChars?: number,
+) {
+  const cell = isRecord(value) ? cloneLayout(value) : { runs: [] };
+  const currentText = textRunsToString(cell.runs);
+  const targetLength = densityTargetLength(
+    { label, minChars, maxChars },
+    density,
+    currentText.length,
+  );
+  updateTextRuns(
+    cell,
+    textAtTargetLength(currentText, label, targetLength),
+  );
+  return cell;
+}
+
+function tableCellsAtDensity(
+  values: unknown[],
+  targetCount: number,
+  fallbackValues: unknown[],
+) {
+  if (targetCount === 0) return [];
+  const source =
+    values.length > 0
+      ? values
+      : fallbackValues.length > 0
+        ? [fallbackValues[0]]
+        : [{ runs: [{ text: "" }] }];
+  return repeatedItemsAtDensity(source, targetCount, false);
+}
+
+type TableTextLimit = { minimum?: number; maximum?: number };
+
+function tableTextLimits(value: UnknownRecord): {
+  header: TableTextLimit;
+  body: TableTextLimit;
+} {
+  const size = isRecord(value.size) ? value.size : {};
+  const width = readNumber(size.width);
+  const height = readNumber(size.height);
+  if (!width || width <= 0 || !height || height <= 0) {
+    return { header: {}, body: {} };
+  }
+
+  const columns = readArray(value.columns).filter(isRecord);
+  const rows = readArray(value.rows).map(readArray);
+  const bodyCells = rows.flat().filter(isRecord);
+  const columnCount = Math.max(
+    1,
+    Math.round((readNumber(value.max_columns) ?? columns.length) || 1),
+  );
+  const rowCount = Math.max(
+    0,
+    Math.round(readNumber(value.max_rows) ?? rows.length),
+  );
+  const cellWidth = Math.max(1, width / columnCount - 24);
+  const cellHeight = Math.max(1, height / (rowCount + 1) - 12);
+
+  return {
+    header: tableSectionTextLimit(columns, cellWidth, cellHeight),
+    body: tableSectionTextLimit(
+      bodyCells,
+      cellWidth,
+      cellHeight,
+      columns,
+    ),
+  };
+}
+
+function tableSectionTextLimit(
+  cells: UnknownRecord[],
+  cellWidth: number,
+  cellHeight: number,
+  fallbackCells: UnknownRecord[] = [],
+): TableTextLimit {
+  const { glyphWidth, lineHeight } = tableCellTypography(
+    cells.length > 0 ? cells : fallbackCells,
+  );
+  const charactersPerLine = Math.max(1, Math.floor(cellWidth / glyphWidth));
+  const lineCount = Math.max(1, Math.floor(cellHeight / lineHeight + 0.15));
+  const estimatedMaximum = Math.max(
+    1,
+    Math.floor(charactersPerLine * lineCount * 0.85),
+  );
+  const texts = cells.map((cell) => textRunsToString(cell.runs));
+  const observedMaximum = texts.reduce(
+    (maximum, text) => Math.max(maximum, text.length),
+    0,
+  );
+  return {
+    minimum: texts.length > 0 && texts.every((text) => text.trim()) ? 1 : 0,
+    maximum: Math.max(estimatedMaximum, observedMaximum),
+  };
+}
+
+function tableCellTypography(cells: UnknownRecord[]) {
+  const fonts: UnknownRecord[] = [];
+  cells.forEach((cell) => {
+    if (isRecord(cell.font)) fonts.push(cell.font);
+    readArray(cell.runs).filter(isRecord).forEach((run) => {
+      if (isRecord(run.font)) fonts.push(run.font);
+    });
+  });
+  if (fonts.length === 0) fonts.push({});
+
+  const glyphWidths = fonts.map((font) => {
+    const fontSize = readNumber(font.size) ?? 14;
+    const widthFactor = font.bold === true ? 0.62 : 0.58;
+    return fontSize * widthFactor + Math.max(0, readNumber(font.letter_spacing) ?? 0);
+  });
+  const lineHeights = fonts.map((font) => {
+    const fontSize = readNumber(font.size) ?? 14;
+    const lineHeight = readNumber(font.line_height);
+    if (!lineHeight || lineHeight <= 0) return fontSize * 1.2;
+    return lineHeight > 2 ? lineHeight : fontSize * lineHeight;
+  });
+  return {
+    glyphWidth: Math.max(...glyphWidths),
+    lineHeight: Math.max(...lineHeights),
+  };
+}
+
+function applyTableDensity(
+  value: UnknownRecord,
+  density: Exclude<Density, "">,
+) {
+  const next = cloneLayout(value);
+  if (next.decorative !== false) return next;
+
+  const sourceColumns = readArray(next.columns);
+  const sourceRows = readArray(next.rows);
+  const targetColumnCount = Math.max(
+    1,
+    densityTargetCount(
+      density,
+      sourceColumns.length,
+      readNumber(next.min_columns),
+      readNumber(next.max_columns),
+    ),
+  );
+  const targetRowCount = densityTargetCount(
+    density,
+    sourceRows.length,
+    readNumber(next.min_rows),
+    readNumber(next.max_rows),
+  );
+  const limits = tableTextLimits(next);
+  const hasHeaderLengthLimits =
+    limits.header.minimum !== undefined || limits.header.maximum !== undefined;
+  const hasCellLengthLimits =
+    limits.body.minimum !== undefined || limits.body.maximum !== undefined;
+
+  const columns = tableCellsAtDensity(
+    sourceColumns,
+    targetColumnCount,
+    [],
+  ).map((cell, columnIndex) =>
+    hasHeaderLengthLimits
+      ? tableCellAtDensity(
+          cell,
+          density,
+          `Column ${columnIndex + 1}`,
+          limits.header.minimum,
+          limits.header.maximum,
+        )
+      : cloneLayout(cell),
+  );
+  next.columns = columns;
+
+  const fallbackRow = columns.map((column) => {
+    const cell = cloneLayout(column);
+    if (isRecord(cell)) updateTextRuns(cell, "");
+    return cell;
+  });
+  const rowSource = sourceRows.length > 0 ? sourceRows : [fallbackRow];
+  next.rows = repeatedItemsAtDensity(rowSource, targetRowCount, false).map(
+    (row, rowIndex) =>
+      tableCellsAtDensity(readArray(row), targetColumnCount, fallbackRow).map(
+        (cell, columnIndex) =>
+          hasCellLengthLimits
+            ? tableCellAtDensity(
+                cell,
+                density,
+                `Cell ${rowIndex + 1}-${columnIndex + 1}`,
+                limits.body.minimum,
+                limits.body.maximum,
+              )
+            : cloneLayout(cell),
+      ),
+  );
+  return next;
+}
+
+function tableDensityCanChange(value: UnknownRecord) {
+  if (readString(value.type) !== "table" || value.decorative !== false) {
+    return false;
+  }
+
+  const currentColumns = readArray(value.columns).length;
+  const currentRows = readArray(value.rows).length;
+  const columnMinimum = readNumber(value.min_columns);
+  const columnMaximum = readNumber(value.max_columns);
+  const rowMinimum = readNumber(value.min_rows);
+  const rowMaximum = readNumber(value.max_rows);
+  if (
+    densityTargetCount(
+      "Low",
+      currentColumns,
+      columnMinimum,
+      columnMaximum,
+    ) !==
+      densityTargetCount(
+        "High",
+        currentColumns,
+        columnMinimum,
+        columnMaximum,
+      ) ||
+    densityTargetCount("Low", currentRows, rowMinimum, rowMaximum) !==
+      densityTargetCount("High", currentRows, rowMinimum, rowMaximum)
+  ) {
+    return true;
+  }
+
+  const limits = tableTextLimits(value);
+  return (
+    limits.header.minimum !== limits.header.maximum ||
+    limits.body.minimum !== limits.body.maximum
+  );
+}
+
+function structuralArrayCanChange(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (tableDensityCanChange(value)) return true;
+  const type = readString(value.type);
+  const children = readArray(value.children);
+
+  if (isRepeatableStructuralElement(value)) {
+    const currentCount = children.length;
+    const minimum =
+      type === "group"
+        ? Math.floor(currentCount / 2)
+        : readNumber(value.min_children);
+    const maximum =
+      type === "group" ? currentCount : readNumber(value.max_children);
+    if (
+      densityTargetCount("Low", currentCount, minimum, maximum) !==
+      densityTargetCount("High", currentCount, minimum, maximum)
+    ) {
+      return true;
+    }
+  }
+
+  return (
+    structuralArrayCanChange(value.child) ||
+    children.some(structuralArrayCanChange)
+  );
+}
+
+function componentArrayCanChange(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const elements = readArray(value.elements);
+  if (elements.some(structuralArrayCanChange)) return true;
+
+  const allTopLevelGroups =
+    elements.length >= 2 &&
+    elements.every(
+      (element) => isRecord(element) && readString(element.type) === "group",
+    );
+  if (!allTopLevelGroups) return false;
+
+  return Boolean(
+    repeatedChildrenSchema(
+      { type: "group", children: elements },
+      elements.map(comparableSchemaNodesForElement),
+    ),
+  );
+}
+
+export function hasLayoutContentDensityTargets(layout: TemplateV2Layout) {
+  const fields = collectSchemaFields(layout);
+  if (
+    fields.some(
+      (field) =>
+        !field.decorative &&
+        (field.type === "text" ||
+          field.type === "text-list"),
+    )
+  ) {
+    return true;
+  }
+
+  const layoutRecord = layout as UnknownRecord;
+  return (
+    readArray(layoutRecord.elements).some(structuralArrayCanChange) ||
+    readArray(layoutRecord.components).some(componentArrayCanChange)
+  );
 }
 
 function resizeRepeatedChildren(
@@ -239,103 +910,60 @@ function resizeRepeatedChildren(
   density: ContentDensity,
 ) {
   const type = readString(element.type);
-  if (type !== "flex" && type !== "grid") return;
+  if (type !== "flex" && type !== "grid" && type !== "group") return;
 
   const children = readArray(element.children);
-  const minChildren = readNumber(element.min_children);
-  const maxChildren = readNumber(element.max_children);
-  if (minChildren === undefined && maxChildren === undefined) return;
+  if (!isRepeatableStructuralElement(element)) return;
 
-  const targetCount = densityCount(minChildren, maxChildren, density);
+  const minimum =
+    type === "group"
+      ? Math.floor(children.length / 2)
+      : readNumber(element.min_children);
+  const maximum =
+    type === "group" ? children.length : readNumber(element.max_children);
+  const targetCount = densityTargetCount(
+    density,
+    children.length,
+    minimum,
+    maximum,
+  );
   if (targetCount === children.length) return;
-  if (!childrenCanRepeat(children, maxChildren)) return;
 
-  const nextChildren = children.slice(0, targetCount).map(cloneLayout);
-  while (nextChildren.length < targetCount) {
-    const index = nextChildren.length;
-    const source =
-      children[index] ??
-      children[children.length - 1] ??
-      children[0] ??
-      { type: "group", children: [] };
-    const nextChild = cloneLayout(source);
-    normalizeRepeatedNames(nextChild, index);
-    nextChildren.push(nextChild);
-  }
-  element.children = nextChildren;
+  element.children = repeatedItemsAtDensity(
+    children,
+    targetCount,
+    type === "group",
+  );
 }
 
-function childrenCanRepeat(children: unknown[], maxChildren?: number) {
-  if (children.length === 0) return false;
-  if (children.length === 1) {
-    return maxChildren !== undefined && maxChildren > 1;
-  }
-
-  return (["none", "numeric"] as const).some((strategy) => {
-    const signatures = children.map((child) =>
-      JSON.stringify(contentShape(child, strategy)),
-    );
-    return (
-      signatures[0] !== "null" &&
-      signatures.every((signature) => signature === signatures[0])
-    );
-  });
-}
-
-function contentShape(
-  value: unknown,
-  nameStrategy: "none" | "numeric",
-): unknown {
-  if (!isRecord(value)) return null;
-
-  const type = readString(value.type);
-  const name = normalizedContentName(readString(value.name), nameStrategy);
-  if (
-    value.decorative === false &&
-    name &&
-    ["text", "image", "text-list", "table", "chart", "infographic"].includes(
-      type,
-    )
-  ) {
-    return {
-      type,
-      name,
-      min_length: value.min_length,
-      max_length: value.max_length,
-      min_items: value.min_items,
-      max_items: value.max_items,
-      min_item_length: value.min_item_length,
-      max_item_length: value.max_item_length,
-    };
-  }
-
-  const childShape = contentShape(value.child, nameStrategy);
-  const childrenShapes = readArray(value.children)
-    .map((child) => contentShape(child, nameStrategy))
-    .filter((shape) => shape !== null);
-  const elementShapes = readArray(value.elements)
-    .map((child) => contentShape(child, nameStrategy))
-    .filter((shape) => shape !== null);
-
-  if (!childShape && childrenShapes.length === 0 && elementShapes.length === 0) {
-    return null;
-  }
-  return {
-    type,
-    name: name || undefined,
-    child: childShape || undefined,
-    children: childrenShapes.length ? childrenShapes : undefined,
-    elements: elementShapes.length ? elementShapes : undefined,
-  };
-}
-
-function normalizedContentName(
-  name: string,
-  strategy: "none" | "numeric",
+function resizeRepeatedComponentElements(
+  component: UnknownRecord,
+  density: ContentDensity,
 ) {
-  const trimmedName = name.trim();
-  if (strategy === "none") return trimmedName;
-  return trimmedName.replace(/_\d+(?=_|$)/, "").replace(/_\d+$/, "");
+  const elements = readArray(component.elements);
+  const allTopLevelGroups =
+    elements.length > 0 &&
+    elements.every(
+      (element) => isRecord(element) && readString(element.type) === "group",
+    );
+  if (!allTopLevelGroups) return;
+
+  const repeatedSchema = repeatedChildrenSchema(
+    { type: "group", children: elements },
+    elements.map(comparableSchemaNodesForElement),
+  );
+  if (!repeatedSchema) return;
+
+  component.elements = repeatedItemsAtDensity(
+    elements,
+    densityTargetCount(
+      density,
+      elements.length,
+      Math.floor(elements.length / 2),
+      elements.length,
+    ),
+    true,
+  );
 }
 
 function normalizeRepeatedNames(value: unknown, index: number): void {
@@ -473,12 +1101,6 @@ function setRunsTextOnValue(value: unknown, text: string) {
   if (!isRecord(value)) return;
   if (!Array.isArray(value.runs)) value.runs = [{ text }];
   setElementRunsText(value, text);
-}
-
-function cellWithText(source: unknown, text: string) {
-  const cell = cloneLayout(isRecord(source) ? source : { runs: [{ text: "" }] });
-  setElementRunsText(cell, text);
-  return cell;
 }
 
 function syncComponentCanvasFields(
@@ -696,6 +1318,8 @@ export function collectSchemaFields(layout: TemplateV2Layout) {
           value,
           minChars: readNumber(element.min_item_length),
           maxChars: readNumber(element.max_item_length),
+          minItems: readNumber(element.min_items),
+          maxItems: readNumber(element.max_items),
         });
       }
     }

@@ -6,6 +6,9 @@ const packageMetadata = require("./package.json")
 const {
   normalizeBundledMacChromiumForPackaging,
 } = require("./scripts/prepare-export-chromium.cjs")
+const {
+  validateSharpRuntime,
+} = require("../scripts/sync-presentation-export.cjs")
 
 const APP_ID = "com.presenton.presenton"
 const TEAM_ID = "S6W5C54KL6"
@@ -710,6 +713,15 @@ function collectMissingBundleResources(resourcesRoot) {
   }
   if (!fs.existsSync(exportCore)) {
     missing.push({ label: "Export Core package", path: exportCore })
+  }
+  const exportSharpRuntime = validateSharpRuntime(
+    path.join(resourcesRoot, "export")
+  )
+  if (!exportSharpRuntime.ok) {
+    missing.push({
+      label: `Export Sharp runtime (${exportSharpRuntime.reason})`,
+      path: path.join(resourcesRoot, "export", "node_modules", "sharp"),
+    })
   }
 
   return missing

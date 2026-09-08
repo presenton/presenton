@@ -21436,6 +21436,6 @@
   "fonts": {
     "Montserrat Medium": "static/Montserrat Medium.ttf",
     "Montserrat Semi-Bold": "static/Montserrat SemiBold.ttf",
-    "Montserrat": "https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;1,400&display=swap"
+    "Montserrat": "/vendor/fonts/sans_serif/montserrat/Montserrat[wght].ttf"
   }
 }

@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Any
 
@@ -36,6 +37,22 @@ def normalize_outline_content(value: Any) -> str:
 def normalize_outline_payload(payload: dict[str, Any], max_slides: int) -> dict[str, Any]:
     normalized = dict(payload)
     raw_slides = normalized.get("slides")
+    # Some providers implement structured output through a tool call. Anthropic
+    # can occasionally put the complete JSON response in the tool's `slides`
+    # argument as a JSON string instead of returning the requested array. Accept
+    # that recoverable shape while leaving genuinely invalid output untouched so
+    # Pydantic can report it to the caller.
+    if isinstance(raw_slides, str):
+        try:
+            decoded_slides = json.loads(raw_slides)
+        except (TypeError, ValueError):
+            decoded_slides = None
+
+        if isinstance(decoded_slides, dict):
+            raw_slides = decoded_slides.get("slides")
+        elif isinstance(decoded_slides, list):
+            raw_slides = decoded_slides
+
     if not isinstance(raw_slides, list):
         return normalized
 

@@ -34,6 +34,11 @@ class AsyncTaskModel(SQLModel, table=True):
     message: Optional[str] = None
     error: Optional[dict[str, Any]] = Field(sa_column=Column(JSON), default=None)
     data: Optional[dict[str, Any]] = Field(sa_column=Column(JSON), default=None)
+    payload: Optional[dict[str, Any]] = Field(
+        default=None,
+        exclude=True,
+        sa_column=Column(JSON, nullable=True),
+    )
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),

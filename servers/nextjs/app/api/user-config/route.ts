@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getFastApiBaseUrl } from "@/lib/fastapi-internal";
-import { requireAdminApi } from "@/lib/server-auth-role";
+import {
+  authStatusForRequest,
+  requireAdminApi,
+} from "@/lib/server-auth-role";
+import { readRuntimeProviderConfig } from "@/lib/runtime-provider-config";
 
 const canChangeKeys = process.env.CAN_CHANGE_KEYS !== "false";
 
@@ -40,9 +44,24 @@ async function forwardProviderSettings(
 }
 
 export async function GET(request: Request) {
-  const denied = await requireAdminApi(request);
-  if (denied) return denied;
-  if (!canChangeKeys) return immutableResponse();
+  const auth = await authStatusForRequest(request);
+  if (!auth.authenticated) {
+    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  }
+
+  // Administrators need the real values in the settings forms. Regular users
+  // only need the effective provider/model selection; shared secrets must
+  // never be sent to their browser.
+  if (auth.role !== "admin" || !canChangeKeys) {
+    try {
+      return NextResponse.json(readRuntimeProviderConfig().config);
+    } catch {
+      return NextResponse.json(
+        { error: "Unable to read provider settings", status: 500 },
+        { status: 500 }
+      );
+    }
+  }
 
   try {
     return await forwardProviderSettings(request, "GET");

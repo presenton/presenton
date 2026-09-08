@@ -1,8 +1,18 @@
 import React, { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import TemplatePreviewClient from "./components/TemplatePreviewClient";
+import { redirect } from "next/navigation";
+import { normalizePresentationGenerationMode } from "@/utils/presentationGenerationMode";
 
 const TemplatePreviewPage = () => {
+  if (
+    normalizePresentationGenerationMode(
+      process.env.PRESENTATION_GENERATION_MODE,
+    ) === "smart"
+  ) {
+    redirect("/dashboard");
+  }
+
   return (
     <Suspense
       fallback={

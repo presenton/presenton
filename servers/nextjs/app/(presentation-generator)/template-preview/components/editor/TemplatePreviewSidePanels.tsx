@@ -446,8 +446,9 @@ export function SchemaPanel({
         <div className="mt-[10px] flex min-h-[62px] gap-[10px] rounded-[6px] bg-[#F3F6FB] px-[16px] py-[10px] text-[12px] leading-[14px] text-[#5F6470]">
           <Info className="mt-[2px] h-[14px] w-[14px] shrink-0 text-[#1F5FBF]" />
           <p>
-            Preview realistic content lengths without changing your saved
-            template. Reset restores the original content.
+            Preview schema-driven text lengths and repeatable item counts
+            without changing your saved template. Reset restores the original
+            content.
           </p>
         </div>
       </div>

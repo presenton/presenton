@@ -38,6 +38,14 @@ from utils.web_search import (
 
 LOGGER = logging.getLogger(__name__)
 
+DIRECT_CONTENT_VOICE_RULES = """Content voice rules:
+- Write the content itself, not commentary about the presentation medium.
+- Never refer to "this presentation", "this slide", "this deck", "the following slide", "the previous slide", or similar phrases.
+- Never use meta-introductions such as "this presentation explores", "this slide presents", "we will discuss", "here we show", or equivalent wording.
+- Start directly with the subject, claim, finding, action, or relevant fact.
+- Treat the supplied current date as context only. Do not mention it or begin content with it unless the user explicitly requests the date or it is substantively relevant to the source content.
+"""
+
 
 @dataclass(frozen=True)
 class OutlineGenerationStatus:
@@ -118,6 +126,7 @@ def get_system_prompt(
         "If Language is not auto-detect, generate every presentation title and slide "
         "outline in exactly that language, even if Content asks for a different language.\n"
         "Generate flow based on user **content** and use **context** just for reference.\n"
+        f"{DIRECT_CONTENT_VOICE_RULES}\n"
         "Presentation title should be plain text, not markdown. It should be a concise title for the presentation.\n"
         "Each slide content should contain the content for that slide.\n"
         f"Never generate more than {MAX_NUMBER_OF_SLIDES} slide outlines, even if the user asks for more. "

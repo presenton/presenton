@@ -139,7 +139,6 @@ def test_extract_slide_schema_from_layout_extracts_editable_content():
                                     "stacked_bar",
                                 ],
                             },
-                            "title": {"type": ["string", "null"]},
                             "categories": {
                                 "type": "array",
                                 "items": {"type": "string"},
@@ -386,7 +385,6 @@ def test_get_component_schema_extracts_generated_component_content():
                             "stacked_bar",
                         ],
                     },
-                    "title": {"type": ["string", "null"]},
                     "categories": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -456,13 +454,104 @@ def test_get_component_schema_extracts_infographic_content_without_vector_conten
 
     assert list(properties) == ["progress"]
     assert properties["progress"]["x-element-type"] == "infographic"
-    assert properties["progress"]["properties"]["data"]["oneOf"][0]["properties"][
-        "type"
-    ] == {"const": "progress_bar"}
-    assert properties["progress"]["properties"]["data"]["oneOf"][1]["properties"][
-        "type"
-    ] == {"const": "gauge"}
+    assert properties["progress"]["properties"]["data"]["properties"]["type"] == {
+        "const": "progress_bar"
+    }
+    assert "colors" not in properties["progress"]["properties"]
     assert properties["progress"]["required"] == ["data"]
+
+
+def test_get_component_schema_preserves_vertical_funnel_type_and_item_limits():
+    component = {
+        "id": "funnel",
+        "description": "A vertically stacked conversion funnel.",
+        "elements": [
+            {
+                "type": "infographic",
+                "decorative": False,
+                "name": "stages",
+                "data": {
+                    "type": "vertical_funnel",
+                    "items": [{"value": 100, "heading": "Awareness"}],
+                },
+                "colors": ["FFFFFF", "102E79"],
+            }
+        ],
+    }
+
+    schema = get_component_schema(component)
+    data_schema = schema["properties"]["stages"]["properties"]["data"]
+
+    assert data_schema["properties"]["type"] == {"const": "vertical_funnel"}
+    assert data_schema["properties"]["items"]["minItems"] == 1
+    assert data_schema["properties"]["items"]["maxItems"] == 8
+
+
+def test_component_table_schema_derives_header_and_body_text_limits():
+    def cell(text: str, *, size: int = 14) -> dict:
+        font = {"size": size, "color": "#111111"}
+        return {"font": font, "runs": [{"text": text, "font": font}]}
+
+    component = {
+        "id": "comparison",
+        "elements": [
+            {
+                "type": "table",
+                "decorative": False,
+                "name": "metrics",
+                "min_columns": 2,
+                "max_columns": 3,
+                "min_rows": 1,
+                "max_rows": 4,
+                "size": {"width": 600, "height": 300},
+                "columns": [cell("Metric"), cell("Value")],
+                "rows": [[cell("Activation"), cell("71%")]],
+            }
+        ],
+    }
+
+    schema = get_component_schema(component)
+    table_schema = schema["properties"]["metrics"]
+    header_schema = table_schema["properties"]["columns"]["items"]
+    body_schema = table_schema["properties"]["rows"]["items"]["items"]
+
+    assert header_schema["minLength"] == body_schema["minLength"] == 1
+    assert header_schema["maxLength"] >= len("Metric")
+    assert body_schema["maxLength"] >= len("Activation")
+
+
+def test_chart_content_schema_tracks_layout_title_presence():
+    without_title = get_component_schema(
+        {
+            "id": "chart_component",
+            "elements": [
+                {
+                    "type": "chart",
+                    "title": None,
+                    "decorative": False,
+                    "name": "proportion_chart",
+                }
+            ],
+        }
+    )["properties"]["proportion_chart"]
+    assert "title" not in without_title["properties"]
+    assert without_title["required"] == list(without_title["properties"])
+
+    with_title = get_component_schema(
+        {
+            "id": "chart_component",
+            "elements": [
+                {
+                    "type": "chart",
+                    "title": "Revenue by quarter",
+                    "decorative": False,
+                    "name": "revenue_chart",
+                }
+            ],
+        }
+    )["properties"]["revenue_chart"]
+    assert with_title["properties"]["title"] == {"type": "string"}
+    assert with_title["required"] == list(with_title["properties"])
 
 
 def test_get_component_schema_collapses_repeated_component_children_to_array():
@@ -789,3 +878,99 @@ def test_get_template_schema_numbers_duplicate_component_fields_from_zero():
     assert list(schema["properties"]) == ["metric_card_0", "metric_card_1"]
     assert schema["required"] == ["metric_card_0", "metric_card_1"]
     assert schema["properties"]["metric_card_0"] == schema["properties"]["metric_card_1"]
+
+
+def _metrics_with_layout_only_wrapper_differences():
+    def text(name, value):
+        return {
+            "type": "text",
+            "name": name,
+            "decorative": False,
+            "min_length": 1,
+            "max_length": 60,
+            "runs": [{"text": value}],
+        }
+
+    def content_children(value, heading, description):
+        return [
+            text("metric_value", value),
+            {
+                "type": "flex",
+                "name": "metric_text_stack",
+                "direction": "column",
+                "children": [
+                    text("metric_heading", heading),
+                    text("metric_description", description),
+                ],
+            },
+        ]
+
+    divider = {
+        "type": "vector",
+        "decorative": True,
+        "points": [{"x": 0, "y": 0}, {"x": 200, "y": 0}],
+    }
+    return {
+        "id": "metrics_panel",
+        "elements": [
+            {
+                "type": "group",
+                "name": "metric_items",
+                "children": [
+                    {
+                        "type": "flex",
+                        "name": "metric_item_1",
+                        "direction": "row",
+                        "children": content_children(
+                            "68%", "Mobile-first", "Primarily uses mobile"
+                        ),
+                    },
+                    {
+                        "type": "flex",
+                        "name": "metric_item_2",
+                        "direction": "column",
+                        "children": [
+                            divider,
+                            {
+                                "type": "flex",
+                                "name": "metric_content",
+                                "direction": "row",
+                                "children": content_children(
+                                    "74%", "Research", "Compares products"
+                                ),
+                            },
+                        ],
+                    },
+                    {
+                        "type": "flex",
+                        "name": "metric_item_3",
+                        "direction": "column",
+                        "children": [
+                            divider,
+                            {
+                                "type": "group",
+                                "name": "metric_content",
+                                "children": content_children(
+                                    "32%", "Engagement", "Prefers personalized content"
+                                ),
+                            },
+                        ],
+                    },
+                ],
+            }
+        ],
+    }
+
+
+def test_component_schema_flattens_layout_only_repeated_item_wrappers():
+    schema = get_component_schema(_metrics_with_layout_only_wrapper_differences())
+
+    metric_items = schema["properties"]["metric_items"]
+    assert metric_items["type"] == "array"
+    assert metric_items["minItems"] == 1
+    assert metric_items["maxItems"] == 3
+    assert list(metric_items["items"]["properties"]) == [
+        "metric_value",
+        "metric_heading",
+        "metric_description",
+    ]

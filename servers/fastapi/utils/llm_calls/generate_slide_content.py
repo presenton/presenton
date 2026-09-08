@@ -248,7 +248,7 @@ async def get_slide_content_from_type_and_outline(
         response_format = JSONSchemaResponse(
             name="response",
             json_schema=response_schema,
-            strict=False,
+            strict=True,
         )
         messages = get_messages(
             outline.content,

@@ -34,6 +34,79 @@ const forceInstall = cliArgs.has("--force");
 const checkOnly = cliArgs.has("--check-only");
 const allowVersionOverride = cliArgs.has("--allow-version-override");
 
+function getRuntimePlatformArch(
+  platform = process.platform,
+  arch = process.arch,
+  report = process.report,
+) {
+  if (platform !== "linux") {
+    return `${platform}-${arch}`;
+  }
+
+  const glibcVersion = report?.getReport?.().header?.glibcVersionRuntime;
+  return `linux${glibcVersion ? "" : "musl"}-${arch}`;
+}
+
+function readJsonFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function packagePath(root, packageName) {
+  return path.join(root, "node_modules", ...packageName.split("/"), "package.json");
+}
+
+function validateSharpRuntime(root, platformArch = getRuntimePlatformArch()) {
+  const sharpPackagePath = packagePath(root, "sharp");
+  if (!fs.existsSync(sharpPackagePath)) {
+    return { ok: false, reason: `Missing Sharp package: ${sharpPackagePath}` };
+  }
+
+  try {
+    const sharpPackage = readJsonFile(sharpPackagePath);
+    const optionalDependencies = sharpPackage.optionalDependencies || {};
+    const nativePackageName = `@img/sharp-${platformArch}`;
+    const nativePackageVersion = optionalDependencies[nativePackageName];
+    const requiredPackages = [
+      { name: nativePackageName, version: nativePackageVersion },
+    ];
+    const libvipsPackageName = `@img/sharp-libvips-${platformArch}`;
+    if (optionalDependencies[libvipsPackageName]) {
+      requiredPackages.push({
+        name: libvipsPackageName,
+        version: optionalDependencies[libvipsPackageName],
+      });
+    }
+
+    if (!nativePackageVersion) {
+      return {
+        ok: false,
+        reason: `Sharp ${sharpPackage.version || "runtime"} does not support ${platformArch}.`,
+      };
+    }
+
+    for (const dependency of requiredPackages) {
+      const dependencyPath = packagePath(root, dependency.name);
+      if (!fs.existsSync(dependencyPath)) {
+        return {
+          ok: false,
+          reason: `Missing ${dependency.name} ${dependency.version} for ${platformArch}.`,
+        };
+      }
+      const installedDependency = readJsonFile(dependencyPath);
+      if (installedDependency.version !== dependency.version) {
+        return {
+          ok: false,
+          reason: `Expected ${dependency.name} ${dependency.version}, found ${installedDependency.version || "an unknown version"}.`,
+        };
+      }
+    }
+
+    return { ok: true, sharpVersion: sharpPackage.version };
+  } catch (error) {
+    return { ok: false, reason: `Invalid Sharp runtime: ${error.message}` };
+  }
+}
+
 function normalizeVersion(version) {
   const value = String(version || "").trim();
   return value.startsWith("v") ? value.slice(1) : value;
@@ -148,8 +221,8 @@ function validateExistingRuntime(expectedVersion) {
     return { ok: false, reason: `Missing export version manifest: ${versionManifestPath}` };
   }
   try {
-    const installedPackage = JSON.parse(fs.readFileSync(installedPackageJson, "utf8"));
-    const manifest = JSON.parse(fs.readFileSync(versionManifestPath, "utf8"));
+    const installedPackage = readJsonFile(installedPackageJson);
+    const manifest = readJsonFile(versionManifestPath);
     if (installedPackage.version !== normalizeVersion(expectedVersion)) {
       return {
         ok: false,
@@ -161,6 +234,10 @@ function validateExistingRuntime(expectedVersion) {
         ok: false,
         reason: `Expected ${assetNameForVersion(expectedVersion)}, found ${manifest.package || "an unknown package"}.`,
       };
+    }
+    const sharpRuntime = validateSharpRuntime(targetRoot);
+    if (!sharpRuntime.ok) {
+      return sharpRuntime;
     }
     return { ok: true, packageVersion: installedPackage.version };
   } catch (error) {
@@ -259,4 +336,8 @@ if (require.main === module) {
   });
 }
 
-module.exports = { clearDirectoryContents };
+module.exports = {
+  clearDirectoryContents,
+  getRuntimePlatformArch,
+  validateSharpRuntime,
+};

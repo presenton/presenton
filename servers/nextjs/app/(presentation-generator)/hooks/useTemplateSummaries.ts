@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import TemplateService, {
   TemplateCreateTaskResponse,
@@ -60,6 +60,16 @@ function deduplicateCloudTemplates(templates: TemplateListItem[]) {
   });
 }
 
+function visibleTemplateTasks(tasks: TemplateCreateTaskResponse[]) {
+  return tasks.filter(
+    (task) => task.status === "pending" || task.status === "error"
+  );
+}
+
+function hasPendingTemplateTasks(tasks: TemplateCreateTaskResponse[]) {
+  return tasks.some((task) => task.status === "pending");
+}
+
 export function useTemplateSummaries({
   includeProcessingTemplateTasks = false,
   presentonCloudOnly = false,
@@ -86,7 +96,7 @@ export function useTemplateSummaries({
 
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       try {
-        return await TemplateService.getProcessingTemplateCreateTasks(oneHourAgo);
+        return await TemplateService.getRecentTemplateCreateTasks(oneHourAgo);
       } catch (error) {
         console.error("Failed to load processing template tasks", error);
         return [];
@@ -116,8 +126,9 @@ export function useTemplateSummaries({
           loadProcessingTemplateTasks(),
         ]);
         if (!cancelled) {
-          const nextProcessingTasks = processingTasks ?? [];
-          hadProcessingTemplateTasks = nextProcessingTasks.length > 0;
+          const recentTasks = processingTasks ?? [];
+          const nextProcessingTasks = visibleTemplateTasks(recentTasks);
+          hadProcessingTemplateTasks = hasPendingTemplateTasks(recentTasks);
           setTemplates(loadedTemplates);
           setProcessingTemplateTasks(nextProcessingTasks);
         }
@@ -143,10 +154,11 @@ export function useTemplateSummaries({
       intervalId = setInterval(() => {
         loadProcessingTemplateTasks().then((processingTasks) => {
           if (!cancelled) {
-            const nextProcessingTasks = processingTasks ?? [];
+            const recentTasks = processingTasks ?? [];
+            const nextProcessingTasks = visibleTemplateTasks(recentTasks);
             const shouldRefreshTemplates =
-              hadProcessingTemplateTasks || nextProcessingTasks.length > 0;
-            hadProcessingTemplateTasks = nextProcessingTasks.length > 0;
+              hadProcessingTemplateTasks || hasPendingTemplateTasks(recentTasks);
+            hadProcessingTemplateTasks = hasPendingTemplateTasks(recentTasks);
             setProcessingTemplateTasks(nextProcessingTasks);
 
             if (shouldRefreshTemplates) {
@@ -178,11 +190,20 @@ export function useTemplateSummaries({
     [templates]
   );
 
+  const retryTemplateTask = useCallback(async (taskId: string) => {
+    const retriedTask = await TemplateService.retryTemplateCreateTask(taskId);
+    setProcessingTemplateTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === taskId ? retriedTask : task))
+    );
+    return retriedTask;
+  }, []);
+
   return {
     templates,
     defaultTemplates,
     customTemplates,
     processingTemplateTasks,
+    retryTemplateTask,
     loading,
     error,
   };

@@ -154,6 +154,8 @@ export function infographicContentSize(
       return contentSize(380 + itemCount * 30, 340 + itemCount * 30);
     case "conversion_funnel":
       return contentSize(320 + itemCount * 100, 200 + itemCount * 30);
+    case "vertical_funnel":
+      return contentSize(620, 240 + itemCount * 60);
     case "pyramid":
       return contentSize(560 + itemCount * 40, 160 + itemCount * 60);
     case "segmented_wheel":

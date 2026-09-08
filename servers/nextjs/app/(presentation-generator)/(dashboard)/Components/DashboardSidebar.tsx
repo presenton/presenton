@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { LayoutDashboard, Star, Brain, Settings, HelpCircle, UsersRound } from "lucide-react";
+import { LayoutDashboard, Star, Brain, Settings, HelpCircle } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -11,7 +11,6 @@ export const defaultNavItems = [
     { key: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
     { key: "templates" as const, label: "Standard", icon: Star },
     { key: "designs" as const, label: "Smart", icon: Brain },
-    { key: "community" as const, label: "Community", icon: UsersRound },
 
 
 
@@ -21,7 +20,11 @@ export const BelongingNavItems = [
     
 ]
 
-const DashboardSidebar = () => {
+type DashboardSidebarProps = {
+    showTemplates?: boolean;
+};
+
+const DashboardSidebar = ({ showTemplates = true }: DashboardSidebarProps) => {
     const pathname = usePathname();
 
     return (
@@ -53,7 +56,7 @@ const DashboardSidebar = () => {
                             <LayoutDashboard className={["h-4 w-4", pathname === "/dashboard" ? "text-[#5146E5]" : "text-slate-600"].join(" ")} />
                             <span className="text-[11px] text-slate-800">Dashboard</span>
                         </Link>
-                        <Link
+                        {showTemplates ? <Link
                             prefetch={false}
                             href={`/templates`}
                             className={[
@@ -67,17 +70,7 @@ const DashboardSidebar = () => {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={`${pathname === "/templates" ? "#5146E5" : "#475569"}`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M4 14h6" /><path d="M4 2h10" /><rect x="4" y="18" width="16" height="4" rx="1" /><rect x="4" y="6" width="16" height="4" rx="1" /></svg>
                                 <span className="text-[11px] text-slate-800">Templates</span>
                             </div>
-                        </Link>
-                        <Link
-                            prefetch={false}
-                            href="/community"
-                            className="flex flex-col items-center gap-2 text-center transition-colors"
-                            aria-label="Community"
-                            title="Community"
-                        >
-                            <UsersRound className={`h-4 w-4 ${pathname === "/community" ? "text-[#5146E5]" : "text-slate-600"}`} />
-                            <span className="text-[11px] text-slate-800">Community</span>
-                        </Link>
+                        </Link> : null}
                         {/* <Link
                             prefetch={false}
                             href={`/theme`}

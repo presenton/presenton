@@ -13558,6 +13558,6 @@
     }
   ],
   "fonts": {
-    "Montserrat": "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap"
+    "Montserrat": "/vendor/fonts/sans_serif/montserrat/Montserrat[wght].ttf"
   }
 }

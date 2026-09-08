@@ -1,4 +1,4 @@
-import type { TemplateFontOption } from "@/components/slide-editor/text/google-fonts";
+import type { TemplateFontOption } from "@/components/slide-editor/text/local-fonts";
 import type { Marker } from "@/components/slide-editor/types";
 import {
   rawTextListRunsForEditor,

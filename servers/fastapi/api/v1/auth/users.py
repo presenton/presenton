@@ -173,10 +173,12 @@ class VersionedJWTStrategy(JWTStrategy[User, uuid.UUID]):
         )
 
 
-def get_jwt_strategy() -> VersionedJWTStrategy:
+def get_jwt_strategy(
+    lifetime_seconds: int = SESSION_TTL_SECONDS,
+) -> VersionedJWTStrategy:
     return VersionedJWTStrategy(
         secret=get_or_create_auth_secret(),
-        lifetime_seconds=SESSION_TTL_SECONDS,
+        lifetime_seconds=lifetime_seconds,
     )
 
 

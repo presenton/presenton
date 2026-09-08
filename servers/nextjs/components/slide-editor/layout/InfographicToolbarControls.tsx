@@ -329,6 +329,7 @@ function readInfographicType(value: unknown): InfographicType {
     value === "chevron_process" ||
     value === "radial_cycle" ||
     value === "conversion_funnel" ||
+    value === "vertical_funnel" ||
     value === "pyramid" ||
     value === "segmented_wheel" ||
     value === "customer_journey" ||

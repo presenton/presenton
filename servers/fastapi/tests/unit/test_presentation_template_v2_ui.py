@@ -1024,7 +1024,7 @@ def test_chat_template_image_content_stores_prompt():
     assert icon["prompt"] == "success check"
 
 
-def test_chat_template_infographic_content_updates_new_element_type():
+def test_chat_template_infographic_content_preserves_layout_element_type():
     infographic = {
         "type": "infographic",
         "decorative": False,
@@ -1051,12 +1051,53 @@ def test_chat_template_infographic_content_updates_new_element_type():
     )
 
     assert infographic["data"] == {
-        "type": "gauge",
+        "type": "progress_bar",
         "min_value": 20.0,
         "max_value": 80.0,
         "value": 64.0,
     }
     assert infographic["colors"] == ["F2F4F7", "12B76A"]
+
+
+def test_apply_template_content_to_ui_hydrates_vertical_funnel_data():
+    ui = {
+        "components": [
+            {
+                "id": "funnel",
+                "elements": [
+                    {
+                        "type": "infographic",
+                        "decorative": False,
+                        "name": "stages",
+                        "data": {
+                            "type": "vertical_funnel",
+                            "items": [{"value": 100, "heading": "Awareness"}],
+                        },
+                        "colors": ["FFFFFF", "102E79"],
+                    }
+                ],
+            }
+        ]
+    }
+
+    hydrated = presentation_endpoint._apply_template_content_to_ui(
+        ui,
+        {
+            "funnel": {
+                "stages": {
+                    "data": {
+                        "type": "conversion_funnel",
+                        "items": [{"value": 42, "heading": "Qualified"}],
+                    }
+                }
+            }
+        },
+    )
+
+    assert hydrated["components"][0]["elements"][0]["data"] == {
+        "type": "vertical_funnel",
+        "items": [{"value": 42, "heading": "Qualified"}],
+    }
 
 
 def test_apply_template_image_content_avoids_stretching_generated_photos():
@@ -1460,6 +1501,84 @@ def test_chat_template_content_hydrates_repeated_top_level_groups():
     _assert_branching_timeline_hydrated(ui)
 
 
+def _nested_repeated_group_ui():
+    return {
+        "components": [
+            {
+                "id": "timeline_component",
+                "elements": [
+                    {
+                        "type": "group",
+                        "name": "timeline_items",
+                        "children": [
+                            {
+                                "type": "group",
+                                "name": f"timeline_item_{index}",
+                                "position": {"x": index * 100, "y": 200},
+                                "__presenton_manual_position": True,
+                                "children": [
+                                    {
+                                        "type": "text",
+                                        "decorative": False,
+                                        "name": f"title_{index}",
+                                        "min_length": 1,
+                                        "max_length": 40,
+                                        "runs": [{"text": f"Old {index}"}],
+                                    }
+                                ],
+                            }
+                            for index in range(1, 6)
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+
+
+def _nested_repeated_group_content():
+    return {
+        "timeline_component": {
+            "timeline_items": [
+                {"title": "First"},
+                {"title": "Second"},
+                {"title": "Third"},
+            ]
+        }
+    }
+
+
+def _assert_nested_repeated_group_is_centered(ui):
+    children = ui["components"][0]["elements"][0]["children"]
+    assert [child["position"]["x"] for child in children] == [200, 300, 400]
+    assert [child["children"][0]["runs"][0]["text"] for child in children] == [
+        "First",
+        "Second",
+        "Third",
+    ]
+    assert all("__presenton_manual_position" not in child for child in children)
+
+
+def test_nested_repeated_group_centers_reduced_content():
+    hydrated = presentation_endpoint._apply_template_content_to_ui(
+        _nested_repeated_group_ui(),
+        _nested_repeated_group_content(),
+    )
+
+    _assert_nested_repeated_group_is_centered(hydrated)
+
+
+def test_chat_nested_repeated_group_centers_reduced_content():
+    ui = _nested_repeated_group_ui()
+
+    PresentationChatMemoryLayer._apply_template_content_to_ui(
+        ui,
+        _nested_repeated_group_content(),
+    )
+
+    _assert_nested_repeated_group_is_centered(ui)
+
+
 def test_apply_template_content_to_ui_hydrates_direct_repeated_images():
     ui = {
         "id": "layout-1",
@@ -1560,3 +1679,85 @@ def test_chat_template_content_hydrates_direct_repeated_images():
     image = ui["components"][0]["elements"][0]["children"][0]
     assert image["data"] == "/app_data/images/landscape.png"
     assert image["prompt"] == "Generated landscape"
+
+
+def test_layout_only_repeated_item_wrappers_hydrate_from_flat_array_items():
+    def text(name, value):
+        return {
+            "type": "text",
+            "name": name,
+            "decorative": False,
+            "runs": [{"text": value}],
+        }
+
+    def fields(value, heading):
+        return [text("metric_value", value), text("metric_heading", heading)]
+
+    divider = {
+        "type": "vector",
+        "decorative": True,
+        "points": [{"x": 0, "y": 0}, {"x": 200, "y": 0}],
+    }
+    ui = {
+        "components": [
+            {
+                "id": "metrics_panel",
+                "elements": [
+                    {
+                        "type": "group",
+                        "name": "metric_items",
+                        "children": [
+                            {
+                                "type": "flex",
+                                "name": "metric_item_1",
+                                "children": fields("68%", "Mobile-first"),
+                            },
+                            {
+                                "type": "flex",
+                                "name": "metric_item_2",
+                                "children": [
+                                    divider,
+                                    {
+                                        "type": "group",
+                                        "name": "metric_content",
+                                        "children": fields("74%", "Research"),
+                                    },
+                                ],
+                            },
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+    content = {
+        "metrics_panel": {
+            "metric_items": [
+                {"metric_value": "10%", "metric_heading": "First"},
+                {"metric_value": "20%", "metric_heading": "Second"},
+            ]
+        }
+    }
+
+    hydrated = presentation_endpoint._apply_template_content_to_ui(ui, content)
+    items = hydrated["components"][0]["elements"][0]["children"]
+
+    def editable_text(item, name):
+        stack = [item]
+        while stack:
+            current = stack.pop()
+            if current.get("type") == "text" and current.get("name") == name:
+                return current["runs"][0]["text"]
+            stack.extend(
+                child
+                for child in current.get("children", [])
+                if isinstance(child, dict)
+            )
+        raise AssertionError(f"missing editable text field: {name}")
+
+    assert [editable_text(item, "metric_value") for item in items] == ["10%", "20%"]
+    assert [editable_text(item, "metric_heading") for item in items] == [
+        "First",
+        "Second",
+    ]
+    assert items[1]["children"][0]["type"] == "vector"

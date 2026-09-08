@@ -191,7 +191,7 @@ const styles = {
     boxSizing: "border-box",
     color: "#191919",
     fontFamily:
-      "var(--font-syne), var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "var(--font-syne), var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     padding: 14,
     width: 296,
   },

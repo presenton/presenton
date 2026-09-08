@@ -40,7 +40,7 @@ export default function UserAccountSettings({
 
         <div className="w-full overflow-y-auto pb-20 pr-6">
           <div className="sticky right-0 top-0 z-50 mb-4 py-[28px] backdrop-blur">
-            <h1 className="font-unbounded text-[28px] font-normal tracking-[-0.84px] text-black">
+            <h1 className="font-syne text-[28px] font-normal tracking-[-0.84px] text-black">
               Settings
             </h1>
           </div>

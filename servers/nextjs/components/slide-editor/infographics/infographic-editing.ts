@@ -28,6 +28,13 @@ export type InfographicToolbarItemStats = {
   count: number;
 };
 
+export type InfographicItemOffset = {
+  x: number;
+  y: number;
+};
+
+export type InfographicChildTargetKind = "icon" | "image" | "shape" | "text";
+
 const INFOGRAPHIC_ITEM_LIMITS: Partial<
   Record<InfographicType, { min: number; max: number; step?: number }>
 > = {
@@ -56,6 +63,253 @@ function readInfographicArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+export function infographicItemAtPath(
+  data: unknown,
+  itemPath: number[],
+  collection: "items" | "rows" = "items",
+): InfographicRecord | null {
+  let items = readInfographicArray(readInfographicRecord(data)?.[collection]);
+  let item: InfographicRecord | null = null;
+  for (const index of itemPath) {
+    item = readInfographicRecord(items[index]);
+    if (!item) return null;
+    items = readInfographicArray(item.items);
+  }
+  return item;
+}
+
+export function infographicItemOffset(value: unknown): InfographicItemOffset {
+  const item = readInfographicRecord(value);
+  const offset = readInfographicRecord(item?.__presenton_offset);
+  return {
+    x: readInfographicNumber(offset?.x, 0),
+    y: readInfographicNumber(offset?.y, 0),
+  };
+}
+
+export function infographicChildOffset(
+  value: unknown,
+  kind: InfographicChildTargetKind,
+  field?: string,
+): InfographicItemOffset {
+  const item = readInfographicRecord(value);
+  const offsets = readInfographicRecord(item?.__presenton_child_offsets);
+  const offset = readInfographicRecord(offsets?.[infographicChildOffsetKey(kind, field)]);
+  return {
+    x: readInfographicNumber(offset?.x, 0),
+    y: readInfographicNumber(offset?.y, 0),
+  };
+}
+
+export function infographicChildOffsetKey(
+  kind: InfographicChildTargetKind,
+  field?: string,
+) {
+  return `${kind}:${field ?? kind}`;
+}
+
+export function replaceInfographicItemFields(
+  data: unknown,
+  itemPath: number[],
+  fields: InfographicRecord,
+  collection: "items" | "rows" = "items",
+): unknown {
+  const record = readInfographicRecord(data);
+  if (!record || itemPath.length === 0) return data;
+
+  const replaceAtDepth = (items: unknown[], depth: number): unknown[] => {
+    const index = itemPath[depth];
+    const item = readInfographicRecord(items[index]);
+    if (!item) return items;
+    const next = [...items];
+    next[index] =
+      depth === itemPath.length - 1
+        ? { ...item, ...fields }
+        : {
+            ...item,
+            items: replaceAtDepth(readInfographicArray(item.items), depth + 1),
+          };
+    return next;
+  };
+
+  return {
+    ...record,
+    [collection]: replaceAtDepth(readInfographicArray(record[collection]), 0),
+  };
+}
+
+export function replaceInfographicItemIcon(
+  data: unknown,
+  itemPath: number[],
+  iconUrl: string,
+  collection: "items" | "rows" = "items",
+): unknown {
+  const item = infographicItemAtPath(data, itemPath, collection);
+  const currentIcon = normalizeInfographicIcon(item?.icon, item?.color);
+  return replaceInfographicItemFields(data, itemPath, {
+    icon: { url: iconUrl, color: currentIcon?.color ?? "FFFFFF" },
+    color: undefined,
+  }, collection);
+}
+
+export function replaceInfographicItemIconColor(
+  data: unknown,
+  itemPath: number[],
+  color: string,
+  collection: "items" | "rows" = "items",
+): unknown {
+  const item = infographicItemAtPath(data, itemPath, collection);
+  const currentIcon = normalizeInfographicIcon(item?.icon, item?.color);
+  if (!currentIcon) return data;
+  return replaceInfographicItemFields(data, itemPath, {
+    icon: { ...currentIcon, color },
+    color: undefined,
+  }, collection);
+}
+
+export function replaceInfographicItemText(
+  data: unknown,
+  itemPath: number[],
+  field: string,
+  value: string,
+  collection: "items" | "rows" = "items",
+): unknown {
+  if (!field || field.startsWith("__")) return data;
+  const [arrayField, arrayIndexValue] = field.split(".");
+  const arrayIndex = Number(arrayIndexValue);
+  if (arrayField && Number.isInteger(arrayIndex) && arrayIndex >= 0) {
+    if (itemPath.length === 0) {
+      const record = readInfographicRecord(data);
+      if (!record) return data;
+      const values = readInfographicArray(record[arrayField]);
+      return {
+        ...record,
+        [arrayField]: values.map((current, index) =>
+          index === arrayIndex ? value : current,
+        ),
+      };
+    }
+    const item = infographicItemAtPath(data, itemPath, collection);
+    if (!item) return data;
+    const values = readInfographicArray(item[arrayField]);
+    return replaceInfographicItemFields(data, itemPath, {
+      [arrayField]: values.map((current, index) =>
+        index === arrayIndex ? value : current,
+      ),
+    }, collection);
+  }
+  if (itemPath.length === 0) {
+    const record = readInfographicRecord(data);
+    return record ? { ...record, [field]: value } : data;
+  }
+  return replaceInfographicItemFields(
+    data,
+    itemPath,
+    { [field]: value },
+    collection,
+  );
+}
+
+export function replaceInfographicImage(
+  data: unknown,
+  itemPath: number[],
+  field: string,
+  value: string,
+  collection: "items" | "rows" = "items",
+): unknown {
+  return replaceInfographicItemText(data, itemPath, field, value, collection);
+}
+
+export function replaceInfographicImageSettings(
+  data: unknown,
+  itemPath: number[],
+  field: string,
+  settings: InfographicRecord,
+  collection: "items" | "rows" = "items",
+): unknown {
+  const settingsField = `${field}_settings`;
+  if (itemPath.length === 0) {
+    const record = readInfographicRecord(data);
+    return record ? { ...record, [settingsField]: settings } : data;
+  }
+  return replaceInfographicItemFields(data, itemPath, {
+    [settingsField]: settings,
+  }, collection);
+}
+
+export function setInfographicItemOffset(
+  data: unknown,
+  itemPath: number[],
+  offset: InfographicItemOffset,
+  collection: "items" | "rows" = "items",
+): unknown {
+  return replaceInfographicItemFields(data, itemPath, {
+    __presenton_offset: {
+      x: Math.round(offset.x * 100) / 100,
+      y: Math.round(offset.y * 100) / 100,
+    },
+  }, collection);
+}
+
+export function setInfographicChildOffset(
+  data: unknown,
+  itemPath: number[],
+  kind: InfographicChildTargetKind,
+  field: string | undefined,
+  offset: InfographicItemOffset,
+  collection: "items" | "rows" = "items",
+): unknown {
+  const item = infographicItemAtPath(data, itemPath, collection);
+  if (!item) return data;
+  const offsets = readInfographicRecord(item.__presenton_child_offsets) ?? {};
+  return replaceInfographicItemFields(
+    data,
+    itemPath,
+    {
+      __presenton_child_offsets: {
+        ...offsets,
+        [infographicChildOffsetKey(kind, field)]: {
+          x: Math.round(offset.x * 100) / 100,
+          y: Math.round(offset.y * 100) / 100,
+        },
+      },
+    },
+    collection,
+  );
+}
+
+export function setInfographicItemUngrouped(
+  data: unknown,
+  itemPath: number[],
+  ungrouped: boolean,
+  collection: "items" | "rows" = "items",
+): unknown {
+  return replaceInfographicItemFields(data, itemPath, {
+    __presenton_ungrouped: ungrouped || undefined,
+  }, collection);
+}
+
+export function isInfographicItemUngrouped(value: unknown): boolean {
+  return readInfographicRecord(value)?.__presenton_ungrouped === true;
+}
+
+export function isInfographicMainUngrouped(data: unknown): boolean {
+  return readInfographicRecord(data)?.__presenton_items_ungrouped === true;
+}
+
+export function setInfographicMainUngrouped(
+  data: unknown,
+  ungrouped: boolean,
+): unknown {
+  const record = readInfographicRecord(data);
+  return record
+    ? {
+        ...record,
+        __presenton_items_ungrouped: ungrouped || undefined,
+      }
+    : data;
+}
+
 export function normalizeInfographicIcon(
   value: unknown,
   legacyColor?: unknown,
@@ -82,7 +336,8 @@ export function infographicToolbarItemStats(
 ): InfographicToolbarItemStats | null {
   const record = readInfographicRecord(data);
   const type = infographicType(record?.type);
-  if (!record || !type || !Array.isArray(record.items)) return null;
+  const collection = type === "gantt" ? record?.rows : record?.items;
+  if (!record || !type || !Array.isArray(collection)) return null;
 
   const items = infographicToolbarItems(record, type).items;
   const limits = INFOGRAPHIC_ITEM_LIMITS[type] ?? DEFAULT_ITEM_LIMIT;
@@ -110,6 +365,94 @@ export function addInfographicToolbarItem(data: unknown): unknown {
   return collection.write(nextItems);
 }
 
+export function canInsertInfographicItemAfterPath(
+  data: unknown,
+  itemPath: number[],
+  collection: "items" | "rows" = "items",
+): boolean {
+  const record = readInfographicRecord(data);
+  const type = infographicType(record?.type);
+  if (!record || !type || itemPath.length === 0) return false;
+
+  let siblings = readInfographicArray(record[collection]);
+  for (let depth = 0; depth < itemPath.length - 1; depth += 1) {
+    const item = readInfographicRecord(siblings[itemPath[depth]]);
+    if (!item) return false;
+    siblings = readInfographicArray(item.items);
+  }
+  const selectedIndex = itemPath.at(-1);
+  if (selectedIndex == null || !readInfographicRecord(siblings[selectedIndex])) {
+    return false;
+  }
+  const maximum = (INFOGRAPHIC_ITEM_LIMITS[type] ?? DEFAULT_ITEM_LIMIT).max;
+  return siblings.length < maximum;
+}
+
+export function insertInfographicItemAfterPath(
+  data: unknown,
+  itemPath: number[],
+  collection: "items" | "rows" = "items",
+): unknown {
+  const record = readInfographicRecord(data);
+  const type = infographicType(record?.type);
+  if (
+    !record ||
+    !type ||
+    !canInsertInfographicItemAfterPath(record, itemPath, collection)
+  ) {
+    return data;
+  }
+
+  if ((type === "org_chart" || type === "decision_tree") && itemPath.length === 1) {
+    const items = readInfographicArray(record[collection]);
+    const selectedIndex = itemPath[0];
+    const parent = readInfographicRecord(items[selectedIndex]);
+    if (!parent) return data;
+    const created = createInfographicToolbarItem(type, items, record);
+    const parentId =
+      typeof parent.id === "string" && parent.id.trim()
+        ? parent.id
+        : `node-${selectedIndex}`;
+    const normalizedItems = items.map((item, index) => {
+      const current = readInfographicRecord(item);
+      return index === selectedIndex && current?.id !== parentId
+        ? { ...current, id: parentId }
+        : item;
+    });
+    normalizedItems.splice(selectedIndex + 1, 0, {
+      ...created,
+      parent_id: parentId,
+    });
+    return { ...record, [collection]: normalizedItems };
+  }
+
+  const insertAtDepth = (items: unknown[], depth: number): unknown[] => {
+    const selectedIndex = itemPath[depth];
+    const selected = readInfographicRecord(items[selectedIndex]);
+    if (!selected) return items;
+    if (depth < itemPath.length - 1) {
+      const next = [...items];
+      next[selectedIndex] = {
+        ...selected,
+        items: insertAtDepth(readInfographicArray(selected.items), depth + 1),
+      };
+      return next;
+    }
+    const next = [...items];
+    next.splice(
+      selectedIndex + 1,
+      0,
+      createInfographicToolbarItem(type, items, record),
+    );
+    return next;
+  };
+
+  return {
+    ...record,
+    [collection]: insertAtDepth(readInfographicArray(record[collection]), 0),
+  };
+}
+
 export function removeLastInfographicToolbarItem(data: unknown): unknown {
   const record = readInfographicRecord(data);
   const type = infographicType(record?.type);
@@ -135,6 +478,74 @@ export function removeLastInfographicToolbarItem(data: unknown): unknown {
   return collection.write(remaining);
 }
 
+export function removeInfographicItemAtPath(
+  data: unknown,
+  itemPath: number[],
+  collection: "items" | "rows" = "items",
+): unknown {
+  const record = readInfographicRecord(data);
+  if (
+    !record ||
+    !canRemoveInfographicItemAtPath(record, itemPath, collection)
+  ) {
+    return data;
+  }
+
+  const removeAtDepth = (items: unknown[], depth: number): unknown[] => {
+    const index = itemPath[depth];
+    const item = readInfographicRecord(items[index]);
+    if (!item) return items;
+    if (depth < itemPath.length - 1) {
+      const next = [...items];
+      next[index] = {
+        ...item,
+        items: removeAtDepth(readInfographicArray(item.items), depth + 1),
+      };
+      return next;
+    }
+
+    const removedId = readInfographicRecord(items[index])?.id;
+    return items
+      .filter((_, itemIndex) => itemIndex !== index)
+      .map((entry) => {
+        const current = readInfographicRecord(entry);
+        return current &&
+          typeof removedId === "string" &&
+          current.parent_id === removedId
+          ? { ...current, parent_id: null }
+          : entry;
+      });
+  };
+
+  return {
+    ...record,
+    [collection]: removeAtDepth(readInfographicArray(record[collection]), 0),
+  };
+}
+
+export function canRemoveInfographicItemAtPath(
+  data: unknown,
+  itemPath: number[],
+  collection: "items" | "rows" = "items",
+): boolean {
+  const record = readInfographicRecord(data);
+  const type = infographicType(record?.type);
+  if (!record || !type || itemPath.length === 0) return false;
+
+  let siblings = readInfographicArray(record[collection]);
+  for (let depth = 0; depth < itemPath.length - 1; depth += 1) {
+    const item = readInfographicRecord(siblings[itemPath[depth]]);
+    if (!item) return false;
+    siblings = readInfographicArray(item.items);
+  }
+  const selectedIndex = itemPath.at(-1);
+  if (selectedIndex == null || !readInfographicRecord(siblings[selectedIndex])) {
+    return false;
+  }
+  const minimum = (INFOGRAPHIC_ITEM_LIMITS[type] ?? DEFAULT_ITEM_LIMIT).min;
+  return siblings.length > minimum;
+}
+
 function createInfographicToolbarItem(
   type: InfographicType,
   items: unknown[],
@@ -145,6 +556,8 @@ function createInfographicToolbarItem(
   const icon = defaultInfographicIcon(index);
 
   switch (type) {
+    case "gantt":
+      return { label: `Workstream ${index + 1}`, items: [] };
     case "org_chart":
     case "decision_tree": {
       const root = readInfographicRecord(items[0]);
@@ -177,6 +590,7 @@ function createInfographicToolbarItem(
       };
     }
     case "conversion_funnel":
+    case "vertical_funnel":
       return {
         value: Math.max(0, readInfographicNumber(previous?.value, 60) - 10),
         heading: `Stage ${index + 1}`,
@@ -216,7 +630,7 @@ function toolbarItemHeading(
   }
   if (type === "pillar_framework") return `Pillar ${index + 1}`;
   if (type === "transformation_hub") return `Capability ${index + 1}`;
-  if (type === "conversion_funnel") return `Stage ${index + 1}`;
+  if (type === "conversion_funnel" || type === "vertical_funnel") return `Stage ${index + 1}`;
   if (type === "roadmap") return `Stop ${index + 1}`;
   if (type === "pyramid") return `Level ${index + 1}`;
   if (type === "segmented_wheel") return `Segment ${index + 1}`;
@@ -234,6 +648,7 @@ function typeUsesToolbarIcons(type: InfographicType) {
     type === "chevron_process" ||
     type === "radial_cycle" ||
     type === "conversion_funnel" ||
+    type === "vertical_funnel" ||
     type === "transformation_hub"
   );
 }
@@ -246,6 +661,12 @@ function infographicToolbarItems(
   write: (items: unknown[]) => InfographicRecord;
 } {
   const items = readInfographicArray(data.items);
+  if (type === "gantt") {
+    return {
+      items: readInfographicArray(data.rows),
+      write: (nextItems) => ({ ...data, rows: nextItems }),
+    };
+  }
   if (type !== "mind_map" || items.length !== 1) {
     return {
       items,
@@ -281,7 +702,7 @@ function infographicType(value: unknown): InfographicType | null {
       "milestone_timeline", "staircase", "supply_chain",
       "stair_step_blocks", "maturity_model", "diagonal_circles",
       "pillar_framework", "transformation_hub", "risk_matrix",
-      "chevron_process", "radial_cycle", "conversion_funnel", "pyramid",
+      "chevron_process", "radial_cycle", "conversion_funnel", "vertical_funnel", "pyramid",
       "segmented_wheel", "customer_journey", "before_after",
       "impact_effort_matrix", "comparison_matrix", "org_chart",
       "decision_tree", "mind_map",

@@ -3,13 +3,12 @@ from typing import Literal
 import uuid
 
 from fastapi import HTTPException, Request
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.v1.auth.users import UsernameUserDatabase, UserManager, get_jwt_strategy
-from models.sql.access_token import AccessToken
 from models.sql.user import User
 from api.v1.auth.config import SESSION_COOKIE_NAME
+from services.api_keys import verify_api_key
 
 
 @dataclass(frozen=True)
@@ -41,19 +40,15 @@ async def resolve_request_principal(
     authorization = request.headers.get("Authorization", "")
     if authorization.lower().startswith("bearer "):
         token = authorization.split(" ", 1)[1].strip()
-        if not token.startswith("sk-presenton-"):
+        verified = await verify_api_key(session, token)
+        if verified is None:
             return None, None
-        access_token = await session.get(AccessToken, token)
-        if access_token is None:
-            return None, None
-        user = await session.get(User, access_token.user_id)
-        if user is None or not user.is_active or not user.is_superuser:
-            return None, None
+        user = verified.user
         return (
             AuthPrincipal(
                 user_id=user.id,
                 username=user.username,
-                is_admin=True,
+                is_admin=user.is_superuser,
                 method="api_key",
             ),
             user,

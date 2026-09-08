@@ -19,6 +19,7 @@ InfographicType = Literal[
     "chevron_process",
     "radial_cycle",
     "conversion_funnel",
+    "vertical_funnel",
     "pyramid",
     "segmented_wheel",
     "customer_journey",
@@ -302,6 +303,23 @@ INFOGRAPHIC_CATALOG: tuple[dict[str, Any], ...] = (
         },
     },
     {
+        "type": "vertical_funnel",
+        "name": "Vertical funnel",
+        "category": "funnel",
+        "best_for": "Vertically stacked funnel stages whose widths follow percentage values.",
+        "required_data": [
+            "items: array of {value:number, heading:string, description?}"
+        ],
+        "default_size": {"width": 720, "height": 480},
+        "example_data": {
+            "items": [
+                {"value": 100, "heading": "Awareness"},
+                {"value": 60, "heading": "Interest"},
+                {"value": 20, "heading": "Conversion"},
+            ]
+        },
+    },
+    {
         "type": "pyramid",
         "name": "Pyramid",
         "category": "hierarchy",
@@ -566,7 +584,7 @@ def normalize_infographic_data(
         raise ValueError(f"{infographic_type} requires exactly four items.")
     if infographic_type == "before_after" and (len(items) < 2 or len(items) % 2):
         raise ValueError("before_after requires an even number of at least two items.")
-    if infographic_type == "conversion_funnel" and not all(
+    if infographic_type in {"conversion_funnel", "vertical_funnel"} and not all(
         isinstance(item, dict)
         and isinstance(item.get("heading"), str)
         and not isinstance(item.get("value"), bool)
@@ -574,7 +592,7 @@ def normalize_infographic_data(
         for item in items
     ):
         raise ValueError(
-            "Every conversion_funnel item requires a heading and numeric value."
+            f"Every {infographic_type} item requires a heading and numeric value."
         )
     if infographic_type == "comparison_matrix":
         criteria = normalized.get("criteria")

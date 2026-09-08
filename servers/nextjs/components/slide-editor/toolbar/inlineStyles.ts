@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 const baseFont =
-  "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
+  "var(--font-manrope), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 const editorTheme = {
   surface: "#FFFFFF",

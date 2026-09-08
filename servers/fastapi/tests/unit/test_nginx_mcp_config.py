@@ -22,6 +22,7 @@ def test_mcp_routes_delegate_authentication_to_fastmcp():
         block = _location_block(config, path)
         assert "auth_request" not in block
         assert "proxy_pass http://localhost:8001/mcp" in block
+        assert "proxy_set_header Host localhost:8001;" in block
 
 
 def test_private_app_data_routes_still_use_auth_subrequest():

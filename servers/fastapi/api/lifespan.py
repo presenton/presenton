@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from migrations import migrate_database_on_startup
 from services.database import async_session_maker, create_db_and_tables, dispose_engines
+from services.async_tasks import fail_interrupted_async_tasks
 from services.provider_settings import migrate_provider_settings_from_file
 from templates.default_templates import import_default_templates_on_startup
 from utils.get_env import (
@@ -61,6 +62,9 @@ async def app_lifespan(_: FastAPI):
     await create_db_and_tables()
     await bootstrap_database_admin()
     async with async_session_maker() as session:
+        # BackgroundTasks are process-local and cannot resume after a restart.
+        # Resolve their persisted rows before accepting polling requests.
+        await fail_interrupted_async_tasks(session)
         await migrate_provider_settings_from_file(session)
     await import_default_templates_on_startup()
     if get_can_change_keys_env() != "false":

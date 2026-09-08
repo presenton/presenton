@@ -245,7 +245,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
       <div className={`flex-1 flex items-center justify-center ${isFullscreen ? "p-0" : "p-8"}`}>
         <div className="w-full h-full flex items-center justify-center relative" >
           <div
-            className={` rounded-sm font-inter relative w-full h-full flex items-center justify-center`}
+            className={` rounded-sm font-manrope relative w-full h-full flex items-center justify-center`}
 
           >
             <PresentationModeSlide

@@ -6,7 +6,7 @@ const CreatePageLoadingSkeleton = () => {
         <div className="min-h-screen bg-gray-50 ">
             <Skeleton className='h-24 w-full' />
             <div className="max-w-[1000px] mx-auto sm:px-6 pb-6">
-                <div className="mt-4 sm:mt-8 font-inter relative">
+                <div className="mt-4 sm:mt-8 font-manrope relative">
                     <div className="h-14 bg-gray-200 rounded w-1/3 mb-4"></div>
                     <div className="border p-2 sm:p-4 md:p-6 rounded-lg mt-10">
                         <div className="space-y-4">

@@ -1,8 +1,11 @@
 import asyncio
+import threading
+import time
 import uuid
 from unittest.mock import patch
 
 import services.mem0_oss_memory as mem0_oss
+from services.chat.chat_memory_store import ChatMemoryStore
 from services.mem0_presentation_memory_service import Mem0PresentationMemoryService
 
 
@@ -221,3 +224,61 @@ class TestMem0PresentationMemoryService:
             "user_id": f"presentation:{presentation_id}"
         }
         assert client.search_calls[0]["top_k"] == 5
+
+    def test_presentation_and_chat_operations_are_serialized(self):
+        class ConcurrentWriteClient(FakeMemoryClient):
+            def __init__(self):
+                super().__init__()
+                self.active_calls = 0
+                self.max_active_calls = 0
+                self.state_lock = threading.Lock()
+
+            def add(self, *args, **kwargs):
+                with self.state_lock:
+                    self.active_calls += 1
+                    self.max_active_calls = max(
+                        self.max_active_calls,
+                        self.active_calls,
+                    )
+                try:
+                    time.sleep(0.05)
+                    return super().add(*args, **kwargs)
+                finally:
+                    with self.state_lock:
+                        self.active_calls -= 1
+
+        client = ConcurrentWriteClient()
+        presentation_id = uuid.uuid4()
+        conversation_id = uuid.uuid4()
+
+        async def run_concurrent_writes():
+            presentation_memory = Mem0PresentationMemoryService()
+            chat_memory = ChatMemoryStore()
+            await asyncio.gather(
+                presentation_memory.store_generated_outlines(
+                    presentation_id,
+                    {"slides": [{"content": "One"}]},
+                ),
+                chat_memory.store_chat_turn(
+                    presentation_id=presentation_id,
+                    conversation_id=conversation_id,
+                    user_message="Tighten the copy",
+                    assistant_message="Done",
+                ),
+            )
+
+        with patch.dict(
+            "os.environ",
+            {"MEM0_ENABLED": "true"},
+            clear=False,
+        ), patch(
+            "services.mem0_presentation_memory_service.get_shared_mem0_client",
+            return_value=client,
+        ), patch(
+            "services.chat.chat_memory_store.get_shared_mem0_client",
+            return_value=client,
+        ):
+            asyncio.run(run_concurrent_writes())
+
+        assert len(client.add_calls) == 2
+        assert client.max_active_calls == 1

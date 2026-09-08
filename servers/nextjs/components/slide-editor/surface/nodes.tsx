@@ -2,12 +2,15 @@
 
 import {
   Fragment,
+  createContext,
   memo,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  useContext,
+  type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
 import type Konva from "konva";
@@ -57,7 +60,21 @@ import { TemplateV2TableElement as RawTableElement } from "@/components/slide-ed
 import { blackOrWhiteTextColor } from "@/components/slide-editor/tables/table-colors";
 import { LatexRunNode } from "@/components/slide-editor/math/LatexRunNode";
 import { buildSvgUpdateUrl } from "@/lib/svg-color";
-import { normalizeInfographicIcon } from "@/components/slide-editor/infographics/infographic-editing";
+import {
+  canInsertInfographicItemAfterPath,
+  infographicChildOffset,
+  type InfographicChildTargetKind,
+  infographicItemAtPath,
+  infographicItemOffset,
+  isInfographicMainUngrouped,
+  isInfographicItemUngrouped,
+  insertInfographicItemAfterPath,
+  normalizeInfographicIcon,
+  setInfographicChildOffset,
+  setInfographicItemOffset,
+} from "@/components/slide-editor/infographics/infographic-editing";
+import type { InfographicCanvasTarget } from "@/components/slide-editor/infographics/infographic-canvas-target";
+import { resizedInfographicFrame } from "@/components/slide-editor/infographics/infographic-sizing";
 import {
   componentSideResizeBox,
   resizeComponentFromSideTransform,
@@ -499,6 +516,235 @@ function setStageCursor(
   if (container) container.style.cursor = cursor;
 }
 
+const INFOGRAPHIC_TARGET_ATTR = "presentonInfographicTarget";
+const INFOGRAPHIC_CHILD_BASE_ATTR = "presentonInfographicChildBase";
+const INFOGRAPHIC_CHILD_APPLIED_OFFSET_ATTR =
+  "presentonInfographicChildAppliedOffset";
+const INFOGRAPHIC_CHILD_SHAPE_NAMES = new Set([
+  "Arc",
+  "Circle",
+  "Ellipse",
+  "Line",
+  "Path",
+  "Rect",
+]);
+const INFOGRAPHIC_INSERT_CONTROL_ATTR = "presentonInfographicInsertControl";
+const InfographicMainUngroupedContext = createContext(false);
+const InfographicItemInsertContext = createContext<{
+  data: unknown;
+  direction: "bottom" | "right";
+  onInsert: (itemPath: number[], collection: "items" | "rows") => void;
+} | null>(null);
+
+type InfographicTargetMeta = Omit<InfographicCanvasTarget, "box">;
+
+function infographicStoredPoint(value: unknown): Point | null {
+  const record = asRecord(value);
+  const x = readNumber(record?.x);
+  const y = readNumber(record?.y);
+  return x == null || y == null ? null : { x, y };
+}
+
+function infographicTargetAttrs(target: InfographicTargetMeta) {
+  return { [INFOGRAPHIC_TARGET_ATTR]: target };
+}
+
+function infographicTargetMeta(value: unknown): InfographicTargetMeta | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const kind = readString(record.kind);
+  const collection = readString(record.collection);
+  const itemPath = readArray(record.itemPath).map(readNumber);
+  if (
+    (kind !== "item" &&
+      kind !== "icon" &&
+      kind !== "image" &&
+      kind !== "shape" &&
+      kind !== "text") ||
+    (collection != null && collection !== "items" && collection !== "rows") ||
+    itemPath.some((index) => index == null || !Number.isInteger(index) || index < 0)
+  ) {
+    return null;
+  }
+  return {
+    kind,
+    itemPath: itemPath as number[],
+    ...(collection === "rows" ? { collection } : {}),
+    ...(typeof record.field === "string" ? { field: record.field } : {}),
+  };
+}
+
+function infographicCanvasTargetFromNode(
+  node: Konva.Node,
+  element: RawElement,
+  preferItem: boolean,
+): InfographicCanvasTarget | null {
+  let current: Konva.Node | null = node;
+  let direct: { meta: InfographicTargetMeta; node: Konva.Node } | null = null;
+  let item: { meta: InfographicTargetMeta; node: Konva.Node } | null = null;
+
+  while (current) {
+    const meta = infographicTargetMeta(current.getAttr(INFOGRAPHIC_TARGET_ATTR));
+    if (meta) {
+      direct ??= { meta, node: current };
+      if (meta.kind === "item") {
+        item = { meta, node: current };
+      }
+    }
+    current = current.getParent();
+  }
+
+  const mainUngrouped = isInfographicMainUngrouped(element.data);
+  // Grouping controls movement, not editing. A single click on a still-grouped
+  // infographic must stay on the main selection, while a double click can
+  // still resolve the exact text/icon/image target for its editor toolbar.
+  if (!mainUngrouped && preferItem) return null;
+  const itemRecord = item
+    ? infographicItemAtPath(
+        element.data,
+        item.meta.itemPath,
+        item.meta.collection,
+      )
+    : null;
+  const grouped = itemRecord ? !isInfographicItemUngrouped(itemRecord) : false;
+  const isTextNode = node.getClassName() === "Text";
+  let selected = grouped && (preferItem || direct?.meta.kind === "shape")
+    ? item
+    : direct;
+
+  if (mainUngrouped && isTextNode && item && (!preferItem || !grouped)) {
+    const explicitField = direct?.meta.kind === "text" ? direct.meta.field : null;
+    const field = explicitField ?? infographicTextFieldForValue(
+      itemRecord,
+      String(node.getAttr("text") ?? ""),
+    );
+    if (field) {
+      selected = {
+        meta: {
+          kind: "text",
+          itemPath: item.meta.itemPath,
+          field,
+          ...(item.meta.collection ? { collection: item.meta.collection } : {}),
+        },
+        node,
+      };
+    }
+  }
+
+  if (!selected && isTextNode) {
+    const explicit = infographicTargetMeta(node.getAttr(INFOGRAPHIC_TARGET_ATTR));
+    if (explicit?.kind === "text") selected = { meta: explicit, node };
+  }
+  if (!selected) return null;
+
+  const stage = selected.node.getStage();
+  if (!stage) return null;
+  const rawBox = selected.node.getClientRect({
+    relativeTo: stage,
+    skipShadow: true,
+    skipStroke: true,
+  });
+  const fontStyle = String(selected.node.getAttr("fontStyle") ?? "");
+  const align = readString(selected.node.getAttr("align"));
+  const verticalAlign = readString(selected.node.getAttr("verticalAlign"));
+  const textStyle =
+    selected.meta.kind === "text" && selected.node.getClassName() === "Text"
+      ? {
+          color: readString(selected.node.getAttr("fill")) ?? undefined,
+          fontFamily:
+            readString(selected.node.getAttr("fontFamily")) ?? undefined,
+          fontSize:
+            (readNumber(selected.node.getAttr("fontSize")) ?? 12) *
+            Math.abs(selected.node.getAbsoluteScale().y),
+          fontStyle: fontStyle.includes("italic")
+            ? ("italic" as const)
+            : ("normal" as const),
+          fontWeight: fontStyle.includes("bold") ? 700 : 400,
+          lineHeight:
+            readNumber(selected.node.getAttr("lineHeight")) ?? undefined,
+          textAlign:
+            (align === "center" ||
+              align === "justify" ||
+              align === "right"
+              ? align
+              : "left") as "center" | "justify" | "left" | "right",
+          verticalAlign:
+            verticalAlign === "bottom" || verticalAlign === "middle"
+              ? (verticalAlign as "bottom" | "middle")
+              : ("top" as const),
+        }
+      : null;
+  return {
+    ...selected.meta,
+    ...(selected.meta.kind === "text"
+      ? { displayText: String(selected.node.getAttr("text") ?? "") }
+      : {}),
+    ...(textStyle ? { textStyle } : {}),
+    box: {
+      x: rawBox.x,
+      y: rawBox.y,
+      width: rawBox.width,
+      height: rawBox.height,
+    },
+  };
+}
+
+function infographicTextFieldForValue(
+  record: Record<string, unknown> | null,
+  value: string,
+  excludedFields: Set<string> = new Set(),
+) {
+  if (!record) return null;
+  const fields = [
+    "label",
+    "heading",
+    "description",
+    "focus",
+    "name",
+    "value",
+    "title",
+    "center_label",
+    "before_label",
+    "after_label",
+    "x_axis_label",
+    "y_axis_label",
+    "low_label",
+    "high_label",
+  ];
+  const matchingField = fields.find(
+    (field) =>
+      !excludedFields.has(field) &&
+      record[field] != null &&
+      String(record[field]) === value,
+  );
+  if (matchingField) return matchingField;
+  if (
+    value.trim() &&
+    record.heading == null &&
+    !excludedFields.has("heading")
+  ) {
+    return "heading";
+  }
+  if (
+    !value.trim() &&
+    record.description == null &&
+    !excludedFields.has("description")
+  ) {
+    return "description";
+  }
+  return null;
+}
+
+function infographicNumberLabel(
+  item: Record<string, unknown> | null,
+  index: number,
+  prefix = "",
+) {
+  const stored = readString(item?.label)?.trim();
+  const number = String(index + 1).padStart(2, "0");
+  return stored || (prefix ? `${prefix} ${number}` : number);
+}
+
 export function RawComponentNode({
   component,
   componentIndex,
@@ -513,6 +759,7 @@ export function RawComponentNode({
   onTableCellSelect,
   onTableCellEdit,
   onOpenElementEditor,
+  onInfographicTargetEdit,
   onComponentChange,
   onComponentDragStart,
   onComponentDragMove,
@@ -545,6 +792,11 @@ export function RawComponentNode({
     colIndex: number,
   ) => void;
   onOpenElementEditor: (selection: ElementSelection) => void;
+  onInfographicTargetEdit: (
+    selection: ElementSelection,
+    target: InfographicCanvasTarget,
+    sourceNode?: Konva.Node | null,
+  ) => void;
   onComponentChange: (
     componentIndex: number,
     updater: (component: RawComponent) => RawComponent,
@@ -854,6 +1106,7 @@ export function RawComponentNode({
           onTableCellSelect={onTableCellSelect}
           onTableCellEdit={onTableCellEdit}
           onOpenEditor={onOpenElementEditor}
+          onInfographicTargetEdit={onInfographicTargetEdit}
           onElementChange={onElementChange}
           onElementDragEnd={handleSingleElementComponentDragEnd}
           onElementDragStart={onElementDragStart}
@@ -918,6 +1171,7 @@ export const MemoizedRawComponentNode = memo(
       previous.onTableCellSelect !== next.onTableCellSelect ||
       previous.onTableCellEdit !== next.onTableCellEdit ||
       previous.onOpenElementEditor !== next.onOpenElementEditor ||
+      previous.onInfographicTargetEdit !== next.onInfographicTargetEdit ||
       previous.onComponentChange !== next.onComponentChange ||
       previous.onComponentDragStart !== next.onComponentDragStart ||
       previous.onComponentDragMove !== next.onComponentDragMove ||
@@ -958,6 +1212,7 @@ function RawElementNode({
   onTableCellSelect,
   onTableCellEdit,
   onOpenEditor,
+  onInfographicTargetEdit,
   onElementChange,
   onElementDragEnd,
   onElementDragStart,
@@ -994,6 +1249,11 @@ function RawElementNode({
     colIndex: number,
   ) => void;
   onOpenEditor: (selection: ElementSelection) => void;
+  onInfographicTargetEdit: (
+    selection: ElementSelection,
+    target: InfographicCanvasTarget,
+    sourceNode?: Konva.Node | null,
+  ) => void;
   onElementChange: (
     selection: ElementSelection,
     updater: (element: RawElement) => RawElement,
@@ -1157,6 +1417,81 @@ function RawElementNode({
       selection,
       vectorDraggable,
     ],
+  );
+  const handleInfographicItemDragEnd = useCallback(
+    (event: Konva.KonvaEventObject<DragEvent>) => {
+      if (type !== "infographic") return false;
+      const targetNode = event.target as Konva.Node;
+      const meta = infographicTargetMeta(
+        targetNode.getAttr(INFOGRAPHIC_TARGET_ATTR),
+      );
+      if (!meta) return false;
+      event.cancelBubble = true;
+      if (meta.kind !== "item") {
+        const childKind = meta.kind as InfographicChildTargetKind;
+        const base = infographicStoredPoint(
+          targetNode.getAttr(INFOGRAPHIC_CHILD_BASE_ATTR),
+        );
+        if (!base) return false;
+        const offset = {
+          x: targetNode.x() - base.x,
+          y: targetNode.y() - base.y,
+        };
+        targetNode.setAttr(INFOGRAPHIC_CHILD_APPLIED_OFFSET_ATTR, offset);
+        onElementChange(selection, (current) => ({
+          ...current,
+          data: setInfographicChildOffset(
+            current.data,
+            meta.itemPath,
+            childKind,
+            meta.field,
+            offset,
+            meta.collection,
+          ),
+        }));
+        const target = infographicCanvasTargetFromNode(
+          targetNode,
+          element,
+          false,
+        );
+        if (target) {
+          onInfographicTargetEdit(selection, { ...target, editing: false });
+        }
+        return true;
+      }
+      const offset = { x: targetNode.x(), y: targetNode.y() };
+      onElementChange(selection, (current) => ({
+        ...current,
+        data: setInfographicItemOffset(
+          current.data,
+          meta.itemPath,
+          offset,
+          meta.collection,
+        ),
+      }));
+      const target = infographicCanvasTargetFromNode(targetNode, element, true);
+      if (target) onInfographicTargetEdit(selection, target);
+      return true;
+    },
+    [element, onElementChange, onInfographicTargetEdit, selection, type],
+  );
+  const handleInfographicItemInsert = useCallback(
+    (itemPath: number[], collection: "items" | "rows") => {
+      if (type !== "infographic") return;
+      onElementChange(selection, (current) => {
+        const nextData = insertInfographicItemAfterPath(
+          current.data,
+          itemPath,
+          collection,
+        );
+        return {
+          ...current,
+          data: nextData,
+          ...resizedInfographicFrame(current, nextData),
+        };
+      });
+    },
+    [onElementChange, selection, type],
   );
   const previewVectorVertex = useCallback(
     (index: number, point: Point) => {
@@ -1385,6 +1720,22 @@ function RawElementNode({
       }}
       onClick={(event) => {
         if (!isEditMode) return;
+        if (type === "infographic") {
+          const target = infographicCanvasTargetFromNode(
+            event.target,
+            element,
+            true,
+          );
+          if (target) {
+            event.cancelBubble = true;
+            onSelect(selection);
+            onInfographicTargetEdit(selection, {
+              ...target,
+              ...(target.kind === "item" ? {} : { editing: false }),
+            });
+            return;
+          }
+        }
         if (componentIndex === ROOT_ELEMENTS_COMPONENT_INDEX) {
           event.cancelBubble = true;
           onSelect(selection);
@@ -1392,6 +1743,22 @@ function RawElementNode({
       }}
       onTap={(event) => {
         if (!isEditMode) return;
+        if (type === "infographic") {
+          const target = infographicCanvasTargetFromNode(
+            event.target,
+            element,
+            true,
+          );
+          if (target) {
+            event.cancelBubble = true;
+            onSelect(selection);
+            onInfographicTargetEdit(selection, {
+              ...target,
+              ...(target.kind === "item" ? {} : { editing: false }),
+            });
+            return;
+          }
+        }
         if (componentIndex === ROOT_ELEMENTS_COMPONENT_INDEX) {
           event.cancelBubble = true;
           onSelect(selection);
@@ -1399,19 +1766,55 @@ function RawElementNode({
       }}
       onDblClick={(event) => {
         if (!isEditMode) return;
+        if (type === "infographic") {
+          const target = infographicCanvasTargetFromNode(
+            event.target,
+            element,
+            false,
+          );
+          if (target) {
+            event.cancelBubble = true;
+            onSelect(selection);
+            onInfographicTargetEdit(
+              selection,
+              { ...target, editing: true },
+              target.kind === "text" ? event.target : null,
+            );
+            return;
+          }
+        }
         event.cancelBubble = true;
         onSelect(selection);
         onOpenEditor(selection);
       }}
       onDblTap={(event) => {
         if (!isEditMode) return;
+        if (type === "infographic") {
+          const target = infographicCanvasTargetFromNode(
+            event.target,
+            element,
+            false,
+          );
+          if (target) {
+            event.cancelBubble = true;
+            onSelect(selection);
+            onInfographicTargetEdit(
+              selection,
+              { ...target, editing: true },
+              target.kind === "text" ? event.target : null,
+            );
+            return;
+          }
+        }
         event.cancelBubble = true;
         onSelect(selection);
         onOpenEditor(selection);
       }}
       onDragStart={handleVectorDragStart}
       onDragMove={handleVectorDragMove}
-      onDragEnd={handleVectorDragEnd}
+      onDragEnd={(event) => {
+        if (!handleInfographicItemDragEnd(event)) handleVectorDragEnd(event);
+      }}
       onTransformStart={handleTransformStart}
       onTransform={handleTransform}
       onTransformEnd={handleTransformEnd}
@@ -1436,10 +1839,14 @@ function RawElementNode({
           width={visualBox.width}
           height={visualBox.height}
           interactive={isEditMode}
-          vectorOriginBox={isVector ? box : null}
+          // Flow/container layout can move a vector without rewriting its source
+          // points. Keep the visual geometry relative to the source point bounds;
+          // using the laid-out box here cancels the layout offset.
+          vectorOriginBox={isVector ? elementBox(element) : null}
           selectedTableCell={selectedCell}
           onTableCellSelect={handleTableCellSelect}
           onTableCellEdit={handleTableCellEdit}
+          onInfographicItemInsert={handleInfographicItemInsert}
           fontRevision={fontRevision}
         />
       )}
@@ -1470,6 +1877,7 @@ function RawElementNode({
           onTableCellSelect={onTableCellSelect}
           onTableCellEdit={onTableCellEdit}
           onOpenEditor={onOpenEditor}
+          onInfographicTargetEdit={onInfographicTargetEdit}
           onElementChange={onElementChange}
           onElementDragEnd={onElementDragEnd}
           onElementDragStart={onElementDragStart}
@@ -1515,6 +1923,7 @@ export const MemoizedRawElementNode = memo(RawElementNode, (previous, next) => {
     previous.onTableCellSelect !== next.onTableCellSelect ||
     previous.onTableCellEdit !== next.onTableCellEdit ||
     previous.onOpenEditor !== next.onOpenEditor ||
+    previous.onInfographicTargetEdit !== next.onInfographicTargetEdit ||
     previous.onElementChange !== next.onElementChange ||
     previous.onElementDragEnd !== next.onElementDragEnd ||
     previous.onElementDragStart !== next.onElementDragStart ||
@@ -1776,6 +2185,7 @@ function RawElementVisual({
   selectedTableCell,
   onTableCellSelect,
   onTableCellEdit,
+  onInfographicItemInsert,
   fontRevision,
 }: {
   element: RawElement;
@@ -1786,6 +2196,10 @@ function RawElementVisual({
   selectedTableCell: TableCellSelection | null;
   onTableCellSelect: (rowIndex: number, colIndex: number) => void;
   onTableCellEdit: (rowIndex: number, colIndex: number) => void;
+  onInfographicItemInsert: (
+    itemPath: number[],
+    collection: "items" | "rows",
+  ) => void;
   fontRevision: number;
 }) {
   void fontRevision;
@@ -1959,7 +2373,33 @@ function RawElementVisual({
     );
   }
   if (type === "infographic") {
-    return <RawInfographicElement element={element} width={width} height={height} interactive={interactive} />;
+    const infographicType = readString(asRecord(element.data)?.type);
+    const supportsHoverInsert =
+      infographicType === "org_chart" || infographicType === "decision_tree";
+    return (
+      <InfographicMainUngroupedContext.Provider
+        value={isInfographicMainUngrouped(element.data)}
+      >
+        <InfographicItemInsertContext.Provider
+          value={
+            supportsHoverInsert
+              ? {
+                  data: element.data,
+                  direction: "bottom",
+                  onInsert: onInfographicItemInsert,
+                }
+              : null
+          }
+        >
+          <RawInfographicElement
+            element={element}
+            width={width}
+            height={height}
+            interactive={interactive}
+          />
+        </InfographicItemInsertContext.Provider>
+      </InfographicMainUngroupedContext.Provider>
+    );
   }
   return null;
 }
@@ -1975,6 +2415,7 @@ const MemoizedRawElementVisual = memo(
     previous.selectedTableCell === next.selectedTableCell &&
     previous.onTableCellSelect === next.onTableCellSelect &&
     previous.onTableCellEdit === next.onTableCellEdit &&
+    previous.onInfographicItemInsert === next.onInfographicItemInsert &&
     previous.fontRevision === next.fontRevision,
 );
 
@@ -3152,6 +3593,20 @@ function RawInfographicElement({
     );
   }
 
+  if (infographicType === "vertical_funnel") {
+    return (
+      <RawVerticalFunnelInfographic
+        data={data}
+        width={width}
+        height={height}
+        interactive={interactive}
+        baseColor={baseColor}
+        palette={palette}
+        textColor={customTextColor}
+      />
+    );
+  }
+
   if (infographicType === "pyramid") {
     return (
       <RawPyramidInfographic
@@ -3234,11 +3689,6 @@ function RawInfographicElement({
     );
   }
 
-  const value =
-    readNumber(data?.value) ??
-    readNumber(element.value) ??
-    0;
-
   if (infographicType === "progress_bar") {
     const radius = Math.min(height / 2, 8);
     return (
@@ -3297,19 +3747,6 @@ function RawInfographicElement({
           <Circle x={end.x} y={end.y} radius={capRadius} fill={highlightColor} />
         </>
       ) : null}
-      <Text
-        x={0}
-        y={height * 0.5}
-        width={width}
-        height={height * 0.3}
-        text={String(Math.round(value))}
-        fontFamily="Arial, Helvetica, sans-serif"
-        fontSize={Math.max(10, Math.min(width, height) * 0.22)}
-        fontStyle="bold"
-        align="center"
-        verticalAlign="middle"
-        fill={customTextColor ?? "#172033"}
-      />
     </Group>
   );
 }
@@ -3402,8 +3839,20 @@ function RawGanttInfographic({
         const y = gridTop + rowIndex * rowHeight;
         const tasks = readArray(row?.items).map(asRecord).filter(Boolean);
         return (
-          <Fragment key={`gantt-row-${rowIndex}`}>
+          <InfographicItemGroup
+            key={`gantt-row-${rowIndex}`}
+            collection="rows"
+            interactive={interactive}
+            item={row}
+            itemPath={[rowIndex]}
+          >
             <Text
+              {...infographicTargetAttrs({
+                kind: "text",
+                collection: "rows",
+                itemPath: [rowIndex],
+                field: "label",
+              })}
               x={paddingX}
               y={y}
               width={Math.max(1, labelWidth - 10)}
@@ -3445,7 +3894,7 @@ function RawGanttInfographic({
                 />
               );
             })}
-          </Fragment>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -3493,7 +3942,12 @@ function RawTimelineInfographic({
         const itemIcon = normalizeInfographicIcon(item?.icon, item?.color);
         const previousX = sidePadding + itemWidth * (index - 0.5);
         return (
-          <Group key={`timeline-item-${index}`}>
+          <InfographicItemGroup
+            key={`timeline-item-${index}`}
+            interactive={interactive}
+            item={item}
+            itemPath={[index]}
+          >
             {index > 0 ? (
               <Line
                 points={[
@@ -3507,11 +3961,12 @@ function RawTimelineInfographic({
               />
             ) : null}
             <Text
+              {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: "label" })}
               x={x - itemWidth * 0.45}
               y={Math.max(0, lineY - radius - height * 0.17)}
               width={itemWidth * 0.9}
               height={height * 0.13}
-              text={String(index + 1).padStart(2, "0")}
+              text={infographicNumberLabel(item, index)}
               fontFamily="Arial, Helvetica, sans-serif"
               fontSize={Math.max(11, Math.min(16, height * 0.065))}
               fontStyle="bold"
@@ -3535,6 +3990,7 @@ function RawTimelineInfographic({
             <InfographicUrlIcon
               color={itemIcon?.color ?? null}
               icon={itemIcon?.url ?? null}
+              itemPath={[index]}
               x={x}
               y={lineY}
               size={Math.max(20, radius * 0.85)}
@@ -3566,7 +4022,7 @@ function RawTimelineInfographic({
               align="center"
               fill={mutedTextColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -3637,7 +4093,12 @@ function RawRoadmapInfographic({
         const labelWidth = Math.min(width * 0.2, itemWidth * 0.98);
         const labelX = clamp(x - labelWidth / 2, 0, width - labelWidth);
         return (
-          <Group key={`roadmap-item-${index}`}>
+          <InfographicItemGroup
+            key={`roadmap-item-${index}`}
+            interactive={interactive}
+            item={item}
+            itemPath={[index]}
+          >
             <Line
               points={[
                 x,
@@ -3698,7 +4159,7 @@ function RawRoadmapInfographic({
               align="center"
               fill={textColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -3749,7 +4210,12 @@ function RawMilestoneTimelineInfographic({
         const yearY = above ? lineY - height * 0.14 : lineY + height * 0.065;
         const bubbleTextColor = blackOrWhiteTextColor(color);
         return (
-          <Group key={`milestone-item-${index}`}>
+          <InfographicItemGroup
+            key={`milestone-item-${index}`}
+            interactive={interactive}
+            item={item}
+            itemPath={[index]}
+          >
             <Circle
               x={x}
               y={lineY}
@@ -3804,7 +4270,7 @@ function RawMilestoneTimelineInfographic({
               verticalAlign="middle"
               fill={bubbleTextColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -3872,7 +4338,12 @@ function RawStaircaseInfographic({
         const color = palette[index % palette.length] ?? "#2563EB";
         const itemIcon = normalizeInfographicIcon(item?.icon, item?.color);
         return (
-          <Group key={`staircase-item-${index}`}>
+          <InfographicItemGroup
+            key={`staircase-item-${index}`}
+            interactive={interactive}
+            item={item}
+            itemPath={[index]}
+          >
             <Circle
               x={x + contentInset + iconRadius}
               y={y - height * 0.12}
@@ -3882,6 +4353,7 @@ function RawStaircaseInfographic({
             <InfographicUrlIcon
               color={itemIcon?.color ?? null}
               icon={itemIcon?.url ?? null}
+              itemPath={[index]}
               x={x + contentInset + iconRadius}
               y={y - height * 0.12}
               size={iconRadius * 1.05}
@@ -3908,7 +4380,7 @@ function RawStaircaseInfographic({
               lineHeight={1.15}
               fill={textColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -3924,6 +4396,253 @@ type RawInfographicRendererProps = {
   textColor: string | null;
   width: number;
 };
+
+function InfographicItemGroup({
+  children,
+  collection = "items",
+  interactive,
+  item,
+  itemPath,
+}: {
+  children: ReactNode;
+  collection?: "items" | "rows";
+  interactive: boolean;
+  item: RawElement | null;
+  itemPath: number[];
+}) {
+  const groupRef = useRef<Konva.Group | null>(null);
+  const mainUngrouped = useContext(InfographicMainUngroupedContext);
+  const insertContext = useContext(InfographicItemInsertContext);
+  const [hoverBounds, setHoverBounds] = useState<Box | null>(null);
+  const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const offset = infographicItemOffset(item);
+  const ungrouped = isInfographicItemUngrouped(item);
+  const canInsert = Boolean(
+    interactive &&
+      insertContext &&
+      canInsertInfographicItemAfterPath(
+        insertContext.data,
+        itemPath,
+        collection,
+      ),
+  );
+  const cancelHoverClose = useCallback(() => {
+    if (hoverCloseTimerRef.current == null) return;
+    clearTimeout(hoverCloseTimerRef.current);
+    hoverCloseTimerRef.current = null;
+  }, []);
+  const scheduleHoverClose = useCallback(() => {
+    cancelHoverClose();
+    hoverCloseTimerRef.current = setTimeout(() => {
+      hoverCloseTimerRef.current = null;
+      setHoverBounds(null);
+    }, 180);
+  }, [cancelHoverClose]);
+
+  useEffect(() => () => cancelHoverClose(), [cancelHoverClose]);
+
+  useEffect(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    let shapeIndex = 0;
+    const usedTextFields = new Set<string>();
+    const descendants = group.find(() => true);
+
+    descendants.forEach((node) => {
+      if (node.getAttr(INFOGRAPHIC_INSERT_CONTROL_ATTR) === true) return;
+      let ancestor = node.getParent();
+      let belongsToTargetedParent = false;
+      while (ancestor && ancestor !== group) {
+        if (ancestor.getAttr(INFOGRAPHIC_INSERT_CONTROL_ATTR) === true) {
+          belongsToTargetedParent = true;
+          break;
+        }
+        const ancestorMeta = infographicTargetMeta(
+          ancestor.getAttr(INFOGRAPHIC_TARGET_ATTR),
+        );
+        if (ancestorMeta && ancestorMeta.kind !== "item") {
+          belongsToTargetedParent = true;
+          break;
+        }
+        ancestor = ancestor.getParent();
+      }
+      if (belongsToTargetedParent) return;
+
+      let meta = infographicTargetMeta(
+        node.getAttr(INFOGRAPHIC_TARGET_ATTR),
+      );
+      if (!meta && node.getClassName() === "Text") {
+        const field = infographicTextFieldForValue(
+          item,
+          String(node.getAttr("text") ?? ""),
+          usedTextFields,
+        );
+        if (field) meta = { kind: "text", itemPath, field };
+      }
+      if (!meta && INFOGRAPHIC_CHILD_SHAPE_NAMES.has(node.getClassName())) {
+        meta = {
+          kind: "shape",
+          itemPath,
+          field: `shape.${shapeIndex}`,
+        };
+        shapeIndex += 1;
+      }
+      if (!meta || meta.kind === "item") return;
+      const childKind = meta.kind as InfographicChildTargetKind;
+      if (childKind === "text" && meta.field) usedTextFields.add(meta.field);
+
+      const childMeta: InfographicTargetMeta = {
+        ...meta,
+        itemPath,
+        ...(collection === "rows" ? { collection } : {}),
+      };
+      node.setAttr(INFOGRAPHIC_TARGET_ATTR, childMeta);
+      const childOffset = infographicChildOffset(
+        item,
+        childKind,
+        childMeta.field,
+      );
+      const previousBase = infographicStoredPoint(
+        node.getAttr(INFOGRAPHIC_CHILD_BASE_ATTR),
+      );
+      const previousOffset = infographicStoredPoint(
+        node.getAttr(INFOGRAPHIC_CHILD_APPLIED_OFFSET_ATTR),
+      );
+      const current = node.position();
+      const expected =
+        previousBase && previousOffset
+          ? {
+              x: previousBase.x + previousOffset.x,
+              y: previousBase.y + previousOffset.y,
+            }
+          : null;
+      const base =
+        previousBase &&
+        expected &&
+        Math.abs(current.x - expected.x) < 0.01 &&
+        Math.abs(current.y - expected.y) < 0.01
+          ? previousBase
+          : current;
+      node.setAttr(INFOGRAPHIC_CHILD_BASE_ATTR, base);
+      node.setAttr(INFOGRAPHIC_CHILD_APPLIED_OFFSET_ATTR, childOffset);
+      node.position({
+        x: base.x + childOffset.x,
+        y: base.y + childOffset.y,
+      });
+      node.draggable(interactive && mainUngrouped && ungrouped);
+    });
+    group.getLayer()?.batchDraw();
+  }, [collection, interactive, item, itemPath, mainUngrouped, ungrouped]);
+
+  return (
+    <Group
+      ref={groupRef}
+      {...infographicTargetAttrs({
+        kind: "item",
+        itemPath,
+        ...(collection === "rows" ? { collection } : {}),
+      })}
+      x={offset.x}
+      y={offset.y}
+      draggable={interactive && mainUngrouped && !ungrouped}
+      listening={interactive}
+      onDragStart={(event) => {
+        event.cancelBubble = true;
+        setStageCursor(event as Konva.KonvaEventObject<MouseEvent>, "grabbing");
+      }}
+      onDragMove={(event) => {
+        event.cancelBubble = true;
+      }}
+      onMouseEnter={(event) => {
+        cancelHoverClose();
+        if (mainUngrouped && !ungrouped) setStageCursor(event, "grab");
+        if (!canInsert || hoverBounds) return;
+        const group = groupRef.current;
+        if (!group) return;
+        const bounds = group.getClientRect({
+          relativeTo: group,
+          skipShadow: true,
+          skipStroke: false,
+        });
+        setHoverBounds({
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+        });
+      }}
+      onMouseLeave={(event) => {
+        setStageCursor(event, "default");
+        scheduleHoverClose();
+      }}
+    >
+      {children}
+      {canInsert && hoverBounds && insertContext ? (
+        <Group
+          {...{ [INFOGRAPHIC_INSERT_CONTROL_ATTR]: true }}
+          x={
+            insertContext.direction === "bottom"
+              ? hoverBounds.x + hoverBounds.width / 2
+              : hoverBounds.x + hoverBounds.width + 10
+          }
+          y={
+            insertContext.direction === "bottom"
+              ? hoverBounds.y + hoverBounds.height + 10
+              : hoverBounds.y + hoverBounds.height / 2
+          }
+          listening
+          onMouseEnter={(event) => {
+            cancelHoverClose();
+            setStageCursor(event, "pointer");
+          }}
+          onMouseLeave={(event) => {
+            setStageCursor(event, "default");
+            scheduleHoverClose();
+          }}
+          onMouseDown={(event) => {
+            event.cancelBubble = true;
+          }}
+          onClick={(event) => {
+            event.cancelBubble = true;
+            cancelHoverClose();
+            insertContext.onInsert(itemPath, collection);
+            setHoverBounds(null);
+          }}
+          onTap={(event) => {
+            event.cancelBubble = true;
+            cancelHoverClose();
+            insertContext.onInsert(itemPath, collection);
+            setHoverBounds(null);
+          }}
+        >
+          <Circle
+            radius={8}
+            fill="#FFFFFF"
+            stroke="#7C51F8"
+            strokeWidth={1}
+            shadowColor="rgba(0,0,0,0.14)"
+            shadowBlur={2}
+            shadowOffsetY={1}
+          />
+          <Line
+            points={[-3, 0, 3, 0]}
+            stroke="#7C51F8"
+            strokeWidth={1.3}
+            lineCap="round"
+            listening={false}
+          />
+          <Line
+            points={[0, -3, 0, 3]}
+            stroke="#7C51F8"
+            strokeWidth={1.3}
+            lineCap="round"
+            listening={false}
+          />
+        </Group>
+      ) : null}
+    </Group>
+  );
+}
 
 function infographicItems(data: RawElement | null, max = 8) {
   return readArray(data?.items).map(asRecord).filter(Boolean).slice(0, max);
@@ -3967,7 +4686,7 @@ function RawSupplyChainInfographic({ baseColor, data, height, interactive, palet
       const top = index % 2 === 1;
       const titleY = top ? cy - radius - height * .22 : cy + radius + height * .09;
       const descriptionHeight = top ? height * .065 : height * .1;
-      return <Group key={`supply-${index}`}>
+      return <InfographicItemGroup key={`supply-${index}`} interactive={interactive} item={item} itemPath={[index]}>
         <Circle
           x={x}
           y={cy}
@@ -3976,11 +4695,11 @@ function RawSupplyChainInfographic({ baseColor, data, height, interactive, palet
           stroke={lineColor}
           strokeWidth={Math.max(1, height * .004)}
         />
-        <InfographicUrlIcon icon={icon?.url ?? null} color={icon?.color ?? null} x={x} y={cy} size={radius * .72} />
-        <Text x={x-radius} y={top ? cy-radius-height*.08 : cy+radius+height*.025} width={radius*2} height={height*.06} text={String(index+1).padStart(2,"0")} align="center" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(10,height*.048)} fill={customTextColor ?? color} />
+        <InfographicUrlIcon icon={icon?.url ?? null} color={icon?.color ?? null} itemPath={[index]} x={x} y={cy} size={radius * .72} />
+        <Text {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: "label" })} x={x-radius} y={top ? cy-radius-height*.08 : cy+radius+height*.025} width={radius*2} height={height*.06} text={infographicNumberLabel(item, index)} align="center" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(10,height*.048)} fill={customTextColor ?? color} />
         <Text x={x-gap*.45} y={titleY} width={gap*.9 || radius*3} height={height*.055} text={readString(item?.heading) ?? "Stage"} align="center" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(8,height*.029)} fill={customTextColor ?? color} />
-        <Text x={x-gap*.45} y={titleY+height*.052} width={gap*.9 || radius*3} height={descriptionHeight} text={readString(item?.description) ?? ""} align="center" fontFamily="Arial" fontSize={Math.max(7,height*.023)} lineHeight={1.12} fill={body} />
-      </Group>;
+        <Text x={x-gap*.45} y={titleY+height*.052} width={gap*.9 || radius*3} height={descriptionHeight} text={readString(item?.description) ?? ""} align="center" fontFamily="Arial" fontSize={Math.max(8,height*.027)} lineHeight={1.12} fill={body} />
+      </InfographicItemGroup>;
     })}
   </Group>;
 }
@@ -4002,13 +4721,13 @@ function RawStairStepBlocksInfographic({ baseColor, data, height, interactive, p
       const color = palette[index % Math.max(1,palette.length)] ?? "#24468E";
       const nodeTextColor = blackOrWhiteTextColor(color);
       const icon = normalizeInfographicIcon(item?.icon,item?.color);
-      return <Group key={`block-step-${index}`}>
+      return <InfographicItemGroup key={`block-step-${index}`} interactive={interactive} item={item} itemPath={[index]}>
         <Rect x={x} y={y} width={blockW+.5} height={blockH} fill={color} stroke={dark ? "#D6D6D6" : undefined} strokeWidth={dark ? 1 : 0} />
-        <Text x={x+blockW*.06} y={y+blockH*.08} width={blockW*.88} height={blockH*.22} text={`Step ${String(index+1).padStart(2,"0")}`} fontFamily="Arial" fontStyle="bold" fontSize={Math.max(11,height*.053)} fill={nodeTextColor} />
-        <InfographicUrlIcon icon={icon?.url ?? null} color={icon?.color ?? null} x={x+blockW*.13} y={y+blockH*.58} size={Math.min(blockW,blockH)*.18} />
+        <Text {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: "label" })} x={x+blockW*.06} y={y+blockH*.08} width={blockW*.88} height={blockH*.22} text={infographicNumberLabel(item, index, "Step")} fontFamily="Arial" fontStyle="bold" fontSize={Math.max(11,height*.053)} fill={nodeTextColor} />
+        <InfographicUrlIcon icon={icon?.url ?? null} color={icon?.color ?? null} itemPath={[index]} x={x+blockW*.13} y={y+blockH*.58} size={Math.min(blockW,blockH)*.18} />
         <Text x={x+blockW*.06} y={y+blockH*.76} width={blockW*.86} height={blockH*.17} text={readString(item?.heading) ?? "Step"} fontFamily="Arial" fontStyle="bold" fontSize={Math.max(8,height*.026)} fill={nodeTextColor} />
-        <Text x={x+blockW*.08} y={y+blockH+height*.018} width={blockW*.84} height={height*.13} text={readString(item?.description) ?? ""} fontFamily="Arial" fontSize={Math.max(7,height*.022)} lineHeight={1.12} fill={body} />
-      </Group>;
+        <Text x={x+blockW*.08} y={y+blockH+height*.018} width={blockW*.84} height={height*.13} text={readString(item?.description) ?? ""} fontFamily="Arial" fontSize={Math.max(8,height*.026)} lineHeight={1.12} fill={body} />
+      </InfographicItemGroup>;
     })}
   </Group>;
 }
@@ -4027,22 +4746,20 @@ function RawMaturityModelInfographic({ data, height, interactive, palette, width
       const color = palette[index % Math.max(1,palette.length)] ?? "#24468E";
       const nodeTextColor = blackOrWhiteTextColor(color);
       const icon = normalizeInfographicIcon(item?.icon,item?.color);
-      return <Group key={`maturity-${index}`}>
+      return <InfographicItemGroup key={`maturity-${index}`} interactive={interactive} item={item} itemPath={[index]}>
         <Rect x={x} y={y} width={w} height={rowH} fill={color} />
         <Text x={x+w*.035} y={y} width={w*.24} height={rowH} text={readString(item?.heading) ?? "Level"} verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(9,height*.035)} fill={nodeTextColor} />
         <Line points={[x+w*.28,y+rowH*.22,x+w*.28,y+rowH*.78]} stroke={nodeTextColor} strokeWidth={1} />
-        <Text x={x+w*.34} y={y+rowH*.12} width={w*.52} height={rowH*.76} text={readString(item?.description) ?? ""} verticalAlign="middle" fontFamily="Arial" fontSize={Math.max(7,height*.023)} lineHeight={1.1} fill={nodeTextColor} />
-        <InfographicUrlIcon icon={icon?.url ?? null} color={icon?.color ?? null} x={x+w*.94} y={y+rowH*.5} size={rowH*.4} />
-      </Group>;
+        <Text x={x+w*.34} y={y+rowH*.12} width={w*.52} height={rowH*.76} text={readString(item?.description) ?? ""} verticalAlign="middle" fontFamily="Arial" fontSize={Math.max(8,height*.027)} lineHeight={1.1} fill={nodeTextColor} />
+        <InfographicUrlIcon icon={icon?.url ?? null} color={icon?.color ?? null} itemPath={[index]} x={x+w*.94} y={y+rowH*.5} size={rowH*.4} />
+      </InfographicItemGroup>;
     })}
   </Group>;
 }
 
-function RawPillarFrameworkInfographic({ baseColor, data, height, interactive, palette, textColor: customTextColor, width }: RawInfographicRendererProps) {
+function RawPillarFrameworkInfographic({ data, height, interactive, palette, textColor: customTextColor, width }: RawInfographicRendererProps) {
   const safe = infographicItems(data, 7);
   const items = safe.length ? safe : [{ heading: "Customer" }];
-  const dark = isDarkInfographicColor(baseColor);
-  const text = customTextColor ?? (dark ? "#F0F1F4" : "#111111");
   const roofColor = withHash(readString(data?.card_color)) ?? "#D6D6D6";
   const roofTextColor =
     withHash(readString(data?.background_text_color)) ??
@@ -4055,23 +4772,22 @@ function RawPillarFrameworkInfographic({ baseColor, data, height, interactive, p
   const colW = (right-left-gap*(items.length-1))/items.length;
   return <Group listening={interactive}>
     <Line points={[left,roofBottom,width*.52,height*.015,right,roofBottom]} closed fill={roofColor} />
-    <Text x={width*.25} y={height*.18} width={width*.54} height={height*.08} text={readString(data?.title) ?? "Growth & Transformation Framework"} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(11,height*.041)} fill={roofTextColor} />
+    <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "title" })} x={width*.25} y={height*.18} width={width*.54} height={height*.08} text={readString(data?.title) ?? "Growth & Transformation Framework"} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(12,height*.044)} fill={roofTextColor} />
     {items.map((item,index) => {
       const x = left+index*(colW+gap);
       const color = palette[index % Math.max(1,palette.length)] ?? "#24468E";
       const nodeTextColor = blackOrWhiteTextColor(color);
       const icon = normalizeInfographicIcon(item?.icon,item?.color);
-      return <Group key={`pillar-${index}`}>
+      return <InfographicItemGroup key={`pillar-${index}`} interactive={interactive} item={item} itemPath={[index]}>
         <Rect x={x} y={height*.345} width={colW} height={height*.09} fill={color} />
-        <Text x={x} y={height*.345} width={colW} height={height*.09} text={readString(item?.heading) ?? "Pillar"} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(9,height*.032)} fill={nodeTextColor} />
+        <Text x={x} y={height*.345} width={colW} height={height*.09} text={readString(item?.heading) ?? "Pillar"} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(10,height*.035)} fill={nodeTextColor} />
         <Rect x={x} y={height*.46} width={colW} height={height*.35} fill={color} />
-        <InfographicUrlIcon icon={icon?.url ?? null} color={icon?.color ?? null} x={x+colW*.5} y={height*.56} size={Math.min(colW*.25,height*.1)} />
-        <Text x={x+colW*.08} y={height*.63} width={colW*.84} height={height*.16} text={readString(item?.description) ?? ""} align="center" verticalAlign="middle" fontFamily="Arial" fontSize={Math.max(7,height*.022)} lineHeight={1.1} fill={nodeTextColor} />
+        <InfographicUrlIcon icon={icon?.url ?? null} color={icon?.color ?? null} itemPath={[index]} x={x+colW*.5} y={height*.56} size={Math.min(colW*.25,height*.1)} />
+        <Text x={x+colW*.08} y={height*.63} width={colW*.84} height={height*.16} text={readString(item?.description) ?? ""} align="center" verticalAlign="middle" fontFamily="Arial" fontSize={Math.max(8,height*.027)} lineHeight={1.1} fill={nodeTextColor} />
         <Rect x={x} y={height*.835} width={colW} height={height*.095} fill={color} />
-        <Text x={x+colW*.05} y={height*.835} width={colW*.9} height={height*.095} text={readString(item?.focus) ?? ""} align="center" verticalAlign="middle" fontFamily="Arial" fontSize={Math.max(7,height*.024)} fill={nodeTextColor} />
-      </Group>;
+        <Text x={x+colW*.05} y={height*.835} width={colW*.9} height={height*.095} text={readString(item?.focus) ?? ""} align="center" verticalAlign="middle" fontFamily="Arial" fontSize={Math.max(8,height*.027)} fill={nodeTextColor} />
+      </InfographicItemGroup>;
     })}
-    <Text x={0} y={height*.37} width={width*.035} height={height*.08} rotation={-90} text="Pillar" align="center" fontFamily="Arial" fontSize={Math.max(7,height*.023)} fill={text} />
   </Group>;
 }
 
@@ -4091,7 +4807,9 @@ function RawTransformationHubInfographic({ baseColor, data, height, interactive,
   const sideX={left:width*.015,right:width*.71};
   const sideCenter=(rank:number,count:number)=>height*(.175+rank*(.65/Math.max(1,count-1)));
   const connector=(side:"left"|"right",rank:number,count:number)=>{
-    const centerY=sideCenter(rank,count),boxEdge=side==="left"?sideX.left+boxW:sideX.right;
+    const itemIndex=side==="left"?rank:leftCount+rank;
+    const offset=infographicItemOffset(items[itemIndex]);
+    const centerY=sideCenter(rank,count)+offset.y,boxEdge=(side==="left"?sideX.left+boxW:sideX.right)+offset.x;
     const elbowX=side==="left"?cx-cr*.72:cx+cr*.72,arrow=Math.max(5,height*.014),endX=side==="left"?boxEdge+arrow:boxEdge-arrow;
     const triangle=side==="left"?[boxEdge,centerY,boxEdge+arrow,centerY-arrow*.62,boxEdge+arrow,centerY+arrow*.62]:[boxEdge,centerY,boxEdge-arrow,centerY-arrow*.62,boxEdge-arrow,centerY+arrow*.62];
     return <Group key={`hub-connector-${side}-${rank}`}>
@@ -4104,17 +4822,17 @@ function RawTransformationHubInfographic({ baseColor, data, height, interactive,
     const x=sideX[side],y=sideCenter(sideIndex,sideItems.length)-boxH*.5;
     const color=palette[originalIndex%Math.max(1,palette.length)] ?? "#24468E";
     const nodeTextColor=blackOrWhiteTextColor(color);
-    return <Group key={`hub-${side}-${sideIndex}`}>
+    return <InfographicItemGroup key={`hub-${side}-${sideIndex}`} interactive={interactive} item={item} itemPath={[originalIndex]}>
       <Rect x={x} y={y} width={boxW} height={boxH} fill={color} stroke={line} strokeWidth={Math.max(1,height*.003)} />
       <Text x={x} y={y} width={boxW} height={boxH} text={readString(item?.heading) ?? "Capability"} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(9,height*.04)} fill={nodeTextColor} />
-    </Group>;
+    </InfographicItemGroup>;
   });
   return <Group listening={interactive}>
     {leftItems.map((_,index)=>connector("left",index,leftItems.length))}
     {rightItems.map((_,index)=>connector("right",index,rightItems.length))}
     {renderSide("left",leftItems)}{renderSide("right",rightItems)}
     <Circle x={cx} y={cy} radius={cr} fill={centerColor}/>
-    <Text x={cx-cr*.9} y={cy-cr*.5} width={cr*1.8} height={cr} text={readString(data?.center_label) ?? "Business Transformation"} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(11,height*.055)} fill={centerTextColor}/>
+    <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "center_label" })} x={cx-cr*.9} y={cy-cr*.5} width={cr*1.8} height={cr} text={readString(data?.center_label) ?? "Business Transformation"} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(11,height*.055)} fill={centerTextColor}/>
   </Group>;
 }
 
@@ -4125,16 +4843,16 @@ function RawDiagonalCirclesInfographic({ baseColor, data, height, interactive, p
   const lineColor=dark?"#E0E0E0":"#D2D2D2",arrowSize=Math.max(5,height*.014),textW=width*.205;
   const layout=items.map((item,index)=>{const x=startX+index*dx,y=startY+index*dy,color=palette[index%Math.max(1,palette.length)]??"#24468E",calloutLeft=index%2===1,anchorX=x+(calloutLeft?-r*.64:r*.3),anchorY=y+(calloutLeft?-r*.77:r*.954),elbowY=y+(calloutLeft?-r*1.28:r*1.22),direction=calloutLeft?-1:1,arrowTipX=anchorX+direction*r*.82,arrowBaseX=arrowTipX-direction*arrowSize,textX=calloutLeft?Math.max(width*.01,arrowTipX-arrowSize-width*.018-textW):Math.min(width-textW-width*.01,arrowTipX+arrowSize+width*.018);return {anchorX,anchorY,arrowBaseX,arrowTipX,calloutLeft,color,elbowY,index,item,textX,x,y};});
   return <Group listening={interactive}>
-    {layout.map(({color,index,x,y})=><Circle key={`diag-circle-${index}`} x={x} y={y} radius={r} fill={color} opacity={.88}/>)}
-    {layout.map(({anchorX,anchorY,arrowBaseX,arrowTipX,calloutLeft,color,elbowY,index,item,textX,x,y})=>{const nodeTextColor=blackOrWhiteTextColor(color),icon=normalizeInfographicIcon(item?.icon,item?.color),numberX=calloutLeft?x-r*.82:x-r*.05,numberY=calloutLeft?y-r*.78:y+r*.51,iconX=x+r*.62,iconY=y-r*.34;return <Group key={`diag-content-${index}`}>
-      <Text x={numberX} y={numberY} width={r*.7} height={r*.35} text={String(index+1).padStart(2,"0")} align="center" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(10,height*.045)} fill={nodeTextColor}/>
-      <InfographicUrlIcon icon={icon?.url??null} color={icon?.color??null} x={iconX} y={iconY} size={r*.34}/>
+    {layout.map(({anchorX,anchorY,arrowBaseX,arrowTipX,calloutLeft,color,elbowY,index,item,textX,x,y})=>{const nodeTextColor=blackOrWhiteTextColor(color),icon=normalizeInfographicIcon(item?.icon,item?.color),numberX=calloutLeft?x-r*.82:x-r*.05,numberY=calloutLeft?y-r*.78:y+r*.51,iconX=x+r*.62,iconY=y-r*.34;return <InfographicItemGroup key={`diag-content-${index}`} interactive={interactive} item={item} itemPath={[index]}>
+      <Circle x={x} y={y} radius={r} fill={color} opacity={.88}/>
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: "label" })} x={numberX} y={numberY} width={r*.7} height={r*.35} text={infographicNumberLabel(item, index)} align="center" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(10,height*.045)} fill={nodeTextColor}/>
+      <InfographicUrlIcon icon={icon?.url??null} color={icon?.color??null} itemPath={[index]} x={iconX} y={iconY} size={r*.34}/>
       <Line points={[anchorX,anchorY,anchorX,elbowY,arrowBaseX,elbowY]} stroke={lineColor} strokeWidth={1.5}/>
       <Line points={[arrowTipX,elbowY,arrowBaseX,elbowY-arrowSize*.65,arrowBaseX,elbowY+arrowSize*.65]} closed fill={lineColor}/>
       <Circle x={anchorX} y={anchorY} radius={3} fill={lineColor}/>
       <Text x={textX} y={elbowY-height*.026} width={textW} height={height*.05} text={readString(item?.heading)??"Pillar"} align={calloutLeft?"right":"left"} fontFamily="Arial" fontStyle="bold" fontSize={Math.max(8,height*.027)} fill={customTextColor??color}/>
-      <Text x={textX} y={elbowY+height*.018} width={textW} height={height*.1} text={readString(item?.description)??""} align={calloutLeft?"right":"left"} fontFamily="Arial" fontSize={Math.max(7,height*.02)} lineHeight={1.12} fill={text}/>
-    </Group>})}
+      <Text x={textX} y={elbowY+height*.018} width={textW} height={height*.1} text={readString(item?.description)??""} align={calloutLeft?"right":"left"} fontFamily="Arial" fontSize={Math.max(8,height*.024)} lineHeight={1.12} fill={text}/>
+    </InfographicItemGroup>})}
   </Group>;
 }
 
@@ -4145,15 +4863,15 @@ function RawRiskMatrixInfographic({ baseColor, data, height, interactive, palett
   const pos=[[left,top],[cx+gap*.5,top],[left,cy+gap*.5],[cx+gap*.5,cy+gap*.5]];
   const sideMargin=width*.015, arrowGap=width*.018, arrowLength=width*.04, textGap=width*.018;
   return <Group listening={interactive}>
-    {items.map((item,index)=>{const [x,y]=pos[index],side=index%2===0?"left":"right",color=palette[index%Math.max(1,palette.length)]??"#24468E",icon=normalizeInfographicIcon(item?.icon,item?.color),midY=y+q*.5,arrowHalf=Math.max(12,height*.055),blockEdge=side==="left"?x:x+q,arrowBase=blockEdge+(side==="left"?-arrowGap:arrowGap),arrowTip=arrowBase+(side==="left"?-arrowLength:arrowLength),tx=side==="left"?sideMargin:arrowTip+textGap,textWidth=side==="left"?Math.max(width*.12,arrowTip-textGap-sideMargin):Math.max(width*.12,width-sideMargin-tx);return <Group key={`risk-${index}`}>
+    {items.map((item,index)=>{const [x,y]=pos[index],side=index%2===0?"left":"right",color=palette[index%Math.max(1,palette.length)]??"#24468E",icon=normalizeInfographicIcon(item?.icon,item?.color),midY=y+q*.5,arrowHalf=Math.max(12,height*.055),blockEdge=side==="left"?x:x+q,arrowBase=blockEdge+(side==="left"?-arrowGap:arrowGap),arrowTip=arrowBase+(side==="left"?-arrowLength:arrowLength),tx=side==="left"?sideMargin:arrowTip+textGap,textWidth=side==="left"?Math.max(width*.12,arrowTip-textGap-sideMargin):Math.max(width*.12,width-sideMargin-tx);return <InfographicItemGroup key={`risk-${index}`} interactive={interactive} item={item} itemPath={[index]}>
       <Rect x={x} y={y} width={q} height={q} cornerRadius={q*.1} fill={color}/>
-      <InfographicUrlIcon icon={icon?.url??null} color={icon?.color??null} x={x+q*.5} y={y+q*.43} size={q*.28}/>
+      <InfographicUrlIcon icon={icon?.url??null} color={icon?.color??null} itemPath={[index]} x={x+q*.5} y={y+q*.43} size={q*.28}/>
       <Line points={[arrowTip,midY,arrowBase,midY-arrowHalf,arrowBase,midY+arrowHalf]} closed fill={color}/>
       <Text x={tx} y={y+q*.27} width={textWidth} height={q*.11} text={readString(item?.heading)??"Activity"} align={side==="left"?"right":"left"} fontFamily="Arial" fontStyle="bold" fontSize={Math.max(8,height*.027)} fill={customTextColor??color}/>
-      <Text x={tx} y={y+q*.39} width={textWidth} height={q*.35} text={readString(item?.description)??""} align={side==="left"?"right":"left"} fontFamily="Arial" fontSize={Math.max(7,height*.02)} lineHeight={1.1} fill={body}/>
-    </Group>})}
+      <Text x={tx} y={y+q*.39} width={textWidth} height={q*.35} text={readString(item?.description)??""} align={side==="left"?"right":"left"} fontFamily="Arial" fontSize={Math.max(8,height*.024)} lineHeight={1.1} fill={body}/>
+    </InfographicItemGroup>})}
     <Rect x={cx-q*.375} y={cy-q*.375} width={q*.75} height={q*.75} cornerRadius={q*.1} fill="#FFFFFF" opacity={.34}/>
-    {(readString(data?.center_label)??"RISK").padEnd(4," ").slice(0,4).split("").map((letter,index)=><Text key={`risk-letter-${index}`} x={cx-q*.34+(index%2)*q*.34} y={cy-q*.34+Math.floor(index/2)*q*.34} width={q*.34} height={q*.34} text={letter} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(11,height*.06)} fill="#FFFFFF"/>)}
+    {(readString(data?.center_label)??"RISK").padEnd(4," ").slice(0,4).split("").map((letter,index)=><Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "center_label" })} key={`risk-letter-${index}`} x={cx-q*.34+(index%2)*q*.34} y={cy-q*.34+Math.floor(index/2)*q*.34} width={q*.34} height={q*.34} text={letter} align="center" verticalAlign="middle" fontFamily="Arial" fontStyle="bold" fontSize={Math.max(11,height*.06)} fill="#FFFFFF"/>)}
   </Group>;
 }
 
@@ -4203,7 +4921,7 @@ function RawChevronProcessInfographic({
         const labelY = above ? height * 0.06 : height * 0.79;
         const labelColor = customTextColor ?? (darkBackground ? bodyColor : color);
         return (
-          <Group key={`chevron-process-${index}`}>
+          <InfographicItemGroup key={`chevron-process-${index}`} interactive={interactive} item={item} itemPath={[index]}>
             <Line
               closed
               points={[
@@ -4223,11 +4941,12 @@ function RawChevronProcessInfographic({
               fill={color}
             />
             <Text
+              {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: "label" })}
               x={x + shapeWidth * 0.34}
               y={middle - height * 0.035}
               width={shapeWidth * 0.45}
               height={height * 0.08}
-              text={String(index + 1).padStart(2, "0")}
+              text={infographicNumberLabel(item, index)}
               fontFamily="Arial, Helvetica, sans-serif"
               fontSize={Math.max(14, Math.min(22, height * 0.055))}
               fontStyle="bold"
@@ -4264,7 +4983,7 @@ function RawChevronProcessInfographic({
               lineHeight={1.15}
               fill={bodyColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -4312,7 +5031,9 @@ function RawRadialCycleInfographic({
         dash={[7, 7]}
       />
       <RadialCycleCenterImage
+        interactive={interactive}
         radius={imageRadius}
+        settings={asRecord(data?.center_image_settings)}
         src={readString(data?.center_image)}
         x={centerX}
         y={centerY}
@@ -4324,7 +5045,7 @@ function RawRadialCycleInfographic({
         const color = palette[index % palette.length] ?? "#2563EB";
         const nodeTextColor = blackOrWhiteTextColor(color);
         return (
-          <Group key={`radial-cycle-${index}`}>
+          <InfographicItemGroup key={`radial-cycle-${index}`} interactive={interactive} item={item} itemPath={[index]}>
             <Circle
               x={x}
               y={y}
@@ -4340,11 +5061,12 @@ function RawRadialCycleInfographic({
               fill={badgeColor}
             />
             <Text
+              {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: "label" })}
               x={x - nodeRadius * 0.38}
               y={y - nodeRadius * 0.54}
               width={nodeRadius * 0.76}
               height={nodeRadius * 0.24}
-              text={String(index + 1).padStart(2, "0")}
+              text={infographicNumberLabel(item, index)}
               fontFamily="Arial, Helvetica, sans-serif"
               fontSize={Math.max(11, nodeRadius * 0.21)}
               fontStyle="bold"
@@ -4359,7 +5081,7 @@ function RawRadialCycleInfographic({
               height={nodeRadius * 0.26}
               text={readString(item?.heading) ?? `Stage ${index + 1}`}
               fontFamily="Arial, Helvetica, sans-serif"
-              fontSize={Math.max(9, nodeRadius * 0.14)}
+              fontSize={Math.max(10, nodeRadius * 0.16)}
               fontStyle="bold"
               align="center"
               fill={nodeTextColor}
@@ -4371,12 +5093,12 @@ function RawRadialCycleInfographic({
               height={nodeRadius * 0.65}
               text={readString(item?.description) ?? ""}
               fontFamily="Arial, Helvetica, sans-serif"
-              fontSize={Math.max(7, nodeRadius * 0.105)}
+              fontSize={Math.max(8, nodeRadius * 0.125)}
               lineHeight={1.15}
               align="center"
               fill={nodeTextColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -4384,48 +5106,77 @@ function RawRadialCycleInfographic({
 }
 
 function RadialCycleCenterImage({
+  interactive,
   radius,
+  settings,
   src,
   x,
   y,
 }: {
+  interactive: boolean;
   radius: number;
+  settings: RawElement | null;
   src: string | null;
   x: number;
   y: number;
 }) {
   const loaded = useLoadedKonvaImage(src);
+  const rawBorderRadius = Array.isArray(settings?.border_radius)
+    ? readNumber(settings?.border_radius[0])
+    : readNumber(settings?.border_radius);
+  const imageBorderRadius = clamp(rawBorderRadius ?? radius, 0, radius);
   if (!loaded) {
-    return <Circle x={x} y={y} radius={radius} fill="#EEF1F5" stroke="#D1D5DB" strokeWidth={1} />;
+    return <Rect {...infographicTargetAttrs({ kind: "image", itemPath: [], field: "center_image" })} x={x - radius} y={y - radius} width={radius * 2} height={radius * 2} cornerRadius={imageBorderRadius} fill="#EEF1F5" stroke="#D1D5DB" strokeWidth={1} listening={interactive} />;
   }
   const diameter = radius * 2;
-  const targetRatio = 1;
   const naturalRatio = loaded.width / loaded.height || 1;
-  const crop = naturalRatio > targetRatio
-    ? {
-        x: (loaded.width - loaded.height) / 2,
-        y: 0,
-        width: loaded.height,
-        height: loaded.height,
-      }
-    : {
-        x: 0,
-        y: (loaded.height - loaded.width) / 2,
-        width: loaded.width,
-        height: loaded.width,
-      };
+  const fit = readString(settings?.fit) ?? "cover";
+  const baseSize = fit === "fill"
+    ? { width: diameter, height: diameter }
+    : fit === "contain"
+      ? naturalRatio >= 1
+        ? { width: diameter, height: diameter / naturalRatio }
+        : { width: diameter * naturalRatio, height: diameter }
+      : naturalRatio >= 1
+        ? { width: diameter * naturalRatio, height: diameter }
+        : { width: diameter, height: diameter / naturalRatio };
+  const cropScale = Math.max(0.1, readNumber(settings?.crop_scale) ?? 1);
+  const drawWidth = baseSize.width * cropScale;
+  const drawHeight = baseSize.height * cropScale;
+  const focusX = clamp(readNumber(settings?.focus_x) ?? 50, 0, 100) / 100;
+  const focusY = clamp(readNumber(settings?.focus_y) ?? 50, 0, 100) / 100;
+  const drawX = (diameter - drawWidth) * focusX;
+  const drawY = (diameter - drawHeight) * focusY;
   return (
     <Group
+      {...infographicTargetAttrs({ kind: "image", itemPath: [], field: "center_image" })}
       x={x - radius}
       y={y - radius}
       clipFunc={(context) => {
-        context.beginPath();
-        context.arc(radius, radius, radius, 0, Math.PI * 2, false);
-        context.closePath();
+        drawRoundedImageClip(context, diameter, diameter, [
+          imageBorderRadius,
+          imageBorderRadius,
+          imageBorderRadius,
+          imageBorderRadius,
+        ]);
       }}
-      listening={false}
+      listening={interactive}
+      opacity={clamp(readNumber(settings?.opacity) ?? 1, 0, 1)}
     >
-      <KonvaImage image={loaded} width={diameter} height={diameter} crop={crop} />
+      <Group
+        x={diameter / 2}
+        y={diameter / 2}
+        scaleX={settings?.flip_h === true ? -1 : 1}
+        scaleY={settings?.flip_v === true ? -1 : 1}
+      >
+        <KonvaImage
+          image={loaded}
+          x={drawX - diameter / 2}
+          y={drawY - diameter / 2}
+          width={drawWidth}
+          height={drawHeight}
+        />
+      </Group>
     </Group>
   );
 }
@@ -4459,22 +5210,6 @@ function RawConversionFunnelInfographic({
 
   return (
     <Group listening={interactive}>
-      {safeItems.map((_, index) => {
-        const x0 = index * columnWidth;
-        const x1 = (index + 1) * columnWidth;
-        const curve = Array.from({ length: 11 }, (_, pointIndex) => {
-          const x = x1 - (pointIndex / 10) * columnWidth;
-          return [x, funnelBoundaryRatio(x / width) * height];
-        }).flat();
-        return (
-          <Line
-            key={`funnel-fill-${index}`}
-            closed
-            points={[x0, 0, x1 + 0.5, 0, ...curve, x0, funnelBoundaryRatio(x0 / width) * height]}
-            fill={palette[index % palette.length] ?? "#2563EB"}
-          />
-        );
-      })}
       <Line
         points={curvePoints}
         stroke={palette[(safeItems.length + 1) % palette.length] ?? "#7CA2E5"}
@@ -4485,8 +5220,18 @@ function RawConversionFunnelInfographic({
       <Rect width={width} height={height} stroke="#D1D1D1" strokeWidth={1.5} />
       {safeItems.map((item, index) => {
         const x = index * columnWidth;
+        const x1 = (index + 1) * columnWidth;
+        const curve = Array.from({ length: 11 }, (_, pointIndex) => {
+          const curveX = x1 - (pointIndex / 10) * columnWidth;
+          return [curveX, funnelBoundaryRatio(curveX / width) * height];
+        }).flat();
         return (
-          <Group key={`funnel-stage-${index}`}>
+          <InfographicItemGroup key={`funnel-stage-${index}`} interactive={interactive} item={item} itemPath={[index]}>
+            <Line
+              closed
+              points={[x, 0, x1 + 0.5, 0, ...curve, x, funnelBoundaryRatio(x / width) * height]}
+              fill={palette[index % palette.length] ?? "#2563EB"}
+            />
             {index > 0 ? (
               <Line points={[x, 0, x, height]} stroke="#D1D1D1" strokeWidth={1.5} />
             ) : null}
@@ -4519,11 +5264,116 @@ function RawConversionFunnelInfographic({
               height={height * 0.13}
               text={readString(item?.description) ?? ""}
               fontFamily="Arial, Helvetica, sans-serif"
-              fontSize={Math.max(7, Math.min(10, height * 0.029))}
+              fontSize={Math.max(8, Math.min(11, height * 0.033))}
               lineHeight={1.15}
               fill={textColor}
             />
-          </Group>
+          </InfographicItemGroup>
+        );
+      })}
+    </Group>
+  );
+}
+
+function RawVerticalFunnelInfographic({
+  baseColor,
+  data,
+  height,
+  interactive,
+  palette,
+  textColor: customTextColor,
+  width,
+}: {
+  baseColor: string;
+  data: RawElement | null;
+  height: number;
+  interactive: boolean;
+  palette: string[];
+  textColor: string | null;
+  width: number;
+}) {
+  const items = readArray(data?.items).map(asRecord).filter(Boolean).slice(0, 8);
+  const safeItems = items.length > 0 ? items : [{ value: 50, heading: "Stage" }];
+  const darkBackground = isDarkInfographicColor(baseColor);
+  const textColor = customTextColor ?? (darkBackground ? "#F0F1F4" : "#111111");
+  const top = height * 0.08;
+  const bottom = height * 0.08;
+  const stageHeight = (height - top - bottom) / safeItems.length;
+  const centerX = width * 0.5;
+  const maxFunnelWidth = width * 0.42;
+  const valueAt = (index: number) =>
+    clamp(readNumber(safeItems[index]?.value) ?? 0, 0, 100);
+  const widthAt = (value: number) => Math.max(4, (value / 100) * maxFunnelWidth);
+
+  return (
+    <Group listening={interactive}>
+      {safeItems.map((item, index) => {
+        const y0 = top + index * stageHeight;
+        const y1 = y0 + stageHeight;
+        const topWidth = widthAt(valueAt(index));
+        const bottomWidth = widthAt(valueAt(Math.min(index + 1, safeItems.length - 1)));
+        const heading = readString(item?.heading) ?? `Stage ${index + 1}`;
+        const description = readString(item?.description) ?? "";
+        return (
+          <InfographicItemGroup
+            key={`vertical-funnel-stage-${index}`}
+            interactive={interactive}
+            item={item}
+            itemPath={[index]}
+          >
+            <Line
+              points={[width * 0.19, y0, width * 0.855, y0]}
+              stroke="#D1D5DB"
+              strokeWidth={1}
+            />
+            <Line
+              closed
+              points={[
+                centerX - topWidth / 2,
+                y0,
+                centerX + topWidth / 2,
+                y0,
+                centerX + bottomWidth / 2,
+                y1,
+                centerX - bottomWidth / 2,
+                y1,
+              ]}
+              fill={palette[index % palette.length] ?? "#2563EB"}
+            />
+            <Text
+              x={width * 0.025}
+              y={y0 - height * 0.026}
+              width={width * 0.255}
+              text={heading}
+              fontFamily="Arial, Helvetica, sans-serif"
+              fontSize={Math.max(11, Math.min(17, height * 0.032))}
+              fontStyle="bold"
+              fill={textColor}
+            />
+            {description ? (
+              <Text
+                x={width * 0.025}
+                y={y0 + height * 0.012}
+                width={width * 0.255}
+                height={stageHeight * 0.45}
+                text={description}
+                fontFamily="Arial, Helvetica, sans-serif"
+                fontSize={Math.max(8, Math.min(11, height * 0.021))}
+                lineHeight={1.15}
+                fill={textColor}
+              />
+            ) : null}
+            <Text
+              x={width * 0.872}
+              y={y0 - height * 0.026}
+              width={width * 0.105}
+              text={`${Math.round(valueAt(index) * 10) / 10}%`}
+              fontFamily="Arial, Helvetica, sans-serif"
+              fontSize={Math.max(11, Math.min(17, height * 0.032))}
+              fontStyle="bold"
+              fill={textColor}
+            />
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -4587,7 +5437,7 @@ function RawSegmentedWheelInfographic({
           : endX - width * 0.014 - labelWidth;
         const align = direction > 0 ? "left" : "right";
         return (
-          <Group key={`segmented-wheel-${index}`}>
+          <InfographicItemGroup key={`segmented-wheel-${index}`} interactive={interactive} item={item} itemPath={[index]}>
             <Path
               data={annularSectorPath(
                 centerX,
@@ -4603,6 +5453,7 @@ function RawSegmentedWheelInfographic({
             <InfographicUrlIcon
               color={icon?.color ?? null}
               icon={icon?.url ?? null}
+              itemPath={[index]}
               x={iconPoint.x}
               y={iconPoint.y}
               size={Math.max(20, Math.min(width * 0.042, height * 0.072))}
@@ -4643,7 +5494,7 @@ function RawSegmentedWheelInfographic({
               align={align}
               fill={outsideTextColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -4718,14 +5569,17 @@ function RawCustomerJourneyInfographic({
         lineCap="round"
         lineJoin="round"
       />
-      <Circle x={start.x} y={start.y} radius={nodeRadius * 1.08} fill={startColor} />
-      <InfographicUrlIcon
-        color={startIcon?.color ?? "#111111"}
-        icon={startIcon?.url ?? null}
-        x={start.x}
-        y={start.y}
-        size={nodeRadius * 0.78}
-      />
+      <InfographicItemGroup interactive={interactive} item={startItem} itemPath={[0]}>
+        <Circle x={start.x} y={start.y} radius={nodeRadius * 1.08} fill={startColor} />
+        <InfographicUrlIcon
+          color={startIcon?.color ?? "#111111"}
+          icon={startIcon?.url ?? null}
+          itemPath={[0]}
+          x={start.x}
+          y={start.y}
+          size={nodeRadius * 0.78}
+        />
+      </InfographicItemGroup>
       {stages.map((item, index) => {
         const point = stagePoints[index];
         const color = palette[(index + 1) % palette.length] ?? "#2563EB";
@@ -4737,11 +5591,12 @@ function RawCustomerJourneyInfographic({
           ? point.y - nodeRadius - height * 0.19
           : point.y + nodeRadius + height * 0.035;
         return (
-          <Group key={`customer-journey-${index}`}>
+          <InfographicItemGroup key={`customer-journey-${index}`} interactive={interactive} item={item} itemPath={[index + 1]}>
             <Circle x={point.x} y={point.y} radius={nodeRadius} fill={color} />
             <InfographicUrlIcon
               color={icon?.color ?? null}
               icon={icon?.url ?? null}
+              itemPath={[index + 1]}
               x={point.x}
               y={point.y}
               size={nodeRadius * 0.68}
@@ -4770,7 +5625,7 @@ function RawCustomerJourneyInfographic({
               align="center"
               fill={textColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -4820,9 +5675,9 @@ function RawBeforeAfterInfographic({
   return (
     <Group listening={interactive}>
       <Rect x={width * 0.045} y={headerY} width={pillWidth} height={pillHeight} cornerRadius={pillHeight / 2} fill={pillFill} />
-      <Text x={width * 0.045} y={headerY} width={pillWidth} height={pillHeight} text={readString(data?.before_label) ?? "Before"} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(11, Math.min(16, height * 0.036))} fontStyle="bold" verticalAlign="middle" align="center" fill={pillText} />
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "before_label" })} x={width * 0.045} y={headerY} width={pillWidth} height={pillHeight} text={readString(data?.before_label) ?? "Before"} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(11, Math.min(16, height * 0.036))} fontStyle="bold" verticalAlign="middle" align="center" fill={pillText} />
       <Rect x={width * 0.815} y={headerY} width={pillWidth} height={pillHeight} cornerRadius={pillHeight / 2} fill={pillFill} />
-      <Text x={width * 0.815} y={headerY} width={pillWidth} height={pillHeight} text={readString(data?.after_label) ?? "After"} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(11, Math.min(16, height * 0.036))} fontStyle="bold" verticalAlign="middle" align="center" fill={pillText} />
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "after_label" })} x={width * 0.815} y={headerY} width={pillWidth} height={pillHeight} text={readString(data?.after_label) ?? "After"} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(11, Math.min(16, height * 0.036))} fontStyle="bold" verticalAlign="middle" align="center" fill={pillText} />
       <Line points={[centerX, lineTop, centerX, lineBottom]} stroke="#D1D1D1" strokeWidth={1.5} />
       <Circle x={centerX} y={lineTop} radius={4} fill="#D1D1D1" />
       <Circle x={centerX} y={lineBottom} radius={4} fill="#D1D1D1" />
@@ -4844,16 +5699,20 @@ function RawBeforeAfterInfographic({
         const beforeIcon = normalizeInfographicIcon(beforeItem?.icon, beforeItem?.color);
         const afterIcon = normalizeInfographicIcon(afterItem?.icon, afterItem?.color);
         return (
-          <Group key={`before-after-row-${index}`}>
-            <Circle x={width * 0.39} y={y} radius={nodeRadius} fill={beforeColor} />
-            <InfographicUrlIcon color={beforeIcon?.color ?? null} icon={beforeIcon?.url ?? null} x={width * 0.39} y={y} size={nodeRadius * 0.68} />
-            <Text x={width * 0.045} y={y - height * 0.035} width={width * 0.27} height={height * 0.06} text={readString(beforeItem?.heading) ?? `Before ${index + 1}`} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(10, Math.min(14, height * 0.033))} fontStyle="bold" fill={customTextColor ?? (darkBackground ? textColor : beforeColor)} />
-            <Text x={width * 0.045} y={y + height * 0.02} width={width * 0.27} height={height * 0.09} text={readString(beforeItem?.description) ?? ""} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(8, Math.min(11, height * 0.026))} lineHeight={1.15} fill={textColor} />
-            <Circle x={width * 0.61} y={y} radius={nodeRadius} fill={afterColor} />
-            <InfographicUrlIcon color={afterIcon?.color ?? null} icon={afterIcon?.url ?? null} x={width * 0.61} y={y} size={nodeRadius * 0.68} />
-            <Text x={width * 0.685} y={y - height * 0.035} width={width * 0.27} height={height * 0.06} text={readString(afterItem?.heading) ?? `After ${index + 1}`} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(10, Math.min(14, height * 0.033))} fontStyle="bold" align="right" fill={customTextColor ?? (darkBackground ? textColor : afterColor)} />
-            <Text x={width * 0.685} y={y + height * 0.02} width={width * 0.27} height={height * 0.09} text={readString(afterItem?.description) ?? ""} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(8, Math.min(11, height * 0.026))} lineHeight={1.15} align="right" fill={textColor} />
-          </Group>
+          <Fragment key={`before-after-row-${index}`}>
+            <InfographicItemGroup interactive={interactive} item={beforeItem} itemPath={[index * 2]}>
+              <Circle x={width * 0.39} y={y} radius={nodeRadius} fill={beforeColor} />
+              <InfographicUrlIcon color={beforeIcon?.color ?? null} icon={beforeIcon?.url ?? null} itemPath={[index * 2]} x={width * 0.39} y={y} size={nodeRadius * 0.68} />
+              <Text x={width * 0.045} y={y - height * 0.035} width={width * 0.27} height={height * 0.06} text={readString(beforeItem?.heading) ?? `Before ${index + 1}`} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(10, Math.min(14, height * 0.033))} fontStyle="bold" fill={customTextColor ?? (darkBackground ? textColor : beforeColor)} />
+              <Text x={width * 0.045} y={y + height * 0.02} width={width * 0.27} height={height * 0.09} text={readString(beforeItem?.description) ?? ""} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(8, Math.min(11, height * 0.026))} lineHeight={1.15} fill={textColor} />
+            </InfographicItemGroup>
+            <InfographicItemGroup interactive={interactive} item={afterItem} itemPath={[index * 2 + 1]}>
+              <Circle x={width * 0.61} y={y} radius={nodeRadius} fill={afterColor} />
+              <InfographicUrlIcon color={afterIcon?.color ?? null} icon={afterIcon?.url ?? null} itemPath={[index * 2 + 1]} x={width * 0.61} y={y} size={nodeRadius * 0.68} />
+              <Text x={width * 0.685} y={y - height * 0.035} width={width * 0.27} height={height * 0.06} text={readString(afterItem?.heading) ?? `After ${index + 1}`} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(10, Math.min(14, height * 0.033))} fontStyle="bold" align="right" fill={customTextColor ?? (darkBackground ? textColor : afterColor)} />
+              <Text x={width * 0.685} y={y + height * 0.02} width={width * 0.27} height={height * 0.09} text={readString(afterItem?.description) ?? ""} fontFamily="Arial, Helvetica, sans-serif" fontSize={Math.max(8, Math.min(11, height * 0.026))} lineHeight={1.15} align="right" fill={textColor} />
+            </InfographicItemGroup>
+          </Fragment>
         );
       })}
     </Group>
@@ -5034,11 +5893,12 @@ function RawPyramidInfographic({
         const insideTextColor = blackOrWhiteTextColor(color);
         const calloutLayout = pyramidCalloutLayout(callout, width, height);
         return (
-          <Group key={`pyramid-item-${index}`}>
+          <InfographicItemGroup key={`pyramid-item-${index}`} interactive={interactive} item={item} itemPath={[index]}>
             <Line closed points={points} fill={color} />
             <InfographicUrlIcon
               color={itemIcon?.color ?? null}
               icon={itemIcon?.url ?? null}
+              itemPath={[index]}
               x={x}
               y={y - height * 0.025}
               size={Math.max(18, Math.min(width * 0.045, height * 0.075))}
@@ -5050,7 +5910,7 @@ function RawPyramidInfographic({
               height={height * 0.06}
               text={readString(item?.heading) ?? `Level ${index + 1}`}
               fontFamily="Arial, Helvetica, sans-serif"
-              fontSize={Math.max(9, Math.min(14, height * 0.035))}
+              fontSize={Math.max(10, Math.min(15, height * 0.038))}
               fontStyle="bold"
               align="center"
               fill={insideTextColor}
@@ -5067,7 +5927,7 @@ function RawPyramidInfographic({
               height={height * 0.06}
               text={readString(item?.heading) ?? `Level ${index + 1}`}
               fontFamily="Arial, Helvetica, sans-serif"
-              fontSize={Math.max(9, Math.min(13, height * 0.034))}
+              fontSize={Math.max(10, Math.min(14, height * 0.036))}
               fontStyle="bold"
               align={calloutLayout.align}
               fill={outsideTextColor}
@@ -5079,12 +5939,12 @@ function RawPyramidInfographic({
               height={height * 0.12}
               text={readString(item?.description) ?? ""}
               fontFamily="Arial, Helvetica, sans-serif"
-              fontSize={Math.max(7, Math.min(10, height * 0.027))}
+              fontSize={Math.max(8, Math.min(11, height * 0.029))}
               lineHeight={1.15}
               align={calloutLayout.align}
               fill={outsideTextColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -5202,12 +6062,12 @@ function RawImpactEffortInfographic({
       {[[cx + axisHalfX, cy, 0], [cx - axisHalfX, cy, 180], [cx, cy - axisHalfY, -90], [cx, cy + axisHalfY, 90]].map(([x, y, rotation], index) => (
         <Line key={`axis-arrow-${index}`} x={x} y={y} rotation={rotation} points={[-9, -6, 0, 0, -9, 6]} closed fill={axisColor} stroke={axisColor} />
       ))}
-      <Text x={cx + 16} y={cy + 7} width={80} text={readString(data?.x_axis_label) ?? "Impact"} fontSize={Math.max(8, height * 0.026)} fill={textColor} />
-      <Text x={cx - 28} y={cy - 55} width={70} text={readString(data?.y_axis_label) ?? "Effort"} rotation={-90} fontSize={Math.max(8, height * 0.026)} fill={textColor} />
-      <Text x={cx - axisHalfX - 42} y={cy - 8} width={36} align="right" text={readString(data?.low_label) ?? "Low"} fontSize={Math.max(8, height * 0.026)} fill={textColor} />
-      <Text x={cx + axisHalfX + 8} y={cy - 8} width={42} text={readString(data?.high_label) ?? "High"} fontSize={Math.max(8, height * 0.026)} fill={textColor} />
-      <Text x={cx - 28} y={cy - axisHalfY - 22} width={56} align="center" text={readString(data?.high_label) ?? "High"} fontSize={Math.max(8, height * 0.026)} fill={textColor} />
-      <Text x={cx - 28} y={cy + axisHalfY + 7} width={56} align="center" text={readString(data?.low_label) ?? "Low"} fontSize={Math.max(8, height * 0.026)} fill={textColor} />
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "x_axis_label" })} x={cx + 16} y={cy + 7} width={80} text={readString(data?.x_axis_label) ?? "Impact"} fontSize={Math.max(9, height * 0.029)} fill={textColor} />
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "y_axis_label" })} x={cx - 28} y={cy - 55} width={70} text={readString(data?.y_axis_label) ?? "Effort"} rotation={-90} fontSize={Math.max(9, height * 0.029)} fill={textColor} />
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "low_label" })} x={cx - axisHalfX - 42} y={cy - 8} width={36} align="right" text={readString(data?.low_label) ?? "Low"} fontSize={Math.max(9, height * 0.029)} fill={textColor} />
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "high_label" })} x={cx + axisHalfX + 8} y={cy - 8} width={42} text={readString(data?.high_label) ?? "High"} fontSize={Math.max(9, height * 0.029)} fill={textColor} />
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "high_label" })} x={cx - 28} y={cy - axisHalfY - 22} width={56} align="center" text={readString(data?.high_label) ?? "High"} fontSize={Math.max(9, height * 0.029)} fill={textColor} />
+      <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: "low_label" })} x={cx - 28} y={cy + axisHalfY + 7} width={56} align="center" text={readString(data?.low_label) ?? "Low"} fontSize={Math.max(9, height * 0.029)} fill={textColor} />
       {positions.map((position, index) => {
         const item = items[index];
         const color = palette[index % Math.max(1, palette.length)] ?? "#24468E";
@@ -5221,14 +6081,14 @@ function RawImpactEffortInfographic({
           : position.outerX + blockW + calloutGap;
         const calloutY = index < 2 ? circleY - height * 0.095 : circleY - height * 0.01;
         return (
-          <Fragment key={`impact-quadrant-${index}`}>
+          <InfographicItemGroup key={`impact-quadrant-${index}`} interactive={interactive} item={item} itemPath={[index]}>
             <Rect x={position.outerX} y={horizontalY} width={blockW} height={blockThickness} fill={color} />
             <Rect x={verticalX} y={position.outerY} width={blockThickness} height={blockH} fill={color} />
             <Circle x={circleX} y={circleY} radius={Math.max(15, Math.min(width, height) * 0.045)} fill={color} />
-            <Text x={circleX - 25} y={circleY - 12} width={50} align="center" text={String(index + 1).padStart(2, "0")} fontStyle="bold" fontSize={Math.max(10, height * 0.05)} fill={nodeTextColor} />
-            <Text x={calloutX} y={calloutY} width={calloutWidth} align={position.side < 0 ? "right" : "left"} text={readString(item?.heading) ?? defaults[index]} fontStyle="bold" fontSize={Math.max(9, height * 0.032)} fill={color} />
-            <Text x={calloutX} y={calloutY + height * 0.052} width={calloutWidth} align={position.side < 0 ? "right" : "left"} text={readString(item?.description) ?? ""} fontSize={Math.max(8, height * 0.024)} lineHeight={1.15} fill={textColor} />
-          </Fragment>
+            <Text {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: "label" })} x={circleX - 25} y={circleY - 12} width={50} align="center" text={infographicNumberLabel(item, index)} fontStyle="bold" fontSize={Math.max(10, height * 0.05)} fill={nodeTextColor} />
+            <Text x={calloutX} y={calloutY} width={calloutWidth} align={position.side < 0 ? "right" : "left"} text={readString(item?.heading) ?? defaults[index]} fontStyle="bold" fontSize={Math.max(10, height * 0.035)} fill={color} />
+            <Text x={calloutX} y={calloutY + height * 0.052} width={calloutWidth} align={position.side < 0 ? "right" : "left"} text={readString(item?.description) ?? ""} fontSize={Math.max(9, height * 0.027)} lineHeight={1.15} fill={textColor} />
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -5267,8 +6127,8 @@ function RawComparisonMatrixInfographic(props: InfographicRendererProps) {
   return (
     <Group listening={interactive}>
       <Rect x={padding} y={top} width={criteriaWidth - 4} height={tableHeight} fill={badgeColor} />
-      <Text x={padding} y={top + headerHeight * 0.36} width={criteriaWidth - 4} align="center" text="Criteria" fontStyle="bold" fontSize={Math.max(9, height * 0.032)} fill={iconColor} />
-      {safeCriteria.map((criterion, rowIndex) => <Text key={`criterion-${rowIndex}`} x={padding + 5} y={top + headerHeight + rowIndex * rowHeight} width={criteriaWidth - 14} height={rowHeight} align="center" verticalAlign="middle" text={criterion} fontSize={Math.max(8, height * 0.024)} fill={iconColor} />)}
+      <Text x={padding} y={top + headerHeight * 0.36} width={criteriaWidth - 4} align="center" text="Criteria" fontStyle="bold" fontSize={Math.max(10, height * 0.035)} fill={iconColor} />
+      {safeCriteria.map((criterion, rowIndex) => <Text {...infographicTargetAttrs({ kind: "text", itemPath: [], field: `criteria.${rowIndex}` })} key={`criterion-${rowIndex}`} x={padding + 5} y={top + headerHeight + rowIndex * rowHeight} width={criteriaWidth - 14} height={rowHeight} align="center" verticalAlign="middle" text={criterion} fontSize={Math.max(9, height * 0.027)} fill={iconColor} />)}
       {items.map((item, index) => {
         const x = padding + criteriaWidth + index * optionWidth;
         const color = palette[index % Math.max(1, palette.length)] ?? "#24468E";
@@ -5276,13 +6136,13 @@ function RawComparisonMatrixInfographic(props: InfographicRendererProps) {
         const icon = normalizeInfographicIcon(item?.icon, item?.color);
         const values = readArray(item?.values).map(readString);
         return (
-          <Fragment key={`comparison-column-${index}`}>
+          <InfographicItemGroup key={`comparison-column-${index}`} interactive={interactive} item={item} itemPath={[index]}>
             <Rect x={x + 2} y={top} width={optionWidth - 4} height={tableHeight} fill={color} />
             <Circle x={x + optionWidth / 2} y={top} radius={Math.min(optionWidth * 0.2, height * 0.075)} fill={badgeColor} stroke={color} strokeWidth={3} />
-            <InfographicUrlIcon color={iconColor} icon={icon?.url ?? null} x={x + optionWidth / 2} y={top} size={Math.min(optionWidth * 0.19, height * 0.065)} />
-            <Text x={x + 7} y={top + headerHeight * 0.35} width={optionWidth - 14} align="center" text={readString(item?.heading) ?? `Option ${index + 1}`} fontStyle="bold" fontSize={Math.max(8, height * 0.029)} fill={columnTextColor} />
-            {safeCriteria.map((_, rowIndex) => <Fragment key={`value-${index}-${rowIndex}`}><Line points={[x + 2, top + headerHeight + rowIndex * rowHeight, x + optionWidth - 2, top + headerHeight + rowIndex * rowHeight]} stroke={dark ? "#FFFFFF" : "#D1D5DB"} opacity={0.35} /><Text x={x + 5} y={top + headerHeight + rowIndex * rowHeight} width={optionWidth - 10} height={rowHeight} align="center" verticalAlign="middle" text={values[rowIndex] ?? ""} fontSize={Math.max(8, height * 0.023)} fill={columnTextColor} /></Fragment>)}
-          </Fragment>
+            <InfographicUrlIcon color={iconColor} icon={icon?.url ?? null} itemPath={[index]} x={x + optionWidth / 2} y={top} size={Math.min(optionWidth * 0.19, height * 0.065)} />
+            <Text x={x + 7} y={top + headerHeight * 0.35} width={optionWidth - 14} align="center" text={readString(item?.heading) ?? `Option ${index + 1}`} fontStyle="bold" fontSize={Math.max(9, height * 0.032)} fill={columnTextColor} />
+            {safeCriteria.map((_, rowIndex) => <Fragment key={`value-${index}-${rowIndex}`}><Line points={[x + 2, top + headerHeight + rowIndex * rowHeight, x + optionWidth - 2, top + headerHeight + rowIndex * rowHeight]} stroke={dark ? "#FFFFFF" : "#D1D5DB"} opacity={0.35} /><Text {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: `values.${rowIndex}` })} x={x + 5} y={top + headerHeight + rowIndex * rowHeight} width={optionWidth - 10} height={rowHeight} align="center" verticalAlign="middle" text={values[rowIndex] ?? ""} fontSize={Math.max(9, height * 0.026)} fill={columnTextColor} /></Fragment>)}
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -5339,9 +6199,17 @@ function RawHierarchyInfographic({ type, ...props }: InfographicRendererProps & 
         const parentIndex = byId.get(readString(item?.parent_id) ?? "");
         const parentPosition = parentIndex == null ? null : positions.get(parentIndex);
         if (!position || !parentPosition) return null;
+        const offset = infographicItemOffset(item);
+        const parentOffset = infographicItemOffset(
+          parentIndex == null ? null : items[parentIndex],
+        );
+        const currentX = position.x + offset.x;
+        const currentY = position.y + offset.y;
+        const parentX = parentPosition.x + parentOffset.x;
+        const parentY = parentPosition.y + parentOffset.y;
         const points = type === "org_chart"
-          ? [parentPosition.x, parentPosition.y + boxHeight / 2, parentPosition.x, (parentPosition.y + position.y) / 2, position.x, (parentPosition.y + position.y) / 2, position.x, position.y - boxHeight / 2]
-          : [parentPosition.x, parentPosition.y, position.x, position.y];
+          ? [parentX, parentY + boxHeight / 2, parentX, (parentY + currentY) / 2, currentX, (parentY + currentY) / 2, currentX, currentY - boxHeight / 2]
+          : [parentX, parentY, currentX, currentY];
         return <Line key={`hierarchy-line-${index}`} points={points} stroke={dark ? "#E4E4E7" : "#D1D1D1"} strokeWidth={2} lineJoin="round" />;
       })}
       {items.map((item, index) => {
@@ -5351,9 +6219,9 @@ function RawHierarchyInfographic({ type, ...props }: InfographicRendererProps & 
         const nodeTextColor = blackOrWhiteTextColor(color);
         if (type === "decision_tree") {
           const radius = position.depth === 0 ? nodeRadius * 1.25 : position.depth === 1 ? nodeRadius : nodeRadius * 0.57;
-          return <Fragment key={`hierarchy-node-${index}`}><Circle x={position.x} y={position.y} radius={radius} fill={color} /><Text x={position.x - radius * 0.85} y={position.y - 18} width={radius * 1.7} height={36} align="center" verticalAlign="middle" text={readString(item?.heading) ?? ""} fontStyle={position.depth < 2 ? "bold" : "normal"} fontSize={Math.max(7, height * (position.depth === 2 ? 0.02 : 0.026))} fill={nodeTextColor} /></Fragment>;
+          return <InfographicItemGroup key={`hierarchy-node-${index}`} interactive={interactive} item={item} itemPath={[index]}><Circle x={position.x} y={position.y} radius={radius} fill={color} /><Text x={position.x - radius * 0.85} y={position.y - 18} width={radius * 1.7} height={36} align="center" verticalAlign="middle" text={readString(item?.heading) ?? ""} fontStyle={position.depth < 2 ? "bold" : "normal"} fontSize={Math.max(7, height * (position.depth === 2 ? 0.02 : 0.026))} fill={nodeTextColor} /></InfographicItemGroup>;
         }
-        return <Fragment key={`hierarchy-node-${index}`}><Rect x={position.x - boxWidth / 2} y={position.y - boxHeight / 2} width={boxWidth} height={boxHeight} fill={color} stroke={dark ? "#D1D5DB" : color} strokeWidth={1} /><Text x={position.x - boxWidth * 0.46} y={position.y - boxHeight * 0.38} width={boxWidth * 0.22} text={String(index + 1).padStart(2, "0")} fontStyle="bold" fontSize={Math.max(9, height * 0.034)} fill={nodeTextColor} /><Text x={position.x - boxWidth * 0.3} y={position.y - boxHeight * 0.28} width={boxWidth * 0.68} align="center" text={readString(item?.heading) ?? ""} fontStyle="bold" fontSize={Math.max(8, height * 0.026)} fill={nodeTextColor} /><Text x={position.x - boxWidth * 0.3} y={position.y + boxHeight * 0.04} width={boxWidth * 0.68} align="center" text={readString(item?.description) ?? ""} fontSize={Math.max(7, height * 0.021)} fill={nodeTextColor} /></Fragment>;
+        return <InfographicItemGroup key={`hierarchy-node-${index}`} interactive={interactive} item={item} itemPath={[index]}><Rect x={position.x - boxWidth / 2} y={position.y - boxHeight / 2} width={boxWidth} height={boxHeight} fill={color} stroke={dark ? "#D1D5DB" : color} strokeWidth={1} /><Text {...infographicTargetAttrs({ kind: "text", itemPath: [index], field: "label" })} x={position.x - boxWidth * 0.46} y={position.y - boxHeight * 0.38} width={boxWidth * 0.22} text={infographicNumberLabel(item, index)} fontStyle="bold" fontSize={Math.max(10, height * 0.036)} fill={nodeTextColor} /><Text x={position.x - boxWidth * 0.3} y={position.y - boxHeight * 0.28} width={boxWidth * 0.68} align="center" text={readString(item?.heading) ?? ""} fontStyle="bold" fontSize={Math.max(9, height * 0.031)} fill={nodeTextColor} /><Text x={position.x - boxWidth * 0.3} y={position.y + boxHeight * 0.04} width={boxWidth * 0.68} align="center" text={readString(item?.description) ?? ""} fontSize={Math.max(8, height * 0.026)} fill={nodeTextColor} /></InfographicItemGroup>;
       })}
     </Group>
   );
@@ -5404,7 +6272,7 @@ function RawMindMapInfographic({
           height,
         );
         return (
-          <Group key={`mind-map-item-${index}`}>
+          <InfographicItemGroup key={`mind-map-item-${index}`} interactive={interactive} item={item} itemPath={usesNestedItems ? [0, index] : [index]}>
             <Circle
               x={position.x}
               y={position.y}
@@ -5415,6 +6283,7 @@ function RawMindMapInfographic({
             <InfographicUrlIcon
               color={itemIcon?.color ?? null}
               icon={itemIcon?.url ?? null}
+              itemPath={usesNestedItems ? [0, index] : [index]}
               x={position.x}
               y={position.y}
               size={Math.max(24, layout.radius * 0.42)}
@@ -5446,7 +6315,7 @@ function RawMindMapInfographic({
               align="center"
               fill={mutedTextColor}
             />
-          </Group>
+          </InfographicItemGroup>
         );
       })}
     </Group>
@@ -5456,12 +6325,14 @@ function RawMindMapInfographic({
 function InfographicUrlIcon({
   color,
   icon,
+  itemPath,
   size,
   x,
   y,
 }: {
   color: string | null;
   icon: string | null;
+  itemPath?: number[];
   size: number;
   x: number;
   y: number;
@@ -5481,9 +6352,18 @@ function InfographicUrlIcon({
   const drawHeight = naturalRatio >= 1 ? size / naturalRatio : size;
   return (
     <Group
+      {...(itemPath
+        ? infographicTargetAttrs({ kind: "icon", itemPath })
+        : {})}
       x={x}
       y={y}
-      listening={false}
+      listening={Boolean(itemPath)}
+      onMouseEnter={
+        itemPath ? (event) => setStageCursor(event, "pointer") : undefined
+      }
+      onMouseLeave={
+        itemPath ? (event) => setStageCursor(event, "default") : undefined
+      }
     >
       <Rect
         x={-size / 2}

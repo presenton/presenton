@@ -283,7 +283,7 @@ def test_async_task_data_carries_presentation_ref_for_polling_callers():
 
 def test_async_task_data_carries_presentation_ref_before_completion():
     """The id is present from creation, so a failed task is still identifiable."""
-    data = presentation_endpoint._presentation_task_progress_data(
+    data = presentation_endpoint.presentation_task_progress_data(
         created_slides=0,
         remaining_slides=12,
         presentation_id=uuid.UUID("11111111-2222-3333-4444-555555555555"),

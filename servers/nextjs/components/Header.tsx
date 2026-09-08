@@ -16,11 +16,11 @@ const Header: React.FC = () => {
           <nav className="flex items-center gap-4">
             <Link href="/custom-layout" className="inline-flex items-center gap-2 text-gray-700 hover:text-gray-900">
               <Plus className="w-5 h-5" />
-              <span className="text-sm font-medium font-inter">Create Template</span>
+              <span className="text-sm font-medium font-manrope">Create Template</span>
             </Link>
             <Link href="/template-preview" className="inline-flex items-center gap-2 text-gray-700 hover:text-gray-900">
               <Layout className="w-5 h-5" />
-              <span className="text-sm font-medium font-inter">Templates</span>
+              <span className="text-sm font-medium font-manrope">Templates</span>
             </Link>
           </nav>
         </div>

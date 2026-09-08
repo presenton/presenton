@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 import json
 import stat
 
@@ -8,8 +9,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from api.v1.auth import bootstrap
 from api.v1.auth.users import PASSWORD_HELPER
-from models.sql.access_token import AccessToken
+from models.sql.api_key import ApiKey
 from models.sql.user import User
+from utils.datetime_utils import get_current_utc_datetime
 
 
 async def _create_auth_database(database_path):
@@ -17,7 +19,7 @@ async def _create_auth_database(database_path):
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
         await connection.run_sync(User.__table__.create)
-        await connection.run_sync(AccessToken.__table__.create)
+        await connection.run_sync(ApiKey.__table__.create)
     return engine, session_maker
 
 
@@ -57,7 +59,15 @@ def test_reset_auth_recovers_admin_without_replacing_account(
                 session.add(admin)
                 await session.flush()
                 original_id = admin.id
-                session.add(AccessToken(token="sk-presenton-old", user_id=admin.id))
+                session.add(
+                    ApiKey(
+                        id="0123456789abcdef",
+                        secret_hash="hashed",
+                        user_id=admin.id,
+                        created_by_id=admin.id,
+                        expires_at=get_current_utc_datetime() + timedelta(days=1),
+                    )
+                )
                 await session.commit()
 
             async def skip_ownership_backfill(_session, _admin):
@@ -73,7 +83,7 @@ def test_reset_auth_recovers_admin_without_replacing_account(
 
             async with session_maker() as session:
                 recovered = await session.scalar(select(User))
-                tokens = list(await session.scalars(select(AccessToken)))
+                tokens = list(await session.scalars(select(ApiKey)))
 
             assert recovered is not None
             assert recovered.id == original_id

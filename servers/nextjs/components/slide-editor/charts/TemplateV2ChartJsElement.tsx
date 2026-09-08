@@ -68,7 +68,7 @@ const DEFAULT_CHART_COLORS = [
   "#64748B",
 ];
 
-const CHART_FONT_FAMILY = "Inter, Arial, sans-serif";
+const CHART_FONT_FAMILY = "Manrope, Arial, sans-serif";
 const DATA_LABEL_POSITIONS = new Set(["base", "mid", "top", "outside"]);
 const CHART_TITLE_DISPLAY_MAX_LENGTH = 44;
 const CHART_AXIS_TITLE_DISPLAY_MAX_LENGTH = 36;

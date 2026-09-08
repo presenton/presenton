@@ -13,10 +13,15 @@ from utils.infographic_catalog import (
 
 
 def test_catalog_exposes_all_native_infographic_families():
-    assert len(INFOGRAPHIC_BY_TYPE) == 26
-    assert {"gantt", "timeline", "risk_matrix", "org_chart", "mind_map"} <= set(
-        INFOGRAPHIC_BY_TYPE
-    )
+    assert len(INFOGRAPHIC_BY_TYPE) == 27
+    assert {
+        "gantt",
+        "timeline",
+        "risk_matrix",
+        "vertical_funnel",
+        "org_chart",
+        "mind_map",
+    } <= set(INFOGRAPHIC_BY_TYPE)
 
     hierarchy_matches = search_infographic_catalog(query="hierarchy")
     assert {item["type"] for item in hierarchy_matches} >= {
@@ -32,6 +37,15 @@ def test_catalog_normalizes_and_validates_structural_data():
         {"items": [{"heading": "Discover", "description": "Research"}]},
     )
     assert data["type"] == "timeline"
+
+    funnel = normalize_infographic_data(
+        "vertical_funnel",
+        {"items": [{"value": 47.9, "heading": "Interest"}]},
+    )
+    assert funnel == {
+        "type": "vertical_funnel",
+        "items": [{"value": 47.9, "heading": "Interest"}],
+    }
 
     with pytest.raises(ValueError, match="exactly four items"):
         normalize_infographic_data(

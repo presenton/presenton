@@ -61,6 +61,7 @@ import {
   cloneLayout,
   collectSchemaFields,
   extractCreatedLayouts,
+  hasLayoutContentDensityTargets,
   mergeDensityPreviewCanvasEdits,
   readLayoutId,
   updateLayoutSchemaConstraint,
@@ -415,17 +416,10 @@ const GroupLayoutPreview = ({
 
   const applyContentDensity = useCallback((nextDensity: Density) => {
     if (!nextDensity || !canEditTemplate || !activeLayout) return;
-    const hasEditableContent = schemaFields.some(
-      (field) =>
-        !field.decorative &&
-        (field.type === "text" ||
-          field.type === "text-list" ||
-          field.type === "image"),
-    );
-    if (!hasEditableContent) {
+    if (!hasLayoutContentDensityTargets(activeLayout)) {
       notify.warning(
-        "No editable content",
-        "Mark a schema field as non-decorative before testing content density.",
+        "No variable content",
+        "Add editable text or a repeatable schema array before testing content density.",
       );
       return;
     }
@@ -441,7 +435,6 @@ const GroupLayoutPreview = ({
     activeLayout,
     activeLayoutIndex,
     canEditTemplate,
-    schemaFields,
     templateId,
   ]);
 

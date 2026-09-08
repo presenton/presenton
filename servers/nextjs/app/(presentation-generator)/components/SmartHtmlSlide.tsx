@@ -5,6 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useTailwindRuntimeReady } from "@/components/runtime/TailwindBrowserRuntime";
 import {
+  localFontOptionsFromUnknown,
+  renderLocalFontFaceCss,
+} from "@/components/slide-editor/text/local-fonts";
+import {
   CHART_BROWSER_SCRIPT_URL,
   CHART_DATALABELS_SCRIPT_URL,
 } from "@/lib/chart-browser";
@@ -33,25 +37,11 @@ const SANITIZE_CONFIG: DOMPurifyConfig = {
   ALLOW_DATA_ATTR: true,
 };
 
-function escapeAttribute(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
 function fontAssets(fonts: unknown) {
-  if (!fonts || typeof fonts !== "object" || Array.isArray(fonts)) return "";
-  return Object.entries(fonts as Record<string, unknown>)
-    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
-    .map(([family, url]) => {
-      if (url.includes("fonts.googleapis.com") || url.endsWith(".css")) {
-        return `<link rel="stylesheet" href="${escapeAttribute(url)}">`;
-      }
-      return `<style>@font-face{font-family:'${family.replaceAll("'", "\\'")}';src:url('${url.replaceAll("'", "\\'")}');font-display:swap}</style>`;
-    })
-    .join("\n");
+  const css = localFontOptionsFromUnknown(fonts)
+    .map(renderLocalFontFaceCss)
+    .join("");
+  return css ? `<style>${css.replaceAll("</style", "<\\/style")}</style>` : "";
 }
 
 function previewDocument(html: string, fonts: unknown) {
@@ -80,31 +70,17 @@ function previewDocument(html: string, fonts: unknown) {
 
 function useSlideFontAssets(fonts: unknown, enabled: boolean) {
   useEffect(() => {
-    if (!enabled || !fonts || typeof fonts !== "object" || Array.isArray(fonts)) {
-      return;
-    }
+    if (!enabled) return;
+    const css = localFontOptionsFromUnknown(fonts)
+      .map(renderLocalFontFaceCss)
+      .join("");
+    if (!css) return;
 
-    const assets: HTMLElement[] = [];
-    Object.entries(fonts as Record<string, unknown>).forEach(([family, source]) => {
-      if (typeof source !== "string" || !source.trim()) return;
-      if (source.includes("fonts.googleapis.com") || source.endsWith(".css")) {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = source;
-        document.head.appendChild(link);
-        assets.push(link);
-        return;
-      }
-
-      const style = document.createElement("style");
-      const safeFamily = family.replaceAll("'", "\\'");
-      const safeSource = source.replaceAll("'", "\\'");
-      style.textContent = `@font-face{font-family:'${safeFamily}';src:url('${safeSource}');font-display:swap}`;
-      document.head.appendChild(style);
-      assets.push(style);
-    });
-
-    return () => assets.forEach((asset) => asset.remove());
+    const style = document.createElement("style");
+    style.dataset.slideFontAssets = "true";
+    style.textContent = css;
+    document.head.appendChild(style);
+    return () => style.remove();
   }, [enabled, fonts]);
 }
 

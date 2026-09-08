@@ -61,24 +61,24 @@ export const OverlayLoader = ({
             <ProgressBar duration={duration} onComplete={onProgressComplete} />
             {text && (
               <div className="space-y-1">
-                <p className="text-[#191919] text-base text-center font-medium font-inter">
+                <p className="text-[#191919] text-base text-center font-medium font-manrope">
                   {text}
                 </p>
                 {extra_info && (
-                  <p className="text-[#191919]/80 text-xs text-center font-medium font-inter">
+                  <p className="text-[#191919]/80 text-xs text-center font-medium font-manrope">
                     {extra_info}
                   </p>
                 )}
               </div>
             )}
           </div>
-        ) : (
+        ) : ( 
           <>
-            <p className="text-[#191919] text-base text-center font-medium font-inter">
+            <p className="text-[#191919] text-base text-center font-medium font-manrope">
               {text}
             </p>
             {extra_info && (
-              <p className="text-[#191919]/80 text-xs text-center font-medium font-inter">
+              <p className="text-[#191919]/80 text-xs text-center font-medium font-manrope">
                 {extra_info}
               </p>
             )}

@@ -3,7 +3,13 @@
 import React, { memo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ArrowUpRight, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowUpRight,
+  CheckCircle2,
+  Loader2,
+  RotateCcw,
+} from "lucide-react";
 import { resolveBackendAssetUrl } from "@/utils/api";
 import {
   TemplateCreateTaskResponse,
@@ -214,9 +220,14 @@ export const TemplateListCard = memo(function TemplateListCard({
 export const ProcessingTemplateListCard = memo(
   function ProcessingTemplateListCard({
     task,
+    onRetry,
+    retrying = false,
   }: {
     task: TemplateCreateTaskResponse;
+    onRetry?: () => void;
+    retrying?: boolean;
   }) {
+    const failed = task.status === "error";
     const templateName = task.data?.name?.trim() || "New template";
     const createdLayouts = task.data?.created_layouts ?? 0;
     const remainingLayouts = task.data?.remaining_layouts ?? 0;
@@ -234,18 +245,19 @@ export const ProcessingTemplateListCard = memo(
       0.72 - progressPercent / 150
     );
     const progressLabel =
-      totalLayouts > 0
+      failed
+        ? taskErrorDetail(task.error)
+        : totalLayouts > 0
         ? `${createdLayouts} of ${totalLayouts} layouts`
         : "Preparing layouts";
 
     return (
       <Card
         role="group"
-        aria-disabled="true"
-        aria-label={`${templateName} template is processing`}
+        aria-label={`${templateName} template ${failed ? "generation failed" : "is processing"}`}
         className={cn(
           "relative overflow-hidden rounded-[22px] border border-[#E8E9EC] bg-white",
-          "cursor-not-allowed opacity-90 shadow-sm"
+          failed ? "shadow-sm" : "cursor-not-allowed opacity-90 shadow-sm"
         )}
       >
         <TemplatePreviewStage>
@@ -264,9 +276,18 @@ export const ProcessingTemplateListCard = memo(
             className="pointer-events-none absolute bottom-5 right-5 top-5 z-20 rounded-r-xl bg-[#F8F7FF]/70 transition-[width] duration-500 ease-out"
             style={{ width: overlayWidth }}
           />
-          <div className="absolute right-8 top-8 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/90 px-2.5 py-1.5 text-xs font-bold text-[#5146E5] shadow-sm backdrop-blur">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#7A5AF8]" />
-            {progressPercent}%
+          <div
+            className={cn(
+              "absolute right-8 top-8 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/90 px-2.5 py-1.5 text-xs font-bold shadow-sm backdrop-blur",
+              failed ? "text-red-600" : "text-[#5146E5]"
+            )}
+          >
+            {failed ? (
+              <AlertCircle className="h-3.5 w-3.5" />
+            ) : (
+              <span className="h-1.5 w-1.5 rounded-full bg-[#7A5AF8]" />
+            )}
+            {failed ? "Failed" : `${progressPercent}%`}
           </div>
           <div className="absolute inset-x-5 bottom-5 z-30 h-1.5 overflow-hidden rounded-full bg-white/70">
             <div
@@ -280,15 +301,43 @@ export const ProcessingTemplateListCard = memo(
             <h3 className="truncate font-syne text-base font-bold capitalize text-gray-900">
               {templateName}
             </h3>
-            <p className="mt-1 text-xs font-medium text-[#60636F]">
+            <p
+              className={cn(
+                "mt-1 line-clamp-2 text-xs font-medium",
+                failed ? "text-red-600" : "text-[#60636F]"
+              )}
+            >
               {progressLabel}
             </p>
           </div>
+          {failed && onRetry && (
+            <button
+              type="button"
+              disabled={retrying}
+              onClick={onRetry}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#5146E5] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#4338CA] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {retrying ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="h-3.5 w-3.5" />
+              )}
+              Retry
+            </button>
+          )}
         </div>
       </Card>
     );
   }
 );
+
+function taskErrorDetail(error: unknown): string {
+  if (error && typeof error === "object" && "detail" in error) {
+    const detail = (error as { detail?: unknown }).detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+  }
+  return "Template generation failed";
+}
 
 export function TemplateListSection({
   label,

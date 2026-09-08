@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ensureGoogleFontsForDescriptors,
+  ensureLocalFontsForDescriptors,
   ensureTemplateFontsForDescriptors,
   waitForFontDescriptorsLoaded,
   type TemplateFontOption,
-} from "@/components/slide-editor/text/google-fonts";
+} from "@/components/slide-editor/text/local-fonts";
 import {
   fontFromRecord,
   rawFont,
@@ -74,10 +74,12 @@ export function useFontLoadState(
 
     const fonts = document.fonts;
     const descriptors = fontSignature.split("\n").filter(Boolean);
-    const templateFontFamilies = templateFonts.map(({ family }) => family);
+    const templateFontFamilies = templateFonts.flatMap(
+      ({ family, aliases = [] }) => [family, ...aliases],
+    );
     const stylesheetLoads = [
       ...ensureTemplateFontsForDescriptors(descriptors, templateFonts),
-      ...ensureGoogleFontsForDescriptors(descriptors, templateFontFamilies),
+      ...ensureLocalFontsForDescriptors(descriptors, templateFontFamilies),
     ];
     const fontsAlreadyReady =
       stylesheetLoads.length === 0 && areFontDescriptorsLoaded(fontSignature);

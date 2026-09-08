@@ -37,6 +37,7 @@ def test_openapi_exposes_template_catalog_and_schema_detail():
     list_item = spec["components"]["schemas"]["TemplateListItem"]
     detail = spec["components"]["schemas"]["TemplateResponse"]
     assert "generation_template" not in list_item["properties"]
+    assert "preview_url" in list_item["properties"]
     assert "layouts" in detail["properties"]
     assert "merged_components" in detail["properties"]
     assert "fonts" in detail["properties"]

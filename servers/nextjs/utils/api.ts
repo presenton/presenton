@@ -225,8 +225,11 @@ function isLocalBackendOrigin(origin: string): boolean {
 function toBackendServedPath(rawPath: string): string {
   const normalized = rawPath.replace(/\\/g, "/");
 
-  // Never rewrite Next.js bundled/static assets.
-  if (normalized.startsWith("/_next/static/")) {
+  // Never rewrite assets served from the Next.js application itself.
+  if (
+    normalized.startsWith("/_next/static/") ||
+    normalized.startsWith("/vendor/fonts/")
+  ) {
     return normalized;
   }
 

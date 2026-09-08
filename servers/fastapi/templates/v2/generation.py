@@ -23,6 +23,7 @@ from llmai.shared import (
 )
 from pydantic import BaseModel, ValidationError
 
+from templates.v2 import certified_generation as _certified_generation
 from templates.v2.models.layouts import (
     Component,
     MergedComponent,
@@ -83,152 +84,6 @@ _CONTENT_VALUE_KEYS_BY_ELEMENT_TYPE = {
 }
 
 
-GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT = """
-Convert the provided raw slide elements to components.
-
-# Steps:
-1. Analyze/Visualize the slide using provided raw pptx elements and image.
-2. Divide the slide into a list of components using slide image.
-3. Identify group of elements that belongs to each component.
-4. Generate `id` and `description` for the layout.
-5. Call `previewSlide` to visualize generated slide layout.
-6. Return slide layout json if no issues are identified after `previewSlide`.
-
-# General Rules:
-- The structural naming rules apply to the `SlideLayout` id/description, every component id/description, and every schema-bearing element name.
-- `id`, `description`, and `name` must describe only the reusable visual structure. Never derive them from the example topic, industry, entities, claims, or wording on the slide.
-- Name visible content regions and their arrangement: title, subtitle, description, image, chart, list, cards, rows, columns, callouts, metrics, timeline, center graphic, side panel, top, bottom, left, right, and similar structural terms.
-- Avoid content-purpose words such as challenge, initiative, strategy, agenda, team, quote, testimonial, program, or roadmap unless the word names an actual rendered element type rather than the example subject matter.
-- `id` should use concise snake_case structural words. It may be longer when needed to distinguish regions and their field hierarchy; for example `title_description_list_of_items_with_heading_description`.
-- Include a count in `id` only when the geometry has a fixed number of non-interchangeable anchors and that count is necessary to distinguish the layout. For a variable repeatable region, use a plural region name in `id` and state its supported minimum and maximum in `description`.
-- `description` should explain the spatial composition, hierarchy, and supported repeated-item range in about 20 to 40 words. It must help a selector choose the layout without knowing the reference content.
-- Prefer structural ids such as `title_slide_with_image_collage_and_footer`, `title_with_numbered_list_in_two_columns`, `title_description_list_of_items_with_heading_description`, or `title_with_center_graphic_and_side_callouts`.
-
-# Layout Rules:
-- Build the flexible component layout using `flex`, `grid`, `container`, etc.
-- Use `flex` and `grid` only for list of similar items arranged in list or grid.
-- Use `table` element for table and `chart` element for chart.
-- Use `infographic` element for infographic or metric visuals like `progress_bar`, `gauge`, etc.
-- Use `text-list` element for list of text like bullet points, numbered list, unordered list, etc.
-- Use a `text` element with a `latex` text run for mathematical expressions. A LaTeX run uses `type: "latex"`, valid LaTeX in `latex`, and `display_mode`; do not include `$` delimiters.
-- Table cells and text-list items may also contain LaTeX text runs.
-- Use `container` for flexible alignment and layout.
-- Use `image` for images and icons.
-- Identify icon color from slide image.
-- For raster photos or generated content images, use `fit: "cover"` when the image should fill its frame without distortion, and use `fit: "contain"` when the full image must remain visible. Use `fit: "fill"` only for intentionally stretchable SVG/freeform assets, including clipped PPTX image fills with `clip_path`; never use it for plain photo boxes.
-
-# Decorative and Content Element Rules:
-- Classify each element by what should happen when this template layout is reused:
-  - `decorative=false` means it is a content slot whose value should be replaced or regenerated for the new slide.
-  - `decorative=true` means it is fixed visual scaffolding that should remain unchanged as part of the template design.
-- Content (`decorative=false`) includes editable text, charts, tables, metrics, semantic images, and semantic icons paired with a topic, bullet, card, or label.
-- Decorative (`decorative=true`) includes backgrounds, logos, watermarks, frames, card surfaces, borders, dividers, accents, and purely ornamental images/icons.
-- Treat visual scaffolding as decorative even when it organizes or connects meaningful content. This includes connector and branching lines, timeline/process paths, node dots, rules, underlines, rings, arcs, circle outlines, Venn-diagram circles, brackets, and surrounding shape outlines.
-- Classify compound visuals element by element. For example, a ring around a replaceable topic icon is decorative, while the topic icon is content; a connector line and its node dot are decorative, while the connected label and semantic icon are content.
-- Do not mark an element as content merely because removing it would make the diagram harder to understand. The decisive question is whether the new slide's content generator should replace its value. If it should stay fixed and only structures or styles replaceable content, it is decorative.
-- Preserve connector lines, rings, circles, and similar scaffolding as fixed vector/shape design elements. If such scaffolding is represented by an `image` element, set that image to `decorative=true`; do not turn it into a replaceable content image.
-
-# Position and Size Rules:
-- Use local coordinates relative to component for elements.
-- Every component must include `position` and `elements`.
-- Don't provide position for elements inside flexible elements like `flex`, `grid`, `container`, etc.
-- If children of `flex` and `grid` are not equally sized, provide `size` for children.
-- Provide `position` and `size` for positioned elements inside a `group`. A `vector` is the exception: it uses local `points` and must not receive unsupported `position` or `size` fields.
-- Give every `flex` or `grid` an explicit size large enough for its maximum state. Do not expect `justify_content`, `align_items`, or wrapping to work correctly when the parent has no usable width or height.
-- For a row flex, `justify_content` controls horizontal placement and `align_items` controls vertical placement. For a column flex, `justify_content` controls vertical placement and `align_items` controls horizontal placement.
-- Use only supported alignment values and set both main-axis and cross-axis alignment intentionally. Do not use child positions, empty spacer elements, or invisible placeholders to imitate flex alignment.
-- Use a positioned `group` instead of `flex` or `grid` when items require different anchor positions, alternating offsets, irregular connector geometry, or a center-out visibility order.
-
-# Regular Repeatable Region Rules:
-- First decide whether visually similar items are truly repeatable content or a fixed diagram. Cards, image-heading items, value rows, numbered entries, labeled callouts, and uniform steps are usually repeatable. Diagram lobes, fixed comparison quadrants, chart series, and shapes whose count defines the illustration are usually fixed and must not be converted into a variable array merely because they look similar.
-- Represent a regular repeatable row, column, or matrix with one `flex` or `grid` containing one complete representative child prototype. Put every item-specific surface, semantic icon/image, metric, heading, and body field inside that prototype. Set `min_children` and `max_children` on the parent to describe the generated item-count range.
-- Do not store several content-specific copies of an interchangeable regular item. A single prototype prevents different copies from producing incompatible schemas and makes the intended generated array explicit.
-- The prototype must be visually complete at its own origin and must not depend on sibling-only content. Keep region-wide decoration, headings, axes, or backgrounds outside the prototype.
-- Use a stable layout-derived `name` for the parent array and stable unsuffixed names for fields inside the prototype, such as `metric_cards` with `metric_value`, `metric_label`, and `metric_description`.
-- Choose parent alignment intentionally for every supported count using only valid layout values (`flex-start`, `flex-end`, `center`, or `stretch`). Center a short row/column when that preserves balance. If fewer items must occupy fixed distributed anchors, use a positioned repeatable `group` instead of inventing an unsupported flex alignment. Do not leave a minimum-count state accidentally pinned to one side.
-- Keep a visually repeated region fixed when removing items would break the meaning or geometry of the reference. In that case, preserve all required children and use equal `min_children` and `max_children` if the wrapper requires count constraints.
-
-# Repeatable Timeline and Staggered Item Rules:
-- When a timeline, process, milestone sequence, or staggered callout layout contains visually repeated items at fixed or irregular positions, represent the dynamic region as one parent `group` whose `children` are repeated item `group` elements.
-- Each repeated item group must contain every item-specific element that should appear or disappear with that item, including its local connector or stem, node marker, bracket/accent, editable text, and semantic icon/image. Keep a shared baseline, path, or background spanning the whole region as a decorative sibling outside the repeatable parent group.
-- Do not split one alternating repeated set into separate upper and lower `flex`/`grid` arrays, and do not leave item-specific markers, stems, brackets, or accents as unrelated top-level siblings.
-- The repeatable parent group's children must be only the repeated item groups. Preserve the reference layout by giving the parent group, every item group, and their positioned nested children explicit local `position` and `size` values; nested vectors use local points instead.
-- Order repeated item groups from the center outward because array order determines which items remain at minimum content. For an alternating horizontal timeline with a central pair, make the below-axis center item the first child and the above-axis center item the second child. Then append the nearest symmetric left/right pair, followed by each next outward pair until the maximum set is included. Preserve each item's original coordinates; change only its order in `children`.
-- For an odd item count with one true center item, place that center item first, then append symmetric left/right pairs moving outward.
-- For winding, branching, vertical, or otherwise non-linear layouts, apply the same principle spatially: choose the central lower/upper or left/right anchors first, then add the nearest complementary anchors, and leave peripheral branches for later children. Every prefix from the minimum through the maximum count should look intentional and reasonably balanced.
-- When wrapping existing absolute elements into an item group, compute the group's bounding box and convert every child position and vector point into coordinates local to that group. Grouping must not move the item on the slide.
-- Give every repeated item the same nested element types, schema-bearing `name` values, and schema constraints. Normalize `min_length`, `max_length`, and other schema limits across corresponding fields so the repeated groups produce one min/max item array.
-
-# Connector and Vector Path Rules:
-- Preserve a visually continuous shared connector, timeline, or winding path as one fixed `vector` whenever possible. Do not split the shared line around item markers, because hidden minimum-content items would leave visible gaps.
-- Keep the continuous shared path outside the repeatable item groups. Put each removable item marker, local stem, and item-specific accent inside that item's group so markers disappear with their related content while the shared path remains intact.
-- Include enough vector points to reproduce every visible bend and endpoint. Never omit a marker point merely because a white node or other overlay covers it in the reference image.
-- Use `curve: {"type": "smooth"}` only for paths that are visibly curved. For paths with rounded turns but a straight center section, use a low or moderate tension, place additional points around the bends, and keep multiple collinear points through the center so it remains visually straight.
-- Prefer one smooth continuous vector over several disconnected straight segments when the reference shows a single flowing line. Keep genuinely straight connectors as uncurved vectors.
-
-# Content Capacity and Min/Max Rules:
-- Treat the raw frame sizes and schema limits as a starting point, not as automatically valid output. The declared maximum content and maximum child count must fit the generated layout without clipping, overlap, or leaving the slide bounds.
-- Before choosing `max_children`, calculate the maximum footprint. For a row, `sum(item widths) + sum(gaps)` must fit the parent width; perform the equivalent check for columns and every grid row/column. If the source declares a larger maximum than the current geometry fits, reduce item size or gaps, enlarge the parent within available space, or lower `max_children` to the real visual capacity.
-- Check both extremes: the minimum count must remain balanced and connected to the correct scaffolding, while the maximum count must preserve readable spacing and stay inside its component.
-- Size every editable text frame for its declared `max_length`, using realistic wide words rather than assuming the original copy is representative. Give subtitles, descriptions, and large emphasized text blocks enough height for their maximum wrapped line count. Give large metrics enough width for the widest allowed value.
-- Preserve the reference font and placement when possible. If maximum content does not fit, first use available width/height in the component, then adjust layout spacing; lower the schema limit only when the design has no safe room. Do not silently rely on clipping.
-- Use `rotation=0` for text that is visually unrotated in the reference, even if raw extraction reports a tiny or erroneous rotation.
-
-# Chart Rules:
-- Represent every chart using a single `chart` element.
-- Chart coordinates are 1280x720 pixel units, never normalized 0-1 values.
-- Every standalone chart must have an explicit local `position` and `size`; use the chart's visual bounds, or if adding a new chart with no source bounds, use `position: {"x": 0, "y": 0}` and a size that fills the chart component.
-- Do not create tiny chart boxes. Explicit chart size must be at least 80px wide and 60px tall; prefer 640x300 or larger for primary charts.
-- Detect charts by comparing the raw PPTX JSON with the reference slide image.
-- When a chart is built from multiple raw elements, replace all elements that form the chart with one `chart` element.
-- Chart-related parts such as legends, gridlines, axes, labels, and data series must be included within the `chart` element.
-- If a line chart is represented using multiple `vector` elements in the raw slide layout, remove those `vector` elements and replace them with a single line `chart` element.
-- If a chart legend is represented using separate `vector`, `shape`, or `text` elements, remove those elements. Do not recreate legends manually, because legends are included automatically by the `chart` element.
-- If a chart is represented as an `image` element in the raw slide layout, convert that image into a `chart` element and remove the original `image` element.
-- Always use a `chart` element for charts, even if the generated chart does not perfectly match the visual appearance of the reference slide image.
-- Do not add standalone legends outside the `chart` element.
-
-# Infographic Rules:
-- Represent every infographic using a single `infographic` element.
-- Detect infographic visuals by comparing the raw PPTX JSON with the reference slide image.
-- When an infographic is built from multiple raw elements, replace all elements that form the infographic with one `infographic` element.
-- If an infographic is represented as an `image` element in the raw slide layout, convert that image into an `infographic` element and remove the original `image` element.
-- Use one of the supported nested `data.type` values: `progress_bar`, `gauge`, `gantt`, `timeline`, `roadmap`, `milestone_timeline`, `staircase`, `supply_chain`, `stair_step_blocks`, `maturity_model`, `pillar_framework`, `transformation_hub`, `diagonal_circles`, `risk_matrix`, `chevron_process`, `radial_cycle`, `conversion_funnel`, `pyramid`, `segmented_wheel`, `customer_journey`, `before_after`, `impact_effort_matrix`, `comparison_matrix`, `org_chart`, `decision_tree`, or `mind_map`.
-- Every infographic must include a valid `data` object matching the selected type. Meters use `min_value`, `max_value`, and `value`; structural infographics use their required `items`, hierarchy, matrix, Gantt, label, or axis fields. Never emit an infographic with missing required data.
-- For meters, ensure `min_value <= value <= max_value` and use a non-zero range. For structural infographics, preserve the visible sequence, hierarchy, labels, and relationships from the reference.
-- Preserve or infer the reference palette in `colors`: background/base first, followed by the ordered structural palette. Use `text_color` when the reference needs an explicit text color.
-- An `infographic` renders the graphic only; it does not render value text by default and has no show/hide-value field. Never emit unsupported value-label or visibility-toggle properties.
-- Add a separate editable `text` element for a visible value or label only when that text appears in the reference. Keep it adjacent to the infographic and inside the same repeatable item prototype or positioned item group.
-- Keep semantic infographics as `decorative=false` with a stable layout-derived name. If an infographic belongs to a repeated card or row, keep it inside the complete repeated-item prototype so it remains present at both minimum and maximum counts.
-- Provide at least two visibly distinct entries in `colors`, with the base color first and highlight color second. Match the slide palette and immediate background; do not use identical, transparent, or near-indistinguishable colors.
-
-# Vector Rules:
-- For vector circles or ellipses, use `shape="ellipse"` instead of approximating the shape with many smooth polygon points.
-- For freeform paths and polygons, use `shape="polygon"` or omit `shape`.
-
-# Schema Rules:
-- Apply the Decorative and Content Element Rules above independently to every schema-bearing element; do not assign one classification to an entire group by association.
-- For icon image elements, set `icon_type` to the closest visual style: `bold`, `duotone`, `fill`, `light`, `regular`, or `thin`. Omit `icon_type` for non-icon images.
-- Keep raw `max_length`, `min_length`, `max_items`, and `min_items` only when they pass the Content Capacity and Min/Max Rules above.
-- Corresponding fields in repeated items must use exactly the same schema constraints. Do not average constraints blindly. Choose one shared safe contract that every repeated item frame can render, resizing the common prototype or positioned item frames when necessary.
-- Repeated item schemas must be structurally identical: the same nested element types, the same schema-bearing names, and the same required editable fields. In irregular positioned groups, decorative assets and local positions may vary to create upper/lower, left/right, or winding variants, but keep the same schema-bearing editable structure and keep all item-specific decoration inside its item group.
-
-# Final Layout Self-Check:
-- Before returning JSON, mentally render the reference state, the minimum-content state, and the maximum-content state.
-- Confirm that the maximum-population state reproduces the full reference composition, each minimum state is balanced, every maximum state fits, and no editable text or metric is clipped. A regular repeat may store only one prototype even though its maximum-population render contains several instances.
-- Confirm that regular repeated regions use one complete prototype, irregular repeated regions use positioned item groups, and fixed diagrams were not incorrectly made variable.
-- Confirm that all required infographic fields are present and valid, all editable elements have stable layout-derived names, and all corresponding repeated fields share one schema contract.
-- Confirm that layout and component ids/descriptions describe only structure, and that their stated regions, positions, fixed counts, or min/max ranges match the returned JSON.
-
-# Preview Tool Rules:
-- Must use `previewSlide` tool at least once to preview generated slide layout before returning final JSON.
-- If no issues are identified in previewed slide image, return final json directly.
-
-# Output Rules:
-- After using `previewSlide`, return raw JSON only. Do not include markdown fences, comments, explanations, or text outside the JSON object.
-- The response must include `id`, `description`, and the complete `components` list in the same response.
-"""
-
 GENERATE_PROMPTED_TEMPLATE_LAYOUT_SYSTEM_PROMPT = """
 Create exactly one new editable Template V2 slide layout for the user's request.
 The result is an in-memory draft; do not modify the template or a presentation.
@@ -259,22 +114,6 @@ PROMPTED_LAYOUT_MAX_REFERENCE_LAYOUTS = 4
 PROMPTED_LAYOUT_MAX_REUSABLE_COMPONENTS = 8
 PROMPTED_LAYOUT_MAX_CONTEXT_CHARS = 160_000
 PROMPTED_LAYOUT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{2,79}$")
-
-CLUSTER_SIMILAR_COMPONENTS_SYSTEM_PROMPT = """
-Analyze components `id` and `description` and create clusters of similar components.
-
-# Steps:
-1. Analyze components `id` and `description`.
-2. Identify similar components.
-3. Return cluster of similar components as output.
-
-# Rules:
-- Group components only when they have the same structural role, substantially similar geometry, and compatible editable-field hierarchy.
-- Ignore the example content entirely. Different topics or wording do not make structurally equivalent components dissimilar, and similar topics do not make structurally different components equivalent.
-- Do not group components merely because they share broad words such as title, text, image, or content.
-- Keep components separate when their region placement, repeated-item arrangement, min/max capacity, connector geometry, or child schema differs materially.
-- Each group must contain at least one index.
-"""
 
 
 def _ensure_unique_slide_layout_ids(layouts: list[SlideLayout]) -> list[SlideLayout]:
@@ -313,7 +152,7 @@ def generate_template(
     slide_image_urls: list[str],
     fonts: dict[str, str] | None = None,
 ) -> SlideLayouts:
-    """Generate each template slide directly as a complete SlideLayout."""
+    """Generate certified layouts while preserving caller context per worker."""
     if not layouts.layouts:
         raise ValueError("layouts must contain at least one slide layout")
     if len(slide_image_urls) != len(layouts.layouts):
@@ -323,7 +162,7 @@ def generate_template(
     slide_count = len(layouts.layouts)
     max_workers = min(MAX_PARALLEL_SLIDE_LAYOUTS, slide_count)
     LOGGER.info(
-        "[templates.v2.generate] direct slide layout generation start "
+        "[templates.v2.generate] certified multi-pass generation start "
         "slides=%d max_parallel=%d validation_retries=%d",
         slide_count,
         max_workers,
@@ -359,7 +198,7 @@ def generate_template(
     ordered_layouts = [layouts_by_index[index] for index in range(slide_count)]
     generated = SlideLayouts(layouts=_ensure_unique_slide_layout_ids(ordered_layouts))
     LOGGER.info(
-        "[templates.v2.generate] direct slide layout generation complete "
+        "[templates.v2.generate] certified multi-pass generation complete "
         "slides=%d components=%d duration_ms=%.1f",
         slide_count,
         sum(len(layout.components) for layout in generated.layouts),
@@ -369,58 +208,7 @@ def generate_template(
 
 
 def merge_similar_components(layouts: SlideLayouts) -> MergedComponents:
-    indexed_components = [
-        component for layout in layouts.layouts for component in layout.components
-    ]
-    if len(indexed_components) < 2:
-        return _build_merged_components(indexed_components, [])
-
-    component_summaries = [
-        {
-            "index": index,
-            "id": component.id,
-            "description": component.description,
-        }
-        for index, component in enumerate(indexed_components)
-    ]
-    LOGGER.info(
-        "[templates.v2.deduplicate] clustering start components=%d",
-        len(indexed_components),
-    )
-    response = _generate_with_validation_retries(
-        client=get_client(config=get_llm_config()),
-        model=get_model(),
-        messages=[
-            SystemMessage(content=CLUSTER_SIMILAR_COMPONENTS_SYSTEM_PROMPT),
-            UserMessage(
-                content=json.dumps({"components": component_summaries}, indent=2)
-            ),
-        ],
-        label="similar component clusters",
-        output_model=SimilarComponentsList,
-        response_name="SimilarComponentsResponse",
-        validation_retries=DEFAULT_VALIDATION_RETRIES,
-        extra_validator=lambda clusters: _validate_similarity_groups(
-            clusters,
-            component_count=len(indexed_components),
-        ),
-        max_tokens=16000,
-    )
-    clusters = SimilarComponentsList.model_validate(response)
-    merged = _build_merged_components(
-        indexed_components,
-        [group.indices for group in clusters.similar_components],
-    )
-    deduplicated = _deduplicate_merged_components(merged)
-    LOGGER.info(
-        "[templates.v2.deduplicate] clustering complete components=%d "
-        "similar_groups=%d merged_components=%d structural_duplicates=%d",
-        len(indexed_components),
-        len(clusters.similar_components),
-        len(deduplicated.components),
-        len(merged.components) - len(deduplicated.components),
-    )
-    return deduplicated
+    return _certified_generation.merge_similar_components(layouts)
 
 
 def _validate_similarity_groups(
@@ -826,34 +614,13 @@ def generate_slide_layout(
     *,
     max_tokens: int | None = None,
 ) -> SlideLayout:
-    payload = (
-        _strip_decorative_fields(
-            source_layout.model_dump(mode="json", exclude_none=True)
-        ),
-    )
-    llm_config = get_llm_config()
-    client = get_client(config=llm_config)
-    model = get_model()
-    messages = [
-        SystemMessage(content=GENERATE_SLIDE_LAYOUT_SYSTEM_PROMPT),
-        UserMessage(
-            content=[
-                _slide_image_content(slide_image_url),
-                json.dumps(payload, indent=2),
-            ]
-        ),
-    ]
-    preview_tool = PreviewSlideTool(slide_index=slide_index, fonts=fonts)
-    layout = _generate_preview_candidate(
-        client=client,
-        model=model,
-        messages=messages,
-        label=f"slide {slide_index + 1}",
-        preview_tool=preview_tool,
-        validation_retries=DEFAULT_VALIDATION_RETRIES,
+    return _certified_generation.generate_slide_layout(
+        source_layout,
+        slide_index,
+        slide_image_url,
+        fonts,
         max_tokens=max_tokens,
     )
-    return _replace_content_image_urls(layout)
 
 
 def generate_prompted_slide_layout(

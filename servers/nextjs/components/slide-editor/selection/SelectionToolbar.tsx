@@ -21,7 +21,7 @@ import type {
   TableCellSelection,
   TableSlideElement,
 } from "@/components/slide-editor/state/state";
-import type { TemplateFontOption } from "@/components/slide-editor/text/google-fonts";
+import type { TemplateFontOption } from "@/components/slide-editor/text/local-fonts";
 import { ElementToolbar } from "@/components/slide-editor/toolbar/ElementToolbar";
 import type { SlideElement } from "@/components/slide-editor/types";
 import { TemplateV2MultiSelectionToolbar } from "@/components/slide-editor/selection/MultiSelectionToolbar";

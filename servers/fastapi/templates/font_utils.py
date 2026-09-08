@@ -1,9 +1,8 @@
-import asyncio
 import re
 import xml.etree.ElementTree as ET
 from typing import Iterable
 
-import aiohttp
+from templates.pptx_font_utils import get_static_font_url
 
 _STYLE_TOKENS = {
     "italic",
@@ -122,19 +121,11 @@ def extract_fonts_from_oxml(xml_content: str) -> list[str]:
 
 
 def get_google_font_css_url(font_name: str) -> str:
-    return f"https://fonts.googleapis.com/css2?family={font_name.replace(' ', '+')}&display=swap"
+    return get_static_font_url(font_name) or ""
 
 
 async def check_google_font_availability(font_name: str) -> bool:
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.head(
-                get_google_font_css_url(font_name),
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as response:
-                return response.status == 200
-    except Exception:
-        return False
+    return get_static_font_url(font_name) is not None
 
 
 def collect_normalized_fonts_from_xmls(slide_xmls: Iterable[str]) -> list[str]:
@@ -153,15 +144,12 @@ async def get_available_and_unavailable_fonts(
     if not normalized_fonts:
         return [], []
 
-    results = await asyncio.gather(
-        *[check_google_font_availability(font) for font in normalized_fonts]
-    )
-
     available_fonts: list[tuple[str, str]] = []
     unavailable_fonts: list[tuple[str, None]] = []
-    for font_name, is_available in zip(normalized_fonts, results):
-        if is_available:
-            available_fonts.append((font_name, get_google_font_css_url(font_name)))
+    for font_name in normalized_fonts:
+        font_url = get_static_font_url(font_name)
+        if font_url:
+            available_fonts.append((font_name, font_url))
         else:
             unavailable_fonts.append((font_name, None))
     return available_fonts, unavailable_fonts

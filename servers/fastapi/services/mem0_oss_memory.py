@@ -15,14 +15,31 @@ from __future__ import annotations
 import logging
 import os
 import threading
+from collections.abc import Callable
 from importlib import import_module
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 
 LOGGER = logging.getLogger(__name__)
 
 _memory_init_lock = threading.Lock()
+_memory_operation_lock = threading.RLock()
 _shared_client: Any | None = None
 _init_attempted = False
+
+_T = TypeVar("_T")
+
+
+def run_shared_mem0_operation(operation: Callable[[], _T]) -> _T:
+    """Serialize access to the process-wide local Qdrant/SQLite client.
+
+    Qdrant local mode keeps one SQLite connection on the shared Memory client.
+    The connection permits use from worker threads, but concurrent operations on
+    that same connection can fail during commit. Keep the blocking work in the
+    caller's worker thread while ensuring only one operation touches the client
+    at a time.
+    """
+    with _memory_operation_lock:
+        return operation()
 
 
 def _to_bool(value: Optional[str], default: bool = False) -> bool:

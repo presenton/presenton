@@ -1,5 +1,3 @@
-import ipaddress
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -8,7 +6,6 @@ from starlette.responses import JSONResponse
 
 from api.v1.auth.schemas import AuthCredentialsRequest, LoginCredentialsRequest
 from api.v1.auth.assets import is_app_data_path_authorized
-from api.v1.auth.rate_limit import LOGIN_RATE_LIMITER, login_rate_limit_key
 from api.v1.auth.principal import resolve_request_principal
 from api.v1.auth.users import (
     PASSWORD_HELPER,
@@ -24,12 +21,10 @@ from api.v1.auth.config import (
     SESSION_TTL_SECONDS,
     persist_admin_credentials,
 )
-from api.v1.auth.token import TOKEN_ROUTER
 from api.v1.auth.presenton_oauth import PRESENTON_OAUTH_ROUTER
 
 
 API_V1_AUTH_ROUTER = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
-API_V1_AUTH_ROUTER.include_router(TOKEN_ROUTER)
 API_V1_AUTH_ROUTER.include_router(PRESENTON_OAUTH_ROUTER)
 
 
@@ -46,24 +41,6 @@ def _secure_request(request: Request) -> bool:
         request.headers.get("x-forwarded-proto", "").lower() == "https"
         or request.url.scheme == "https"
     )
-
-
-def _login_client_host(request: Request) -> str | None:
-    peer_host = request.client.host if request.client else None
-    try:
-        peer_is_loopback = bool(
-            peer_host and ipaddress.ip_address(peer_host).is_loopback
-        )
-    except ValueError:
-        peer_is_loopback = False
-    if peer_is_loopback:
-        forwarded_host = request.headers.get("x-real-ip", "").strip()
-        try:
-            if forwarded_host:
-                return str(ipaddress.ip_address(forwarded_host))
-        except ValueError:
-            pass
-    return peer_host
 
 
 def _set_login_cookie(response: JSONResponse, token: str, request: Request) -> None:
@@ -184,36 +161,21 @@ async def login(
     if not await _account_count(session):
         raise HTTPException(status_code=428, detail="Login setup is required")
     username = normalize_username(body.username)
-    rate_limit_key = login_rate_limit_key(
-        _login_client_host(request),
-        username,
-    )
-    retry_after = await LOGIN_RATE_LIMITER.retry_after(rate_limit_key)
-    if retry_after is not None:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many failed login attempts. Please try again later.",
-            headers={"Retry-After": str(retry_after)},
-        )
     user = await session.scalar(
         select(User).where(func.lower(User.username) == username.casefold())
     )
     if user is None or not user.is_active:
         PASSWORD_HELPER.hash(body.password)
-        await LOGIN_RATE_LIMITER.record_failure(rate_limit_key)
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     verified, replacement_hash = PASSWORD_HELPER.verify_and_update(
         body.password, user.hashed_password
     )
     if not verified:
-        await LOGIN_RATE_LIMITER.record_failure(rate_limit_key)
         raise HTTPException(status_code=401, detail="Unauthorized")
     if replacement_hash:
         user.hashed_password = replacement_hash
         await session.commit()
-    await LOGIN_RATE_LIMITER.clear(rate_limit_key)
-
     token = await get_jwt_strategy().write_token(user)
     response = JSONResponse(
         {

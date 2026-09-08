@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import re
 from typing import Any
 
@@ -43,17 +44,149 @@ COMPONENT_SCHEMA_METADATA_KEYS = {
     "x-element-type",
     "x-element-path",
 }
+TABLE_CELL_HORIZONTAL_PADDING = 12.0
+TABLE_CELL_VERTICAL_PADDING = 6.0
+TABLE_DEFAULT_FONT_SIZE = 14.0
+TABLE_TEXT_CAPACITY_SAFETY_FACTOR = 0.85
 
 
 def _is_editable_element(element: dict[str, Any]) -> bool:
     return element.get("decorative") is False
 
 
+def _table_text_limits(
+    element: dict[str, Any],
+) -> tuple[tuple[int | None, int | None], tuple[int | None, int | None]]:
+    size = element.get("size")
+    if not isinstance(size, dict):
+        return (None, None), (None, None)
+
+    width = _positive_number(size.get("width"))
+    height = _positive_number(size.get("height"))
+    if width is None or height is None:
+        return (None, None), (None, None)
+
+    columns = [cell for cell in element.get("columns", []) if isinstance(cell, dict)]
+    rows = [row for row in element.get("rows", []) if isinstance(row, list)]
+    body_cells = [cell for row in rows for cell in row if isinstance(cell, dict)]
+
+    column_count = element.get("max_columns")
+    if not isinstance(column_count, int) or isinstance(column_count, bool):
+        column_count = len(columns)
+    column_count = max(1, column_count)
+
+    row_count = element.get("max_rows")
+    if not isinstance(row_count, int) or isinstance(row_count, bool):
+        row_count = len(rows)
+    row_count = max(0, row_count)
+
+    cell_width = max(
+        1.0,
+        width / column_count - 2 * TABLE_CELL_HORIZONTAL_PADDING,
+    )
+    cell_height = max(
+        1.0,
+        height / (row_count + 1) - 2 * TABLE_CELL_VERTICAL_PADDING,
+    )
+    return (
+        _table_section_text_limits(
+            columns,
+            cell_width=cell_width,
+            cell_height=cell_height,
+        ),
+        _table_section_text_limits(
+            body_cells,
+            cell_width=cell_width,
+            cell_height=cell_height,
+            fallback_cells=columns,
+        ),
+    )
+
+
+def _table_section_text_limits(
+    cells: list[dict[str, Any]],
+    *,
+    cell_width: float,
+    cell_height: float,
+    fallback_cells: list[dict[str, Any]] | None = None,
+) -> tuple[int, int]:
+    glyph_width, line_height = _table_cell_typography(cells or fallback_cells or [])
+    characters_per_line = max(1, math.floor(cell_width / glyph_width))
+    line_count = max(1, math.floor(cell_height / line_height + 0.15))
+    estimated_maximum = max(
+        1,
+        math.floor(
+            characters_per_line * line_count * TABLE_TEXT_CAPACITY_SAFETY_FACTOR
+        ),
+    )
+    texts = [_table_cell_text(cell) for cell in cells]
+    observed_maximum = max((len(text) for text in texts), default=0)
+    minimum = 1 if texts and all(text.strip() for text in texts) else 0
+    return minimum, max(estimated_maximum, observed_maximum)
+
+
+def _table_cell_typography(cells: list[dict[str, Any]]) -> tuple[float, float]:
+    fonts: list[dict[str, Any]] = []
+    for cell in cells:
+        cell_font = cell.get("font")
+        if isinstance(cell_font, dict):
+            fonts.append(cell_font)
+        for run in cell.get("runs", []):
+            if not isinstance(run, dict):
+                continue
+            run_font = run.get("font")
+            if isinstance(run_font, dict):
+                fonts.append(run_font)
+
+    if not fonts:
+        fonts = [{}]
+
+    glyph_widths: list[float] = []
+    line_heights: list[float] = []
+    for font in fonts:
+        font_size = _positive_number(font.get("size")) or TABLE_DEFAULT_FONT_SIZE
+        width_factor = 0.62 if font.get("bold") is True else 0.58
+        letter_spacing = _nonnegative_number(font.get("letter_spacing")) or 0.0
+        glyph_widths.append(font_size * width_factor + letter_spacing)
+
+        raw_line_height = _positive_number(font.get("line_height"))
+        if raw_line_height is None:
+            line_heights.append(font_size * 1.2)
+        elif raw_line_height > 2:
+            line_heights.append(raw_line_height)
+        else:
+            line_heights.append(font_size * raw_line_height)
+
+    return max(glyph_widths), max(line_heights)
+
+
+def _table_cell_text(cell: dict[str, Any]) -> str:
+    return "".join(
+        str(run.get("text") or run.get("latex") or "")
+        for run in cell.get("runs", [])
+        if isinstance(run, dict)
+    )
+
+
+def _positive_number(value: Any) -> float | None:
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+        return float(value)
+    return None
+
+
+def _nonnegative_number(value: Any) -> float | None:
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+        return float(value)
+    return None
+
+
 def extract_slide_schema_from_layout(layout: RawSlideLayout) -> dict[str, Any]:
     """
     Take slide layout and return content schema from slide layout.
     """
-    return _object_schema(_properties_schema(layout.elements))
+    return _hoist_nested_schema_definitions(
+        _object_schema(_properties_schema(layout.elements))
+    )
 
 
 def get_component_schema(component: Any | dict[str, Any]) -> dict[str, Any] | None:
@@ -69,15 +202,50 @@ def get_component_schema(component: Any | dict[str, Any]) -> dict[str, Any] | No
     if not properties:
         return None
 
-    return {
-        "$schema": JSON_SCHEMA_URI,
-        "type": "object",
-        "title": component_data.get("id", "component_content"),
-        "description": component_data.get("description"),
-        "additionalProperties": False,
-        "properties": properties,
-        "required": list(properties),
-    }
+    return _hoist_nested_schema_definitions(
+        {
+            "$schema": JSON_SCHEMA_URI,
+            "type": "object",
+            "title": component_data.get("id", "component_content"),
+            "description": component_data.get("description"),
+            "additionalProperties": False,
+            "properties": properties,
+            "required": list(properties),
+        }
+    )
+
+
+def _hoist_nested_schema_definitions(schema: dict[str, Any]) -> dict[str, Any]:
+    normalized = copy.deepcopy(schema)
+    root_definitions: dict[str, Any] = {}
+
+    def visit(value: Any, *, root: bool = False) -> None:
+        if isinstance(value, list):
+            for item in value:
+                visit(item)
+            return
+        if not isinstance(value, dict):
+            return
+
+        definitions = value.get("$defs")
+        if isinstance(definitions, dict):
+            if not root:
+                value.pop("$defs")
+            for name, definition in definitions.items():
+                existing = root_definitions.get(name)
+                if existing is not None and existing != definition:
+                    raise ValueError(f"conflicting JSON Schema definition: {name}")
+                root_definitions[name] = definition
+                visit(definition)
+
+        for key, child in list(value.items()):
+            if key != "$defs":
+                visit(child)
+
+    visit(normalized, root=True)
+    if root_definitions:
+        normalized["$defs"] = root_definitions
+    return normalized
 
 
 def get_repeated_top_level_group_schema_name(elements: list[Any]) -> str | None:
@@ -223,6 +391,7 @@ def _content_schema_for_element(element: dict[str, Any]) -> dict[str, Any]:
         )
 
     if element_type == "table":
+        _, body_limits = _table_text_limits(element)
         return _compact(
             {
                 "type": "array",
@@ -233,17 +402,23 @@ def _content_schema_for_element(element: dict[str, Any]) -> dict[str, Any]:
                         "type": "array",
                         "minItems": element.get("min_columns"),
                         "maxItems": element.get("max_columns"),
-                        "items": {"type": "string"},
+                        "items": _compact(
+                            {
+                                "type": "string",
+                                "minLength": body_limits[0],
+                                "maxLength": body_limits[1],
+                            }
+                        ),
                     }
                 ),
             }
         )
 
     if element_type == "chart":
-        return _chart_content_schema()
+        return _chart_content_schema(element)
 
     if element_type == "infographic":
-        return _infographic_content_schema()
+        return _infographic_content_schema(element)
 
     raise ValueError(f"unsupported content element type: {element_type}")
 
@@ -628,28 +803,16 @@ def _component_schema_nodes_for_element(
             else []
             for index, child in enumerate(children)
         ]
-        child_nodes = [
-            node
-            for node_set in child_node_sets
-            for node in node_set
-        ]
+        child_nodes = [node for node_set in child_node_sets for node in node_set]
         if name is None or not child_nodes:
             return child_nodes
 
-        supports_repeated_children = element_type in {"flex", "grid"} or (
-            element_type == "group"
-            and all(
-                isinstance(child, dict) and child.get("type") == "group"
-                for child in children
-            )
+        array_schema = _component_array_schema_for_repeated_children(
+            element,
+            child_node_sets,
         )
-        if supports_repeated_children:
-            array_schema = _component_array_schema_for_repeated_children(
-                element,
-                child_node_sets,
-            )
-            if array_schema is not None:
-                return [(name, array_schema)]
+        if array_schema is not None:
+            return [(name, array_schema)]
 
         return [(name, _component_object_schema_from_nodes(child_nodes))]
 
@@ -751,9 +914,7 @@ def _component_repeated_children_schema_result(
             _component_normalized_repeated_item_schema(node_set, strategy=strategy)
             for node_set in populated_node_sets
         ]
-        merged_item_schema = _component_merge_repeated_schemas(
-            normalized_item_schemas
-        )
+        merged_item_schema = _component_merge_repeated_schemas(normalized_item_schemas)
         if merged_item_schema is not None:
             min_items, max_items = _component_repeated_item_limits(
                 element,
@@ -771,7 +932,107 @@ def _component_repeated_children_schema_result(
                 strategy,
             )
 
+    # Repeated visual items can use different layout-only wrappers. A leading
+    # divider, for example, may add an extra flex/group around every item after
+    # the first even though all items expose the same editable content. Keep the
+    # hierarchical schema when it agrees, then fall back to the editable leaves
+    # when the item wrappers are clearly repeated and the leaf names are unique.
+    if _component_repeated_root_names_match(populated_node_sets):
+        flattened_node_sets = [
+            _component_flattened_content_nodes(node_set)
+            for node_set in populated_node_sets
+        ]
+        for strategy in ("numeric", "none", "prefix"):
+            if not all(
+                _component_normalized_node_names_are_unique(
+                    node_set,
+                    strategy=strategy,
+                )
+                for node_set in flattened_node_sets
+            ):
+                continue
+            normalized_item_schemas = [
+                _component_normalized_repeated_item_schema(
+                    node_set,
+                    strategy=strategy,
+                )
+                for node_set in flattened_node_sets
+            ]
+            merged_item_schema = _component_merge_repeated_schemas(
+                normalized_item_schemas
+            )
+            if merged_item_schema is not None:
+                min_items, max_items = _component_repeated_item_limits(
+                    element,
+                    len(child_node_sets),
+                )
+                return (
+                    _without_none_values(
+                        {
+                            "type": "array",
+                            "minItems": min_items,
+                            "maxItems": max_items,
+                            "items": merged_item_schema,
+                        }
+                    ),
+                    strategy,
+                )
+
     return None
+
+
+def _component_flattened_content_nodes(
+    nodes: list[tuple[str, dict[str, Any]]],
+) -> list[tuple[str, dict[str, Any]]]:
+    flattened: list[tuple[str, dict[str, Any]]] = []
+
+    def visit(name: str, schema: dict[str, Any]) -> None:
+        if isinstance(schema.get("x-element-type"), str):
+            flattened.append((name, schema))
+            return
+
+        properties = schema.get("properties")
+        if not isinstance(properties, dict):
+            return
+        for child_name, child_schema in properties.items():
+            if isinstance(child_schema, dict):
+                visit(child_name, child_schema)
+
+    for name, schema in nodes:
+        visit(name, schema)
+    return flattened
+
+
+def _component_normalized_node_names_are_unique(
+    nodes: list[tuple[str, dict[str, Any]]],
+    *,
+    strategy: str,
+) -> bool:
+    if not nodes:
+        return False
+    token = _component_normalization_token_for_nodes(nodes, strategy=strategy)
+    names = [
+        _component_strip_repeated_suffix(name, token)
+        for name, _schema in nodes
+    ]
+    return len(names) == len(set(names))
+
+
+def _component_repeated_root_names_match(
+    node_sets: list[list[tuple[str, dict[str, Any]]]],
+) -> bool:
+    if not node_sets or any(len(node_set) != 1 for node_set in node_sets):
+        return False
+
+    names = [node_set[0][0] for node_set in node_sets]
+    if len(set(names)) == 1:
+        return True
+
+    normalized_names = [
+        _component_strip_repeated_suffix(name, _component_numeric_name_token(name))
+        for name in names
+    ]
+    return len(set(normalized_names)) == 1
 
 
 def _component_repeated_item_limits(
@@ -972,13 +1233,18 @@ def _component_content_field_schema(field: dict[str, Any]) -> dict[str, Any]:
             "maxItems": element.get("max_items"),
         }
     elif element_type == "table":
+        header_limits, body_limits = _table_text_limits(element)
         schema = {
             "type": "object",
             "additionalProperties": False,
             "properties": {
                 "columns": {
                     "type": "array",
-                    "items": {"type": "string"},
+                    "items": {
+                        "type": "string",
+                        "minLength": header_limits[0],
+                        "maxLength": header_limits[1],
+                    },
                     "minItems": element.get("min_columns"),
                     "maxItems": element.get("max_columns"),
                 },
@@ -986,7 +1252,11 @@ def _component_content_field_schema(field: dict[str, Any]) -> dict[str, Any]:
                     "type": "array",
                     "items": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {
+                            "type": "string",
+                            "minLength": body_limits[0],
+                            "maxLength": body_limits[1],
+                        },
                         "minItems": element.get("min_columns"),
                         "maxItems": element.get("max_columns"),
                     },
@@ -997,9 +1267,9 @@ def _component_content_field_schema(field: dict[str, Any]) -> dict[str, Any]:
             "required": ["columns", "rows"],
         }
     elif element_type == "chart":
-        schema = _chart_content_schema()
+        schema = _chart_content_schema(element)
     elif element_type == "infographic":
-        schema = _infographic_content_schema()
+        schema = _infographic_content_schema(element)
     else:
         schema = {}
 
@@ -1126,7 +1396,7 @@ def _infographic_data_content_schema(infographic_type: str) -> dict[str, Any]:
     else:
         hierarchy = infographic_type in {"org_chart", "decision_tree"}
         item_schema = _infographic_text_item_schema(hierarchy=hierarchy)
-        if infographic_type == "conversion_funnel":
+        if infographic_type in {"conversion_funnel", "vertical_funnel"}:
             item_schema["properties"]["value"] = {"type": "number"}
             item_schema["required"] = ["value", "heading"]
         if infographic_type == "mind_map":
@@ -1137,6 +1407,12 @@ def _infographic_data_content_schema(infographic_type: str) -> dict[str, Any]:
         properties["items"] = {
             "type": "array",
             "minItems": 1,
+            **(
+                {"maxItems": 8}
+                if infographic_type
+                in {"conversion_funnel", "vertical_funnel"}
+                else {}
+            ),
             "items": item_schema,
         }
         required.append("items")
@@ -1167,22 +1443,31 @@ def _infographic_data_content_schema(infographic_type: str) -> dict[str, Any]:
     }
 
 
-def _infographic_content_schema() -> dict[str, Any]:
+def _infographic_content_schema(
+    element: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    data = element.get("data") if isinstance(element, dict) else None
+    infographic_type = data.get("type") if isinstance(data, dict) else None
+    if infographic_type in INFOGRAPHIC_BY_TYPE:
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "data": _infographic_data_content_schema(infographic_type)
+            },
+            "required": ["data"],
+        }
+
     return {
         "type": "object",
         "additionalProperties": False,
         "properties": {
             "data": {
                 "oneOf": [
-                    _infographic_data_content_schema(infographic_type)
-                    for infographic_type in INFOGRAPHIC_BY_TYPE
+                    _infographic_data_content_schema("progress_bar"),
+                    _infographic_data_content_schema("gauge"),
                 ]
-            },
-            "colors": {
-                "type": "array",
-                "items": {"type": "string"},
-                "minItems": 1,
-            },
+            }
         },
         "required": ["data"],
     }
@@ -1200,16 +1485,20 @@ def _without_none_values(value: Any) -> Any:
     return value
 
 
-def _chart_content_schema() -> dict[str, Any]:
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "chart_type": {
-                "type": "string",
-                "enum": CHART_TYPE_VALUES,
-            },
-            "title": {"type": ["string", "null"]},
+def _chart_content_schema(element: dict[str, Any]) -> dict[str, Any]:
+    properties: dict[str, Any] = {
+        "chart_type": {
+            "type": "string",
+            "enum": CHART_TYPE_VALUES,
+        }
+    }
+
+    title = element.get("title")
+    if isinstance(title, str) and title.strip():
+        properties["title"] = {"type": "string"}
+
+    properties.update(
+        {
             "categories": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -1232,8 +1521,14 @@ def _chart_content_schema() -> dict[str, Any]:
                 },
                 "maxItems": 12,
             },
-        },
-        "required": ["chart_type", "categories", "series"],
+        }
+    )
+
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": properties,
+        "required": list(properties),
     }
 
 

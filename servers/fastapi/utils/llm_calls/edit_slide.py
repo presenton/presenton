@@ -141,7 +141,7 @@ async def get_edited_slide_content(
         response_format = JSONSchemaResponse(
             name="response",
             json_schema=response_schema,
-            strict=False,
+            strict=True,
         )
         messages = get_messages(
             prompt,

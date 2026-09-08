@@ -663,3 +663,30 @@ def test_flow_layout_children_can_omit_geometry():
     grid = flex.children[0]
     assert flex.position is None
     assert grid.size is None
+
+def test_text_list_preserves_item_and_marker_gaps():
+    layout = RawSlideLayout.model_validate(
+        {
+            "id": "spaced_list",
+            "description": "A list with explicit spacing between items.",
+            "elements": [
+                {
+                    "type": "text-list",
+                    "decorative": False,
+                    "name": "key_points",
+                    "gap": 12.5,
+                    "marker_gap": 6.25,
+                    "items": [[{"text": "First"}], [{"text": "Second"}]],
+                    "min_items": 1,
+                    "max_items": 2,
+                    "min_item_length": 3,
+                    "max_item_length": 6,
+                }
+            ],
+        }
+    )
+
+    text_list = layout.elements[0]
+    assert text_list.type == "text-list"
+    assert text_list.gap == 12.5
+    assert text_list.marker_gap == 6.25

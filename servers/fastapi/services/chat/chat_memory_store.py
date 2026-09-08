@@ -5,7 +5,10 @@ import os
 from typing import Any, Optional
 from uuid import UUID
 
-from services.mem0_oss_memory import get_shared_mem0_client
+from services.mem0_oss_memory import (
+    get_shared_mem0_client,
+    run_shared_mem0_operation,
+)
 
 LOGGER = logging.getLogger(__name__)
 CHAT_TURN_TAG = "[chat_turn]"
@@ -184,7 +187,7 @@ class ChatMemoryStore:
                 )
 
         try:
-            await asyncio.to_thread(_add)
+            await asyncio.to_thread(run_shared_mem0_operation, _add)
         except BaseException as exc:
             if not self._is_nonfatal_mem0_error(exc):
                 raise
@@ -232,7 +235,7 @@ class ChatMemoryStore:
                 )
 
         try:
-            response = await asyncio.to_thread(_search)
+            response = await asyncio.to_thread(run_shared_mem0_operation, _search)
         except BaseException as exc:
             if not self._is_nonfatal_mem0_error(exc):
                 raise
@@ -296,7 +299,7 @@ class ChatMemoryStore:
                         return client.get_all(user_id=scoped_user_id)
 
         try:
-            response = await asyncio.to_thread(_get_all)
+            response = await asyncio.to_thread(run_shared_mem0_operation, _get_all)
         except BaseException as exc:
             if not self._is_nonfatal_mem0_error(exc):
                 raise

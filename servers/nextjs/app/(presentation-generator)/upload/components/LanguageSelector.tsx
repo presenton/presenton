@@ -23,7 +23,7 @@ export const LanguageSelector: React.FC<{
                     name="language"
                     data-testid="language-select"
                     aria-expanded={openLanguage}
-                    className="px-3.5 py-1 justify-between rounded-[48px] font-instrument_sans font-semibold overflow-hidden bg-[#F7F6F9] border-[#EDEEEF] focus-visible:ring-[#5141E5] border-none"
+                    className="px-3.5 py-1 justify-between rounded-[48px] font-manrope font-semibold overflow-hidden bg-[#F7F6F9] border-[#EDEEEF] focus-visible:ring-[#5141E5] border-none"
                 >
                     <p className="text-sm font-medium truncate">
                         {value || "Select language"}
@@ -35,7 +35,7 @@ export const LanguageSelector: React.FC<{
                 <Command>
                     <CommandInput
                         placeholder="Search language..."
-                        className="font-instrument_sans"
+                        className="font-manrope"
                     />
                     <CommandList>
                         <CommandEmpty>No language found.</CommandEmpty>
@@ -49,7 +49,7 @@ export const LanguageSelector: React.FC<{
                                         onValueChange(currentValue);
                                         setOpenLanguage(false);
                                     }}
-                                    className="font-instrument_sans"
+                                    className="font-manrope"
                                 >
                                     <Check
                                         className={cn(

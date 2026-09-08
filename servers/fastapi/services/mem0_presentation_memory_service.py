@@ -5,7 +5,10 @@ import os
 from typing import Any, Optional
 from uuid import UUID
 
-from services.mem0_oss_memory import get_shared_mem0_client
+from services.mem0_oss_memory import (
+    get_shared_mem0_client,
+    run_shared_mem0_operation,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -86,7 +89,7 @@ class Mem0PresentationMemoryService:
                 )
 
         try:
-            await asyncio.to_thread(_add)
+            await asyncio.to_thread(run_shared_mem0_operation, _add)
         except BaseException as exc:
             if not self._is_nonfatal_mem0_error(exc):
                 raise
@@ -201,7 +204,7 @@ class Mem0PresentationMemoryService:
                 )
 
         try:
-            response = await asyncio.to_thread(_search)
+            response = await asyncio.to_thread(run_shared_mem0_operation, _search)
         except BaseException as exc:
             if not self._is_nonfatal_mem0_error(exc):
                 raise
