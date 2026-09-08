@@ -606,6 +606,8 @@ class ChatTools:
     async def _get_slide_at_index(self, args: dict[str, Any]) -> dict[str, Any]:
         normalized_args = dict(args)
         normalized_args.setdefault("includeFullContent", False)
+        if normalized_args.get("index") is None:
+            normalized_args["index"] = 0
         payload = GetSlideAtIndexInput(**normalized_args)
         slide = await self._memory.get_slide_at_index(
             payload.index,

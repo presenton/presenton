@@ -68,8 +68,8 @@ class MoveOutlineInput(StrictSchemaModel):
 
 
 class GetSlideAtIndexInput(StrictSchemaModel):
-    index: int = Field(ge=0, le=1000)
-    include_full_content: bool = Field(alias="includeFullContent")
+    index: int = Field(default=0, ge=0, le=1000)
+    include_full_content: bool = Field(default=False, alias="includeFullContent")
 
     model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
 
