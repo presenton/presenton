@@ -49,9 +49,11 @@ export function clampSlideCountValue(value: string): string {
 export function parseLimitedSlideCount(
   value: string | null | undefined
 ): number | null {
-  if (!value || !/^\d+$/.test(value)) return null;
+  if (!value) return null;
+  const match = String(value).trim().match(/^(\d+)/);
+  if (!match) return null;
 
-  const parsed = Number(value);
+  const parsed = Number(match[1]);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
 
   return Math.min(parsed, MAX_NUMBER_OF_SLIDES);
