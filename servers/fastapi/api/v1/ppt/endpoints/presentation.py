@@ -1580,6 +1580,7 @@ async def export_existing_presentation(
     id: uuid.UUID,
     request_http: Request,
     export_as: Annotated[Literal["pptx", "pdf"], Body(embed=True)] = "pptx",
+    editable: bool = Query(False),
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     """Export a presentation that already exists.
@@ -1600,6 +1601,39 @@ async def export_existing_presentation(
     presentation = await sql_session.get(PresentationModel, id)
     if not presentation:
         raise HTTPException(404, "Presentation not found")
+
+    if export_as == "pptx" and editable:
+        from pathvalidate import sanitize_filename
+        from services.pptx_editable import build_editable_pptx
+        from utils.asset_directory_utils import get_exports_directory
+        from utils.filename_utils import safe_export_basename
+        import os
+        slides = list(
+            (
+                await sql_session.scalars(
+                    select(SlideModel)
+                    .where(SlideModel.presentation == id)
+                    .order_by(SlideModel.index)
+                )
+            ).all()
+        )
+        dest = os.path.join(
+            get_exports_directory(),
+            f"{safe_export_basename(sanitize_filename(presentation.title or str(id)))}_editable.pptx",
+        )
+        path = build_editable_pptx(
+            title=presentation.title or "",
+            slides=[
+                {"ui": slide.ui, "speaker_note": slide.speaker_note, "content": slide.content}
+                for slide in slides
+            ],
+            dest_path=dest,
+        )
+        return PresentationPathAndEditPath(
+            presentation_id=presentation.id,
+            path=path,
+            edit_path=f"/presentation?id={presentation.id}",
+        )
 
     presentation_and_path = await export_presentation(
         presentation.id,
