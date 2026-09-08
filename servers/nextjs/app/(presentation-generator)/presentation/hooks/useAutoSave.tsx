@@ -76,7 +76,7 @@ export const useAutoSave = ({
             console.log('🔄 Auto-saving presentation data...');
 
             const result = await PresentationGenerationApi.submitDocumentOperations(data.id, {
-                operationId: crypto.randomUUID(),
+                operationId: (globalThis.crypto && "randomUUID" in globalThis.crypto ? globalThis.crypto.randomUUID() : `${"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => { const r = Math.random()*16|0; const v = c==="x"?r:(r&0x3|0x8); return v.toString(16); })}`),
                 baseRevision,
                 operations,
             });

@@ -44,11 +44,11 @@ export const usePresentationUndoRedo = () => {
             const next = await PresentationGenerationApi.getDocumentSnapshot(documentId);
             dispatch(
               setPresentationData({
-                ...(presentationData as object),
+                ...(presentationData ?? {}),
                 ...(next || {}),
-                slides: next?.slides || (presentationData as { slides?: unknown }).slides,
+                slides: next?.slides || presentationData?.slides,
                 revision: next?.revision,
-              } as typeof presentationData)
+              } as NonNullable<typeof presentationData>)
             );
             dispatch(undo());
             return;

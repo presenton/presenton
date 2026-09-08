@@ -1007,10 +1007,10 @@ const Chat = ({
       );
     }
 
-    if (typeof frozenSlideIndex === "number") {
+    if (typeof currentSlide === "number") {
       contextLines.push(
-        `UI context: the currently selected slide is slide ${frozenSlideIndex + 1
-        } (zero-based index ${frozenSlideIndex}). Target this slide unless the user names another.`
+        `UI context: the currently selected slide is slide ${currentSlide + 1
+        } (zero-based index ${currentSlide}). Target this slide unless the user names another.`
       );
     }
 
@@ -1348,7 +1348,7 @@ const Chat = ({
         await PresentationGenerationApi.submitDocumentOperations(
           String((currentPresentation as { id?: string }).id),
           {
-            operationId: crypto.randomUUID(),
+            operationId: createMessageId(),
             baseRevision: Number(snapshot?.revision),
             operations,
           },
@@ -1698,6 +1698,8 @@ const Chat = ({
     };
 
     const assistantMessageId = createMessageId();
+    const frozenSlideIndex =
+      typeof currentSlide === "number" ? currentSlide : undefined;
     const previewSlideIndex = typeof frozenSlideIndex === "number" ? frozenSlideIndex : 0;
     const originalPreviewSlide = clonePreviewSlide(
       getPresentationSlide(presentationData, previewSlideIndex),
@@ -1730,8 +1732,6 @@ const Chat = ({
     if (selectionContext) dispatch(clearChatHtmlSelection());
     setErrorMessage(null);
     setHasChatMutationStarted(false);
-    const frozenSlideIndex =
-      typeof currentSlide === "number" ? currentSlide : undefined;
     try {
       await onBeforeSend?.();
     } catch (error) {
