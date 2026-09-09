@@ -142,6 +142,12 @@ class ImageGenerationService:
         image_prompt = prompt.get_image_prompt(
             with_theme=not self.is_stock_provider_selected()
         )
+        if not self.is_stock_provider_selected():
+            image_prompt = (
+                "Photorealistic photograph of a real scene, natural lighting, "
+                "not an icon, not a pictogram, not flat vector, not clipart, not illustration. "
+                + image_prompt
+            )
         print(f"Request - Generating Image for {image_prompt}")
 
         try:

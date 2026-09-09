@@ -605,39 +605,29 @@ class ChatTools:
 
     async def _get_slide_at_index(self, args: dict[str, Any]) -> dict[str, Any]:
         normalized_args = dict(args)
-        normalized_args.setdefault("includeFullContent", False)
-        if normalized_args.get("index") is None:
-            normalized_args["index"] = 0
+        if "index" not in normalized_args and "slideNumber" in normalized_args:
+            try:
+                normalized_args["index"] = max(0, int(normalized_args["slideNumber"]) - 1)
+            except (TypeError, ValueError):
+                pass
+        normalized_args.pop("slideNumber", None)
         payload = GetSlideAtIndexInput(**normalized_args)
         slide = await self._memory.get_slide_at_index(
             payload.index,
             include_full_content=payload.include_full_content,
         )
-        if not slide and payload.index > 0:
-            # Users often refer to slides as 1-based; allow a safe fallback.
-            fallback_index = payload.index - 1
-            fallback_slide = await self._memory.get_slide_at_index(
-                fallback_index,
-                include_full_content=payload.include_full_content,
-            )
-            if fallback_slide:
-                return {
-                    "found": True,
-                    "slide": fallback_slide,
-                    "requested_index": payload.index,
-                    "resolved_index": fallback_index,
-                    "note": (
-                        "No slide found at requested index; returned one-based fallback "
-                        f"at index {fallback_index}."
-                    ),
-                }
         if not slide:
             return {
                 "found": False,
-                "message": f"No slide found at index {payload.index}.",
+                "message": (
+                    f"No slide found at zero-based index {payload.index} "
+                    f"(user slide {payload.index + 1}). Do not assume slide 1."
+                ),
             }
         return {
             "found": True,
+            "index": payload.index,
+            "slide_number": payload.index + 1,
             "slide": slide,
         }
 

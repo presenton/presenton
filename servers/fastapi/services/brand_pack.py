@@ -118,7 +118,7 @@ DOZER_COMPONENTS = [
 
 def pack_components(pack_id: str) -> list[dict[str, Any]]:
     pack = load_brand_pack(pack_id)
-    if pack["id"] == "m894-r1-pilot":
+    if pack["id"] in {"m894-r1-pilot", "monetka", "otryad", "silicon-dozer"}:
         return list(DOZER_COMPONENTS)
     stored = pack.get("components")
     if isinstance(stored, list) and stored:

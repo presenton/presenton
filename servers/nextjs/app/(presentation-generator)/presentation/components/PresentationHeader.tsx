@@ -119,7 +119,7 @@ const PresentationHeader = ({
   const [nielsenPanel, setNielsenPanel] = useState("Total National Urban");
   const [nielsenUnits, setNielsenUnits] = useState<Record<string, string>>({});
   const [nielsenPanels, setNielsenPanels] = useState<string[]>(["Total National Urban"]);
-  const [packItems, setPackItems] = useState<Array<{ id: string; label?: string; group?: string }>>([]);
+  const [packItems, setPackItems] = useState<Array<{ id: string; name?: string; label?: string; group?: string }>>([]);
   const [qualityIssues, setQualityIssues] = useState<Array<{ code: string; slideId?: string }>>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
@@ -789,7 +789,7 @@ const PresentationHeader = ({
             onOpenChange={(next) => {
               setPackOpen(next);
               if (next) {
-                void PresentationGenerationApi.listDozerCatalog()
+                void PresentationGenerationApi.listBrandPacks()
                   .then((rows) => setPackItems(Array.isArray(rows) ? rows : []))
                   .catch(() => setPackItems([]));
               }
@@ -807,8 +807,23 @@ const PresentationHeader = ({
             <PopoverContent align="end" className="w-[260px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
               <ul className="space-y-1">
                 {packItems.map((item) => (
-                  <li key={item.id} className="text-sm text-[#101323]" data-testid={`dozer-item-${item.id}`}>
-                    {(item.label || item.id) + (item.group ? ` · ${item.group}` : "")}
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      data-testid={`dozer-item-${item.id}`}
+                      className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-[#101323] hover:bg-[#F6F6F9]"
+                      onClick={async () => {
+                        try {
+                          await PresentationGenerationApi.applyBrandPack(item.id, presentation_id);
+                          notify.success(`Pack: ${item.name || item.id}`);
+                          setPackOpen(false);
+                        } catch (error) {
+                          notify.error("Pack failed", error instanceof Error ? error.message : "Try again.");
+                        }
+                      }}
+                    >
+                      {item.name || item.id}
+                    </button>
                   </li>
                 ))}
               </ul>

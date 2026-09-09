@@ -451,12 +451,21 @@ class PresentationChatMemoryLayer:
     async def get_slide_at_index(
         self, index: int, *, include_full_content: bool = False
     ) -> dict[str, Any] | None:
-        slide = await self._sql_session.scalar(
-            select(SlideModel).where(
-                SlideModel.presentation == self._presentation_id,
-                SlideModel.index == index,
-            )
+        rows = list(
+            (
+                await self._sql_session.scalars(
+                    select(SlideModel)
+                    .where(SlideModel.presentation == self._presentation_id)
+                    .order_by(SlideModel.index, SlideModel.id)
+                )
+            ).all()
         )
+        slide = None
+        if 0 <= index < len(rows):
+            slide = rows[index]
+        elif rows:
+            by_index = next((item for item in rows if item.index == index), None)
+            slide = by_index
         if not slide:
             LOGGER.info(
                 "Chat memory miss for slide by index (presentation_id=%s, index=%d)",
