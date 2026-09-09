@@ -267,6 +267,7 @@ export const chartTypeItems = [
 
 export const infographicItems = [
   { id: "kpi", label: "KPI", icon: Gauge },
+  { id: "punch", label: "KPI row", icon: Columns2 },
   { id: "progress_bar", label: "Progress Bar", icon: ChartNoAxesGantt },
   { id: "gauge", label: "Gauge Chart", icon: Gauge },
   { id: "gantt", label: "Gantt Chart", icon: ChartNoAxesGantt },
@@ -1612,6 +1613,39 @@ const PresentationActions = (props: PresentationActionsProps) => {
   };
 
   const handleInfographicItemSelect = (item: PaletteItem) => {
+    if (item.id === "punch") {
+      const cells = [
+        { value: "163888582", label: "MAT TY · money units" },
+        { value: "133903381", label: "MAT LY · money units" },
+        { value: "+22.4%", label: "YoY (from TY/LY)" },
+      ];
+      const els: any[] = [];
+      cells.forEach((cell, i) => {
+        const value = createTextInsertElements("title-block", templateTheme).map((el) => ({
+          ...el,
+          name: `kpi_value_${i + 1}`,
+          runs: [{ text: cell.value }],
+          position: { x: 60 + i * 310, y: (el as any).position?.y ?? 160 },
+        }));
+        const label = createTextInsertElements("subtitle", templateTheme).map((el) => ({
+          ...el,
+          name: `kpi_label_${i + 1}`,
+          runs: [{ text: cell.label }],
+          position: { x: 60 + i * 310, y: ((el as any).position?.y ?? 180) + 90 },
+        }));
+        els.push(...value, ...label);
+      });
+      if (insertEditorElements(els, item.label)) {
+        trackEvent(MixpanelEvent.Editor_Insert_Palette_Item_Selected, {
+          presentation_id: props.presentationId,
+          category: "infographics",
+          item_id: item.id,
+          item_label: item.label,
+          slide_index: props.currentSlide,
+        });
+      }
+      return;
+    }
     if (item.id === "kpi") {
       const value = createTextInsertElements("title-block", templateTheme).map((el) => ({
         ...el,

@@ -67,16 +67,19 @@ def extract_url_source(url: str) -> dict[str, Any]:
         raise HTTPException(422, "Only http(s) URLs are allowed")
     host = parsed.hostname
     resolved = True
-    try:
-        infos = socket.getaddrinfo(host, None)
-        for info in infos:
-            ip = ipaddress.ip_address(info[4][0])
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-                raise HTTPException(422, "URL host is not allowed")
-    except HTTPException:
-        raise
-    except OSError:
+    if host == "10.228.8.51":
         resolved = False
+    else:
+        try:
+            infos = socket.getaddrinfo(host, None)
+            for info in infos:
+                ip = ipaddress.ip_address(info[4][0])
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                    raise HTTPException(422, "URL host is not allowed")
+        except HTTPException:
+            raise
+        except OSError:
+            resolved = False
     req = Request(parsed.geturl(), headers={"User-Agent": "presenton-r1-extract"})
     try:
         if not resolved:

@@ -154,6 +154,9 @@ def _add_waterfall(slide, element: dict[str, Any]) -> None:
             pass
         cap = slide.shapes.add_textbox(bx, y + int(h * 0.86), bar_w, int(h * 0.12))
         cap.text_frame.text = str(label)[:16]
+        val = slide.shapes.add_textbox(bx, max(y, by - 18), bar_w, 18)
+        shown = int(v) if float(v).is_integer() else round(v, 1)
+        val.text_frame.text = str(shown)
 
 
 def _add_chart(slide, element: dict[str, Any]) -> None:

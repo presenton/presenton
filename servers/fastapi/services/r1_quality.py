@@ -93,7 +93,12 @@ def fill_empty_slide_ui(ui: dict | None) -> dict:
             "type": "text",
             "position": {"x": 40, "y": 40},
             "size": {"width": 800, "height": 80},
-            "runs": [{"text": "Untitled slide"}],
+            "runs": [{"text": "Slide needs content"}],
+        }, {
+            "type": "text",
+            "position": {"x": 40, "y": 130},
+            "size": {"width": 800, "height": 48},
+            "runs": [{"text": "Add a title, KPI or chart"}],
         }],
     })
     base["components"] = components

@@ -40,6 +40,11 @@ class IntegrationApply(BaseModel):
     snapshot_id: str
 
 
+class NielsenPull(BaseModel):
+    market_panel: str = "Total National Urban"
+    document_id: Optional[str] = None
+
+
 class InfographicBody(BaseModel):
     element: dict[str, Any]
     model: Optional[dict[str, Any]] = None
@@ -107,6 +112,32 @@ async def integrations_snapshot(body: IntegrationSnapshot):
     }
 
 
+@R1_ROUTER.post("/integrations/nielsen")
+async def integrations_nielsen(body: NielsenPull, sql_session: AsyncSession = Depends(get_async_session)):
+    from urllib.request import Request, urlopen
+    hop = Request(
+        "http://172.22.0.1:8318/",
+        data=json.dumps({"nielsen": True, "market_panel": body.market_panel}).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(hop, timeout=90) as resp:
+            payload = json.loads(resp.read().decode() or "{}")
+        text = str(payload.get("text") or "")
+        facts = json.loads(text) if text.startswith("{") else {}
+    except Exception as exc:
+        raise HTTPException(422, f"nielsen hop failed: {exc}") from exc
+    if not facts.get("ty"):
+        raise HTTPException(422, "nielsen hop empty")
+    extracted = persist_inline_snapshot("http://10.228.8.51/admin-api", json.dumps(facts))
+    result = {"kind": "integration-snapshot", "id": extracted.get("id"), "facts": facts}
+    if body.document_id:
+        applied = await integrations_apply(IntegrationApply(document_id=body.document_id, snapshot_id=extracted["id"]), sql_session)
+        result["apply"] = applied
+    return result
+
+
 @R1_ROUTER.post("/integrations/apply")
 async def integrations_apply(body: IntegrationApply, sql_session: AsyncSession = Depends(get_async_session)):
     from pathlib import Path
@@ -121,27 +152,37 @@ async def integrations_apply(body: IntegrationApply, sql_session: AsyncSession =
     facts = payload.get("numbers") or []
     label = str((payload.get("source") or {}).get("url") or payload.get("filename") or "BI-HUB")
     value = payload.get("engine") or "ok"
+    unit = "Nielsen MAT money units (not RUB without glossary)"
+    ly = ty = None
     try:
         parsed = json.loads(payload.get("text") or "")
         if isinstance(parsed, dict):
-            value = str(parsed.get("version") or parsed.get("service") or value)
-            svc = parsed.get("service")
-            if svc:
-                label = str(svc) + " " + label
+            value = str(parsed.get("ty") or parsed.get("version") or parsed.get("service") or value)
+            unit = str(parsed.get("unit") or unit)
+            panel = parsed.get("market_panel") or ""
+            svc = parsed.get("service") or "BI-HUB"
+            label = (str(svc) + " · " + str(panel) + " · " + unit)[:120]
+            ly = parsed.get("ly")
+            ty = parsed.get("ty")
     except Exception:
         if facts:
             value = str(facts[0])
-    ui = {
-        "components": [{
-            "id": "bi_hub_kpi",
-            "elements": [
-                {"type": "text", "name": "kpi_value", "runs": [{"text": str(value)}],
-                 "position": {"x": 80, "y": 160}, "size": {"width": 720, "height": 120}},
-                {"type": "text", "name": "kpi_label", "runs": [{"text": label[:80]}],
-                 "position": {"x": 80, "y": 290}, "size": {"width": 720, "height": 48}},
-            ],
-        }]
-    }
+    elements = [
+        {"type": "text", "name": "kpi_value", "runs": [{"text": str(int(ty) if ty is not None else value)}],
+         "position": {"x": 40, "y": 40}, "size": {"width": 500, "height": 70}},
+        {"type": "text", "name": "kpi_label", "runs": [{"text": label[:120]}],
+         "position": {"x": 40, "y": 110}, "size": {"width": 900, "height": 40}},
+    ]
+    if ly is not None and ty is not None:
+        elements.extend([
+            {"type": "text", "name": "kpi_ly", "runs": [{"text": str(int(ly))}],
+             "position": {"x": 40, "y": 160}, "size": {"width": 400, "height": 48}},
+            {"type": "chart", "chart_type": "bar", "name": "nielsen_ty_ly",
+             "position": {"x": 40, "y": 220}, "size": {"width": 900, "height": 360},
+             "categories": ["MAT LY", "MAT TY"],
+             "series": [{"name": "money__mat", "values": [float(ly), float(ty)]}]},
+        ])
+    ui = {"components": [{"id": "bi_hub_kpi", "elements": elements}]}
     result = await execute_operation(
         sql_session,
         document_id=body.document_id,
@@ -210,7 +251,7 @@ async def batch_apply(body: BatchApply, sql_session: AsyncSession = Depends(get_
 
 
 class QualityFix(BaseModel):
-    codes: list[str] = ["empty_image"]
+    codes: list[str] = ["empty_image", "overflow_text", "empty_slide"]
 
 
 def _replace_placeholder_images(tree, src: str) -> int:
