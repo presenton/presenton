@@ -45,3 +45,26 @@ def test_editable_pptx_contains_text_not_just_media(tmp_path: Path):
     assert "ppt/media/" not in ZipFile(dest).namelist() or True
     names = ZipFile(dest).namelist()
     assert any(n.startswith("ppt/charts/") for n in names)
+
+
+def test_waterfall_uses_stacked_not_clustered(tmp_path: Path):
+    dest = tmp_path / "wf.pptx"
+    build_editable_pptx(
+        title="W",
+        slides=[{
+            "ui": {"el": {
+                "type": "chart",
+                "chart_type": "waterfall",
+                "position": {"x": 40, "y": 40},
+                "size": {"width": 800, "height": 400},
+                "categories": ["Start", "Plus", "Minus"],
+                "series": [{"name": "Cash", "values": [10, 5, -3]}],
+            }},
+            "speaker_note": "",
+            "content": {},
+        }],
+        dest_path=str(dest),
+    )
+    xml = ZipFile(dest).read("ppt/charts/chart1.xml").decode("utf-8", "ignore")
+    assert "colStacked" in xml or "stacked" in xml.lower()
+    assert xml.lower().count("<c:ser") >= 2

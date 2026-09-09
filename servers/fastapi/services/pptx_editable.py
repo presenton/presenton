@@ -8,7 +8,9 @@ from typing import Any
 
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
+from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.util import Emu, Inches, Pt
 
 from utils.asset_directory_utils import get_exports_directory
@@ -100,10 +102,58 @@ def _add_table(slide, element: dict[str, Any]) -> None:
         r_i += 1
 
 
+def _waterfall_stacks(values: list[float]) -> tuple[list[float], list[float], list[str]]:
+    base: list[float] = []
+    visible: list[float] = []
+    colors: list[str] = []
+    running = 0.0
+    for value in values:
+        if value >= 0:
+            base.append(running)
+            visible.append(value)
+            colors.append("up")
+            running += value
+        else:
+            running += value
+            base.append(running)
+            visible.append(-value)
+            colors.append("down")
+    return base, visible, colors
+
+
+def _add_waterfall(slide, element: dict[str, Any]) -> None:
+    categories = [str(c) for c in (element.get("categories") or [])]
+    series = element.get("series") or []
+    if not categories or not series:
+        return
+    values = []
+    for raw in (series[0].get("values") if isinstance(series[0], dict) else []) or []:
+        try:
+            values.append(float(raw))
+        except (TypeError, ValueError):
+            values.append(0.0)
+    base, visible, _colors = _waterfall_stacks(values)
+    data = CategoryChartData()
+    data.categories = categories[: len(visible)] or [f"S{i+1}" for i in range(len(visible))]
+    data.add_series("Base", base)
+    data.add_series("Change", visible)
+    x, y, w, h = _box(element)
+    chart = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_STACKED, x, y, w, h, data).chart
+    try:
+        chart.series[0].format.fill.background()
+        chart.series[1].format.fill.solid()
+        chart.series[1].format.fill.fore_color.rgb = RGBColor(0xC4, 0x1E, 0x3A)
+    except Exception:
+        pass
+
+
 def _add_chart(slide, element: dict[str, Any]) -> None:
     categories = [str(c) for c in (element.get("categories") or [])]
     series = element.get("series") or []
     if not categories or not series:
+        return
+    if str(element.get("chart_type") or "") == "waterfall":
+        _add_waterfall(slide, element)
         return
     chart_type = CHART_TYPES.get(str(element.get("chart_type") or "bar"), XL_CHART_TYPE.COLUMN_CLUSTERED)
     data = CategoryChartData()
