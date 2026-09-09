@@ -1,3 +1,4 @@
+import json
 
 from typing import Any, Optional
 
@@ -14,6 +15,7 @@ from services.r1_compositions import apply_composition, list_compositions
 from services.r1_infographic import apply_model, model_from_element
 from services.r1_quality import check_presentation
 from services.r1_sources import extract_document_source, extract_url_source, persist_inline_snapshot
+from utils.get_env import get_app_data_directory_env
 
 R1_ROUTER = APIRouter(prefix="/r1", tags=["R1"])
 
@@ -31,6 +33,11 @@ class SourceExtract(BaseModel):
 class IntegrationSnapshot(BaseModel):
     url: str
     text: Optional[str] = None
+
+
+class IntegrationApply(BaseModel):
+    document_id: str
+    snapshot_id: str
 
 
 class InfographicBody(BaseModel):
@@ -98,6 +105,52 @@ async def integrations_snapshot(body: IntegrationSnapshot):
         "snapshot_path": extracted.get("snapshot_path"),
         "text": (extracted.get("text") or "")[:2000],
     }
+
+
+@R1_ROUTER.post("/integrations/apply")
+async def integrations_apply(body: IntegrationApply, sql_session: AsyncSession = Depends(get_async_session)):
+    from pathlib import Path
+    snap_path = Path(get_app_data_directory_env()) / "sources" / f"{body.snapshot_id}.json"
+    if not snap_path.exists():
+        raise HTTPException(404, "snapshot not found")
+    payload = json.loads(snap_path.read_text())
+    snapshot = await load_document_snapshot(sql_session, body.document_id)
+    if not snapshot["slides"]:
+        raise HTTPException(422, "document has no slides")
+    slide_id = snapshot["slides"][0]["id"]
+    facts = payload.get("numbers") or []
+    label = str((payload.get("source") or {}).get("url") or payload.get("filename") or "BI-HUB")
+    value = payload.get("engine") or "ok"
+    try:
+        parsed = json.loads(payload.get("text") or "")
+        if isinstance(parsed, dict):
+            value = str(parsed.get("version") or parsed.get("service") or value)
+            svc = parsed.get("service")
+            if svc:
+                label = str(svc) + " " + label
+    except Exception:
+        if facts:
+            value = str(facts[0])
+    ui = {
+        "components": [{
+            "id": "bi_hub_kpi",
+            "elements": [
+                {"type": "text", "name": "kpi_value", "runs": [{"text": str(value)}],
+                 "position": {"x": 80, "y": 160}, "size": {"width": 720, "height": 120}},
+                {"type": "text", "name": "kpi_label", "runs": [{"text": label[:80]}],
+                 "position": {"x": 80, "y": 290}, "size": {"width": 720, "height": 48}},
+            ],
+        }]
+    }
+    result = await execute_operation(
+        sql_session,
+        document_id=body.document_id,
+        base_revision=snapshot["revision"],
+        operations=[{"scope": "slide", "targetIds": [slide_id], "operationType": "UpdateSlide", "payload": {"ui": ui}}],
+        actor_source="integration",
+    )
+    result["snapshot_id"] = body.snapshot_id
+    return result
 
 
 @R1_ROUTER.post("/sources/extract-url")
