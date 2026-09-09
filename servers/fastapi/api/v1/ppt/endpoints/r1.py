@@ -28,6 +28,10 @@ class SourceExtract(BaseModel):
     file_path: str
 
 
+class IntegrationSnapshot(BaseModel):
+    url: str
+
+
 class InfographicBody(BaseModel):
     element: dict[str, Any]
     model: Optional[dict[str, Any]] = None
@@ -76,6 +80,19 @@ async def sources_extract(body: SourceExtract):
 
 class SourceUrl(BaseModel):
     url: str
+
+
+@R1_ROUTER.post("/integrations/snapshot")
+async def integrations_snapshot(body: IntegrationSnapshot):
+    extracted = extract_url_source(body.url)
+    return {
+        "kind": "integration-snapshot",
+        "id": extracted.get("id"),
+        "url": body.url,
+        "facts": extracted.get("numbers") or [],
+        "snapshot_path": extracted.get("snapshot_path"),
+        "text": (extracted.get("text") or "")[:2000],
+    }
 
 
 @R1_ROUTER.post("/sources/extract-url")

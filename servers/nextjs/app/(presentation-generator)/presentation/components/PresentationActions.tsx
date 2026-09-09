@@ -266,6 +266,7 @@ export const chartTypeItems = [
 ] satisfies PaletteItem[];
 
 export const infographicItems = [
+  { id: "kpi", label: "KPI", icon: Gauge },
   { id: "progress_bar", label: "Progress Bar", icon: ChartNoAxesGantt },
   { id: "gauge", label: "Gauge Chart", icon: Gauge },
   { id: "gantt", label: "Gantt Chart", icon: ChartNoAxesGantt },
@@ -1611,6 +1612,29 @@ const PresentationActions = (props: PresentationActionsProps) => {
   };
 
   const handleInfographicItemSelect = (item: PaletteItem) => {
+    if (item.id === "kpi") {
+      const value = createTextInsertElements("title-block", templateTheme).map((el) => ({
+        ...el,
+        name: "kpi_value",
+        runs: [{ text: "10" }],
+      }));
+      const label = createTextInsertElements("subtitle", templateTheme).map((el) => ({
+        ...el,
+        name: "kpi_label",
+        runs: [{ text: "Q1 revenue" }],
+        position: { x: (el as any).position?.x ?? 160, y: ((el as any).position?.y ?? 180) + 90 },
+      }));
+      if (insertEditorElements([...value, ...label] as any, item.label)) {
+        trackEvent(MixpanelEvent.Editor_Insert_Palette_Item_Selected, {
+          presentation_id: props.presentationId,
+          category: "infographics",
+          item_id: item.id,
+          item_label: item.label,
+          slide_index: props.currentSlide,
+        });
+      }
+      return;
+    }
     const infographicElements = createInfographicInsertElements(
       item.id,
       templateTheme,

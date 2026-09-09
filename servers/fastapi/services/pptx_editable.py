@@ -132,19 +132,28 @@ def _add_waterfall(slide, element: dict[str, Any]) -> None:
             values.append(float(raw))
         except (TypeError, ValueError):
             values.append(0.0)
-    base, visible, _colors = _waterfall_stacks(values)
-    data = CategoryChartData()
-    data.categories = categories[: len(visible)] or [f"S{i+1}" for i in range(len(visible))]
-    data.add_series("Base", base)
-    data.add_series("Change", visible)
+    base, visible, colors = _waterfall_stacks(values)
     x, y, w, h = _box(element)
-    chart = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_STACKED, x, y, w, h, data).chart
-    try:
-        chart.series[0].format.fill.background()
-        chart.series[1].format.fill.solid()
-        chart.series[1].format.fill.fore_color.rgb = RGBColor(0xC4, 0x1E, 0x3A)
-    except Exception:
-        pass
+    n = max(1, len(visible))
+    gap = max(1, int(w * 0.06 / n))
+    bar_w = max(8, int((w - gap * (n + 1)) / n))
+    peak = max((b + v) for b, v in zip(base, visible)) or 1.0
+    labels = categories[:n] or [f"S{i+1}" for i in range(n)]
+    for i, (b, v, c, label) in enumerate(zip(base, visible, colors, labels)):
+        bx = x + gap + i * (bar_w + gap)
+        bh = max(8, int(h * 0.82 * (v / peak)))
+        by = y + int(h * 0.82 * (1 - (b + v) / peak))
+        shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, bx, by, bar_w, bh)
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = (
+            RGBColor(0x12, 0xB7, 0x6A) if c == "up" else RGBColor(0xEF, 0x44, 0x44)
+        )
+        try:
+            shape.line.fill.background()
+        except Exception:
+            pass
+        cap = slide.shapes.add_textbox(bx, y + int(h * 0.86), bar_w, int(h * 0.12))
+        cap.text_frame.text = str(label)[:16]
 
 
 def _add_chart(slide, element: dict[str, Any]) -> None:
