@@ -113,6 +113,9 @@ const PresentationHeader = ({
   const [qualityOpen, setQualityOpen] = useState(false);
   const [packOpen, setPackOpen] = useState(false);
   const [nielsenOpen, setNielsenOpen] = useState(false);
+  const [collabOpen, setCollabOpen] = useState(false);
+  const [collabComments, setCollabComments] = useState<Array<{ id?: string; text?: string; author?: string }>>([]);
+  const [collabDraft, setCollabDraft] = useState("");
   const [nielsenPanel, setNielsenPanel] = useState("Total National Urban");
   const [nielsenUnits, setNielsenUnits] = useState<Record<string, string>>({});
   const [nielsenPanels, setNielsenPanels] = useState<string[]>(["Total National Urban"]);
@@ -809,6 +812,62 @@ const PresentationHeader = ({
                   </li>
                 ))}
               </ul>
+            </PopoverContent>
+          </Popover>
+
+          <Popover
+            open={collabOpen}
+            onOpenChange={(next) => {
+              setCollabOpen(next);
+              if (next) {
+                void PresentationGenerationApi.getCollab(presentation_id)
+                  .then((data: any) => setCollabComments(Array.isArray(data?.comments) ? data.comments : []))
+                  .catch(() => setCollabComments([]));
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="collab-open"
+                className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+              >
+                Collab
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[280px] rounded-[18px] p-3" data-testid="collab-panel">
+              <ul className="mb-2 max-h-32 space-y-1 overflow-auto">
+                {collabComments.map((c) => (
+                  <li key={c.id} className="text-sm text-[#101323]" data-testid="collab-comment">{c.author}: {c.text}</li>
+                ))}
+              </ul>
+              <input
+                data-testid="collab-input"
+                className="mb-2 w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-sm"
+                value={collabDraft}
+                onChange={(e) => setCollabDraft(e.target.value)}
+                placeholder="Comment"
+              />
+              <button
+                type="button"
+                data-testid="collab-send"
+                className="w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-xs font-medium"
+                onClick={async () => {
+                  try {
+                    const slideId = presentationData?.slides?.[currentSlide || 0]?.id;
+                    if (!slideId || !collabDraft.trim()) return;
+                    await PresentationGenerationApi.postCollabComment(presentation_id, String(slideId), collabDraft.trim());
+                    setCollabDraft("");
+                    const data = await PresentationGenerationApi.getCollab(presentation_id);
+                    setCollabComments(Array.isArray(data?.comments) ? data.comments : []);
+                    notify.success("Comment saved");
+                  } catch (error) {
+                    notify.error("Comment failed", error instanceof Error ? error.message : "Try again.");
+                  }
+                }}
+              >
+                Send
+              </button>
             </PopoverContent>
           </Popover>
 

@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import uuid
 
 from typing import Any, Optional
 
@@ -501,3 +502,70 @@ async def reports_refresh(body: ReportRefresh, sql_session: AsyncSession = Depen
     }
     path.write_text(json.dumps(binding))
     return {"refreshed": True, **binding}
+
+
+
+def _collab_path(document_id: str):
+    from utils.get_env import get_app_data_directory_env
+    root = Path(get_app_data_directory_env() or "/tmp/presenton") / "sources"
+    root.mkdir(parents=True, exist_ok=True)
+    return root / ("collab-%s.json" % document_id)
+
+
+def _load_collab(document_id: str) -> dict:
+    path = _collab_path(document_id)
+    if not path.exists():
+        return {"comments": [], "presence": []}
+    try:
+        data = json.loads(path.read_text())
+    except Exception:
+        data = {}
+    data.setdefault("comments", [])
+    data.setdefault("presence", [])
+    return data
+
+
+class CollabComment(BaseModel):
+    document_id: str
+    slide_id: str
+    text: str
+    author: str = "user"
+
+
+class CollabPresence(BaseModel):
+    document_id: str
+    actor: str = "user"
+    slide_id: Optional[str] = None
+
+
+@R2_ROUTER.get("/collab/{document_id}")
+async def collab_get(document_id: str):
+    return _load_collab(document_id)
+
+
+@R2_ROUTER.post("/collab/comments")
+async def collab_comment(body: CollabComment):
+    data = _load_collab(body.document_id)
+    item = {
+        "id": uuid.uuid4().hex[:12],
+        "slide_id": body.slide_id,
+        "text": (body.text or "").strip()[:500],
+        "author": (body.author or "user")[:64],
+    }
+    if not item["text"]:
+        raise HTTPException(422, "empty comment")
+    data["comments"].append(item)
+    _collab_path(body.document_id).write_text(json.dumps(data))
+    return item
+
+
+@R2_ROUTER.post("/collab/presence")
+async def collab_presence(body: CollabPresence):
+    import time
+    data = _load_collab(body.document_id)
+    now = time.time()
+    others = [p for p in data["presence"] if now - float(p.get("ts") or 0) < 60 and p.get("actor") != body.actor]
+    others.append({"actor": body.actor[:64], "slide_id": body.slide_id, "ts": now})
+    data["presence"] = others
+    _collab_path(body.document_id).write_text(json.dumps(data))
+    return {"ok": True, "presence": others}

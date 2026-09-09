@@ -319,6 +319,22 @@ export class PresentationGenerationApi {
     return await ApiResponseHandler.handleResponse(response, "Failed to apply variant");
   }
 
+  static async getCollab(documentId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/collab/${documentId}`), {
+      method: "GET", headers: getHeader(), cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load collab");
+  }
+
+  static async postCollabComment(documentId: string, slideId: string, text: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/collab/comments`), {
+      method: "POST", headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId, slide_id: slideId, text, author: "user" }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to comment");
+  }
+
   static async refreshReport(documentId: string) {
     const response = await fetch(getApiUrl(`/api/v1/ppt/r2/reports/refresh`), {
       method: "POST",
