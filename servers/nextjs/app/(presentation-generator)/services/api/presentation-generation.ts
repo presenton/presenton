@@ -299,6 +299,15 @@ export class PresentationGenerationApi {
     return await ApiResponseHandler.handleResponse(response, "Failed to load units");
   }
 
+  static async listDozerCatalog(packId = "m894-r1-pilot") {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/packs/${packId}/components`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load pack catalog");
+  }
+
   static async applyDozerPack(packId: string, documentId: string) {
     const response = await fetch(getApiUrl(`/api/v1/ppt/r1/packs/${packId}/apply`), {
       method: "POST",

@@ -167,26 +167,75 @@ def _add_chart(slide, element: dict[str, Any]) -> None:
     slide.shapes.add_chart(chart_type, x, y, w, h, data)
 
 
-def _patch_waterfall_xml(dest_path: str) -> None:
+def _chartex_waterfall(categories, values):
+    cat_pts = "".join(
+        "<cx:pt idx=\"%d\"><cx:v>%s</cx:v></cx:pt>" % (i, c) for i, c in enumerate(categories)
+    )
+    val_pts = "".join(
+        "<cx:pt idx=\"%d\"><cx:v>%s</cx:v></cx:pt>" % (i, v) for i, v in enumerate(values)
+    )
+    return (
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<cx:chartSpace xmlns:cx=\"http://schemas.microsoft.com/office/drawing/2014/chartex\" "
+        "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">"
+        "<cx:chartData><cx:data id=\"0\">"
+        "<cx:strDim type=\"cat\"><cx:f>Categories</cx:f><cx:lvl>" + cat_pts + "</cx:lvl></cx:strDim>"
+        "<cx:numDim type=\"val\"><cx:f>Values</cx:f><cx:lvl>" + val_pts + "</cx:lvl></cx:numDim>"
+        "</cx:data></cx:chartData>"
+        "<cx:chart><cx:plotArea><cx:plotAreaRegion>"
+        "<cx:series layoutId=\"waterfall\">"
+        "<cx:tx><cx:txData><cx:v>delta</cx:v></cx:txData></cx:tx>"
+        "<cx:dataId val=\"0\"/><cx:layoutPr><cx:subtotals/></cx:layoutPr>"
+        "<cx:axisId val=\"0\"/><cx:axisId val=\"1\"/>"
+        "</cx:series></cx:plotAreaRegion>"
+        "<cx:axis id=\"0\"><cx:catScaling gapWidth=\"0.5\"/><cx:tickLabels/></cx:axis>"
+        "<cx:axis id=\"1\"><cx:valScaling/><cx:tickLabels/></cx:axis>"
+        "</cx:plotArea><cx:legend/></cx:chart></cx:chartSpace>"
+    )
+
+
+def _patch_waterfall_xml(dest_path):
     from zipfile import ZipFile, ZIP_DEFLATED
-    import io
+    import io, re
     buf = io.BytesIO()
     with ZipFile(dest_path, "r") as zin:
-        names = zin.namelist()
-        with ZipFile(buf, "w", ZIP_DEFLATED) as zout:
-            for name in names:
-                data = zin.read(name)
-                if name.startswith("ppt/charts/") and name.endswith(".xml"):
-                    xml = data.decode("utf-8", "ignore")
-                    if "c:grouping" in xml and "delta" in xml:
-                        if "<c:overlap" not in xml:
-                            xml = xml.replace(
-                                '<c:grouping val="stacked"/>',
-                                '<c:grouping val="stacked"/><c:overlap val="100"/>',
-                            )
-                        xml = xml.replace("<c:overlap val=\"0\"/>", "<c:overlap val=\"100\"/>")
-                        data = xml.encode("utf-8")
-                zout.writestr(name, data)
+        files = {name: zin.read(name) for name in zin.namelist()}
+    waterfall_parts = []
+    for name, data in list(files.items()):
+        if not (name.startswith("ppt/charts/") and name.endswith(".xml")):
+            continue
+        xml = data.decode("utf-8", "ignore")
+        if "delta" not in xml:
+            continue
+        cats = re.findall(r"<c:v>([^<]*)</c:v>", xml)
+        nums = re.findall(r"<c:v>(-?\d+(?:\.\d+)?)</c:v>", xml)
+        labels = [c for c in cats if not re.fullmatch(r"-?\d+(?:\.\d+)?", c) and c not in {"base", "delta"}]
+        if not labels:
+            labels = ["S%d" % (i + 1) for i in range(max(1, len(nums) // 2 or 1))]
+        values = [float(x) for x in nums[-len(labels):]] or [0.0]
+        files[name] = _chartex_waterfall(labels[: len(values)], values).encode("utf-8")
+        waterfall_parts.append("/" + name)
+    if waterfall_parts:
+        ct = files.get("[Content_Types].xml", b"").decode("utf-8", "ignore")
+        for part in waterfall_parts:
+            ct = ct.replace(
+                "PartName=\"%s\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"" % part,
+                "PartName=\"%s\" ContentType=\"application/vnd.ms-office.chartex+xml\"" % part,
+            )
+        files["[Content_Types].xml"] = ct.encode("utf-8")
+        for name, data in list(files.items()):
+            if name.startswith("ppt/slides/slide") and name.endswith(".xml"):
+                xml = data.decode("utf-8", "ignore")
+                if "drawingml/2006/chart" in xml:
+                    xml = xml.replace(
+                        "http://schemas.openxmlformats.org/drawingml/2006/chart",
+                        "http://schemas.microsoft.com/office/drawing/2014/chartex",
+                    )
+                    xml = xml.replace("<c:chart ", "<cx:chart xmlns:cx=\"http://schemas.microsoft.com/office/drawing/2014/chartex\" ")
+                    files[name] = xml.encode("utf-8")
+    with ZipFile(buf, "w", ZIP_DEFLATED) as zout:
+        for name, data in files.items():
+            zout.writestr(name, data)
     Path(dest_path).write_bytes(buf.getvalue())
 
 

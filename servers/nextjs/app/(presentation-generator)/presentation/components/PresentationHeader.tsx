@@ -111,6 +111,8 @@ const PresentationHeader = ({
   const router = useRouter();
   const [isExporting, setIsExporting] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
+  const [packOpen, setPackOpen] = useState(false);
+  const [packItems, setPackItems] = useState<Array<{ id: string; label?: string; group?: string }>>([]);
   const [qualityIssues, setQualityIssues] = useState<Array<{ code: string; slideId?: string }>>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
@@ -775,9 +777,41 @@ const PresentationHeader = ({
             </button>
           </ToolTip>)}
 
+          <Popover
+            open={packOpen}
+            onOpenChange={(next) => {
+              setPackOpen(next);
+              if (next) {
+                void PresentationGenerationApi.listDozerCatalog()
+                  .then((rows) => setPackItems(Array.isArray(rows) ? rows : []))
+                  .catch(() => setPackItems([]));
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="dozer-catalog"
+                className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+              >
+                Pack
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[260px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
+              <ul className="space-y-1">
+                {packItems.map((item) => (
+                  <li key={item.id} className="text-sm text-[#101323]" data-testid={`dozer-item-${item.id}`}>
+                    {(item.label || item.id) + (item.group ? ` · ${item.group}` : "")}
+                  </li>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
+
           <button
             type="button"
             data-testid="nielsen-pull"
+            aria-label="Pull Nielsen"
             className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
             onClick={async () => {
               try {

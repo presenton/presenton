@@ -69,5 +69,6 @@ def test_waterfall_uses_stacked_not_clustered(tmp_path: Path):
     assert any(n.startswith("ppt/charts/") for n in names)
     chart = next(n for n in names if n.startswith("ppt/charts/") and n.endswith(".xml"))
     xml = ZipFile(dest).read(chart).decode("utf-8", "ignore")
-    assert "colStacked" in xml or "stacked" in xml.lower()
-    assert "overlap" in xml.lower()
+    assert "layoutId=\"waterfall\"" in xml or "layoutId='waterfall'" in xml
+    ct = ZipFile(dest).read("[Content_Types].xml").decode("utf-8", "ignore")
+    assert "chartex" in ct

@@ -107,17 +107,20 @@ def list_brand_packs() -> list[dict[str, Any]]:
 
 
 DOZER_COMPONENTS = [
-    {"id": "kpi", "label": "KPI", "kind": "text"},
-    {"id": "punch", "label": "KPI row", "kind": "kpi-row"},
-    {"id": "waterfall", "label": "Waterfall", "kind": "chart"},
+    {"id": "kpi", "label": "KPI", "kind": "text", "group": "metrics"},
+    {"id": "punch", "label": "KPI row", "kind": "kpi-row", "group": "metrics"},
+    {"id": "waterfall", "label": "Waterfall", "kind": "chart", "group": "charts"},
+    {"id": "matrix-2x2", "label": "Matrix 2x2", "kind": "composition", "group": "layouts"},
+    {"id": "split-60-40", "label": "Split 60/40", "kind": "composition", "group": "layouts"},
+    {"id": "tokens", "label": "Brand tokens", "kind": "theme", "group": "brand"},
 ]
 
 
 def pack_components(pack_id: str) -> list[dict[str, Any]]:
     pack = load_brand_pack(pack_id)
+    if pack["id"] == "m894-r1-pilot":
+        return list(DOZER_COMPONENTS)
     stored = pack.get("components")
     if isinstance(stored, list) and stored:
         return stored
-    if pack["id"] == "m894-r1-pilot":
-        return list(DOZER_COMPONENTS)
     return []
