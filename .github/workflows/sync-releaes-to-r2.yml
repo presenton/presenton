@@ -18,14 +18,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir assets
-          gh release download "${{ github.event.release.tag_name }}" --dir assets --pattern '*.deb' --pattern '*.dmg' --pattern '*.exe'
+          gh release download "${{ github.event.release.tag_name }}" --dir assets --pattern '*.deb' --pattern '*.dmg' --pattern '*.exe' --pattern '*.AppImage'
           echo "Downloaded files:"
           ls -lh assets/
 
-      - name: Extract version from filename
+      - name: Extract version from filename (supports deb, dmg, exe, AppImage)
         run: |
           FILE=$(ls assets/ | head -n 1)
-          VERSION=$(echo "$FILE" | sed -E 's/^Presenton-(.+)\.(deb|dmg|exe)$/\1/')
+          VERSION=$(echo "$FILE" | sed -E 's/^Presenton-(.+)\.(deb|dmg|exe|AppImage)$/\1/')
           echo "Extracted version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 

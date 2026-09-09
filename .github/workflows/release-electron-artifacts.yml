@@ -1,0 +1,51 @@
+name: Release Electron Artifacts
+
+# Automatically attach all electron-builder output to a release when an
+# electron-* tag is pushed. This guarantees the AppImage (and any future
+# targets such as RPM) land in the release without a manual upload step.
+#
+# The existing electron-linux-ubuntu22.yml workflow publishes a *test* build
+# to the presenton-export repo. This workflow is for the *production* release
+# on presenton/presenton.
+
+on:
+  push:
+    tags:
+      - 'electron-*'
+
+jobs:
+  upload:
+    name: Upload dist artifacts to release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p electron/dist
+          gh release download "${{ github.ref_name }}" \
+            --dir electron/dist \
+            --pattern '*.deb' \
+            --pattern '*.AppImage' \
+            --pattern '*.dmg' \
+            --pattern '*.exe' \
+            --repo presenton/presenton || true
+
+      - name: Upload all dist artifacts to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -d electron/dist ] && [ "$(ls -A electron/dist 2>/dev/null)" ]; then
+            echo "Uploading artifacts from electron/dist/"
+            ls -lh electron/dist/
+            gh release upload "${{ github.ref_name }}" electron/dist/* --clobber
+          else
+            echo "No artifacts found in electron/dist/ — nothing to upload."
+            exit 0
+          fi
