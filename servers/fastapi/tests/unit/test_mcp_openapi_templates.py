@@ -14,6 +14,8 @@ def test_default_templates_match_supported_builtin_groups():
         "standard",
         "swift",
         "editorial",
+        "mosaic",
+        "verdant",
     ]
 
 
