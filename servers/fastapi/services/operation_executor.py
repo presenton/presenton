@@ -165,6 +165,36 @@ async def _apply_operations(
                 raise HTTPException(422, "ApplyBrandPack requires brandPackId")
             metadata["theme"] = presentation_theme_from_pack(load_brand_pack(str(pack_id)))
             continue
+        if op_type == "UpdateInfographic":
+            from copy import deepcopy
+            from services.r1_infographic import apply_model, model_from_element
+            def _iter(tree):
+                if isinstance(tree, dict):
+                    if tree.get("type") == "infographic" or tree.get("infographic_type"):
+                        yield tree
+                    for value in tree.values():
+                        yield from _iter(value)
+                elif isinstance(tree, list):
+                    for item in tree:
+                        yield from _iter(item)
+            for slide_id in targets:
+                slide = slide_map[slide_id]
+                ui = deepcopy(slide.ui or {})
+                items = list(_iter(ui))
+                if not items:
+                    raise HTTPException(422, "No infographic on slide")
+                item = items[0]
+                model = payload.get("model") or model_from_element({**item, "type": "infographic"})
+                if payload.get("nodes"):
+                    model["nodes"] = payload["nodes"]
+                if payload.get("edges"):
+                    model["edges"] = payload["edges"]
+                updated = apply_model(item, model)
+                item.clear()
+                item.update(updated)
+                slide.ui = ui
+                session.add(slide)
+            continue
         if op_type in {"UpdateChartType", "UpdateChartData"}:
             from copy import deepcopy
             from services.chart_data import (
@@ -573,7 +603,7 @@ def invert_operations(operations: list[dict], before_snapshot: dict) -> list[dic
                     "payload": {"theme": before_snapshot.get("theme")},
                 }
             )
-        elif op_type in {"UpdateChartType", "UpdateChartData"}:
+        elif op_type in {"UpdateChartType", "UpdateChartData", "UpdateInfographic"}:
             slides = {slide["id"]: slide for slide in (before_snapshot.get("slides") or [])}
             for slide_id in targets:
                 old = slides.get(slide_id)

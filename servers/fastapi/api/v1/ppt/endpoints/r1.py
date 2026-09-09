@@ -90,3 +90,36 @@ async def infographic_model(body: InfographicBody):
     if body.model:
         return apply_model(body.element, body.model)
     return model_from_element(body.element)
+
+
+class BatchApply(BaseModel):
+    document_id: str
+    targetIds: list[str]
+    operationType: str
+    payload: dict[str, Any]
+    scope: str = "slide"
+
+
+@R1_ROUTER.post("/batch")
+async def batch_apply(body: BatchApply, sql_session: AsyncSession = Depends(get_async_session)):
+    if not body.targetIds:
+        raise HTTPException(422, "targetIds required")
+    if len(body.targetIds) > 50:
+        raise HTTPException(422, "too many targets")
+    snapshot = await load_document_snapshot(sql_session, body.document_id)
+    operations = [
+        {
+            "scope": body.scope,
+            "targetIds": [sid],
+            "operationType": body.operationType,
+            "payload": body.payload,
+        }
+        for sid in body.targetIds
+    ]
+    return await execute_operation(
+        sql_session,
+        document_id=body.document_id,
+        base_revision=snapshot["revision"],
+        operations=operations,
+        actor_source="batch",
+    )

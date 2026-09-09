@@ -28,3 +28,9 @@ def test_normalize_rejects_non_numeric():
     import pytest
     with pytest.raises(HTTPException):
         normalize_chart_data({"categories": ["A"], "series": [{"name": "S", "values": ["нет"]}]})
+
+
+def test_waterfall_keeps_values():
+    wf = change_chart_type(BAR, "waterfall")
+    assert wf["chart_type"] == "waterfall"
+    assert wf["series"][0]["values"] == [10, 20, 30]

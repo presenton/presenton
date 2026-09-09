@@ -23,6 +23,7 @@ CHART_TYPES = {
     "line": XL_CHART_TYPE.LINE,
     "stacked_bar": XL_CHART_TYPE.COLUMN_STACKED,
     "donut": XL_CHART_TYPE.DOUGHNUT,
+    "waterfall": XL_CHART_TYPE.COLUMN_CLUSTERED,
 }
 
 
