@@ -8,6 +8,7 @@ import {
   ArrowUp,
   Copy,
   EllipsisVertical,
+  LayoutGrid,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import {
   duplicatePresentationSlide,
   movePresentationSlide,
   replaceSlidesWithBlankFallback,
+  updateSlide,
 } from "@/store/slices/presentationGeneration";
 import { addToHistory } from "@/store/slices/undoRedoSlice";
 import { RootState } from "@/store/store";
@@ -40,6 +42,7 @@ import {
   isTemplateV2Slide as isTemplateV2PresentationSlide,
 } from "../../_shared/blank-slide";
 import NewSlide from "./NewSlide";
+import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import { MAX_NUMBER_OF_SLIDES } from "@/utils/presentationLimits";
 
 interface SlideActionBarProps {
@@ -72,6 +75,7 @@ const SlideActionBar = ({
   const [showNewSlideSelection, setShowNewSlideSelection] = useState(false);
   const [isSpeakerPopoverOpen, setIsSpeakerPopoverOpen] = useState(false);
   const [isSlideMenuOpen, setIsSlideMenuOpen] = useState(false);
+  const [compositions, setCompositions] = useState<Array<{ id: string; layout: string; layout_group: string }>>([]);
   const isStreaming = useSelector(
     (state: RootState) => state.presentationGeneration.isStreaming
   );
@@ -257,6 +261,72 @@ const SlideActionBar = ({
     });
   };
 
+  const loadCompositions = async () => {
+    if (compositions.length) return;
+    try {
+      const items = await PresentationGenerationApi.listCompositions();
+      if (Array.isArray(items)) setCompositions(items);
+    } catch {
+      notify.error("Could not load layouts");
+    }
+  };
+
+  const applyComposition = async (compositionId: string, allSlides = false) => {
+    const slides = (store.getState() as RootState).presentationGeneration.presentationData?.slides;
+    if (!Array.isArray(slides) || !slide?.id) return;
+    try {
+      if (allSlides) {
+        const spec = compositions.find((item) => item.id === compositionId);
+        const ids = slides.map((item: { id?: string }) => item.id).filter(Boolean) as string[];
+        await PresentationGenerationApi.batchSlideOperations({
+          document_id: presentationId,
+          targetIds: ids,
+          operationType: "UpdateSlide",
+          payload: {
+            layout: spec?.layout || compositionId,
+            layout_group: spec?.layout_group || "r1",
+          },
+        });
+        slides.forEach((item: any, index: number) => {
+          dispatch(
+            updateSlide({
+              index,
+              slide: {
+                ...item,
+                layout: spec?.layout || compositionId,
+                layout_group: spec?.layout_group || "r1",
+              },
+            }),
+          );
+        });
+        notify.success("Layout applied to all slides");
+      } else {
+        await PresentationGenerationApi.applyComposition({
+          document_id: presentationId,
+          slide_id: String(slide.id),
+          composition_id: compositionId,
+        });
+        const spec = compositions.find((item) => item.id === compositionId);
+        dispatch(
+          updateSlide({
+            index: currentIndex,
+            slide: {
+              ...slide,
+              layout: spec?.layout || compositionId,
+              layout_group: spec?.layout_group || "r1",
+            },
+          }),
+        );
+        notify.success(`Layout: ${compositionId}`);
+      }
+    } catch (error) {
+      notify.error(
+        "Could not apply layout",
+        error instanceof Error ? error.message : "Try again.",
+      );
+    }
+  };
+
   const openTemplatePicker = () => {
     if (isTemplateFree) return;
 
@@ -396,7 +466,10 @@ const SlideActionBar = ({
 
           <DropdownMenu.Root
             open={isSlideMenuOpen}
-            onOpenChange={setIsSlideMenuOpen}
+            onOpenChange={(open) => {
+              setIsSlideMenuOpen(open);
+              if (open) void loadCompositions();
+            }}
           >
             <DropdownMenu.Trigger asChild>
               <button
@@ -440,6 +513,32 @@ const SlideActionBar = ({
                 >
                   <ArrowDown className="h-4 w-4 shrink-0 text-current" />
                   <span>Move Down</span>
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator className="my-2 h-px bg-[#EDEEEF]" />
+                {compositions.map((item) => (
+                  <DropdownMenu.Item
+                    key={item.id}
+                    className={menuItemClass}
+                    data-testid={`composition-${item.id}`}
+                    onSelect={() => {
+                      void applyComposition(item.id);
+                    }}
+                  >
+                    <LayoutGrid className="h-4 w-4 shrink-0 text-current" />
+                    <span>{item.id}</span>
+                  </DropdownMenu.Item>
+                ))}
+                <DropdownMenu.Item
+                  className={menuItemClass}
+                  data-testid="composition-apply-all"
+                  disabled={!compositions.length}
+                  onSelect={() => {
+                    const current = compositions.find((item) => item.layout === slide?.layout)?.id || compositions[0]?.id;
+                    if (current) void applyComposition(current, true);
+                  }}
+                >
+                  <LayoutGrid className="h-4 w-4 shrink-0 text-current" />
+                  <span>Apply layout to all</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="my-2 h-px bg-[#EDEEEF]" />
                 <DropdownMenu.Item

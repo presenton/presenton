@@ -230,6 +230,45 @@ export class PresentationGenerationApi {
     );
   }
 
+  static async listCompositions() {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/compositions`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load layouts");
+  }
+
+  static async applyComposition(body: {
+    document_id: string;
+    slide_id: string;
+    composition_id: string;
+  }) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/compositions/apply`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify(body),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply layout");
+  }
+
+  static async batchSlideOperations(body: {
+    document_id: string;
+    targetIds: string[];
+    operationType: string;
+    payload: Record<string, unknown>;
+    scope?: string;
+  }) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/batch`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify(body),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply batch edit");
+  }
+
   static async undoDocumentOperation(documentId: string, operationId: string) {
     const response = await fetch(
       getApiUrl(`/api/v1/ppt/editor/v1/documents/${documentId}/operations/${operationId}/undo`),

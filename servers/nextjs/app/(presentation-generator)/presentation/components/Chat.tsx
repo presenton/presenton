@@ -522,6 +522,7 @@ const Chat = ({
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isFollowAgentEnabled, setIsFollowAgentEnabled] = useState(true);
+  const [chatScope, setChatScope] = useState<"slide" | "all">("slide");
   const [hasChatMutationStarted, setHasChatMutationStarted] = useState(false);
   const [activeAssistantMessageId, setActiveAssistantMessageId] = useState<
     string | null
@@ -1007,7 +1008,13 @@ const Chat = ({
       );
     }
 
-    if (typeof currentSlide === "number") {
+    if (chatScope === "all") {
+      const slides = (presentationData as { slides?: Array<{ id?: string }> } | null)?.slides || [];
+      const ids = slides.map((item) => item.id).filter(Boolean).join(", ");
+      contextLines.push(
+        `UI context: BATCH SCOPE is all slides. Target IDs: ${ids}. Apply the same edit to every listed slide. Do not retarget to the first slide only.`,
+      );
+    } else if (typeof currentSlide === "number") {
       contextLines.push(
         `UI context: the currently selected slide is slide ${currentSlide + 1
         } (zero-based index ${currentSlide}). Target this slide unless the user names another.`
@@ -2644,6 +2651,34 @@ const Chat = ({
                 </div>
               )}
 
+            <div className="flex items-center gap-1.5" data-testid="chat-scope">
+              <button
+                type="button"
+                data-testid="chat-scope-slide"
+                aria-pressed={chatScope === "slide"}
+                onClick={() => setChatScope("slide")}
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                  chatScope === "slide"
+                    ? "border-[#7A5AF8] bg-[#F4F1FF] text-[#7A5AF8]"
+                    : "border-[#EDEEEF] text-[#667085]"
+                }`}
+              >
+                This slide
+              </button>
+              <button
+                type="button"
+                data-testid="chat-scope-all"
+                aria-pressed={chatScope === "all"}
+                onClick={() => setChatScope("all")}
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                  chatScope === "all"
+                    ? "border-[#7A5AF8] bg-[#F4F1FF] text-[#7A5AF8]"
+                    : "border-[#EDEEEF] text-[#667085]"
+                }`}
+              >
+                All slides
+              </button>
+            </div>
             <textarea
               ref={inputRef}
               name="chat-input"
