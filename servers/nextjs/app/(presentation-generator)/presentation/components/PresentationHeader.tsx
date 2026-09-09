@@ -795,6 +795,7 @@ const PresentationHeader = ({
               {qualityIssues.length === 0 ? (
                 <p className="text-sm text-[#667085]" data-testid="quality-ok">No issues</p>
               ) : (
+                <>
                 <ul className="space-y-1.5">
                   {qualityIssues.map((issue, index) => (
                     <li key={`${issue.code}-${index}`} className="text-sm text-[#101323]" data-testid={`quality-issue-${issue.code}`}>
@@ -802,6 +803,26 @@ const PresentationHeader = ({
                     </li>
                   ))}
                 </ul>
+                <button
+                  type="button"
+                  data-testid="quality-fix"
+                  className="mt-3 w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-xs font-medium text-[#101323]"
+                  onClick={async () => {
+                    try {
+                      await PresentationGenerationApi.fixQualityIssues(presentation_id);
+                      await loadQuality();
+                      notify.success("Quality fixes applied");
+                    } catch (error) {
+                      notify.error(
+                        "Could not apply fixes",
+                        error instanceof Error ? error.message : "Try again.",
+                      );
+                    }
+                  }}
+                >
+                  Fix empty images
+                </button>
+                </>
               )}
             </PopoverContent>
           </Popover>

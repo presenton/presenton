@@ -13,7 +13,7 @@ from services.r1_assets import list_assets
 from services.r1_compositions import apply_composition, list_compositions
 from services.r1_infographic import apply_model, model_from_element
 from services.r1_quality import check_presentation
-from services.r1_sources import extract_document_source
+from services.r1_sources import extract_document_source, extract_url_source
 
 R1_ROUTER = APIRouter(prefix="/r1", tags=["R1"])
 
@@ -74,6 +74,15 @@ async def sources_extract(body: SourceExtract):
     return extract_document_source(body.file_path)
 
 
+class SourceUrl(BaseModel):
+    url: str
+
+
+@R1_ROUTER.post("/sources/extract-url")
+async def sources_extract_url(body: SourceUrl):
+    return extract_url_source(body.url)
+
+
 @R1_ROUTER.get("/assets")
 async def assets():
     return list_assets()
@@ -123,3 +132,70 @@ async def batch_apply(body: BatchApply, sql_session: AsyncSession = Depends(get_
         operations=operations,
         actor_source="batch",
     )
+
+
+class QualityFix(BaseModel):
+    codes: list[str] = ["empty_image"]
+
+
+def _replace_placeholder_images(tree, src: str) -> int:
+    changed = 0
+    if isinstance(tree, dict):
+        if tree.get("type") == "image":
+            data = str(tree.get("data") or tree.get("src") or "")
+            if (not data) or ("placeholder" in data):
+                tree["data"] = src
+                changed += 1
+        for value in tree.values():
+            changed += _replace_placeholder_images(value, src)
+    elif isinstance(tree, list):
+        for item in tree:
+            changed += _replace_placeholder_images(item, src)
+    return changed
+
+
+@R1_ROUTER.post("/quality/{document_id}/fix")
+async def quality_fix(
+    document_id: str,
+    body: QualityFix | None = None,
+    sql_session: AsyncSession = Depends(get_async_session),
+):
+    from copy import deepcopy
+    from services.r1_assets import list_assets
+
+    codes = set((body.codes if body else None) or ["empty_image"])
+    snapshot = await load_document_snapshot(sql_session, document_id)
+    report = check_presentation(snapshot)
+    assets = list_assets(limit=1)
+    if "empty_image" in codes and not assets:
+        raise HTTPException(422, "No library asset to replace empty images")
+    src = None
+    if assets:
+        path = str(assets[0]["path"])
+        src = path[path.index("/app_data/") :] if "/app_data/" in path else path
+    operations = []
+    for slide in snapshot["slides"]:
+        issues = [i for i in report["issues"] if i.get("slideId") == slide["id"]]
+        if not any(i["code"] == "empty_image" and "empty_image" in codes for i in issues):
+            continue
+        ui = deepcopy(slide.get("ui") or {})
+        if src and _replace_placeholder_images(ui, src):
+            operations.append(
+                {
+                    "scope": "slide",
+                    "targetIds": [slide["id"]],
+                    "operationType": "UpdateSlide",
+                    "payload": {"ui": ui},
+                }
+            )
+    if not operations:
+        return {"ok": True, "fixed": 0, "status": "noop"}
+    result = await execute_operation(
+        sql_session,
+        document_id=document_id,
+        base_revision=snapshot["revision"],
+        operations=operations,
+        actor_source="quality-fix",
+    )
+    result["fixed"] = len(operations)
+    return result

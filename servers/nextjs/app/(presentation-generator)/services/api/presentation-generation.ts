@@ -252,6 +252,16 @@ export class PresentationGenerationApi {
     return await ApiResponseHandler.handleResponse(response, "Failed to load assets");
   }
 
+  static async fixQualityIssues(documentId: string, codes: string[] = ["empty_image"]) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/quality/${documentId}/fix`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ codes }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to fix quality issues");
+  }
+
   static async getQualityReport(documentId: string) {
     const response = await fetch(getApiUrl(`/api/v1/ppt/r1/quality/${documentId}`), {
       method: "GET",

@@ -1,3 +1,5 @@
+from fastapi import HTTPException
+from services.r1_sources import extract_url_source
 
 from services.r1_compositions import apply_composition, list_compositions
 from services.r1_infographic import model_from_element
@@ -27,3 +29,10 @@ def test_quality_flags_placeholder_image():
         "slides": [{"id": "s1", "ui": {"el": {"type": "image", "data": "placeholder.jpg"}}, "content": {"title": "x"}}]
     })
     assert any(i["code"] == "empty_image" for i in report["issues"])
+
+
+def test_url_extract_rejects_loopback():
+    import pytest
+    with pytest.raises(HTTPException) as exc:
+        extract_url_source("http://127.0.0.1/")
+    assert exc.value.status_code == 422

@@ -54,3 +54,42 @@ def extract_document_source(path: str) -> dict[str, Any]:
         "engine": ext.lstrip(".") or "text",
     }
     return persist_source_snapshot(payload)
+
+
+def extract_url_source(url: str) -> dict[str, Any]:
+    from urllib.parse import urlparse
+    from urllib.request import Request, urlopen
+    import ipaddress
+    import socket
+
+    parsed = urlparse((url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise HTTPException(422, "Only http(s) URLs are allowed")
+    host = parsed.hostname
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError as exc:
+        raise HTTPException(422, f"Could not resolve host: {host}") from exc
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise HTTPException(422, "URL host is not allowed")
+    req = Request(parsed.geturl(), headers={"User-Agent": "presenton-r1-extract"})
+    try:
+        with urlopen(req, timeout=10) as resp:
+            raw = resp.read(200_000)
+            text = raw.decode(resp.headers.get_content_charset() or "utf-8", errors="replace")
+    except Exception as exc:
+        raise HTTPException(422, f"Fetch failed: {exc}") from exc
+    numbers = _NUM.findall(text)
+    return persist_source_snapshot(
+        {
+            "kind": "url",
+            "filename": host,
+            "text": text[:20000],
+            "numbers": numbers[:200],
+            "warnings": [],
+            "engine": "url",
+            "source": {"url": parsed.geturl()},
+        }
+    )
