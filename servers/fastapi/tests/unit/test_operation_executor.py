@@ -264,6 +264,34 @@ class OperationExecutorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(snapshot["slides"]), 3)
         self.assertEqual(snapshot["revision"], 9)
 
+    async def test_in_place_update_slide_reports_changed_slide_ids(self):
+        target = str(self.slides[1].id)
+        other = str(self.slides[0].id)
+        async with self.sessions() as session:
+            result = await execute_operation(
+                session,
+                document_id=self.document_id,
+                base_revision=7,
+                operations=[
+                    {
+                        "scope": "slide",
+                        "targetIds": [target],
+                        "operationType": "UpdateSlide",
+                        "payload": {"ui": {"title": "changed in place"}},
+                    }
+                ],
+                operation_id=str(uuid.uuid4()),
+            )
+        self.assertEqual(result["changedSlideIds"], [target])
+        self.assertNotIn(other, result["changedSlideIds"])
+        self.assertEqual(result["resultingRevision"], 8)
+        async with self.sessions() as session:
+            snapshot = await load_document_snapshot(session, self.document_id)
+        changed = next(s for s in snapshot["slides"] if s["id"] == target)
+        untouched = next(s for s in snapshot["slides"] if s["id"] == other)
+        self.assertEqual(changed["ui"], {"title": "changed in place"})
+        self.assertEqual(untouched["ui"], {"title": "Slide 0"})
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
