@@ -5,6 +5,7 @@ export interface AutoSaveSnapshot {
   slideOrder: string[];
   slideFingerprints: Record<string, string>;
   metadataFingerprint: string;
+  persistedMetadataFingerprint: string;
 }
 
 export interface AutoSaveChanges {
@@ -37,6 +38,7 @@ export const createAutoSaveSnapshot = (
     presentationId: data.id,
     slideOrder,
     slideFingerprints,
+    persistedMetadataFingerprint: fingerprintValue({title: data.title, theme: data.persistedTheme !== undefined ? data.persistedTheme : data.theme}),
     metadataFingerprint: fingerprintValue({
       title: data.title,
       theme: data.theme,

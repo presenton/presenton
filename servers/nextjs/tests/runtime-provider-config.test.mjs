@@ -19,7 +19,7 @@ test.before(async () => {
   const outputFile = path.join(temporaryDirectory, "bundle.mjs");
   await writeFile(
     entryFile,
-    `export { readRuntimeProviderConfig } from ${JSON.stringify(
+    `export { readRuntimeProviderConfig, publicProviderConfig } from ${JSON.stringify(
       path.resolve("lib/runtime-provider-config.ts")
     )};`
   );
@@ -74,4 +74,34 @@ test("regular-user runtime config keeps provider choices and redacts secrets", a
     if (previousPath === undefined) delete process.env.USER_CONFIG_PATH;
     else process.env.USER_CONFIG_PATH = previousPath;
   }
+});
+
+
+test('unknown auth fields and nested payloads never pass through', () => {
+  const marker = 'AUDIT_SECRET_SENTINEL';
+  const result = runtimeConfig.publicProviderConfig({
+    LLM:'custom', CUSTOM_MODEL:'fixture', CUSTOM_LLM_API_KEY:marker,
+    AUTH_PASSWORD_HASH:marker, AUTH_SECRET_KEY:marker, AUTH_USERNAME:marker,
+    FUTURE_PROVIDER_SECRET:marker, auth_secret_key:marker,
+    nested:{secret:marker}, LLM_MAX_OUTPUT_TOKENS:{secret:marker},
+    OPENAI_MODEL:{secret:marker}, CODEX_ACCOUNT_ID:marker,
+    CODEX_EMAIL:marker, CODEX_TOKEN_EXPIRES:marker,
+  });
+  assert.deepEqual(result, {LLM:'custom', CUSTOM_MODEL:'fixture', CUSTOM_LLM_API_KEY:'__configured__'});
+  assert.ok(!JSON.stringify(result).includes(marker));
+});
+test('server endpoints and workflow cannot leak embedded credentials', () => {
+  const marker='AUDIT_SECRET_SENTINEL';
+  const result=runtimeConfig.publicProviderConfig({
+    CUSTOM_LLM_URL:`https://user:${marker}@example.invalid/${marker}?token=${marker}`,
+    COMFYUI_WORKFLOW:JSON.stringify({credential:marker}),
+    DISABLE_IMAGE_GENERATION:true, LLM_MAX_OUTPUT_TOKENS:4096,
+  });
+  assert.equal(result.CUSTOM_LLM_URL,'https://server-managed.invalid');
+  assert.equal(result.COMFYUI_WORKFLOW,'{}');
+  assert.equal(result.LLM_MAX_OUTPUT_TOKENS,4096);
+  assert.ok(!JSON.stringify(result).includes(marker));
+});
+test('empty and wrong-type credentials never become configured', () => {
+  assert.deepEqual(runtimeConfig.publicProviderConfig({OPENAI_API_KEY:'', CUSTOM_LLM_API_KEY:{secret:'x'}, LLM_MAX_OUTPUT_TOKENS:NaN}),{});
 });
