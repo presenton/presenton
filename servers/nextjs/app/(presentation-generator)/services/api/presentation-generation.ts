@@ -230,6 +230,15 @@ export class PresentationGenerationApi {
     );
   }
 
+  static async getQualityReport(documentId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/quality/${documentId}`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load quality report");
+  }
+
   static async listBrandPacks() {
     const response = await fetch(getApiUrl(`/api/v1/ppt/brand-packs`), {
       method: "GET",

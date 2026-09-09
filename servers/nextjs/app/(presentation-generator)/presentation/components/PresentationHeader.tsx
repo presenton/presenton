@@ -55,6 +55,7 @@ import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import { sanitizeAnalyticsError } from "@/utils/analytics";
 import { v4 as uuidv4 } from "uuid";
 import StreamingGenerationMetrics from "./StreamingGenerationMetrics";
+import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 
 const MAX_EXPORT_TITLE_LENGTH = 40;
 
@@ -108,6 +109,8 @@ const PresentationHeader = ({
   const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
   const router = useRouter();
   const [isExporting, setIsExporting] = useState(false);
+  const [qualityOpen, setQualityOpen] = useState(false);
+  const [qualityIssues, setQualityIssues] = useState<Array<{ code: string; slideId?: string }>>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
@@ -217,6 +220,15 @@ const PresentationHeader = ({
     );
     if (!result?.success) {
       throw new Error(result?.message || "Export failed");
+    }
+  };
+
+  const loadQuality = async () => {
+    try {
+      const report = await PresentationGenerationApi.getQualityReport(presentation_id);
+      setQualityIssues(Array.isArray(report?.issues) ? report.issues : []);
+    } catch (error) {
+      notify.error("Quality check failed", error instanceof Error ? error.message : "Try again.");
     }
   };
 
@@ -720,6 +732,37 @@ const PresentationHeader = ({
             </button>
           </ToolTip>)}
 
+          <Popover
+            open={qualityOpen}
+            onOpenChange={(next) => {
+              setQualityOpen(next);
+              if (next) void loadQuality();
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="quality-check"
+                className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Quality
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[260px] rounded-[18px] p-3" data-testid="quality-panel">
+              {qualityIssues.length === 0 ? (
+                <p className="text-sm text-[#667085]" data-testid="quality-ok">No issues</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {qualityIssues.map((issue, index) => (
+                    <li key={`${issue.code}-${index}`} className="text-sm text-[#101323]" data-testid={`quality-issue-${issue.code}`}>
+                      {issue.code}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </PopoverContent>
+          </Popover>
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <button
