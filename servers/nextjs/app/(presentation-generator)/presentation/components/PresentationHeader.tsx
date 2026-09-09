@@ -892,8 +892,10 @@ const PresentationHeader = ({
             className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
             onClick={async () => {
               try {
-                const slideId = presentationData?.slides?.[currentSlide || 0]?.id;
-                if (!slideId) throw new Error("No slide");
+                const snap = await PresentationGenerationApi.getDocumentSnapshot(presentation_id);
+                const slides = Array.isArray(snap?.slides) ? snap.slides : [];
+                const slideId = slides[currentSlide || 0]?.id || slides[0]?.id;
+                if (!slideId) throw new Error("Slide not found");
                 const proposed = await PresentationGenerationApi.proposeVariants(presentation_id, String(slideId));
                 const first = proposed?.variants?.[0]?.composition_id;
                 if (!first) throw new Error("No variants");
