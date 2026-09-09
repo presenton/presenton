@@ -230,6 +230,19 @@ export class PresentationGenerationApi {
     );
   }
 
+  static async exportEditablePptx(documentId: string) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/presentation/${documentId}/export?editable=true`),
+      {
+        method: "POST",
+        headers: getHeader(),
+        body: JSON.stringify({ export_as: "pptx" }),
+        cache: "no-cache",
+      },
+    );
+    return await ApiResponseHandler.handleResponse(response, "Failed to export editable PPTX");
+  }
+
   static async getQualityReport(documentId: string) {
     const response = await fetch(getApiUrl(`/api/v1/ppt/r1/quality/${documentId}`), {
       method: "GET",

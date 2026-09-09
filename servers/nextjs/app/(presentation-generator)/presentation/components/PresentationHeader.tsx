@@ -314,6 +314,35 @@ const PresentationHeader = ({
     }
   };
 
+  const handleExportPptxEditable = async () => {
+    if (isStreaming) return;
+    let exportToastId: string | number | undefined;
+    try {
+      exportToastId = notify.loading("Exporting editable PPTX");
+      setIsExporting(true);
+      const result = await PresentationGenerationApi.exportEditablePptx(presentation_id);
+      const pptxPath = typeof result?.path === "string" ? result.path : "";
+      if (!pptxPath) throw new Error("No path returned from export");
+      const marker = "/exports/";
+      const relative = pptxPath.includes(marker)
+        ? pptxPath.slice(pptxPath.indexOf(marker) + marker.length)
+        : pptxPath;
+      downloadLink(
+        `/api/export-presentation/file?name=${encodeURIComponent(relative)}`,
+        buildSafeExportFileName(presentationData?.title, "pptx").replace(/\.pptx$/i, "") + "_editable.pptx",
+      );
+      notify.success("Export complete", "Editable PPTX downloaded.", { id: exportToastId });
+    } catch (error) {
+      notify.error(
+        "Export failed",
+        error instanceof Error ? error.message : "Could not export editable PPTX.",
+        exportToastId !== undefined ? { id: exportToastId } : undefined,
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleExportPdf = async () => {
     if (isStreaming) return;
 
@@ -490,6 +519,19 @@ const PresentationHeader = ({
             }`}
         >
           PPTX
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          data-testid="export-pptx-editable"
+          onClick={() => {
+            handleExportPptxEditable();
+            setOpen(false);
+          }}
+          variant="ghost"
+          className={`w-full flex px-0 justify-start text-xs text-black hover:bg-transparent  ${mobile ? "bg-white py-6" : ""
+            }`}
+        >
+          PPTX editable
           <ArrowUpRight className="w-3.5 h-3.5" />
         </Button>
       </div>
