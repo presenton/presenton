@@ -981,6 +981,7 @@ function ChartDataModal({
               </button>
               <button
                 type="button"
+                data-testid="chart-data-save"
                 className="h-8 min-w-[76px] rounded-full bg-[linear-gradient(100deg,#FFE6A6_0%,#D8B4FE_100%)] px-5 text-[12px] font-semibold text-[#191919] transition hover:brightness-95"
                 onClick={() => {
                   onChange(sanitizeChartTextFields(draftChart));
@@ -1056,6 +1057,7 @@ function ChartDataModal({
 
             <main className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain px-8 py-5">
               <EditableDataTable
+                data-testid="chart-data-table"
                 allowMultipleSeries={chartSupportsMultipleSeries(
                   draftChart.chart_type,
                 )}
