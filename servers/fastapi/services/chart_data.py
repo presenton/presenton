@@ -14,6 +14,9 @@ R1_CHART_TYPES = {
     "stacked_bar",
     "donut",
     "waterfall",
+    "heatmap",
+    "histogram",
+    "scatter",
 }
 
 

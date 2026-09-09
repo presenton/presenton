@@ -1,3 +1,4 @@
+from pathlib import Path
 import json
 
 from typing import Any, Optional
@@ -232,6 +233,14 @@ async def integrations_nielsen(body: NielsenPull, sql_session: AsyncSession = De
     if body.document_id:
         applied = await integrations_apply(IntegrationApply(document_id=body.document_id, snapshot_id=extracted["id"]), sql_session)
         result["apply"] = applied
+        bind = {
+            "market_panel": body.market_panel,
+            "snapshot_id": extracted.get("id"),
+            "ty": facts.get("ty"),
+            "ly": facts.get("ly"),
+            "kind": "regular-report",
+        }
+        _report_path(body.document_id).write_text(json.dumps(bind))
     return result
 
 
@@ -423,3 +432,72 @@ async def quality_fix(
     )
     result["fixed"] = len(operations)
     return result
+
+
+R2_ROUTER = APIRouter(prefix="/r2", tags=["R2"])
+R2_VARIANTS = ["matrix-2x2", "split-60-40", "split-40-60"]
+
+
+def _report_path(document_id: str):
+    from pathlib import Path as P
+    from utils.get_env import get_app_data_directory_env
+    root = P(get_app_data_directory_env() or "/tmp/presenton") / "sources"
+    root.mkdir(parents=True, exist_ok=True)
+    return root / f"report-{document_id}.json"
+
+
+class VariantBody(BaseModel):
+    document_id: str
+    slide_id: str
+    composition_id: Optional[str] = None
+
+
+class ReportRefresh(BaseModel):
+    document_id: str
+
+
+@R2_ROUTER.post("/variants/propose")
+async def variants_propose(body: VariantBody, sql_session: AsyncSession = Depends(get_async_session)):
+    snapshot = await load_document_snapshot(sql_session, body.document_id)
+    slide = next((s for s in snapshot["slides"] if str(s["id"]) == body.slide_id), None)
+    if not slide:
+        raise HTTPException(404, "Slide not found")
+    current = str((slide.get("layout") or slide.get("composition_id") or ""))
+    variants = [{"id": v, "composition_id": v} for v in R2_VARIANTS if v != current]
+    return {"base": current or None, "variants": variants, "kept_until_apply": True}
+
+
+@R2_ROUTER.post("/variants/apply")
+async def variants_apply(body: VariantBody, sql_session: AsyncSession = Depends(get_async_session)):
+    if not body.composition_id:
+        raise HTTPException(422, "composition_id required")
+    return await compositions_apply(
+        CompositionApply(document_id=body.document_id, slide_id=body.slide_id, composition_id=body.composition_id),
+        sql_session,
+    )
+
+
+@R2_ROUTER.get("/reports/{document_id}")
+async def reports_get(document_id: str):
+    path = _report_path(document_id)
+    if not path.exists():
+        return {"bound": False}
+    return {"bound": True, **json.loads(path.read_text())}
+
+
+@R2_ROUTER.post("/reports/refresh")
+async def reports_refresh(body: ReportRefresh, sql_session: AsyncSession = Depends(get_async_session)):
+    path = _report_path(body.document_id)
+    panel = "Total National Urban"
+    if path.exists():
+        panel = str(json.loads(path.read_text()).get("market_panel") or panel)
+    pulled = await integrations_nielsen(NielsenPull(market_panel=panel, document_id=body.document_id), sql_session)
+    binding = {
+        "market_panel": panel,
+        "snapshot_id": pulled.get("id"),
+        "ty": (pulled.get("facts") or {}).get("ty"),
+        "ly": (pulled.get("facts") or {}).get("ly"),
+        "kind": "regular-report",
+    }
+    path.write_text(json.dumps(binding))
+    return {"refreshed": True, **binding}

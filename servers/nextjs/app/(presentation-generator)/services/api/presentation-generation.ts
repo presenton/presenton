@@ -299,6 +299,36 @@ export class PresentationGenerationApi {
     return await ApiResponseHandler.handleResponse(response, "Failed to load units");
   }
 
+  static async proposeVariants(documentId: string, slideId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/variants/propose`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId, slide_id: slideId }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to propose variants");
+  }
+
+  static async applyVariant(documentId: string, slideId: string, compositionId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/variants/apply`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId, slide_id: slideId, composition_id: compositionId }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply variant");
+  }
+
+  static async refreshReport(documentId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/reports/refresh`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to refresh report");
+  }
+
   static async listDozerCatalog(packId = "m894-r1-pilot") {
     const response = await fetch(getApiUrl(`/api/v1/ppt/r1/packs/${packId}/components`), {
       method: "GET",

@@ -812,6 +812,42 @@ const PresentationHeader = ({
             </PopoverContent>
           </Popover>
 
+          <button
+            type="button"
+            data-testid="design-variants"
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+            onClick={async () => {
+              try {
+                const slideId = presentationData?.slides?.[currentSlide || 0]?.id;
+                if (!slideId) throw new Error("No slide");
+                const proposed = await PresentationGenerationApi.proposeVariants(presentation_id, String(slideId));
+                const first = proposed?.variants?.[0]?.composition_id;
+                if (!first) throw new Error("No variants");
+                await PresentationGenerationApi.applyVariant(presentation_id, String(slideId), first);
+                notify.success(`Variant: ${first}`);
+              } catch (error) {
+                notify.error("Variant failed", error instanceof Error ? error.message : "Try again.");
+              }
+            }}
+          >
+            Variant
+          </button>
+          <button
+            type="button"
+            data-testid="report-refresh"
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+            onClick={async () => {
+              try {
+                await PresentationGenerationApi.refreshReport(presentation_id);
+                notify.success("Report refreshed");
+              } catch (error) {
+                notify.error("Refresh failed", error instanceof Error ? error.message : "Try again.");
+              }
+            }}
+          >
+            Refresh
+          </button>
+
           <Popover
             open={nielsenOpen}
             onOpenChange={(next) => {

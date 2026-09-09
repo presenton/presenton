@@ -122,6 +122,25 @@ def _waterfall_stacks(values: list[float]) -> tuple[list[float], list[float], li
     return base, visible, colors
 
 
+
+def _add_heatmap(slide, element: dict[str, Any]) -> None:
+    categories = [str(c) for c in (element.get("categories") or ["A"])]
+    series = [s for s in (element.get("series") or []) if isinstance(s, dict)]
+    rows = max(1, len(series))
+    cols = max(1, len(categories))
+    x, y, w, h = _box(element)
+    table = slide.shapes.add_table(rows + 1, cols + 1, x, y, w, h).table
+    table.cell(0, 0).text = "heat"
+    for j, cat in enumerate(categories):
+        table.cell(0, j + 1).text = cat[:16]
+    for i, item in enumerate(series):
+        table.cell(i + 1, 0).text = str(item.get("name") or f"R{i+1}")[:16]
+        vals = item.get("values") or []
+        for j in range(cols):
+            v = vals[j] if j < len(vals) else 0
+            table.cell(i + 1, j + 1).text = str(v)
+
+
 def _add_waterfall(slide, element: dict[str, Any]) -> None:
     categories = [str(c) for c in (element.get("categories") or [])]
     series = element.get("series") or []
@@ -149,6 +168,26 @@ def _add_chart(slide, element: dict[str, Any]) -> None:
         return
     if str(element.get("chart_type") or "") == "waterfall":
         _add_waterfall(slide, element)
+        return
+    if str(element.get("chart_type") or "") == "heatmap":
+        _add_heatmap(slide, element)
+        return
+    if str(element.get("chart_type") or "") == "histogram":
+        element = dict(element)
+        element["chart_type"] = "bar"
+    if str(element.get("chart_type") or "") == "scatter":
+        chart_type = XL_CHART_TYPE.XY_SCATTER
+        data = CategoryChartData()
+        data.categories = [str(c) for c in (element.get("categories") or [])]
+        for item in element.get("series") or []:
+            if isinstance(item, dict):
+                vals=[]
+                for raw in item.get("values") or []:
+                    try: vals.append(float(raw))
+                    except (TypeError, ValueError): vals.append(0.0)
+                data.add_series(str(item.get("name") or "Series"), vals)
+        x, y, w, h = _box(element)
+        slide.shapes.add_chart(chart_type, x, y, w, h, data)
         return
     chart_type = CHART_TYPES.get(str(element.get("chart_type") or "bar"), XL_CHART_TYPE.COLUMN_CLUSTERED)
     data = CategoryChartData()

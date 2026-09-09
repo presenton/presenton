@@ -37,7 +37,9 @@ export type ChartType =
   | "radar"
   | "scatter"
   | "stacked_bar"
-  | "waterfall";
+  | "waterfall"
+  | "heatmap"
+  | "histogram";
 export type InfographicType =
   | "progress_bar"
   | "gauge"

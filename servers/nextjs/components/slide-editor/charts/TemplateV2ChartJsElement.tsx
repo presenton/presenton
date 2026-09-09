@@ -56,6 +56,8 @@ type ChartJsKind = {
   pieLike: boolean;
   stacked: boolean;
   waterfall: boolean;
+  heatmap: boolean;
+  histogram: boolean;
 };
 
 const DEFAULT_CHART_COLORS = [
@@ -422,6 +424,29 @@ function createChartJsDatasets(
   kind: ChartJsKind,
   datasets: RawChartDataset[],
 ): ChartDataset[] {
+  if (kind.heatmap) {
+    const max = Math.max(1, ...datasets.flatMap((d) => d.values));
+    return datasets.map((dataset, index) => ({
+      backgroundColor: dataset.values.map((value) => {
+        const t = value / max;
+        return `rgba(127, 34, 254, ${0.2 + t * 0.8})`;
+      }),
+      borderWidth: 1,
+      data: dataset.values,
+      label: displayChartLegendLabel(dataset.name),
+      maxBarThickness: 48,
+    }));
+  }
+  if (kind.histogram) {
+    const dataset = datasets[0] ?? emptyDataset();
+    return [{
+      backgroundColor: "#155DFC",
+      borderWidth: 0,
+      data: dataset.values,
+      label: displayChartLegendLabel(dataset.name),
+      maxBarThickness: 62,
+    }];
+  }
   if (kind.waterfall) {
     const dataset = datasets[0] ?? emptyDataset();
     const ranges = waterfallRanges(dataset.values);
@@ -811,6 +836,10 @@ function rawChartJsKind(value: unknown): ChartJsKind {
       return baseKind("bar", { horizontal: true, stacked: true });
     case "waterfall":
       return baseKind("bar", { waterfall: true });
+    case "heatmap":
+      return baseKind("bar", { heatmap: true });
+    case "histogram":
+      return baseKind("bar", { histogram: true });
     case "bar":
     default:
       return baseKind("bar");
@@ -828,6 +857,8 @@ function baseKind(
     pieLike: false,
     stacked: false,
     waterfall: false,
+    heatmap: false,
+    histogram: false,
     ...overrides,
   };
 }

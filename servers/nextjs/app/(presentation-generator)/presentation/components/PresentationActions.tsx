@@ -263,6 +263,8 @@ export const chartTypeItems = [
   { id: "radar", label: "Radar Chart", icon: PieChart },
   { id: "polar_area", label: "Polar Area", icon: PieChart },
   { id: "waterfall", label: "Waterfall", icon: BarChart3 },
+  { id: "heatmap", label: "Heatmap", icon: Grid3X3 },
+  { id: "histogram", label: "Histogram", icon: BarChart3 },
 ] satisfies PaletteItem[];
 
 export const infographicItems = [
