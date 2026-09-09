@@ -58,9 +58,17 @@ NIELSEN_UNITS = {
 }
 
 
+NIELSEN_PANELS = [
+    "Total National Urban",
+    "Total Volga Region",
+    "Moscow",
+]
+
+
 @R1_ROUTER.get("/integrations/units")
 async def nielsen_units():
-    return NIELSEN_UNITS
+    return {"units": NIELSEN_UNITS, "panels": NIELSEN_PANELS}
+
 
 
 class PackApply(BaseModel):
@@ -80,30 +88,54 @@ async def apply_dozer_pack(pack_id: str, body: PackApply, sql_session: AsyncSess
     snapshot = await load_document_snapshot(sql_session, body.document_id)
     if not snapshot["slides"]:
         raise HTTPException(422, "document has no slides")
-    slide_id = snapshot["slides"][0]["id"]
-    ui = {
+    primary = ((pack.get("tokens") or {}).get("colors") or {}).get("primary") or "7A5AF8"
+    primary = str(primary).lstrip("#")
+
+    def restyle(ui):
+        from copy import deepcopy
+        tree = deepcopy(ui or {})
+        def walk(node):
+            if isinstance(node, dict):
+                if node.get("type") == "text":
+                    node["color"] = primary
+                    for run in node.get("runs") or []:
+                        if isinstance(run, dict):
+                            run["color"] = primary
+                for value in list(node.values()):
+                    walk(value)
+            elif isinstance(node, list):
+                for item in node:
+                    walk(item)
+        walk(tree)
+        tree["pack_restyle"] = pack["id"]
+        return tree
+
+    punch = {
         "components": [{
             "id": "dozer_punch",
             "elements": [
-                {"type": "text", "name": "kpi_value_1", "runs": [{"text": "10"}],
-                 "position": {"x": 40, "y": 80}, "size": {"width": 280, "height": 70}},
-                {"type": "text", "name": "kpi_label_1", "runs": [{"text": "KPI"}],
-                 "position": {"x": 40, "y": 150}, "size": {"width": 280, "height": 32}},
-                {"type": "text", "name": "kpi_value_2", "runs": [{"text": "20"}],
-                 "position": {"x": 360, "y": 80}, "size": {"width": 280, "height": 70}},
-                {"type": "text", "name": "kpi_label_2", "runs": [{"text": "KPI row"}],
-                 "position": {"x": 360, "y": 150}, "size": {"width": 280, "height": 32}},
+                {"type": "text", "name": "kpi_value_1", "runs": [{"text": "10", "color": primary}],
+                 "color": primary, "position": {"x": 40, "y": 80}, "size": {"width": 280, "height": 70}},
+                {"type": "text", "name": "kpi_label_1", "runs": [{"text": "KPI", "color": primary}],
+                 "color": primary, "position": {"x": 40, "y": 150}, "size": {"width": 280, "height": 32}},
+                {"type": "text", "name": "kpi_value_2", "runs": [{"text": "20", "color": primary}],
+                 "color": primary, "position": {"x": 360, "y": 80}, "size": {"width": 280, "height": 70}},
+                {"type": "text", "name": "kpi_label_2", "runs": [{"text": "KPI row", "color": primary}],
+                 "color": primary, "position": {"x": 360, "y": 150}, "size": {"width": 280, "height": 32}},
                 {"type": "chart", "chart_type": "waterfall", "name": "pack_waterfall",
                  "position": {"x": 40, "y": 220}, "size": {"width": 900, "height": 320},
                  "categories": ["Start", "Plus", "Minus"],
                  "series": [{"name": "delta", "values": [10, 5, -3]}]},
             ],
-        }]
+        }],
+        "pack_restyle": pack["id"],
     }
     ops = [
         {"scope": "document", "targetIds": [], "operationType": "ApplyBrandPack", "payload": {"brandPackId": pack["id"]}},
-        {"scope": "slide", "targetIds": [slide_id], "operationType": "UpdateSlide", "payload": {"ui": ui}},
     ]
+    for i, slide in enumerate(snapshot["slides"]):
+        ui = punch if i == 0 else restyle(slide.get("ui") or {})
+        ops.append({"scope": "slide", "targetIds": [slide["id"]], "operationType": "UpdateSlide", "payload": {"ui": ui}})
     result = await execute_operation(
         sql_session,
         document_id=body.document_id,

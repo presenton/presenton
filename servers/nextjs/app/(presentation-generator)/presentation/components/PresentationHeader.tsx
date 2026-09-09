@@ -112,6 +112,10 @@ const PresentationHeader = ({
   const [isExporting, setIsExporting] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [packOpen, setPackOpen] = useState(false);
+  const [nielsenOpen, setNielsenOpen] = useState(false);
+  const [nielsenPanel, setNielsenPanel] = useState("Total National Urban");
+  const [nielsenUnits, setNielsenUnits] = useState<Record<string, string>>({});
+  const [nielsenPanels, setNielsenPanels] = useState<string[]>(["Total National Urban"]);
   const [packItems, setPackItems] = useState<Array<{ id: string; label?: string; group?: string }>>([]);
   const [qualityIssues, setQualityIssues] = useState<Array<{ code: string; slideId?: string }>>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -808,26 +812,67 @@ const PresentationHeader = ({
             </PopoverContent>
           </Popover>
 
-          <button
-            type="button"
-            data-testid="nielsen-pull"
-            aria-label="Pull Nielsen"
-            className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
-            onClick={async () => {
-              try {
-                await PresentationGenerationApi.pullNielsen(presentation_id);
-                notify.success("Nielsen MAT pulled");
-              } catch (error) {
-                notify.error(
-                  "Nielsen pull failed",
-                  error instanceof Error ? error.message : "Try again.",
-                );
+          <Popover
+            open={nielsenOpen}
+            onOpenChange={(next) => {
+              setNielsenOpen(next);
+              if (next) {
+                void PresentationGenerationApi.nielsenUnits()
+                  .then((data: any) => {
+                    setNielsenUnits(data?.units || data || {});
+                    if (Array.isArray(data?.panels) && data.panels.length) setNielsenPanels(data.panels);
+                  })
+                  .catch(() => undefined);
               }
             }}
           >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Nielsen
-          </button>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="nielsen-open"
+                className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Nielsen
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[320px] rounded-[18px] p-3" data-testid="nielsen-panel">
+              <label className="text-[11px] uppercase text-[#667085]">Panel</label>
+              <select
+                data-testid="nielsen-panel-select"
+                className="mt-1 mb-2 w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-sm"
+                value={nielsenPanel}
+                onChange={(e) => setNielsenPanel(e.target.value)}
+              >
+                {nielsenPanels.map((panel) => (
+                  <option key={panel} value={panel}>{panel}</option>
+                ))}
+              </select>
+              <p className="mb-2 text-[11px] text-[#667085]" data-testid="nielsen-glossary">
+                {nielsenUnits["money__mat_ty"] || "Nielsen MAT money units (not RUB without glossary)"}
+              </p>
+              <button
+                type="button"
+                data-testid="nielsen-pull"
+                aria-label="Pull Nielsen"
+                className="w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-xs font-medium text-[#101323]"
+                onClick={async () => {
+                  try {
+                    await PresentationGenerationApi.pullNielsen(presentation_id, nielsenPanel);
+                    notify.success("Nielsen MAT pulled");
+                    setNielsenOpen(false);
+                  } catch (error) {
+                    notify.error(
+                      "Nielsen pull failed",
+                      error instanceof Error ? error.message : "Try again.",
+                    );
+                  }
+                }}
+              >
+                Pull
+              </button>
+            </PopoverContent>
+          </Popover>
 
           <Popover
             open={qualityOpen}
