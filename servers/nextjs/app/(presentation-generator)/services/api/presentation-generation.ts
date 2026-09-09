@@ -230,6 +230,23 @@ export class PresentationGenerationApi {
     );
   }
 
+  static async listBrandPacks() {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/brand-packs`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load brand packs");
+  }
+
+  static async applyBrandPack(packId: string, documentId: string) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/brand-packs/${packId}/apply/${documentId}`),
+      { method: "POST", headers: getHeader(), cache: "no-cache" },
+    );
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply brand pack");
+  }
+
   static async listCompositions() {
     const response = await fetch(getApiUrl(`/api/v1/ppt/r1/compositions`), {
       method: "GET",

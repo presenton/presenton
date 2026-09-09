@@ -76,6 +76,7 @@ const SlideActionBar = ({
   const [isSpeakerPopoverOpen, setIsSpeakerPopoverOpen] = useState(false);
   const [isSlideMenuOpen, setIsSlideMenuOpen] = useState(false);
   const [compositions, setCompositions] = useState<Array<{ id: string; layout: string; layout_group: string }>>([]);
+  const [brandPacks, setBrandPacks] = useState<Array<{ id: string; name: string }>>([]);
   const isStreaming = useSelector(
     (state: RootState) => state.presentationGeneration.isStreaming
   );
@@ -268,6 +269,16 @@ const SlideActionBar = ({
       if (Array.isArray(items)) setCompositions(items);
     } catch {
       notify.error("Could not load layouts");
+    }
+  };
+
+  const loadBrandPacks = async () => {
+    if (brandPacks.length) return;
+    try {
+      const items = await PresentationGenerationApi.listBrandPacks();
+      if (Array.isArray(items)) setBrandPacks(items);
+    } catch {
+      notify.error("Could not load brand packs");
     }
   };
 
@@ -468,7 +479,10 @@ const SlideActionBar = ({
             open={isSlideMenuOpen}
             onOpenChange={(open) => {
               setIsSlideMenuOpen(open);
-              if (open) void loadCompositions();
+              if (open) {
+                void loadCompositions();
+                void loadBrandPacks();
+              }
             }}
           >
             <DropdownMenu.Trigger asChild>
@@ -526,6 +540,29 @@ const SlideActionBar = ({
                   >
                     <LayoutGrid className="h-4 w-4 shrink-0 text-current" />
                     <span>{item.id}</span>
+                  </DropdownMenu.Item>
+                ))}
+                {brandPacks.map((pack) => (
+                  <DropdownMenu.Item
+                    key={pack.id}
+                    className={menuItemClass}
+                    data-testid={`brand-pack-${pack.id}`}
+                    onSelect={() => {
+                      void (async () => {
+                        try {
+                          await PresentationGenerationApi.applyBrandPack(pack.id, presentationId);
+                          notify.success(`Brand: ${pack.name}`);
+                        } catch (error) {
+                          notify.error(
+                            "Could not apply brand pack",
+                            error instanceof Error ? error.message : "Try again.",
+                          );
+                        }
+                      })();
+                    }}
+                  >
+                    <LayoutGrid className="h-4 w-4 shrink-0 text-current" />
+                    <span>{pack.name || pack.id}</span>
                   </DropdownMenu.Item>
                 ))}
                 <DropdownMenu.Item
