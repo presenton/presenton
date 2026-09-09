@@ -193,8 +193,15 @@ def build_editable_pptx(*, title: str, slides: list[dict[str, Any]], dest_path: 
                 _add_chart(slide, element)
                 found = True
             elif kind == "infographic":
+                labels = []
+                for node in element.get("nodes") or []:
+                    if isinstance(node, dict):
+                        labels.append(str(node.get("label") or node.get("id") or ""))
+                if not labels:
+                    labels = [str(x) for x in (element.get("items") or []) if x]
+                caption = "Infographic (placeholder): " + (", ".join(x for x in labels if x) or "unlabelled")
                 box = slide.shapes.add_textbox(Inches(0.4), Inches(6.8), Inches(12), Inches(0.4))
-                box.text_frame.text = "Infographic exported as placeholder (not editable vector)."
+                box.text_frame.text = caption[:200]
                 found = True
         note = (slide_data.get("speaker_note") or "").strip()
         if note and not found:

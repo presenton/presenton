@@ -163,11 +163,13 @@ async def quality_fix(
     from copy import deepcopy
     from services.r1_assets import list_assets
 
-    codes = set((body.codes if body else None) or ["empty_image"])
+    from services.r1_quality import fill_empty_slide_ui, shorten_overflow_text
+
+    codes = set((body.codes if body else None) or ["empty_image", "overflow_text", "empty_slide"])
     snapshot = await load_document_snapshot(sql_session, document_id)
     report = check_presentation(snapshot)
     assets = list_assets(limit=1)
-    if "empty_image" in codes and not assets:
+    if "empty_image" in codes and not assets and any(i["code"] == "empty_image" for i in report["issues"]):
         raise HTTPException(422, "No library asset to replace empty images")
     src = None
     if assets:
@@ -176,10 +178,19 @@ async def quality_fix(
     operations = []
     for slide in snapshot["slides"]:
         issues = [i for i in report["issues"] if i.get("slideId") == slide["id"]]
-        if not any(i["code"] == "empty_image" and "empty_image" in codes for i in issues):
+        codes_here = {i["code"] for i in issues} & codes
+        if not codes_here:
             continue
         ui = deepcopy(slide.get("ui") or {})
-        if src and _replace_placeholder_images(ui, src):
+        changed = False
+        if "empty_image" in codes_here and src and _replace_placeholder_images(ui, src):
+            changed = True
+        if "overflow_text" in codes_here and shorten_overflow_text(ui):
+            changed = True
+        if "empty_slide" in codes_here:
+            ui = fill_empty_slide_ui(ui if ui else None)
+            changed = True
+        if changed:
             operations.append(
                 {
                     "scope": "slide",

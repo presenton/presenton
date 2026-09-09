@@ -39,3 +39,51 @@ def check_presentation(snapshot: dict[str, Any]) -> dict[str, Any]:
         if not ui and not (slide.get("content") or {}).get("title"):
             issues.append({"code": "empty_slide", "slideId": sid, "fix": "fill-or-delete"})
     return {"ok": not issues, "issues": issues}
+
+
+def shorten_overflow_text(ui: dict, limit: int = 1100) -> bool:
+    """Truncate text runs so total chars <= limit. Returns True if changed."""
+    changed = False
+    remaining = limit
+    for el in _iter(ui):
+        if el.get("type") != "text":
+            continue
+        runs = el.get("runs") or []
+        new_runs = []
+        for run in runs:
+            text = str(run.get("text") or "") if isinstance(run, dict) else str(run)
+            if remaining <= 0:
+                changed = True
+                continue
+            if len(text) > remaining:
+                text = text[:remaining]
+                changed = True
+                remaining = 0
+            else:
+                remaining -= len(text)
+            if isinstance(run, dict):
+                new_runs.append({**run, "text": text})
+            else:
+                new_runs.append(text)
+        if changed:
+            el["runs"] = new_runs
+    return changed
+
+
+def fill_empty_slide_ui(ui: dict | None) -> dict:
+    if ui:
+        return ui
+    return {
+        "id": "__filled_empty__",
+        "description": "Filled empty slide",
+        "background": "#FFFFFF",
+        "components": [{
+            "id": "title",
+            "elements": [{
+                "type": "text",
+                "position": {"x": 40, "y": 40},
+                "size": {"width": 800, "height": 80},
+                "runs": [{"text": "Untitled slide"}],
+            }],
+        }],
+    }
