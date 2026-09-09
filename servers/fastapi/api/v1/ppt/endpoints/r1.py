@@ -13,7 +13,7 @@ from services.r1_assets import list_assets
 from services.r1_compositions import apply_composition, list_compositions
 from services.r1_infographic import apply_model, model_from_element
 from services.r1_quality import check_presentation
-from services.r1_sources import extract_document_source, extract_url_source
+from services.r1_sources import extract_document_source, extract_url_source, persist_inline_snapshot
 
 R1_ROUTER = APIRouter(prefix="/r1", tags=["R1"])
 
@@ -30,6 +30,7 @@ class SourceExtract(BaseModel):
 
 class IntegrationSnapshot(BaseModel):
     url: str
+    text: Optional[str] = None
 
 
 class InfographicBody(BaseModel):
@@ -84,11 +85,15 @@ class SourceUrl(BaseModel):
 
 @R1_ROUTER.post("/integrations/snapshot")
 async def integrations_snapshot(body: IntegrationSnapshot):
-    extracted = extract_url_source(body.url)
+    if body.text is not None:
+        extracted = persist_inline_snapshot(body.url, body.text)
+    else:
+        extracted = extract_url_source(body.url)
     return {
         "kind": "integration-snapshot",
         "id": extracted.get("id"),
         "url": body.url,
+        "engine": extracted.get("engine"),
         "facts": extracted.get("numbers") or [],
         "snapshot_path": extracted.get("snapshot_path"),
         "text": (extracted.get("text") or "")[:2000],

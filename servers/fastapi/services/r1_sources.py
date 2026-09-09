@@ -113,3 +113,20 @@ def extract_url_source(url: str) -> dict[str, Any]:
             "source": {"url": parsed.geturl()},
         }
     )
+
+
+def persist_inline_snapshot(url: str, text: str) -> dict[str, Any]:
+    if not (url or "").startswith("http://10.228.8.51/"):
+        raise HTTPException(422, "inline snapshot only for BI-HUB")
+    numbers = _NUM.findall(text or "")
+    return persist_source_snapshot(
+        {
+            "kind": "integration-snapshot",
+            "filename": "bi-hub",
+            "text": (text or "")[:20000],
+            "numbers": numbers[:200],
+            "warnings": [],
+            "engine": "bi-hub",
+            "source": {"url": url},
+        }
+    )
