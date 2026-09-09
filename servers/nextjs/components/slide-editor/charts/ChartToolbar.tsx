@@ -32,6 +32,7 @@ const CHART_TYPE_OPTIONS: Array<{
     { value: "scatter", label: "Scatter Chart" },
     { value: "radar", label: "Radar Chart" },
     { value: "polar_area", label: "Polar Area" },
+    { value: "waterfall", label: "Waterfall" },
   ];
 
 export function ChartToolbarControls({

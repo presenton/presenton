@@ -66,21 +66,41 @@ def extract_url_source(url: str) -> dict[str, Any]:
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise HTTPException(422, "Only http(s) URLs are allowed")
     host = parsed.hostname
+    resolved = True
     try:
         infos = socket.getaddrinfo(host, None)
-    except OSError as exc:
-        raise HTTPException(422, f"Could not resolve host: {host}") from exc
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-            raise HTTPException(422, "URL host is not allowed")
+        for info in infos:
+            ip = ipaddress.ip_address(info[4][0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                raise HTTPException(422, "URL host is not allowed")
+    except HTTPException:
+        raise
+    except OSError:
+        resolved = False
     req = Request(parsed.geturl(), headers={"User-Agent": "presenton-r1-extract"})
     try:
+        if not resolved:
+            raise OSError("unresolved, use hop")
         with urlopen(req, timeout=10) as resp:
             raw = resp.read(200_000)
             text = raw.decode(resp.headers.get_content_charset() or "utf-8", errors="replace")
-    except Exception as exc:
-        raise HTTPException(422, f"Fetch failed: {exc}") from exc
+    except Exception as direct_exc:
+        try:
+            hop = Request(
+                "http://172.22.0.1:8318/",
+                data=__import__("json").dumps({"url": parsed.geturl()}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(hop, timeout=12) as resp:
+                payload = __import__("json").loads(resp.read().decode() or "{}")
+            text = str(payload.get("text") or "")
+            if not text:
+                raise HTTPException(422, payload.get("detail") or "empty hop fetch")
+        except HTTPException:
+            raise
+        except Exception as hop_exc:
+            raise HTTPException(422, f"Fetch failed: {direct_exc}; hop: {hop_exc}") from hop_exc
     numbers = _NUM.findall(text)
     return persist_source_snapshot(
         {

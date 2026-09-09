@@ -36,7 +36,8 @@ export type ChartType =
   | "polar_area"
   | "radar"
   | "scatter"
-  | "stacked_bar";
+  | "stacked_bar"
+  | "waterfall";
 export type InfographicType =
   | "progress_bar"
   | "gauge"

@@ -262,6 +262,7 @@ export const chartTypeItems = [
   { id: "scatter", label: "Scatter Chart", icon: Circle },
   { id: "radar", label: "Radar Chart", icon: PieChart },
   { id: "polar_area", label: "Polar Area", icon: PieChart },
+  { id: "waterfall", label: "Waterfall", icon: BarChart3 },
 ] satisfies PaletteItem[];
 
 export const infographicItems = [

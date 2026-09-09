@@ -55,6 +55,7 @@ type ChartJsKind = {
   horizontal: boolean;
   pieLike: boolean;
   stacked: boolean;
+  waterfall: boolean;
 };
 
 const DEFAULT_CHART_COLORS = [
@@ -407,10 +408,36 @@ function createChartJsConfig(
   };
 }
 
+function waterfallRanges(values: number[]): Array<[number, number]> {
+  let running = 0;
+  return values.map((value) => {
+    const start = running;
+    running += value;
+    const end = running;
+    return value >= 0 ? [start, end] : [end, start];
+  });
+}
+
 function createChartJsDatasets(
   kind: ChartJsKind,
   datasets: RawChartDataset[],
 ): ChartDataset[] {
+  if (kind.waterfall) {
+    const dataset = datasets[0] ?? emptyDataset();
+    const ranges = waterfallRanges(dataset.values);
+    const colors = dataset.values.map((value) =>
+      value >= 0 ? "#12B76A" : "#EF4444",
+    );
+    return [
+      {
+        backgroundColor: colors,
+        borderWidth: 0,
+        data: ranges,
+        label: displayChartLegendLabel(dataset.name),
+        maxBarThickness: 62,
+      },
+    ];
+  }
   if (kind.chartJsType === "pie" || kind.chartJsType === "doughnut") {
     const dataset = datasets[0] ?? emptyDataset();
     return [
@@ -782,6 +809,8 @@ function rawChartJsKind(value: unknown): ChartJsKind {
     case "horizontal_stack_bar":
     case "horizontal_stacked_bar":
       return baseKind("bar", { horizontal: true, stacked: true });
+    case "waterfall":
+      return baseKind("bar", { waterfall: true });
     case "bar":
     default:
       return baseKind("bar");
@@ -798,6 +827,7 @@ function baseKind(
     horizontal: false,
     pieLike: false,
     stacked: false,
+    waterfall: false,
     ...overrides,
   };
 }
