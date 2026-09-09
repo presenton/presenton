@@ -243,6 +243,15 @@ export class PresentationGenerationApi {
     return await ApiResponseHandler.handleResponse(response, "Failed to export editable PPTX");
   }
 
+  static async listAssets() {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/assets`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load assets");
+  }
+
   static async getQualityReport(documentId: string) {
     const response = await fetch(getApiUrl(`/api/v1/ppt/r1/quality/${documentId}`), {
       method: "GET",
