@@ -280,6 +280,35 @@ export class PresentationGenerationApi {
     return await ApiResponseHandler.handleResponse(response, "Failed to load brand packs");
   }
 
+  static async pullNielsen(documentId: string, marketPanel = "Total National Urban") {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/integrations/nielsen`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId, market_panel: marketPanel }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to pull Nielsen");
+  }
+
+  static async nielsenUnits() {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/integrations/units`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load units");
+  }
+
+  static async applyDozerPack(packId: string, documentId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/packs/${packId}/apply`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply pack");
+  }
+
   static async applyBrandPack(packId: string, documentId: string) {
     const response = await fetch(
       getApiUrl(`/api/v1/ppt/brand-packs/${packId}/apply/${documentId}`),

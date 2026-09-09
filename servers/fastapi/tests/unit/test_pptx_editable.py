@@ -66,6 +66,8 @@ def test_waterfall_uses_stacked_not_clustered(tmp_path: Path):
         dest_path=str(dest),
     )
     names = ZipFile(dest).namelist()
-    assert not any(n.startswith("ppt/charts/") for n in names)
-    xml = ZipFile(dest).read("ppt/slides/slide1.xml").decode("utf-8", "ignore")
-    assert xml.lower().count("<p:sp") >= 3
+    assert any(n.startswith("ppt/charts/") for n in names)
+    chart = next(n for n in names if n.startswith("ppt/charts/") and n.endswith(".xml"))
+    xml = ZipFile(dest).read(chart).decode("utf-8", "ignore")
+    assert "colStacked" in xml or "stacked" in xml.lower()
+    assert "overlap" in xml.lower()

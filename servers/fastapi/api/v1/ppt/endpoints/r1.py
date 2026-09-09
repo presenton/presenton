@@ -15,6 +15,7 @@ from services.r1_compositions import apply_composition, list_compositions
 from services.r1_infographic import apply_model, model_from_element
 from services.r1_quality import check_presentation
 from services.r1_sources import extract_document_source, extract_url_source, persist_inline_snapshot
+from services.brand_pack import pack_components
 from utils.get_env import get_app_data_directory_env
 
 R1_ROUTER = APIRouter(prefix="/r1", tags=["R1"])
@@ -48,6 +49,70 @@ class NielsenPull(BaseModel):
 class InfographicBody(BaseModel):
     element: dict[str, Any]
     model: Optional[dict[str, Any]] = None
+
+
+NIELSEN_UNITS = {
+    "money__mat_ty": "MAT TY, Nielsen money units (not RUB without glossary)",
+    "money__mat_ly": "MAT LY, Nielsen money units (not RUB without glossary)",
+    "money__mat_yoy_pct": "MAT YoY %, Nielsen (share points not RUB)",
+}
+
+
+@R1_ROUTER.get("/integrations/units")
+async def nielsen_units():
+    return NIELSEN_UNITS
+
+
+class PackApply(BaseModel):
+    document_id: str
+
+
+@R1_ROUTER.get("/packs/{pack_id}/components")
+async def pack_component_catalog(pack_id: str):
+    return pack_components(pack_id)
+
+
+@R1_ROUTER.post("/packs/{pack_id}/apply")
+async def apply_dozer_pack(pack_id: str, body: PackApply, sql_session: AsyncSession = Depends(get_async_session)):
+    from services.brand_pack import load_brand_pack
+    pack = load_brand_pack(pack_id)
+    comps = pack_components(pack_id)
+    snapshot = await load_document_snapshot(sql_session, body.document_id)
+    if not snapshot["slides"]:
+        raise HTTPException(422, "document has no slides")
+    slide_id = snapshot["slides"][0]["id"]
+    ui = {
+        "components": [{
+            "id": "dozer_punch",
+            "elements": [
+                {"type": "text", "name": "kpi_value_1", "runs": [{"text": "10"}],
+                 "position": {"x": 40, "y": 80}, "size": {"width": 280, "height": 70}},
+                {"type": "text", "name": "kpi_label_1", "runs": [{"text": "KPI"}],
+                 "position": {"x": 40, "y": 150}, "size": {"width": 280, "height": 32}},
+                {"type": "text", "name": "kpi_value_2", "runs": [{"text": "20"}],
+                 "position": {"x": 360, "y": 80}, "size": {"width": 280, "height": 70}},
+                {"type": "text", "name": "kpi_label_2", "runs": [{"text": "KPI row"}],
+                 "position": {"x": 360, "y": 150}, "size": {"width": 280, "height": 32}},
+                {"type": "chart", "chart_type": "waterfall", "name": "pack_waterfall",
+                 "position": {"x": 40, "y": 220}, "size": {"width": 900, "height": 320},
+                 "categories": ["Start", "Plus", "Minus"],
+                 "series": [{"name": "delta", "values": [10, 5, -3]}]},
+            ],
+        }]
+    }
+    ops = [
+        {"scope": "document", "targetIds": [], "operationType": "ApplyBrandPack", "payload": {"brandPackId": pack["id"]}},
+        {"scope": "slide", "targetIds": [slide_id], "operationType": "UpdateSlide", "payload": {"ui": ui}},
+    ]
+    result = await execute_operation(
+        sql_session,
+        document_id=body.document_id,
+        base_revision=snapshot["revision"],
+        operations=ops,
+        actor_source="brand-pack",
+    )
+    result["components"] = comps
+    return result
 
 
 @R1_ROUTER.get("/compositions")

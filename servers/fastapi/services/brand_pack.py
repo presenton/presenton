@@ -104,3 +104,20 @@ def list_brand_packs() -> list[dict[str, Any]]:
         except Exception:
             continue
     return packs
+
+
+DOZER_COMPONENTS = [
+    {"id": "kpi", "label": "KPI", "kind": "text"},
+    {"id": "punch", "label": "KPI row", "kind": "kpi-row"},
+    {"id": "waterfall", "label": "Waterfall", "kind": "chart"},
+]
+
+
+def pack_components(pack_id: str) -> list[dict[str, Any]]:
+    pack = load_brand_pack(pack_id)
+    stored = pack.get("components")
+    if isinstance(stored, list) and stored:
+        return stored
+    if pack["id"] == "m894-r1-pilot":
+        return list(DOZER_COMPONENTS)
+    return []

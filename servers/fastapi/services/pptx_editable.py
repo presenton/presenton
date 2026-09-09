@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 from pptx import Presentation
@@ -132,31 +133,13 @@ def _add_waterfall(slide, element: dict[str, Any]) -> None:
             values.append(float(raw))
         except (TypeError, ValueError):
             values.append(0.0)
-    base, visible, colors = _waterfall_stacks(values)
+    base, visible, _colors = _waterfall_stacks(values)
+    data = CategoryChartData()
+    data.categories = categories[: len(visible)] or [f"S{i+1}" for i in range(len(visible))]
+    data.add_series("base", base)
+    data.add_series("delta", visible)
     x, y, w, h = _box(element)
-    n = max(1, len(visible))
-    gap = max(1, int(w * 0.06 / n))
-    bar_w = max(8, int((w - gap * (n + 1)) / n))
-    peak = max((b + v) for b, v in zip(base, visible)) or 1.0
-    labels = categories[:n] or [f"S{i+1}" for i in range(n)]
-    for i, (b, v, c, label) in enumerate(zip(base, visible, colors, labels)):
-        bx = x + gap + i * (bar_w + gap)
-        bh = max(8, int(h * 0.82 * (v / peak)))
-        by = y + int(h * 0.82 * (1 - (b + v) / peak))
-        shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, bx, by, bar_w, bh)
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = (
-            RGBColor(0x12, 0xB7, 0x6A) if c == "up" else RGBColor(0xEF, 0x44, 0x44)
-        )
-        try:
-            shape.line.fill.background()
-        except Exception:
-            pass
-        cap = slide.shapes.add_textbox(bx, y + int(h * 0.86), bar_w, int(h * 0.12))
-        cap.text_frame.text = str(label)[:16]
-        val = slide.shapes.add_textbox(bx, max(y, by - 18), bar_w, 18)
-        shown = int(v) if float(v).is_integer() else round(v, 1)
-        val.text_frame.text = str(shown)
+    slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_STACKED, x, y, w, h, data)
 
 
 def _add_chart(slide, element: dict[str, Any]) -> None:
@@ -182,6 +165,29 @@ def _add_chart(slide, element: dict[str, Any]) -> None:
         data.add_series(str(item.get("name") or "Series"), values)
     x, y, w, h = _box(element)
     slide.shapes.add_chart(chart_type, x, y, w, h, data)
+
+
+def _patch_waterfall_xml(dest_path: str) -> None:
+    from zipfile import ZipFile, ZIP_DEFLATED
+    import io
+    buf = io.BytesIO()
+    with ZipFile(dest_path, "r") as zin:
+        names = zin.namelist()
+        with ZipFile(buf, "w", ZIP_DEFLATED) as zout:
+            for name in names:
+                data = zin.read(name)
+                if name.startswith("ppt/charts/") and name.endswith(".xml"):
+                    xml = data.decode("utf-8", "ignore")
+                    if "c:grouping" in xml and "delta" in xml:
+                        if "<c:overlap" not in xml:
+                            xml = xml.replace(
+                                '<c:grouping val="stacked"/>',
+                                '<c:grouping val="stacked"/><c:overlap val="100"/>',
+                            )
+                        xml = xml.replace("<c:overlap val=\"0\"/>", "<c:overlap val=\"100\"/>")
+                        data = xml.encode("utf-8")
+                zout.writestr(name, data)
+    Path(dest_path).write_bytes(buf.getvalue())
 
 
 def build_editable_pptx(*, title: str, slides: list[dict[str, Any]], dest_path: str) -> str:
@@ -226,4 +232,5 @@ def build_editable_pptx(*, title: str, slides: list[dict[str, Any]], dest_path: 
                 box.text_frame.text = title_text
     os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
     prs.save(dest_path)
+    _patch_waterfall_xml(dest_path)
     return dest_path

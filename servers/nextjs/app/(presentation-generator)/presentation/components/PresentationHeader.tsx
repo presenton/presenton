@@ -13,6 +13,7 @@ import {
   Keyboard,
   X,
   AlertTriangle,
+  BarChart3,
   MousePointer2,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -773,6 +774,26 @@ const PresentationHeader = ({
               />
             </button>
           </ToolTip>)}
+
+          <button
+            type="button"
+            data-testid="nielsen-pull"
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+            onClick={async () => {
+              try {
+                await PresentationGenerationApi.pullNielsen(presentation_id);
+                notify.success("Nielsen MAT pulled");
+              } catch (error) {
+                notify.error(
+                  "Nielsen pull failed",
+                  error instanceof Error ? error.message : "Try again.",
+                );
+              }
+            }}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Nielsen
+          </button>
 
           <Popover
             open={qualityOpen}

@@ -542,6 +542,26 @@ const SlideActionBar = ({
                     <span>{item.id}</span>
                   </DropdownMenu.Item>
                 ))}
+                <DropdownMenu.Item
+                  className={menuItemClass}
+                  data-testid="dozer-pack-m894-r1-pilot"
+                  onSelect={() => {
+                    void (async () => {
+                      try {
+                        await PresentationGenerationApi.applyDozerPack("m894-r1-pilot", presentationId);
+                        notify.success("M894 pack: KPI row + waterfall");
+                      } catch (error) {
+                        notify.error(
+                          "Could not apply M894 pack",
+                          error instanceof Error ? error.message : "Try again.",
+                        );
+                      }
+                    })();
+                  }}
+                >
+                  <LayoutGrid className="h-4 w-4 shrink-0 text-current" />
+                  <span>M894 pack</span>
+                </DropdownMenu.Item>
                 {brandPacks.map((pack) => (
                   <DropdownMenu.Item
                     key={pack.id}
