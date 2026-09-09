@@ -36,7 +36,12 @@ def check_presentation(snapshot: dict[str, Any]) -> dict[str, Any]:
                     issues.append({"code": "empty_image", "slideId": sid, "fix": "replace-image"})
         if text_len > 1200:
             issues.append({"code": "overflow_text", "slideId": sid, "chars": text_len, "fix": "shorten-text"})
-        if not ui and not (slide.get("content") or {}).get("title"):
+        has_block = any(
+            isinstance(el, dict) and el.get("type") in {"chart", "table", "infographic"}
+            for el in _iter(ui)
+        )
+        title = (slide.get("content") or {}).get("title")
+        if text_len == 0 and images == 0 and not has_block and not title:
             issues.append({"code": "empty_slide", "slideId": sid, "fix": "fill-or-delete"})
     return {"ok": not issues, "issues": issues}
 
@@ -71,19 +76,26 @@ def shorten_overflow_text(ui: dict, limit: int = 1100) -> bool:
 
 
 def fill_empty_slide_ui(ui: dict | None) -> dict:
-    if ui:
-        return ui
-    return {
-        "id": "__filled_empty__",
-        "description": "Filled empty slide",
-        "background": "#FFFFFF",
-        "components": [{
-            "id": "title",
-            "elements": [{
-                "type": "text",
-                "position": {"x": 40, "y": 40},
-                "size": {"width": 800, "height": 80},
-                "runs": [{"text": "Untitled slide"}],
-            }],
+    base = dict(ui or {})
+    has_text = False
+    for el in _iter(base):
+        if el.get("type") == "text":
+            runs = el.get("runs") or []
+            if any((r.get("text") if isinstance(r, dict) else r) for r in runs):
+                has_text = True
+                break
+    if has_text:
+        return base
+    components = list(base.get("components") or [])
+    components.append({
+        "id": "filled_empty_title",
+        "elements": [{
+            "type": "text",
+            "position": {"x": 40, "y": 40},
+            "size": {"width": 800, "height": 80},
+            "runs": [{"text": "Untitled slide"}],
         }],
-    }
+    })
+    base["components"] = components
+    base.setdefault("background", "#FFFFFF")
+    return base
