@@ -817,6 +817,7 @@ const PresentationHeader = ({
                           await PresentationGenerationApi.applyBrandPack(item.id, presentation_id);
                           notify.success(`Pack: ${item.name || item.id}`);
                           setPackOpen(false);
+                          window.location.reload();
                         } catch (error) {
                           notify.error("Pack failed", error instanceof Error ? error.message : "Try again.");
                         }

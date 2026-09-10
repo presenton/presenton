@@ -10,10 +10,11 @@ from services.brand_pack import (
     list_brand_packs,
     load_brand_pack,
     presentation_theme_from_pack,
+    restyle_slide_ui,
     save_brand_pack,
 )
 from services.database import get_async_session
-from services.operation_executor import execute_operation
+from services.operation_executor import execute_operation, load_document_snapshot
 
 BRAND_PACKS_ROUTER = APIRouter(prefix="/brand-packs", tags=["Brand packs"])
 
@@ -43,18 +44,30 @@ async def apply_brand_pack(
     if not presentation:
         raise HTTPException(404, "Presentation not found")
     pack = load_brand_pack(pack_id)
+    snapshot = await load_document_snapshot(sql_session, str(document_id))
+    ops: list[dict[str, Any]] = [
+        {
+            "scope": "document",
+            "targetIds": [],
+            "operationType": "ApplyBrandPack",
+            "payload": {"brandPackId": pack["id"]},
+        }
+    ]
+    for slide in snapshot.get("slides") or []:
+        ui = restyle_slide_ui(slide.get("ui") or {}, pack)
+        ops.append(
+            {
+                "scope": "slide",
+                "targetIds": [slide["id"]],
+                "operationType": "UpdateSlide",
+                "payload": {"ui": ui},
+            }
+        )
     return await execute_operation(
         sql_session,
         document_id=document_id,
         base_revision=presentation.revision,
-        operations=[
-            {
-                "scope": "document",
-                "targetIds": [],
-                "operationType": "ApplyBrandPack",
-                "payload": {"brandPackId": pack["id"]},
-            }
-        ],
+        operations=ops,
         operation_id=str(uuid.uuid4()),
         actor_source="manual",
     )

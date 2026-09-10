@@ -124,3 +124,45 @@ def pack_components(pack_id: str) -> list[dict[str, Any]]:
     if isinstance(stored, list) and stored:
         return stored
     return []
+
+
+
+def restyle_slide_ui(ui: Any, pack: dict[str, Any]) -> dict[str, Any]:
+    from copy import deepcopy
+
+    colors = ((pack.get("tokens") or {}).get("colors") or {})
+    primary = str(colors.get("primary") or "").lstrip("#")
+    ink = str(colors.get("background_text") or primary).lstrip("#")
+    bg = str(colors.get("background") or "").lstrip("#")
+    card = str(colors.get("card") or bg).lstrip("#")
+    graphs = [str(colors.get(f"graph_{i}") or "").lstrip("#") for i in range(10)]
+    graphs = [g for g in graphs if g]
+    tree = deepcopy(ui) if isinstance(ui, dict) else {"components": []}
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            kind = str(node.get("type") or "")
+            if kind == "text" and ink:
+                node["color"] = ink
+                for run in node.get("runs") or []:
+                    if isinstance(run, dict):
+                        run["color"] = ink
+            if kind == "chart":
+                if graphs:
+                    node["colors"] = list(graphs)
+                if primary:
+                    node["color"] = primary
+            if kind in {"shape", "rect", "container", "box"} and card:
+                node["fill"] = card
+                node["background"] = card
+            for value in list(node.values()):
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(tree)
+    tree["pack_restyle"] = pack["id"]
+    if bg:
+        tree["background"] = bg
+    return tree
