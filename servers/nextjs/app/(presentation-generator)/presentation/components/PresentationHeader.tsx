@@ -121,20 +121,34 @@ const PresentationHeader = ({
   const [nielsenPanels, setNielsenPanels] = useState<string[]>(["Total National Urban"]);
   const [packItems, setPackItems] = useState<Array<{ id: string; name?: string; tokens?: { colors?: Record<string, string>; logo?: string } }>>([]);
   const [packEditId, setPackEditId] = useState<string | null>(null);
-  const [packDraft, setPackDraft] = useState({
-    primary: "#f26b00",
-    primary_text: "#ffffff",
-    background: "#ffffff",
-    background_text: "#1f1a14",
-    card: "#fff6ec",
-    stroke: "#e8e0d4",
-    graph_0: "#f26b00",
-    graph_1: "#2f8f3a",
-    graph_2: "#f5c400",
-    graph_3: "#4a90a4",
-    heading: "Manrope",
-    body: "Manrope",
-    radius: "12",
+  const [packDraft, setPackDraft] = useState<Record<string, string>>({
+    primary: "#2CE0CE",
+    primary_text: "#06100E",
+    background: "#0A0C10",
+    background_text: "#EEF2F8",
+    card: "#12151B",
+    stroke: "#363D49",
+    surface_2: "#191D25",
+    surface_3: "#232833",
+    line: "#262B34",
+    steel_500: "#7A8595",
+    steel_300: "#AEB8C6",
+    text_muted: "#A6B0BF",
+    text_dim: "#6C7688",
+    accent_deep: "#17A99B",
+    ai: "#5B8CFF",
+    coin: "#E9B23C",
+    alert: "#FF6A00",
+    warning: "#FFC940",
+    danger: "#FF4D57",
+    graph_0: "#2CE0CE",
+    graph_1: "#5B8CFF",
+    graph_2: "#E9B23C",
+    graph_3: "#FF6A00",
+    heading: "Exo 2",
+    body: "Exo 2",
+    mono: "JetBrains Mono",
+    radius: "6",
     logo: "",
     background_image: "",
   });
@@ -822,7 +836,7 @@ const PresentationHeader = ({
                 Pack
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[340px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
+            <PopoverContent align="end" className="w-[360px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
               <ul className="space-y-2">
                 {packItems.map((item) => (
                   <li key={item.id} className="rounded-lg border border-[#EEE] p-2">
@@ -853,19 +867,33 @@ const PresentationHeader = ({
                           setPackEditId(packEditId === item.id ? null : item.id);
                           const hx = (v: string | undefined, d: string) => (v && v.startsWith("#") ? v : v ? `#${v}` : d);
                           setPackDraft({
-                            primary: hx(colors.primary, "#f26b00"),
-                            primary_text: hx(colors.primary_text, "#ffffff"),
-                            background: hx(colors.background, "#ffffff"),
-                            background_text: hx(colors.background_text, "#1f1a14"),
-                            card: hx(colors.card, "#fff6ec"),
-                            stroke: hx(colors.stroke, "#e8e0d4"),
-                            graph_0: hx(colors.graph_0, "#f26b00"),
-                            graph_1: hx(colors.graph_1, "#2f8f3a"),
-                            graph_2: hx(colors.graph_2, "#f5c400"),
-                            graph_3: hx(colors.graph_3, "#4a90a4"),
-                            heading: fonts.heading || "Manrope",
-                            body: fonts.body || "Manrope",
-                            radius: String((item as any).tokens?.radius || "12"),
+                            primary: hx(colors.primary, "#2CE0CE"),
+                            primary_text: hx(colors.primary_text, "#06100E"),
+                            background: hx(colors.background, "#0A0C10"),
+                            background_text: hx(colors.background_text, "#EEF2F8"),
+                            card: hx(colors.card, "#12151B"),
+                            stroke: hx(colors.stroke, "#363D49"),
+                            surface_2: hx(colors.surface_2, "#191D25"),
+                            surface_3: hx(colors.surface_3, "#232833"),
+                            line: hx(colors.line, "#262B34"),
+                            steel_500: hx(colors.steel_500, "#7A8595"),
+                            steel_300: hx(colors.steel_300, "#AEB8C6"),
+                            text_muted: hx(colors.text_muted, "#A6B0BF"),
+                            text_dim: hx(colors.text_dim, "#6C7688"),
+                            accent_deep: hx(colors.accent_deep, "#17A99B"),
+                            ai: hx(colors.ai, "#5B8CFF"),
+                            coin: hx(colors.coin, "#E9B23C"),
+                            alert: hx(colors.alert, "#FF6A00"),
+                            warning: hx(colors.warning, "#FFC940"),
+                            danger: hx(colors.danger, "#FF4D57"),
+                            graph_0: hx(colors.graph_0, "#2CE0CE"),
+                            graph_1: hx(colors.graph_1, "#5B8CFF"),
+                            graph_2: hx(colors.graph_2, "#E9B23C"),
+                            graph_3: hx(colors.graph_3, "#FF6A00"),
+                            heading: fonts.heading || "Exo 2",
+                            body: fonts.body || "Exo 2",
+                            mono: fonts.mono || "JetBrains Mono",
+                            radius: String((item as any).tokens?.radius || "6"),
                             logo: (item as any).tokens?.logo || "",
                             background_image: (item as any).tokens?.background_image || "",
                           });
@@ -876,34 +904,49 @@ const PresentationHeader = ({
                     </div>
                     {packEditId === item.id && (
                       <div className="max-h-[55vh] space-y-2 overflow-auto pt-1">
-                        <p className="text-[10px] uppercase tracking-wide text-[#889]">Palette</p>
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">noob · Palette</p>
                         {([
-                          ["primary", "Primary"],
-                          ["primary_text", "On primary"],
-                          ["background", "Background"],
-                          ["background_text", "Text"],
-                          ["card", "Card"],
-                          ["stroke", "Stroke"],
+                          ["background", "ink"],
+                          ["card", "surface"],
+                          ["surface_2", "surface-2"],
+                          ["surface_3", "surface-3"],
+                          ["line", "line"],
+                          ["stroke", "line-2"],
+                          ["steel_500", "steel-500"],
+                          ["steel_300", "steel-300"],
+                          ["background_text", "text"],
+                          ["text_muted", "text-muted"],
+                          ["text_dim", "text-dim"],
+                          ["primary", "accent · cyan"],
+                          ["accent_deep", "accent-deep"],
+                          ["primary_text", "on-accent"],
+                          ["ai", "ai · blue"],
+                          ["coin", "coin · gold"],
+                          ["alert", "alert · orange"],
+                          ["warning", "warning"],
+                          ["danger", "danger"],
                         ] as const).map(([key, label]) => (
                           <label key={key} className="flex items-center justify-between text-xs">
                             {label}
-                            <input type="color" value={(packDraft as any)[key]}
-                              onChange={(e) => setPackDraft({ ...packDraft, [key]: e.target.value } as any)} />
+                            <input type="color" value={packDraft[key] || "#000000"}
+                              onChange={(e) => setPackDraft({ ...packDraft, [key]: e.target.value })} />
                           </label>
                         ))}
                         <p className="text-[10px] uppercase tracking-wide text-[#889]">Charts</p>
                         {(["graph_0", "graph_1", "graph_2", "graph_3"] as const).map((key) => (
                           <label key={key} className="flex items-center justify-between text-xs">
                             {key}
-                            <input type="color" value={(packDraft as any)[key]}
-                              onChange={(e) => setPackDraft({ ...packDraft, [key]: e.target.value } as any)} />
+                            <input type="color" value={packDraft[key] || "#000000"}
+                              onChange={(e) => setPackDraft({ ...packDraft, [key]: e.target.value })} />
                           </label>
                         ))}
                         <p className="text-[10px] uppercase tracking-wide text-[#889]">Type</p>
-                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Heading font"
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Heading · Exo 2"
                           value={packDraft.heading} onChange={(e) => setPackDraft({ ...packDraft, heading: e.target.value })} />
-                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Body font"
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Body · Exo 2"
                           value={packDraft.body} onChange={(e) => setPackDraft({ ...packDraft, body: e.target.value })} />
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Mono · JetBrains Mono"
+                          value={packDraft.mono || ""} onChange={(e) => setPackDraft({ ...packDraft, mono: e.target.value })} />
                         <label className="flex items-center justify-between text-xs">Radius
                           <input className="w-16 rounded border border-[#EDEEEF] px-1 py-0.5 text-xs" value={packDraft.radius}
                             onChange={(e) => setPackDraft({ ...packDraft, radius: e.target.value })} />
@@ -927,12 +970,25 @@ const PresentationHeader = ({
                                     background_text: packDraft.background_text,
                                     card: packDraft.card,
                                     stroke: packDraft.stroke,
+                                    surface_2: packDraft.surface_2,
+                                    surface_3: packDraft.surface_3,
+                                    line: packDraft.line,
+                                    steel_500: packDraft.steel_500,
+                                    steel_300: packDraft.steel_300,
+                                    text_muted: packDraft.text_muted,
+                                    text_dim: packDraft.text_dim,
+                                    accent_deep: packDraft.accent_deep,
+                                    ai: packDraft.ai,
+                                    coin: packDraft.coin,
+                                    alert: packDraft.alert,
+                                    warning: packDraft.warning,
+                                    danger: packDraft.danger,
                                     graph_0: packDraft.graph_0,
                                     graph_1: packDraft.graph_1,
                                     graph_2: packDraft.graph_2,
                                     graph_3: packDraft.graph_3,
                                   },
-                                  fonts: { heading: packDraft.heading, body: packDraft.body },
+                                  fonts: { heading: packDraft.heading, body: packDraft.body, mono: packDraft.mono },
                                   radius: packDraft.radius,
                                   logo: packDraft.logo,
                                   background_image: packDraft.background_image,
@@ -1074,7 +1130,7 @@ const PresentationHeader = ({
                 Nielsen
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[340px] rounded-[18px] p-3" data-testid="nielsen-panel">
+            <PopoverContent align="end" className="w-[360px] rounded-[18px] p-3" data-testid="nielsen-panel">
               <label className="text-[11px] uppercase text-[#667085]">Panel</label>
               <select
                 data-testid="nielsen-panel-select"

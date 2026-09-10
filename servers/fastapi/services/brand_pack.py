@@ -15,11 +15,24 @@ from utils.get_env import get_app_data_directory_env
 
 _TOKEN_COLOR_KEYS = (
     "primary",
+    "primary_text",
     "background",
+    "background_text",
     "card",
     "stroke",
-    "background_text",
-    "primary_text",
+    "surface_2",
+    "surface_3",
+    "line",
+    "steel_500",
+    "steel_300",
+    "text_muted",
+    "text_dim",
+    "accent_deep",
+    "ai",
+    "coin",
+    "alert",
+    "warning",
+    "danger",
     *[f"graph_{i}" for i in range(10)],
 )
 _FORBIDDEN = {
