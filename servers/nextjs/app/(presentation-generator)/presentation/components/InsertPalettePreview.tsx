@@ -310,6 +310,16 @@ export function InsertPalettePreview({
     [itemId, kind, theme],
   );
   const fit = PREVIEW_FIT[kind];
+  if (kind === "image" && itemId?.startsWith("library:")) {
+    const src = itemId.slice("library:".length);
+    return (
+      <img
+        src={src}
+        alt=""
+        className="h-full w-full object-cover"
+      />
+    );
+  }
   return (
     <TemplateV2HtmlSlidePreview
       slide={preview.slide}

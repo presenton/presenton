@@ -2,11 +2,39 @@ from enums.image_provider import ImageProvider
 from utils.get_env import (
     get_disable_image_generation_env,
     get_image_provider_env,
+    get_user_config_path_env,
 )
 from utils.parsers import parse_bool_or_none
 
 
+def _live_user_config() -> dict:
+    """Read userConfig.json so admin PUT applies without process restart."""
+    try:
+        from utils.user_config_store import read_user_config_file
+
+        path = get_user_config_path_env()
+        if not path:
+            return {}
+        data = read_user_config_file(path)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _coerce_bool(value) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    return parse_bool_or_none(str(value))
+
+
 def is_image_generation_disabled() -> bool:
+    data = _live_user_config()
+    if "DISABLE_IMAGE_GENERATION" in data:
+        file_value = _coerce_bool(data.get("DISABLE_IMAGE_GENERATION"))
+        if file_value is not None:
+            return file_value
     return parse_bool_or_none(get_disable_image_generation_env()) or False
 
 
@@ -20,6 +48,10 @@ def is_pixabay_selected() -> bool:
 
 def is_openai_compatible_selected() -> bool:
     return ImageProvider.OPENAI_COMPATIBLE == get_selected_image_provider()
+
+
+def is_lab_png_selected() -> bool:
+    return ImageProvider.LAB_PNG == get_selected_image_provider()
 
 
 def is_gemini_flash_selected() -> bool:
@@ -47,12 +79,12 @@ def is_open_webui_selected() -> bool:
 
 
 def get_selected_image_provider() -> ImageProvider | None:
-    """
-    Get the selected image provider from environment variables.
-    Returns:
-        ImageProvider: The selected image provider.
-    """
-    image_provider_env = get_image_provider_env()
-    if image_provider_env:
-        return ImageProvider(image_provider_env)
-    return None
+    """Prefer live userConfig.json over process env so PUT takes effect without restart."""
+    data = _live_user_config()
+    raw = (data.get("IMAGE_PROVIDER") or get_image_provider_env() or "").strip()
+    if not raw:
+        return None
+    try:
+        return ImageProvider(raw)
+    except ValueError:
+        return None

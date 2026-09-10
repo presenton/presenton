@@ -37,10 +37,24 @@ from utils.image_provider import (
     is_comfyui_selected,
     is_open_webui_selected,
     is_openai_compatible_selected,
+    is_lab_png_selected,
 )
 from utils.asset_directory_utils import absolute_fastapi_asset_url
 from utils.image_generation_error import normalize_image_generation_error
 import uuid
+from PIL import Image, UnidentifiedImageError
+
+
+def _require_decodable_image(path: str) -> None:
+    """Refuse HTTP-success / written bytes that are not an actual image."""
+    try:
+        with Image.open(path) as image:
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="Generated or uploaded image bytes could not be decoded.",
+        ) from exc
 
 
 COMFYUI_MAX_SEED = 0xFFFFFFFFFFFFFFFF
@@ -70,6 +84,8 @@ class ImageGenerationService:
         if self.is_image_generation_disabled:
             return None
 
+        if is_lab_png_selected():
+            return self.generate_image_lab_png
         if is_pixabay_selected():
             return self.get_image_from_pixabay
         elif is_pixels_selected():
@@ -88,6 +104,8 @@ class ImageGenerationService:
             return self.generate_image_open_webui
         elif is_openai_compatible_selected():
             return self.generate_image_openai_compatible
+        elif (os.getenv("IMAGE_PROVIDER") or "").strip() == "lab-png":
+            return self.generate_image_lab_png
         return None
 
     def is_stock_provider_selected(self):
@@ -101,17 +119,35 @@ class ImageGenerationService:
         otherwise it uses the full image prompt with theme.
         - Output Directory is used for saving the generated image not the stock provider.
         """
+        job_id = None
+        worker_id = None
+        try:
+            job_id, worker_id = await self._lease_image_job(prompt)
+        except Exception as exc:
+            print(f"Image outbox lease skipped: {exc}")
+
+        self.is_image_generation_disabled = is_image_generation_disabled()
+        self.image_gen_func = self.get_image_gen_func()
+
         if self.is_image_generation_disabled:
             print("Image generation is disabled. Using placeholder image.")
+            await self._complete_image_job(job_id, worker_id, "skipped")
             return absolute_fastapi_asset_url("/static/images/placeholder.jpg")
 
         if not self.image_gen_func:
             print("No image generation function found. Using placeholder image.")
+            await self._complete_image_job(job_id, worker_id, "skipped")
             return absolute_fastapi_asset_url("/static/images/placeholder.jpg")
 
         image_prompt = prompt.get_image_prompt(
             with_theme=not self.is_stock_provider_selected()
         )
+        if not self.is_stock_provider_selected():
+            image_prompt = (
+                "Photorealistic photograph of a real scene, natural lighting, "
+                "not an icon, not a pictogram, not flat vector, not clipart, not illustration. "
+                + image_prompt
+            )
         print(f"Request - Generating Image for {image_prompt}")
 
         try:
@@ -122,8 +158,11 @@ class ImageGenerationService:
                     image_path = await self._call_image_provider(image_prompt)
             if image_path:
                 if image_path.startswith("http"):
+                    await self._complete_image_job(job_id, worker_id, "done")
                     return image_path
                 elif os.path.exists(image_path):
+                    _require_decodable_image(image_path)
+                    await self._complete_image_job(job_id, worker_id, "done")
                     return ImageAsset(
                         path=image_path,
                         is_uploaded=False,
@@ -135,15 +174,46 @@ class ImageGenerationService:
                 elif image_path.startswith("/app_data/") or image_path.startswith(
                     "/static/"
                 ):
+                    await self._complete_image_job(job_id, worker_id, "done")
                     return absolute_fastapi_asset_url(image_path)
             raise Exception(f"Image not found at {image_path}")
 
         except Exception as e:
             print(f"Error generating image: {e}")
             normalized_error = normalize_image_generation_error(e)
+            await self._complete_image_job(job_id, worker_id, "failed")
             if normalized_error is e:
                 raise
             raise normalized_error from e
+
+
+    async def generate_image_lab_png(self, prompt: str, output_directory: str) -> str:
+        from PIL import Image as PILImage
+        path = os.path.join(output_directory, f"lab-{uuid.uuid4().hex}.png")
+        PILImage.new("RGB", (64, 64), (72, 118, 196)).save(path)
+        return path
+
+    async def _complete_image_job(self, job_id, worker_id, status: str) -> None:
+        if not job_id:
+            return
+        from services.database import async_session_maker
+        from services.outbox import complete
+        async with async_session_maker() as session:
+            await complete(session, job_id, worker_id, status)
+
+    async def _lease_image_job(self, prompt: ImagePrompt):
+        from services.database import async_session_maker
+        from services.outbox import claim_next, enqueue
+        worker_id = f"img-{os.getpid()}"
+        async with async_session_maker() as session:
+            await enqueue(
+                session,
+                None,
+                "image",
+                {"prompt": str(getattr(prompt, "prompt", ""))[:200]},
+            )
+            claimed = await claim_next(session, worker_id, kind="image")
+        return (claimed or {}).get("id"), worker_id
 
     async def _call_image_provider(self, image_prompt: str) -> str:
         if self.is_stock_provider_selected():

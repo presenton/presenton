@@ -439,6 +439,8 @@ export function rawChartType(value: unknown): ChartType {
     case "horizontal_stack_bar":
     case "horizontal_stacked_bar":
       return "horizontal_stacked_bar";
+    case "waterfall":
+      return "waterfall";
     default:
       return "bar";
   }

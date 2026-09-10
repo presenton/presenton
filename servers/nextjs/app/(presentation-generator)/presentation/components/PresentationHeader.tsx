@@ -13,6 +13,7 @@ import {
   Keyboard,
   X,
   AlertTriangle,
+  BarChart3,
   MousePointer2,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -55,6 +56,7 @@ import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import { sanitizeAnalyticsError } from "@/utils/analytics";
 import { v4 as uuidv4 } from "uuid";
 import StreamingGenerationMetrics from "./StreamingGenerationMetrics";
+import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 
 const MAX_EXPORT_TITLE_LENGTH = 40;
 
@@ -108,6 +110,49 @@ const PresentationHeader = ({
   const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
   const router = useRouter();
   const [isExporting, setIsExporting] = useState(false);
+  const [qualityOpen, setQualityOpen] = useState(false);
+  const [packOpen, setPackOpen] = useState(false);
+  const [nielsenOpen, setNielsenOpen] = useState(false);
+  const [collabOpen, setCollabOpen] = useState(false);
+  const [collabComments, setCollabComments] = useState<Array<{ id?: string; text?: string; author?: string }>>([]);
+  const [collabDraft, setCollabDraft] = useState("");
+  const [nielsenPanel, setNielsenPanel] = useState("Total National Urban");
+  const [nielsenUnits, setNielsenUnits] = useState<Record<string, string>>({});
+  const [nielsenPanels, setNielsenPanels] = useState<string[]>(["Total National Urban"]);
+  const [packItems, setPackItems] = useState<Array<{ id: string; name?: string; tokens?: { colors?: Record<string, string>; logo?: string } }>>([]);
+  const [packEditId, setPackEditId] = useState<string | null>(null);
+  const [packDraft, setPackDraft] = useState<Record<string, string>>({
+    primary: "#2CE0CE",
+    primary_text: "#06100E",
+    background: "#0A0C10",
+    background_text: "#EEF2F8",
+    card: "#12151B",
+    stroke: "#363D49",
+    surface_2: "#191D25",
+    surface_3: "#232833",
+    line: "#262B34",
+    steel_500: "#7A8595",
+    steel_300: "#AEB8C6",
+    text_muted: "#A6B0BF",
+    text_dim: "#6C7688",
+    accent_deep: "#17A99B",
+    ai: "#5B8CFF",
+    coin: "#E9B23C",
+    alert: "#FF6A00",
+    warning: "#FFC940",
+    danger: "#FF4D57",
+    graph_0: "#2CE0CE",
+    graph_1: "#5B8CFF",
+    graph_2: "#E9B23C",
+    graph_3: "#FF6A00",
+    heading: "Exo 2",
+    body: "Exo 2",
+    mono: "JetBrains Mono",
+    radius: "6",
+    logo: "",
+    background_image: "",
+  });
+  const [qualityIssues, setQualityIssues] = useState<Array<{ code: string; slideId?: string }>>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
@@ -220,6 +265,15 @@ const PresentationHeader = ({
     }
   };
 
+  const loadQuality = async () => {
+    try {
+      const report = await PresentationGenerationApi.getQualityReport(presentation_id);
+      setQualityIssues(Array.isArray(report?.issues) ? report.issues : []);
+    } catch (error) {
+      notify.error("Quality check failed", error instanceof Error ? error.message : "Try again.");
+    }
+  };
+
   const handleExportPptx = async () => {
     if (isStreaming) return;
 
@@ -296,6 +350,35 @@ const PresentationHeader = ({
         "Export failed",
         "We are having trouble exporting your presentation. Please try again.",
         exportToastId !== undefined ? { id: exportToastId } : undefined
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPptxEditable = async () => {
+    if (isStreaming) return;
+    let exportToastId: string | number | undefined;
+    try {
+      exportToastId = notify.loading("Exporting editable PPTX");
+      setIsExporting(true);
+      const result = await PresentationGenerationApi.exportEditablePptx(presentation_id);
+      const pptxPath = typeof result?.path === "string" ? result.path : "";
+      if (!pptxPath) throw new Error("No path returned from export");
+      const marker = "/exports/";
+      const relative = pptxPath.includes(marker)
+        ? pptxPath.slice(pptxPath.indexOf(marker) + marker.length)
+        : pptxPath;
+      downloadLink(
+        `/api/export-presentation/file?name=${encodeURIComponent(relative)}`,
+        buildSafeExportFileName(presentationData?.title, "pptx").replace(/\.pptx$/i, "") + "_editable.pptx",
+      );
+      notify.success("Export complete", "Editable PPTX downloaded.", { id: exportToastId });
+    } catch (error) {
+      notify.error(
+        "Export failed",
+        error instanceof Error ? error.message : "Could not export editable PPTX.",
+        exportToastId !== undefined ? { id: exportToastId } : undefined,
       );
     } finally {
       setIsExporting(false);
@@ -480,6 +563,19 @@ const PresentationHeader = ({
           PPTX
           <ArrowUpRight className="w-3.5 h-3.5" />
         </Button>
+        <Button
+          data-testid="export-pptx-editable"
+          onClick={() => {
+            handleExportPptxEditable();
+            setOpen(false);
+          }}
+          variant="ghost"
+          className={`w-full flex px-0 justify-start text-xs text-black hover:bg-transparent  ${mobile ? "bg-white py-6" : ""
+            }`}
+        >
+          PPTX editable
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </Button>
       </div>
     </div>
   );
@@ -568,7 +664,7 @@ const PresentationHeader = ({
 
   return (
     <>
-      <div className="py-[18px] px-4 sticky top-0 bg-white z-50 shadow-sm font-syne flex justify-between items-center gap-4">
+      <div className="py-[18px] px-4 sticky top-0 bg-white z-50 shadow-sm font-syne flex justify-between items-center gap-4 overflow-x-auto">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <img
             onClick={() => {
@@ -720,6 +816,410 @@ const PresentationHeader = ({
             </button>
           </ToolTip>)}
 
+          <Popover
+            open={packOpen}
+            onOpenChange={(next) => {
+              setPackOpen(next);
+              if (next) {
+                void PresentationGenerationApi.listBrandPacks()
+                  .then((rows) => setPackItems(Array.isArray(rows) ? rows : []))
+                  .catch(() => setPackItems([]));
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="dozer-catalog"
+                className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+              >
+                Pack
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[360px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
+              <ul className="space-y-2">
+                {packItems.map((item) => (
+                  <li key={item.id} className="rounded-lg border border-[#EEE] p-2">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        data-testid={`dozer-item-${item.id}`}
+                        className="text-left text-sm font-medium text-[#101323]"
+                        onClick={async () => {
+                          try {
+                            await PresentationGenerationApi.applyBrandPack(item.id, presentation_id);
+                            notify.success(`Theme: ${item.name || item.id}`);
+                            setPackOpen(false);
+                            window.location.reload();
+                          } catch (error) {
+                            notify.error("Theme failed", error instanceof Error ? error.message : "Try again.");
+                          }
+                        }}
+                      >
+                        {item.name || item.id}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-[#667]"
+                        onClick={() => {
+                          const colors = item.tokens?.colors || {};
+                          const fonts = (item as any).tokens?.fonts || {};
+                          setPackEditId(packEditId === item.id ? null : item.id);
+                          const hx = (v: string | undefined, d: string) => (v && v.startsWith("#") ? v : v ? `#${v}` : d);
+                          setPackDraft({
+                            primary: hx(colors.primary, "#2CE0CE"),
+                            primary_text: hx(colors.primary_text, "#06100E"),
+                            background: hx(colors.background, "#0A0C10"),
+                            background_text: hx(colors.background_text, "#EEF2F8"),
+                            card: hx(colors.card, "#12151B"),
+                            stroke: hx(colors.stroke, "#363D49"),
+                            surface_2: hx(colors.surface_2, "#191D25"),
+                            surface_3: hx(colors.surface_3, "#232833"),
+                            line: hx(colors.line, "#262B34"),
+                            steel_500: hx(colors.steel_500, "#7A8595"),
+                            steel_300: hx(colors.steel_300, "#AEB8C6"),
+                            text_muted: hx(colors.text_muted, "#A6B0BF"),
+                            text_dim: hx(colors.text_dim, "#6C7688"),
+                            accent_deep: hx(colors.accent_deep, "#17A99B"),
+                            ai: hx(colors.ai, "#5B8CFF"),
+                            coin: hx(colors.coin, "#E9B23C"),
+                            alert: hx(colors.alert, "#FF6A00"),
+                            warning: hx(colors.warning, "#FFC940"),
+                            danger: hx(colors.danger, "#FF4D57"),
+                            graph_0: hx(colors.graph_0, "#2CE0CE"),
+                            graph_1: hx(colors.graph_1, "#5B8CFF"),
+                            graph_2: hx(colors.graph_2, "#E9B23C"),
+                            graph_3: hx(colors.graph_3, "#FF6A00"),
+                            heading: fonts.heading || "Exo 2",
+                            body: fonts.body || "Exo 2",
+                            mono: fonts.mono || "JetBrains Mono",
+                            radius: String((item as any).tokens?.radius || "6"),
+                            logo: (item as any).tokens?.logo || "",
+                            background_image: (item as any).tokens?.background_image || "",
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    {packEditId === item.id && (
+                      <div className="max-h-[55vh] space-y-2 overflow-auto pt-1">
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">noob · Palette</p>
+                        {([
+                          ["background", "ink"],
+                          ["card", "surface"],
+                          ["surface_2", "surface-2"],
+                          ["surface_3", "surface-3"],
+                          ["line", "line"],
+                          ["stroke", "line-2"],
+                          ["steel_500", "steel-500"],
+                          ["steel_300", "steel-300"],
+                          ["background_text", "text"],
+                          ["text_muted", "text-muted"],
+                          ["text_dim", "text-dim"],
+                          ["primary", "accent · cyan"],
+                          ["accent_deep", "accent-deep"],
+                          ["primary_text", "on-accent"],
+                          ["ai", "ai · blue"],
+                          ["coin", "coin · gold"],
+                          ["alert", "alert · orange"],
+                          ["warning", "warning"],
+                          ["danger", "danger"],
+                        ] as const).map(([key, label]) => (
+                          <label key={key} className="flex items-center justify-between text-xs">
+                            {label}
+                            <input type="color" value={packDraft[key] || "#000000"}
+                              onChange={(e) => setPackDraft({ ...packDraft, [key]: e.target.value })} />
+                          </label>
+                        ))}
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">Charts</p>
+                        {(["graph_0", "graph_1", "graph_2", "graph_3"] as const).map((key) => (
+                          <label key={key} className="flex items-center justify-between text-xs">
+                            {key}
+                            <input type="color" value={packDraft[key] || "#000000"}
+                              onChange={(e) => setPackDraft({ ...packDraft, [key]: e.target.value })} />
+                          </label>
+                        ))}
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">Type</p>
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Heading · Exo 2"
+                          value={packDraft.heading} onChange={(e) => setPackDraft({ ...packDraft, heading: e.target.value })} />
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Body · Exo 2"
+                          value={packDraft.body} onChange={(e) => setPackDraft({ ...packDraft, body: e.target.value })} />
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Mono · JetBrains Mono"
+                          value={packDraft.mono || ""} onChange={(e) => setPackDraft({ ...packDraft, mono: e.target.value })} />
+                        <label className="flex items-center justify-between text-xs">Radius
+                          <input className="w-16 rounded border border-[#EDEEEF] px-1 py-0.5 text-xs" value={packDraft.radius}
+                            onChange={(e) => setPackDraft({ ...packDraft, radius: e.target.value })} />
+                        </label>
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">Chrome</p>
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Logo URL"
+                          value={packDraft.logo} onChange={(e) => setPackDraft({ ...packDraft, logo: e.target.value })} />
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Background image URL"
+                          value={packDraft.background_image} onChange={(e) => setPackDraft({ ...packDraft, background_image: e.target.value })} />
+                        <button
+                          type="button"
+                          className="w-full rounded-lg border border-[#EDEEEF] py-1 text-xs font-medium"
+                          onClick={async () => {
+                            try {
+                              await PresentationGenerationApi.updateBrandPack(item.id, {
+                                tokens: {
+                                  colors: {
+                                    primary: packDraft.primary,
+                                    primary_text: packDraft.primary_text,
+                                    background: packDraft.background,
+                                    background_text: packDraft.background_text,
+                                    card: packDraft.card,
+                                    stroke: packDraft.stroke,
+                                    surface_2: packDraft.surface_2,
+                                    surface_3: packDraft.surface_3,
+                                    line: packDraft.line,
+                                    steel_500: packDraft.steel_500,
+                                    steel_300: packDraft.steel_300,
+                                    text_muted: packDraft.text_muted,
+                                    text_dim: packDraft.text_dim,
+                                    accent_deep: packDraft.accent_deep,
+                                    ai: packDraft.ai,
+                                    coin: packDraft.coin,
+                                    alert: packDraft.alert,
+                                    warning: packDraft.warning,
+                                    danger: packDraft.danger,
+                                    graph_0: packDraft.graph_0,
+                                    graph_1: packDraft.graph_1,
+                                    graph_2: packDraft.graph_2,
+                                    graph_3: packDraft.graph_3,
+                                  },
+                                  fonts: { heading: packDraft.heading, body: packDraft.body, mono: packDraft.mono },
+                                  radius: packDraft.radius,
+                                  logo: packDraft.logo,
+                                  background_image: packDraft.background_image,
+                                },
+                              });
+                              await PresentationGenerationApi.applyBrandPack(item.id, presentation_id);
+                              notify.success("Design system saved");
+                              window.location.reload();
+                            } catch (error) {
+                              notify.error("Save failed", error instanceof Error ? error.message : "Try again.");
+                            }
+                          }}
+                        >
+                          Save and apply
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
+
+          <Popover
+            open={collabOpen}
+            onOpenChange={(next) => {
+              setCollabOpen(next);
+              if (next) {
+                void PresentationGenerationApi.getCollab(presentation_id)
+                  .then((data: any) => setCollabComments(Array.isArray(data?.comments) ? data.comments : []))
+                  .catch(() => setCollabComments([]));
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="collab-open"
+                className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+              >
+                Collab
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[280px] rounded-[18px] p-3" data-testid="collab-panel">
+              <ul className="mb-2 max-h-32 space-y-1 overflow-auto">
+                {collabComments.map((c) => (
+                  <li key={c.id} className="text-sm text-[#101323]" data-testid="collab-comment">{c.author}: {c.text}</li>
+                ))}
+              </ul>
+              <input
+                data-testid="collab-input"
+                className="mb-2 w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-sm"
+                value={collabDraft}
+                onChange={(e) => setCollabDraft(e.target.value)}
+                placeholder="Comment"
+              />
+              <button
+                type="button"
+                data-testid="collab-send"
+                className="w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-xs font-medium"
+                onClick={async () => {
+                  try {
+                    const slideId = presentationData?.slides?.[currentSlide || 0]?.id;
+                    if (!slideId || !collabDraft.trim()) return;
+                    await PresentationGenerationApi.postCollabComment(presentation_id, String(slideId), collabDraft.trim());
+                    setCollabDraft("");
+                    const data = await PresentationGenerationApi.getCollab(presentation_id);
+                    setCollabComments(Array.isArray(data?.comments) ? data.comments : []);
+                    notify.success("Comment saved");
+                  } catch (error) {
+                    notify.error("Comment failed", error instanceof Error ? error.message : "Try again.");
+                  }
+                }}
+              >
+                Send
+              </button>
+            </PopoverContent>
+          </Popover>
+
+          <button
+            type="button"
+            data-testid="design-variants"
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+            onClick={async () => {
+              try {
+                const snap = await PresentationGenerationApi.getDocumentSnapshot(presentation_id);
+                const slides = Array.isArray(snap?.slides) ? snap.slides : [];
+                const slideId = slides[currentSlide || 0]?.id || slides[0]?.id;
+                if (!slideId) throw new Error("Slide not found");
+                const proposed = await PresentationGenerationApi.proposeVariants(presentation_id, String(slideId));
+                const first = proposed?.variants?.[0]?.composition_id;
+                if (!first) throw new Error("No variants");
+                await PresentationGenerationApi.applyVariant(presentation_id, String(slideId), first);
+                notify.success(`Variant: ${first}`);
+              } catch (error) {
+                notify.error("Variant failed", error instanceof Error ? error.message : "Try again.");
+              }
+            }}
+          >
+            Variant
+          </button>
+          <button
+            type="button"
+            data-testid="report-refresh"
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+            onClick={async () => {
+              try {
+                await PresentationGenerationApi.refreshReport(presentation_id);
+                notify.success("Report refreshed");
+              } catch (error) {
+                notify.error("Refresh failed", error instanceof Error ? error.message : "Try again.");
+              }
+            }}
+          >
+            Refresh
+          </button>
+
+          <Popover
+            open={nielsenOpen}
+            onOpenChange={(next) => {
+              setNielsenOpen(next);
+              if (next) {
+                void PresentationGenerationApi.nielsenUnits()
+                  .then((data: any) => {
+                    setNielsenUnits(data?.units || data || {});
+                    if (Array.isArray(data?.panels) && data.panels.length) setNielsenPanels(data.panels);
+                  })
+                  .catch(() => undefined);
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="nielsen-open"
+                className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Nielsen
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[360px] rounded-[18px] p-3" data-testid="nielsen-panel">
+              <label className="text-[11px] uppercase text-[#667085]">Panel</label>
+              <select
+                data-testid="nielsen-panel-select"
+                className="mt-1 mb-2 w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-sm"
+                value={nielsenPanel}
+                onChange={(e) => setNielsenPanel(e.target.value)}
+              >
+                {nielsenPanels.map((panel) => (
+                  <option key={panel} value={panel}>{panel}</option>
+                ))}
+              </select>
+              <p className="mb-2 text-[11px] text-[#667085]" data-testid="nielsen-glossary">
+                {nielsenUnits["money__mat_ty"] || "Nielsen MAT money units (not RUB without glossary)"}
+              </p>
+              <button
+                type="button"
+                data-testid="nielsen-pull"
+                aria-label="Pull Nielsen"
+                className="w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-xs font-medium text-[#101323]"
+                onClick={async () => {
+                  try {
+                    await PresentationGenerationApi.pullNielsen(presentation_id, nielsenPanel);
+                    notify.success("Nielsen MAT pulled");
+                    setNielsenOpen(false);
+                  } catch (error) {
+                    notify.error(
+                      "Nielsen pull failed",
+                      error instanceof Error ? error.message : "Try again.",
+                    );
+                  }
+                }}
+              >
+                Pull
+              </button>
+            </PopoverContent>
+          </Popover>
+
+          <Popover
+            open={qualityOpen}
+            onOpenChange={(next) => {
+              setQualityOpen(next);
+              if (next) void loadQuality();
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                data-testid="quality-check"
+                className="inline-flex h-[38px] items-center gap-1.5 rounded-full border border-[#EDECEC] bg-[#F6F6F9] px-3 text-sm font-medium text-[#101323]"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Quality
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[260px] rounded-[18px] p-3" data-testid="quality-panel">
+              {qualityIssues.length === 0 ? (
+                <p className="text-sm text-[#667085]" data-testid="quality-ok">No issues</p>
+              ) : (
+                <>
+                <ul className="space-y-1.5">
+                  {qualityIssues.map((issue, index) => (
+                    <li key={`${issue.code}-${index}`} className="text-sm text-[#101323]" data-testid={`quality-issue-${issue.code}`}>
+                      {issue.code}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  data-testid="quality-fix"
+                  className="mt-3 w-full rounded-lg border border-[#EDEEEF] px-2 py-1.5 text-xs font-medium text-[#101323]"
+                  onClick={async () => {
+                    try {
+                      await PresentationGenerationApi.fixQualityIssues(presentation_id);
+                      await loadQuality();
+                      notify.success("Quality fixes applied");
+                    } catch (error) {
+                      notify.error(
+                        "Could not apply fixes",
+                        error instanceof Error ? error.message : "Try again.",
+                      );
+                    }
+                  }}
+                >
+                  Fix empty images
+                </button>
+                </>
+              )}
+            </PopoverContent>
+          </Popover>
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <button

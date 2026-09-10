@@ -1580,6 +1580,7 @@ async def export_existing_presentation(
     id: uuid.UUID,
     request_http: Request,
     export_as: Annotated[Literal["pptx", "pdf"], Body(embed=True)] = "pptx",
+    editable: bool = Query(False),
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     """Export a presentation that already exists.
@@ -1600,6 +1601,39 @@ async def export_existing_presentation(
     presentation = await sql_session.get(PresentationModel, id)
     if not presentation:
         raise HTTPException(404, "Presentation not found")
+
+    if export_as == "pptx" and editable:
+        from pathvalidate import sanitize_filename
+        from services.pptx_editable import build_editable_pptx
+        from utils.asset_directory_utils import get_exports_directory
+        from utils.filename_utils import safe_export_basename
+        import os
+        slides = list(
+            (
+                await sql_session.scalars(
+                    select(SlideModel)
+                    .where(SlideModel.presentation == id)
+                    .order_by(SlideModel.index)
+                )
+            ).all()
+        )
+        dest = os.path.join(
+            get_exports_directory(),
+            f"{safe_export_basename(sanitize_filename(presentation.title or str(id)))}_editable.pptx",
+        )
+        path = build_editable_pptx(
+            title=presentation.title or "",
+            slides=[
+                {"ui": slide.ui, "speaker_note": slide.speaker_note, "content": slide.content}
+                for slide in slides
+            ],
+            dest_path=dest,
+        )
+        return PresentationPathAndEditPath(
+            presentation_id=presentation.id,
+            path=path,
+            edit_path=f"/presentation?id={presentation.id}",
+        )
 
     presentation_and_path = await export_presentation(
         presentation.id,
@@ -2403,22 +2437,28 @@ async def stream_presentation(
         for slide in slides:
             slide.ui = _apply_template_content_to_ui(slide.ui, slide.content)
 
-        # Moved this here to make sure new slides are generated before deleting the old ones
-        await sql_session.execute(
-            delete(SlideModel).where(
-                SlideModel.presentation == id,
-                SlideModel.owner_id == get_current_owner_id(),
-            )
-        )
-        await sql_session.commit()
+        from services.operation_executor import persist_generated_slides
 
-        sql_session.add(presentation)
-        sql_session.add_all(slides)
-        sql_session.add_all(generated_assets)
-        await sql_session.commit()
+        await persist_generated_slides(
+            sql_session,
+            id,
+            slides,
+            extra_objects=generated_assets,
+            actor_source="ai",
+        )
+        updated_presentation = await sql_session.get(PresentationModel, id)
+        slides = list(
+            (
+                await sql_session.scalars(
+                    select(SlideModel)
+                    .where(SlideModel.presentation == id)
+                    .order_by(SlideModel.index)
+                )
+            ).all()
+        )
 
         response = PresentationWithSlides(
-            **_presentation_response_data(presentation),
+            **_presentation_response_data(updated_presentation),
             slides=slides,
         )
 
@@ -2443,98 +2483,26 @@ async def stream_presentation(
 
 @PRESENTATION_ROUTER.patch("/update", response_model=PresentationWithSlides)
 async def update_presentation(
+    request: Request,
     id: Annotated[uuid.UUID, Body()],
-    n_slides: Annotated[Optional[int], Body()] = None,
-    title: Annotated[Optional[str], Body()] = None,
-    theme: Annotated[Optional[dict], Body()] = None,
-    slides: Annotated[Optional[List[SlideModel]], Body()] = None,
+    base_document: Annotated[Optional[dict], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
-    presentation = await sql_session.get(PresentationModel, id)
-    if not presentation:
-        raise HTTPException(status_code=404, detail="Presentation not found")
-
-    presentation_update_dict = {}
-    if n_slides is not None:
-        if n_slides < 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Number of slides must be greater than 0",
-            )
-        if n_slides > MAX_NUMBER_OF_SLIDES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Number of slides cannot be greater than {MAX_NUMBER_OF_SLIDES}",
-            )
-        presentation_update_dict["n_slides"] = n_slides
-    if title:
-        presentation_update_dict["title"] = title
-    if theme or theme is None:
-        presentation_update_dict["theme"] = theme
-
-    if presentation_update_dict:
-        presentation.sqlmodel_update(presentation_update_dict)
-    if slides:
-        if len(slides) > MAX_NUMBER_OF_SLIDES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Number of slides cannot be greater than {MAX_NUMBER_OF_SLIDES}",
-            )
-        # Just to make sure id is UUID
-        for slide in slides:
-            slide.presentation = uuid.UUID(slide.presentation)
-            slide.id = uuid.UUID(slide.id)
-
-        await sql_session.execute(
-            delete(SlideModel).where(
-                SlideModel.presentation == presentation.id,
-                SlideModel.owner_id == get_current_owner_id(),
-            )
-        )
-        sql_session.add_all(slides)
-
-    await sql_session.commit()
-
-    response_slides = slides or []
-    return PresentationWithSlides(
-        **_presentation_response_data(presentation),
-        slides=response_slides,
-    )
+    from services.document_compare_and_swap import save_document_if_unchanged
+    payload = await request.json()
+    changes = {key: payload[key] for key in ("slides", "title", "theme", "n_slides") if key in payload}
+    presentation, slides = await save_document_if_unchanged(sql_session, id, base_document, changes)
+    return PresentationWithSlides(**_presentation_response_data(presentation), slides=slides)
 
 
 @PRESENTATION_ROUTER.patch("/slide_update", response_model=SlideModel)
 async def update_presentation_slide(
     slide: Annotated[SlideModel, Body(embed=True)],
+    base_slide: Annotated[Optional[SlideModel], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
-    try:
-        slide_id = uuid.UUID(str(slide.id))
-        presentation_id = uuid.UUID(str(slide.presentation))
-    except (AttributeError, TypeError, ValueError) as exc:
-        raise HTTPException(
-            status_code=422,
-            detail="Slide and presentation IDs must be valid UUIDs",
-        ) from exc
-
-    stored_slide = await sql_session.get(SlideModel, slide_id)
-    if not stored_slide:
-        raise HTTPException(status_code=404, detail="Slide not found")
-
-    if stored_slide.presentation != presentation_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Slide does not belong to the supplied presentation",
-        )
-
-    stored_slide.sqlmodel_update(
-        slide.model_dump(
-            exclude={"id", "presentation", "index"},
-        )
-    )
-    sql_session.add(stored_slide)
-    await sql_session.commit()
-    await sql_session.refresh(stored_slide)
-    return stored_slide
+    from services.slide_compare_and_swap import save_slide_if_unchanged
+    return await save_slide_if_unchanged(sql_session, slide, base_slide)
 
 
 async def check_if_api_request_is_valid(
@@ -3227,29 +3195,46 @@ async def edit_presentation_with_new_content(
         select(SlideModel).where(SlideModel.presentation == data.presentation_id)
     )
 
-    new_slides = []
-    slides_to_delete = []
+    operations = []
     for each_slide in slides:
-        updated_content = None
         new_slide_data = list(
             filter(lambda x: x.index == each_slide.index, data.slides)
         )
-        if new_slide_data:
-            updated_content = deep_update(each_slide.content, new_slide_data[0].content)
-            new_slide = each_slide.get_new_slide(presentation.id, updated_content)
-            _hydrate_template_slide_ui(new_slide, presentation.layout)
-            new_slides.append(new_slide)
-            slides_to_delete.append(each_slide.id)
-
-    await sql_session.execute(
-        delete(SlideModel).where(
-            SlideModel.id.in_(slides_to_delete),
-            SlideModel.owner_id == get_current_owner_id(),
+        if not new_slide_data:
+            continue
+        updated_content = deep_update(each_slide.content, new_slide_data[0].content)
+        staged = each_slide.get_new_slide(presentation.id, updated_content)
+        _hydrate_template_slide_ui(staged, presentation.layout)
+        operations.append(
+            {
+                "scope": "slide",
+                "targetIds": [str(each_slide.id)],
+                "operationType": "UpdateSlide",
+                "payload": {
+                    "layout_group": staged.layout_group,
+                    "layout": staged.layout,
+                    "content": staged.content,
+                    "html_content": staged.html_content,
+                    "speaker_note": staged.speaker_note,
+                    "properties": staged.properties,
+                    "ui": staged.ui,
+                },
+            }
         )
-    )
+    if operations:
+        from services.operation_executor import execute_operation, load_document_snapshot
 
-    sql_session.add_all(new_slides)
-    await sql_session.commit()
+        snapshot = await load_document_snapshot(sql_session, presentation.id)
+        await execute_operation(
+            sql_session,
+            document_id=presentation.id,
+            base_revision=snapshot["revision"],
+            operations=operations,
+            operation_id=str(uuid.uuid4()),
+            actor_source="ai",
+        )
+    else:
+        await sql_session.commit()
 
     presentation_and_path = await export_presentation(
         presentation.id,

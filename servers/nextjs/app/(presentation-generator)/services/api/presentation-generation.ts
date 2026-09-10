@@ -191,6 +191,244 @@ export class PresentationGenerationApi {
     }
   }
 
+  static async getDocumentSnapshot(documentId: string) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/editor/v1/documents/${documentId}/snapshot`),
+      { method: "GET", headers: getHeader(), cache: "no-store" }
+    );
+    return await ApiResponseHandler.handleResponse(
+      response,
+      "Failed to load document revision"
+    );
+  }
+
+  static async submitDocumentOperations(
+    documentId: string,
+    body: {
+      operationId: string;
+      baseRevision: number;
+      operations: Array<{
+        scope: string;
+        targetIds: string[];
+        operationType: string;
+        payload: Record<string, unknown>;
+      }>;
+    }
+  ) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/editor/v1/documents/${documentId}/operations`),
+      {
+        method: "POST",
+        headers: getHeader(),
+        body: JSON.stringify(body),
+        cache: "no-cache",
+      }
+    );
+    return await ApiResponseHandler.handleResponse(
+      response,
+      "Failed to save presentation"
+    );
+  }
+
+  static async exportEditablePptx(documentId: string) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/presentation/${documentId}/export?editable=true`),
+      {
+        method: "POST",
+        headers: getHeader(),
+        body: JSON.stringify({ export_as: "pptx" }),
+        cache: "no-cache",
+      },
+    );
+    return await ApiResponseHandler.handleResponse(response, "Failed to export editable PPTX");
+  }
+
+  static async listAssets() {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/assets`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load assets");
+  }
+
+  static async fixQualityIssues(documentId: string, codes: string[] = ["empty_image"]) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/quality/${documentId}/fix`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ codes }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to fix quality issues");
+  }
+
+  static async getQualityReport(documentId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/quality/${documentId}`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load quality report");
+  }
+
+  static async listBrandPacks() {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/brand-packs`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load brand packs");
+  }
+
+  static async pullNielsen(documentId: string, marketPanel = "Total National Urban") {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/integrations/nielsen`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId, market_panel: marketPanel }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to pull Nielsen");
+  }
+
+  static async nielsenUnits() {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/integrations/units`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load units");
+  }
+
+  static async proposeVariants(documentId: string, slideId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/variants/propose`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId, slide_id: slideId }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to propose variants");
+  }
+
+  static async applyVariant(documentId: string, slideId: string, compositionId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/variants/apply`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId, slide_id: slideId, composition_id: compositionId }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply variant");
+  }
+
+  static async getCollab(documentId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/collab/${documentId}`), {
+      method: "GET", headers: getHeader(), cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load collab");
+  }
+
+  static async postCollabComment(documentId: string, slideId: string, text: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/collab/comments`), {
+      method: "POST", headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId, slide_id: slideId, text, author: "user" }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to comment");
+  }
+
+  static async refreshReport(documentId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r2/reports/refresh`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to refresh report");
+  }
+
+  static async listDozerCatalog(packId = "m894-r1-pilot") {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/packs/${packId}/components`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load pack catalog");
+  }
+
+  static async applyDozerPack(packId: string, documentId: string) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/packs/${packId}/apply`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify({ document_id: documentId }),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply pack");
+  }
+
+  static async updateBrandPack(packId: string, body: Record<string, unknown>) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/brand-packs/${packId}`), {
+      method: "PUT",
+      headers: getHeader(),
+      body: JSON.stringify(body),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to update theme");
+  }
+
+  static async applyBrandPack(packId: string, documentId: string) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/brand-packs/${packId}/apply/${documentId}`),
+      { method: "POST", headers: getHeader(), cache: "no-cache" },
+    );
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply brand pack");
+  }
+
+  static async listCompositions() {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/compositions`), {
+      method: "GET",
+      headers: getHeader(),
+      cache: "no-store",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to load layouts");
+  }
+
+  static async applyComposition(body: {
+    document_id: string;
+    slide_id: string;
+    composition_id: string;
+  }) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/compositions/apply`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify(body),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply layout");
+  }
+
+  static async batchSlideOperations(body: {
+    document_id: string;
+    targetIds: string[];
+    operationType: string;
+    payload: Record<string, unknown>;
+    scope?: string;
+  }) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/r1/batch`), {
+      method: "POST",
+      headers: getHeader(),
+      body: JSON.stringify(body),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to apply batch edit");
+  }
+
+  static async undoDocumentOperation(documentId: string, operationId: string) {
+    const response = await fetch(
+      getApiUrl(`/api/v1/ppt/editor/v1/documents/${documentId}/operations/${operationId}/undo`),
+      { method: "POST", headers: getHeader(), cache: "no-cache" }
+    );
+    return await ApiResponseHandler.handleResponse(response, "Failed to undo");
+  }
+
   static async updatePresentationContent(body: unknown) {
     try {
       const response = await fetch(
@@ -210,14 +448,14 @@ export class PresentationGenerationApi {
     }
   }
 
-  static async updatePresentationSlide(slide: Slide) {
+  static async updatePresentationSlide(slide: Slide, baseSlide?: Slide) {
     try {
       const response = await fetch(
         getApiUrl(`/api/v1/ppt/presentation/slide_update`),
         {
           method: "PATCH",
           headers: getHeader(),
-          body: JSON.stringify({ slide }),
+          body: JSON.stringify({ slide, base_slide: baseSlide }),
           cache: "no-cache",
         }
       );

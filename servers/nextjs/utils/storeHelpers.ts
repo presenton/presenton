@@ -300,6 +300,8 @@ export const getLLMConfigValidationError = (
           return "OpenAI-compatible image API requires base URL, API key, and model.";
         }
         break;
+      case "lab-png":
+        break;
       default:
         return "Select a valid image provider.";
     }

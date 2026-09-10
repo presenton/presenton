@@ -12,6 +12,7 @@ class PresentationWithSlides(BaseModel):
     version: Optional[str] = None
     content: str
     n_slides: int
+    revision: Optional[int] = None
     language: str
     title: Optional[str] = None
     created_at: datetime

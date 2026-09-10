@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+import {mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+let dir,mod;
+test.before(async()=>{dir=await mkdtemp(path.join(tmpdir(),'presenton-baseline-'));const file=path.join(dir,'entry.ts');await writeFile(file,`export * from ${JSON.stringify(path.resolve('app/(presentation-generator)/presentation/utils/autoSaveDiff.ts'))}`);await build({entryPoints:[file],outfile:path.join(dir,'out.mjs'),bundle:true,platform:'node',format:'esm',tsconfig:path.resolve('tsconfig.json'),logLevel:'silent'});mod=await import(pathToFileURL(path.join(dir,'out.mjs')).href)});
+test.after(async()=>{await rm(dir,{recursive:true,force:true})});
+test('render default is not a saved theme',()=>{const data={id:'x',title:'X',theme:{color:'render'},persistedTheme:null,slides:[{id:'s',index:0}]};const saved=mod.createAutoSaveSnapshot(data);assert.deepEqual(JSON.parse(saved.persistedMetadataFingerprint),{title:'X',theme:null});assert.equal(mod.getAutoSaveChanges(saved,data).metadataChanged,false);assert.equal(mod.getAutoSaveChanges(saved,{...data,theme:{color:'edit'}}).metadataChanged,true)});
+test('raw template theme and metadata tracked independently of display fallback',()=>{const data={id:'x',title:'X',theme:{color:'normalized'},persistedTheme:{color:'raw'},slides:[{id:'s',index:0}]};const snap=mod.createAutoSaveSnapshot(data);assert.deepEqual(JSON.parse(snap.persistedMetadataFingerprint).theme,{color:'raw'});assert.equal(mod.getAutoSaveChanges(snap,{...data,title:'new'}).metadataChanged,true)});

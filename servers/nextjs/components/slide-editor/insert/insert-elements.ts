@@ -344,6 +344,12 @@ function chartTypeFromPaletteId(id?: string): ChartType | null {
     case "horizontal_stack_bar":
     case "horizontal_stacked_bar":
       return "horizontal_stacked_bar";
+    case "waterfall":
+      return "waterfall";
+    case "heatmap":
+      return "heatmap";
+    case "histogram":
+      return "histogram";
     default:
       return null;
   }
@@ -419,6 +425,59 @@ function makeChartElement(chartType: ChartType): SlideElement {
     decorative: false,
     name: `${chartType}_chart`,
   };
+
+  if (chartType === "heatmap") {
+    const categories = ["A", "B", "C"];
+    const values = [10, 40, 70];
+    return {
+      type: "chart",
+      position: { ...DEFAULT_CHART_INSERT_POSITION },
+      size: { ...DEFAULT_CHART_INSERT_SIZE },
+      chart_type: "heatmap",
+      title: "Heatmap",
+      categories,
+      series: [
+        { name: "R1", values: [10, 20, 30] },
+        { name: "R2", values: [40, 50, 60] },
+        { name: "R3", values: [70, 80, 90] },
+      ],
+      data: categories.map((label, index) => ({ label, value: values[index] ?? 0 })),
+      ...schema,
+    };
+  }
+  if (chartType === "histogram") {
+    const categories = ["0-10", "10-20", "20-30", "30-40"];
+    const values = [4, 12, 7, 2];
+    return {
+      type: "chart",
+      position: { ...DEFAULT_CHART_INSERT_POSITION },
+      size: { ...DEFAULT_CHART_INSERT_SIZE },
+      chart_type: "histogram",
+      title: "Distribution",
+      categories,
+      series: [{ name: "Count", values }],
+      data: categories.map((label, index) => ({ label, value: values[index] ?? 0 })),
+      ...schema,
+    };
+  }
+  if (chartType === "waterfall") {
+    const categories = ["Start", "New", "Churn", "End"];
+    const values = [40, 25, -10, 55];
+    return {
+      type: "chart",
+      position: { ...DEFAULT_CHART_INSERT_POSITION },
+      size: { ...DEFAULT_CHART_INSERT_SIZE },
+      chart_type: "waterfall",
+      title: "Waterfall",
+      categories,
+      series: [{ name: "Change", values }],
+      data: categories.map((label, index) => ({
+        label,
+        value: values[index] ?? 0,
+      })),
+      ...schema,
+    };
+  }
 
   if (chartType === "bar") {
     const categories = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

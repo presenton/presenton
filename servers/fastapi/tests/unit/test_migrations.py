@@ -883,3 +883,43 @@ def test_upgrade_from_template_v2_theme_adds_unified_keys_and_task_payload(tmp_p
         assert "access_tokens" not in tables
     finally:
         engine.dispose()
+
+
+def test_upgrade_head_creates_revision_and_document_operations(tmp_path):
+    """Migrate-on-startup path must create executor tables, not only create_all."""
+    database_url = f"sqlite:///{tmp_path / 'executor-schema.db'}"
+    engine = create_engine(database_url)
+    try:
+        command.upgrade(_alembic_config(database_url), "head")
+        with engine.connect() as connection:
+            version = connection.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar_one()
+            tables = {
+                row[0]
+                for row in connection.execute(
+                    text("SELECT name FROM sqlite_master WHERE type = 'table'")
+                )
+            }
+            presentation_columns = {
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(presentations)"))
+            }
+            operation_columns = {
+                row[1]
+                for row in connection.execute(
+                    text("PRAGMA table_info(document_operations)")
+                )
+            }
+        assert version == migrations.REVISION_HEAD
+        assert version == "b1d3e5f7a9c0"
+        assert "revision" in presentation_columns
+        assert "document_operations" in tables
+        assert "document_proposals" in tables
+        assert "document_jobs" in tables
+        assert "operation_id" in operation_columns
+        assert "idempotency_key" in operation_columns
+        assert "request_hash" in operation_columns
+        assert "resulting_revision" in operation_columns
+    finally:
+        engine.dispose()
