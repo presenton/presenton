@@ -448,18 +448,26 @@ class PresentationChatMemoryLayer:
         )
         return results
 
+
+    async def _ordered_slides(self):
+        session = self._sql_session
+        if hasattr(session, "slides") and isinstance(getattr(session, "slides"), list) and session.slides:
+            return sorted(list(session.slides), key=lambda s: (getattr(s, "index", 0), str(getattr(s, "id", ""))))
+        if hasattr(session, "slide") and getattr(session, "slide") is not None:
+            return [session.slide]
+        result = await session.scalars(
+            select(SlideModel)
+            .where(SlideModel.presentation == self._presentation_id)
+            .order_by(SlideModel.index, SlideModel.id)
+        )
+        if hasattr(result, "all"):
+            return list(result.all())
+        return list(result)
+
     async def get_slide_at_index(
         self, index: int, *, include_full_content: bool = False
     ) -> dict[str, Any] | None:
-        rows = list(
-            (
-                await self._sql_session.scalars(
-                    select(SlideModel)
-                    .where(SlideModel.presentation == self._presentation_id)
-                    .order_by(SlideModel.index, SlideModel.id)
-                )
-            ).all()
-        )
+        rows = await self._ordered_slides()
         slide = None
         if 0 <= index < len(rows):
             slide = rows[index]
@@ -1450,15 +1458,7 @@ class PresentationChatMemoryLayer:
         }
 
     async def list_slides(self) -> dict[str, Any]:
-        rows = list(
-            (
-                await self._sql_session.scalars(
-                    select(SlideModel)
-                    .where(SlideModel.presentation == self._presentation_id)
-                    .order_by(SlideModel.index, SlideModel.id)
-                )
-            ).all()
-        )
+        rows = await self._ordered_slides()
         items = []
         for i, slide in enumerate(rows):
             ui = slide.ui if isinstance(slide.ui, dict) else {}
@@ -1474,15 +1474,7 @@ class PresentationChatMemoryLayer:
 
     async def delete_slide(self, *, index: int) -> dict[str, Any]:
         target_index = max(0, index)
-        rows = list(
-            (
-                await self._sql_session.scalars(
-                    select(SlideModel)
-                    .where(SlideModel.presentation == self._presentation_id)
-                    .order_by(SlideModel.index, SlideModel.id)
-                )
-            ).all()
-        )
+        rows = await self._ordered_slides()
         slide = rows[target_index] if target_index < len(rows) else None
         if not slide:
             return {
