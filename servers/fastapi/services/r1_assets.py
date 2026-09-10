@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from utils.asset_directory_utils import get_images_directory
+from utils.asset_directory_utils import get_images_directory, filesystem_image_path_to_app_data_url
 
 _IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 
@@ -23,6 +23,7 @@ def list_assets(limit: int = 100) -> list[dict[str, Any]]:
             {
                 "filename": path.name,
                 "path": str(path),
+                "url": filesystem_image_path_to_app_data_url(str(path)),
                 "bytes": path.stat().st_size,
             }
         )
