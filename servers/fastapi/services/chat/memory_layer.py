@@ -1449,19 +1449,47 @@ class PresentationChatMemoryLayer:
             "slide_number": insert_index + 1,
         }
 
+    async def list_slides(self) -> dict[str, Any]:
+        rows = list(
+            (
+                await self._sql_session.scalars(
+                    select(SlideModel)
+                    .where(SlideModel.presentation == self._presentation_id)
+                    .order_by(SlideModel.index, SlideModel.id)
+                )
+            ).all()
+        )
+        items = []
+        for i, slide in enumerate(rows):
+            ui = slide.ui if isinstance(slide.ui, dict) else {}
+            items.append(
+                {
+                    "index": i,
+                    "slide_number": i + 1,
+                    "slide_id": str(slide.id),
+                    "description": str((ui or {}).get("description") or "")[:120],
+                }
+            )
+        return {"n_slides": len(items), "slides": items}
+
     async def delete_slide(self, *, index: int) -> dict[str, Any]:
         target_index = max(0, index)
-        slide = await self._sql_session.scalar(
-            select(SlideModel).where(
-                SlideModel.presentation == self._presentation_id,
-                SlideModel.index == target_index,
-            )
+        rows = list(
+            (
+                await self._sql_session.scalars(
+                    select(SlideModel)
+                    .where(SlideModel.presentation == self._presentation_id)
+                    .order_by(SlideModel.index, SlideModel.id)
+                )
+            ).all()
         )
+        slide = rows[target_index] if target_index < len(rows) else None
         if not slide:
             return {
                 "deleted": False,
                 "message": f"No slide found at index {target_index}.",
                 "index": target_index,
+                "n_slides": len(rows),
             }
 
         presentation = await self._sql_session.get(PresentationModel, self._presentation_id)

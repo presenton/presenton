@@ -111,6 +111,7 @@ class ChatTools:
             "saveSlide": self._save_slide,
             "updateSlide": self._update_slide,
             "deleteSlide": self._delete_slide,
+            "listSlides": self._list_slides,
             "addElement": self._add_element,
             "addInfographic": self._add_infographic,
             "updateElement": self._update_slide_element,
@@ -246,6 +247,16 @@ class ChatTools:
                     "Search current slides for text/topics and return slide indices and snippets."
                 ),
                 schema=SearchSlidesInput,
+                strict=False,
+            ),
+            Tool(
+                name="listSlides",
+                description=(
+                    "Authoritative deck inventory: n_slides plus 0-based index, "
+                    "1-based slide_number, and description. Call this after delete/merge "
+                    "before telling the user the deck changed."
+                ),
+                schema=NoArgsInput,
                 strict=False,
             ),
             Tool(
@@ -861,9 +872,15 @@ class ChatTools:
             replace_old_slide_at_index=payload.replace_old_slide_at_index,
         )
 
+    async def _list_slides(self, _: dict[str, Any]) -> dict[str, Any]:
+        return await self._memory.list_slides()
+
     async def _delete_slide(self, args: dict[str, Any]) -> dict[str, Any]:
         payload = DeleteSlideInput(**args)
-        return await self._memory.delete_slide(index=payload.index)
+        result = await self._memory.delete_slide(index=payload.index)
+        inventory = await self._memory.list_slides()
+        return {**result, **inventory}
+
 
     async def _get_slide_elements(self, args: dict[str, Any]) -> dict[str, Any]:
         payload = GetSlideAtIndexInput(
