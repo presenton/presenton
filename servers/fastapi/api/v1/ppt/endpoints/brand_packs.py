@@ -10,8 +10,9 @@ from services.brand_pack import (
     list_brand_packs,
     load_brand_pack,
     presentation_theme_from_pack,
-    rebuild_slide_for_pack,
+    recolor_slide_ui,
     save_brand_pack,
+    update_brand_pack,
 )
 from services.database import get_async_session
 from services.operation_executor import execute_operation, load_document_snapshot
@@ -53,18 +54,46 @@ async def apply_brand_pack(
             "payload": {"brandPackId": pack["id"]},
         }
     ]
-    for i, slide in enumerate(snapshot.get("slides") or []):
-        ui = rebuild_slide_for_pack(slide.get("ui") or {}, pack, i)
+    old_theme = snapshot.get("theme") or {}
+    old_colors = {}
+    if isinstance(old_theme, dict):
+        data = old_theme.get("data") if isinstance(old_theme.get("data"), dict) else old_theme
+        old_colors = data.get("colors") if isinstance(data.get("colors"), dict) else {}
+    if not old_colors:
+        old_colors = {
+            "primary": "#4a6ebd",
+            "background": "#ffffff",
+            "card": "#e8e8e8",
+            "stroke": "#d1d1d1",
+            "primary_text": "#dedede",
+            "background_text": "#060301",
+        }
+    new_colors = ((pack.get("tokens") or {}).get("colors") or {})
+    logo = (pack.get("tokens") or {}).get("logo")
+    for slide in snapshot.get("slides") or []:
+        ui = recolor_slide_ui(slide.get("ui") or {}, old_colors, new_colors, pack["id"])
+        if logo and isinstance(ui, dict):
+            els = list(ui.get("elements") or [])
+            found = False
+            for el in els:
+                if isinstance(el, dict) and el.get("name") == "brand_logo":
+                    el["data"] = logo
+                    found = True
+            if not found:
+                els.append({
+                    "type": "image",
+                    "name": "brand_logo",
+                    "data": logo,
+                    "position": {"x": 40, "y": 16},
+                    "size": {"width": 140, "height": 40},
+                })
+            ui["elements"] = els
         ops.append(
             {
                 "scope": "slide",
                 "targetIds": [slide["id"]],
                 "operationType": "UpdateSlide",
-                "payload": {
-                    "ui": ui,
-                    "layout": ui.get("layout"),
-                    "layout_group": ui.get("layout_group"),
-                },
+                "payload": {"ui": ui},
             }
         )
     return await execute_operation(
@@ -75,3 +104,8 @@ async def apply_brand_pack(
         operation_id=str(uuid.uuid4()),
         actor_source="manual",
     )
+
+
+@BRAND_PACKS_ROUTER.put("/{pack_id}")
+async def put_brand_pack(pack_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return update_brand_pack(pack_id, body)

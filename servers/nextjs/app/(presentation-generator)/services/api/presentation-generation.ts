@@ -364,6 +364,16 @@ export class PresentationGenerationApi {
     return await ApiResponseHandler.handleResponse(response, "Failed to apply pack");
   }
 
+  static async updateBrandPack(packId: string, body: Record<string, unknown>) {
+    const response = await fetch(getApiUrl(`/api/v1/ppt/brand-packs/${packId}`), {
+      method: "PUT",
+      headers: getHeader(),
+      body: JSON.stringify(body),
+      cache: "no-cache",
+    });
+    return await ApiResponseHandler.handleResponse(response, "Failed to update theme");
+  }
+
   static async applyBrandPack(packId: string, documentId: string) {
     const response = await fetch(
       getApiUrl(`/api/v1/ppt/brand-packs/${packId}/apply/${documentId}`),

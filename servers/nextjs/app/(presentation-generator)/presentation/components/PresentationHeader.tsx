@@ -119,7 +119,9 @@ const PresentationHeader = ({
   const [nielsenPanel, setNielsenPanel] = useState("Total National Urban");
   const [nielsenUnits, setNielsenUnits] = useState<Record<string, string>>({});
   const [nielsenPanels, setNielsenPanels] = useState<string[]>(["Total National Urban"]);
-  const [packItems, setPackItems] = useState<Array<{ id: string; name?: string; label?: string; group?: string }>>([]);
+  const [packItems, setPackItems] = useState<Array<{ id: string; name?: string; tokens?: { colors?: Record<string, string>; logo?: string } }>>([]);
+  const [packEditId, setPackEditId] = useState<string | null>(null);
+  const [packDraft, setPackDraft] = useState({ primary: "#f26b00", background: "#ffffff", background_text: "#1f1a14", logo: "" });
   const [qualityIssues, setQualityIssues] = useState<Array<{ code: string; slideId?: string }>>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
@@ -804,27 +806,92 @@ const PresentationHeader = ({
                 Pack
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[260px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
-              <ul className="space-y-1">
+            <PopoverContent align="end" className="w-[320px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
+              <ul className="space-y-2">
                 {packItems.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      data-testid={`dozer-item-${item.id}`}
-                      className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-[#101323] hover:bg-[#F6F6F9]"
-                      onClick={async () => {
-                        try {
-                          await PresentationGenerationApi.applyBrandPack(item.id, presentation_id);
-                          notify.success(`Pack: ${item.name || item.id}`);
-                          setPackOpen(false);
-                          window.location.reload();
-                        } catch (error) {
-                          notify.error("Pack failed", error instanceof Error ? error.message : "Try again.");
-                        }
-                      }}
-                    >
-                      {item.name || item.id}
-                    </button>
+                  <li key={item.id} className="rounded-lg border border-[#EEE] p-2">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        data-testid={`dozer-item-${item.id}`}
+                        className="text-left text-sm font-medium text-[#101323]"
+                        onClick={async () => {
+                          try {
+                            await PresentationGenerationApi.applyBrandPack(item.id, presentation_id);
+                            notify.success(`Theme: ${item.name || item.id}`);
+                            setPackOpen(false);
+                            window.location.reload();
+                          } catch (error) {
+                            notify.error("Theme failed", error instanceof Error ? error.message : "Try again.");
+                          }
+                        }}
+                      >
+                        {item.name || item.id}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-[#667]"
+                        onClick={() => {
+                          const colors = item.tokens?.colors || {};
+                          setPackEditId(packEditId === item.id ? null : item.id);
+                          setPackDraft({
+                            primary: colors.primary || "#f26b00",
+                            background: colors.background || "#ffffff",
+                            background_text: colors.background_text || "#1f1a14",
+                            logo: item.tokens?.logo || "",
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    {packEditId === item.id && (
+                      <div className="space-y-1.5">
+                        <label className="flex items-center justify-between text-xs">Primary
+                          <input type="color" value={packDraft.primary.startsWith("#") ? packDraft.primary : `#${packDraft.primary}`}
+                            onChange={(e) => setPackDraft({ ...packDraft, primary: e.target.value })} />
+                        </label>
+                        <label className="flex items-center justify-between text-xs">Background
+                          <input type="color" value={packDraft.background.startsWith("#") ? packDraft.background : `#${packDraft.background}`}
+                            onChange={(e) => setPackDraft({ ...packDraft, background: e.target.value })} />
+                        </label>
+                        <label className="flex items-center justify-between text-xs">Text
+                          <input type="color" value={packDraft.background_text.startsWith("#") ? packDraft.background_text : `#${packDraft.background_text}`}
+                            onChange={(e) => setPackDraft({ ...packDraft, background_text: e.target.value })} />
+                        </label>
+                        <input
+                          className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs"
+                          placeholder="Logo URL"
+                          value={packDraft.logo}
+                          onChange={(e) => setPackDraft({ ...packDraft, logo: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          className="w-full rounded-lg border border-[#EDEEEF] py-1 text-xs font-medium"
+                          onClick={async () => {
+                            try {
+                              await PresentationGenerationApi.updateBrandPack(item.id, {
+                                tokens: {
+                                  colors: {
+                                    primary: packDraft.primary,
+                                    background: packDraft.background,
+                                    background_text: packDraft.background_text,
+                                  },
+                                  logo: packDraft.logo,
+                                },
+                              });
+                              await PresentationGenerationApi.applyBrandPack(item.id, presentation_id);
+                              notify.success("Theme saved");
+                              window.location.reload();
+                            } catch (error) {
+                              notify.error("Save failed", error instanceof Error ? error.message : "Try again.");
+                            }
+                          }}
+                        >
+                          Save and apply
+                        </button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

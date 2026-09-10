@@ -70,13 +70,91 @@ def extract_tokens(payload: dict[str, Any]) -> dict[str, Any]:
     return tokens
 
 
+
+
+def _norm_hex(value: Any) -> str:
+    raw = str(value or "").strip().lstrip("#")
+    return raw.lower() if raw else ""
+
+
+def recolor_slide_ui(ui: Any, old_colors: dict[str, Any], new_colors: dict[str, Any], pack_id: str) -> Any:
+    from copy import deepcopy
+
+    mapping: dict[str, str] = {}
+    for key in _TOKEN_COLOR_KEYS:
+        old = _norm_hex(old_colors.get(key))
+        new = _norm_hex(new_colors.get(key))
+        if old and new and old != new:
+            mapping[old] = new
+            mapping["#" + old] = "#" + new
+    bg = _norm_hex(new_colors.get("background"))
+    tree = deepcopy(ui) if ui is not None else {}
+
+    def paint(value: Any) -> Any:
+        if isinstance(value, str):
+            key = value.strip()
+            low = key.lower()
+            if low in mapping:
+                return mapping[low]
+            if low.lstrip("#") in mapping:
+                nxt = mapping[low.lstrip("#")]
+                return "#" + nxt if key.startswith("#") else nxt
+            return value
+        if isinstance(value, dict):
+            return {k: paint(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [paint(v) for v in value]
+        return value
+
+    tree = paint(tree)
+    if isinstance(tree, dict):
+        tree["pack_restyle"] = pack_id
+        if bg:
+            tree["background"] = "#" + bg.upper() if False else "#" + bg
+    return tree
+
+
 def presentation_theme_from_pack(pack: dict[str, Any]) -> dict[str, Any]:
+    tokens = pack.get("tokens") or {}
     return {
         "name": pack["name"],
         "source": "brand-pack",
         "brand_pack_id": pack["id"],
-        "data": pack["tokens"],
+        "data": tokens,
+        "logo": (tokens.get("logo") if isinstance(tokens, dict) else None),
+        "background_image": (tokens.get("background_image") if isinstance(tokens, dict) else None),
     }
+
+
+def update_brand_pack(pack_id: str, body: dict[str, Any]) -> dict[str, Any]:
+    pack = load_brand_pack(pack_id)
+    if body.get("name"):
+        pack["name"] = str(body["name"]).strip()
+    incoming = body.get("tokens") or body
+    current = pack.get("tokens") or {}
+    colors = dict(current.get("colors") or {})
+    src = incoming.get("colors") if isinstance(incoming.get("colors"), dict) else incoming
+    if isinstance(src, dict):
+        for key in _TOKEN_COLOR_KEYS:
+            if src.get(key):
+                colors[key] = str(src[key]).strip()
+    tokens = {"colors": colors}
+    fonts = incoming.get("fonts") if isinstance(incoming.get("fonts"), dict) else current.get("fonts")
+    if fonts:
+        tokens["fonts"] = fonts
+    for extra in ("logo", "background_image"):
+        if extra in incoming:
+            tokens[extra] = incoming[extra]
+        elif extra in current:
+            tokens[extra] = current[extra]
+    leaked = [key for key in tokens.keys() if str(key).lower() in _FORBIDDEN]
+    if leaked:
+        raise HTTPException(422, f"Brand pack tokens cannot include {', '.join(leaked)}")
+    pack["tokens"] = tokens
+    path = _packs_dir() / f"{pack['id']}.json"
+    path.write_text(json.dumps(pack, ensure_ascii=False, indent=2))
+    return pack
+
 
 
 def save_brand_pack(body: dict[str, Any]) -> dict[str, Any]:
