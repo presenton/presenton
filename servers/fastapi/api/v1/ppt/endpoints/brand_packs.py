@@ -10,7 +10,7 @@ from services.brand_pack import (
     list_brand_packs,
     load_brand_pack,
     presentation_theme_from_pack,
-    restyle_slide_ui,
+    rebuild_slide_for_pack,
     save_brand_pack,
 )
 from services.database import get_async_session
@@ -53,14 +53,18 @@ async def apply_brand_pack(
             "payload": {"brandPackId": pack["id"]},
         }
     ]
-    for slide in snapshot.get("slides") or []:
-        ui = restyle_slide_ui(slide.get("ui") or {}, pack)
+    for i, slide in enumerate(snapshot.get("slides") or []):
+        ui = rebuild_slide_for_pack(slide.get("ui") or {}, pack, i)
         ops.append(
             {
                 "scope": "slide",
                 "targetIds": [slide["id"]],
                 "operationType": "UpdateSlide",
-                "payload": {"ui": ui},
+                "payload": {
+                    "ui": ui,
+                    "layout": ui.get("layout"),
+                    "layout_group": ui.get("layout_group"),
+                },
             }
         )
     return await execute_operation(
