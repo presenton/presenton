@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 from weakref import WeakKeyDictionary
+from urllib.parse import urlparse
 
 import aiohttp
 from fastapi import HTTPException
@@ -43,11 +44,27 @@ from utils.image_generation_error import normalize_image_generation_error
 import uuid
 
 
+OPEN_WEBUI_API_PREFIX = "/api/v1"
 COMFYUI_MAX_SEED = 0xFFFFFFFFFFFFFFFF
 COMFYUI_SEED_SOURCE_VALUE_KEYS = {"value", "int", "integer", "number"}
 _IMAGE_GENERATION_LOCKS: WeakKeyDictionary[
     asyncio.AbstractEventLoop, asyncio.Lock
 ] = WeakKeyDictionary()
+
+
+def resolve_open_webui_api_base(base_url: str) -> str:
+    """Return the Open WebUI API root that the image endpoints hang off.
+
+    Open WebUI serves its REST API under ``/api/v1``; the site root only serves
+    the web app, which answers a POST to ``/images/generations`` with 405. A
+    bare origin such as ``http://127.0.0.1:8080`` therefore gets the prefix
+    appended. A URL that already carries a path is used verbatim so existing
+    configurations keep working.
+    """
+    base_url = base_url.strip().rstrip("/")
+    if urlparse(base_url).path in ("", "/"):
+        return base_url + OPEN_WEBUI_API_PREFIX
+    return base_url
 
 
 def _get_image_generation_lock() -> asyncio.Lock:
@@ -194,10 +211,8 @@ class ImageGenerationService:
         if not base_url:
             raise ValueError("OPEN_WEBUI_IMAGE_URL environment variable is not set")
 
-        base_url = base_url.rstrip("/")
+        base_url = resolve_open_webui_api_base(base_url)
         api_key = get_open_webui_image_api_key_env() or ""
-
-        from urllib.parse import urlparse
 
         parsed = urlparse(base_url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -222,8 +237,15 @@ class ImageGenerationService:
 
             if resp.status != 200:
                 error_text = await resp.text()
+                hint = ""
+                if resp.status in (404, 405):
+                    hint = (
+                        " (OPEN_WEBUI_IMAGE_URL should point at the Open WebUI"
+                        f" API root, e.g. {origin}{OPEN_WEBUI_API_PREFIX})"
+                    )
                 raise Exception(
-                    f"Open WebUI image generation returned {resp.status}: {error_text}"
+                    f"Open WebUI image generation returned {resp.status}: "
+                    f"{error_text}{hint}"
                 )
 
             body = await resp.json()

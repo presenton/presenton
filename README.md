@@ -483,7 +483,7 @@ These variables match `docker-compose.yml`. **`IMAGE_PROVIDER`** selects the bac
 | **DALL_E_3_QUALITY** | `standard` (default), `hd` | DALL-E 3 image quality. |
 | **GPT_IMAGE_1_5_QUALITY** | `low`, `medium` (default), `high` | GPT Image 1.5 image quality. |
 | **COMFYUI_URL** / **COMFYUI_WORKFLOW** | Required for `IMAGE_PROVIDER=comfyui` | Self-hosted ComfyUI endpoint and workflow JSON. |
-| **OPEN_WEBUI_IMAGE_URL** / **OPEN_WEBUI_IMAGE_API_KEY** | Required for `IMAGE_PROVIDER=open_webui` | Open WebUI-compatible image endpoint and API key. |
+| **OPEN_WEBUI_IMAGE_URL** / **OPEN_WEBUI_IMAGE_API_KEY** | Required for `IMAGE_PROVIDER=open_webui` | Open WebUI API root (`http://host:8080/api/v1`; a bare origin gets `/api/v1` appended) and API key. |
 | **OPENAI_COMPAT_IMAGE_BASE_URL** / **OPENAI_COMPAT_IMAGE_API_KEY** / **OPENAI_COMPAT_IMAGE_MODEL** | Required for `IMAGE_PROVIDER=openai_compatible` | Sends image requests to an OpenAI-compatible `/v1/images/*` endpoint such as LiteLLM, Azure, or a vLLM gateway. |
 
 The parallel image generation option applies everywhere images are generated: initial presentation generation, slide editing and regeneration, direct image requests, and assistant image tools.
