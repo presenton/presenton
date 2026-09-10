@@ -90,41 +90,158 @@ def _norm_hex(value: Any) -> str:
     return raw.lower() if raw else ""
 
 
-def recolor_slide_ui(ui: Any, old_colors: dict[str, Any], new_colors: dict[str, Any], pack_id: str) -> Any:
+def _rgb(value: Any) -> tuple[int, int, int] | None:
+    raw = _norm_hex(value)
+    if len(raw) != 6:
+        return None
+    try:
+        return int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
+    except ValueError:
+        return None
+
+
+def _luma(value: Any) -> float | None:
+    rgb = _rgb(value)
+    if not rgb:
+        return None
+    r, g, b = rgb
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
+
+
+def _is_neutral(value: Any) -> bool:
+    rgb = _rgb(value)
+    if not rgb:
+        return False
+    return max(rgb) - min(rgb) < 28
+
+
+def _hex(value: Any) -> str:
+    raw = _norm_hex(value)
+    return f"#{raw}" if raw else ""
+
+
+def apply_tokens_to_ui(
+    ui: Any,
+    new_colors: dict[str, Any],
+    fonts: dict[str, Any] | None,
+    pack_id: str,
+) -> Any:
+    """Paint existing ui with pack tokens. Keep structure (no new elements)."""
     from copy import deepcopy
 
-    mapping: dict[str, str] = {}
-    for key in _TOKEN_COLOR_KEYS:
-        old = _norm_hex(old_colors.get(key))
-        new = _norm_hex(new_colors.get(key))
-        if old and new and old != new:
-            mapping[old] = new
-            mapping["#" + old] = "#" + new
-    bg = _norm_hex(new_colors.get("background"))
     tree = deepcopy(ui) if ui is not None else {}
+    bg = _hex(new_colors.get("background"))
+    ink = _hex(new_colors.get("background_text"))
+    on_primary = _hex(new_colors.get("primary_text"))
+    card = _hex(new_colors.get("card"))
+    stroke = _hex(new_colors.get("stroke"))
+    muted = _hex(new_colors.get("text_muted") or new_colors.get("steel_500")) or ink
+    primary = _hex(new_colors.get("primary"))
+    graphs = [_hex(new_colors.get(f"graph_{i}")) for i in range(4)]
+    graphs = [g for g in graphs if g]
+    heading = str((fonts or {}).get("heading") or "").strip()
+    body = str((fonts or {}).get("body") or heading).strip()
 
-    def paint(value: Any) -> Any:
-        if isinstance(value, str):
-            key = value.strip()
-            low = key.lower()
-            if low in mapping:
-                return mapping[low]
-            if low.lstrip("#") in mapping:
-                nxt = mapping[low.lstrip("#")]
-                return "#" + nxt if key.startswith("#") else nxt
+    def restyle_color(value: Any, *, role: str) -> Any:
+        if not isinstance(value, str) or not _rgb(value):
             return value
-        if isinstance(value, dict):
-            return {k: paint(v) for k, v in value.items()}
-        if isinstance(value, list):
-            return [paint(v) for v in value]
+        luma = _luma(value) or 0
+        if role == "text":
+            if _is_neutral(value):
+                return muted if 0.35 < luma < 0.75 else ink
+            return primary if luma < 0.55 else (on_primary or ink)
+        if role == "fill":
+            if _is_neutral(value) and luma > 0.72:
+                return card or bg
+            if _is_neutral(value) and luma < 0.2:
+                return bg or value
+            return value
+        if role == "stroke":
+            return stroke or value
         return value
 
-    tree = paint(tree)
+    def walk(node: Any) -> Any:
+        if isinstance(node, list):
+            return [walk(item) for item in node]
+        if not isinstance(node, dict):
+            return node
+        out = dict(node)
+        kind = str(out.get("type") or "")
+        def paint_font(font_obj: Any, family: str | None) -> Any:
+            if not isinstance(font_obj, dict):
+                font_obj = {}
+            else:
+                font_obj = dict(font_obj)
+            if font_obj.get("color"):
+                font_obj["color"] = restyle_color(font_obj.get("color"), role="text")
+            if family:
+                font_obj["family"] = family
+            return font_obj
+
+        if kind in {"text", "text-list"}:
+            font = dict(out.get("font") or {})
+            size = float(font.get("size") or 16)
+            family = heading if size >= 22 else body
+            if "color" in out and out.get("color"):
+                out["color"] = restyle_color(out.get("color"), role="text")
+            out["font"] = paint_font(font, family)
+            if isinstance(out.get("runs"), list):
+                runs = []
+                for run in out["runs"]:
+                    if not isinstance(run, dict):
+                        runs.append(run)
+                        continue
+                    run = dict(run)
+                    if run.get("color"):
+                        run["color"] = restyle_color(run.get("color"), role="text")
+                    run["font"] = paint_font(run.get("font"), family)
+                    runs.append(run)
+                out["runs"] = runs
+            if isinstance(out.get("items"), list):
+                items = []
+                for item in out["items"]:
+                    if isinstance(item, list):
+                        painted = []
+                        for run in item:
+                            if not isinstance(run, dict):
+                                painted.append(run)
+                                continue
+                            run = dict(run)
+                            if run.get("color"):
+                                run["color"] = restyle_color(run.get("color"), role="text")
+                            run["font"] = paint_font(run.get("font"), family)
+                            painted.append(run)
+                        items.append(painted)
+                    else:
+                        items.append(item)
+                out["items"] = items
+        if isinstance(out.get("fill"), dict) and out["fill"].get("color"):
+            fill = dict(out["fill"])
+            fill["color"] = restyle_color(fill.get("color"), role="fill")
+            out["fill"] = fill
+        if "stroke" in out and isinstance(out["stroke"], dict) and out["stroke"].get("color"):
+            st = dict(out["stroke"])
+            if _is_neutral(st.get("color")):
+                st["color"] = restyle_color(st.get("color"), role="stroke")
+            out["stroke"] = st
+        if kind == "chart" and graphs:
+            out["colors"] = graphs[: max(1, len(out.get("colors") or graphs))]
+        for key, value in list(out.items()):
+            if key in {"color", "fill", "stroke", "font", "runs", "items", "colors"}:
+                continue
+            out[key] = walk(value)
+        return out
+
+    tree = walk(tree)
     if isinstance(tree, dict):
         tree["pack_restyle"] = pack_id
         if bg:
-            tree["background"] = "#" + bg.upper() if False else "#" + bg
+            tree["background"] = bg if bg.startswith("#") else f"#{bg}"
     return tree
+
+
+def recolor_slide_ui(ui: Any, old_colors: dict[str, Any], new_colors: dict[str, Any], pack_id: str) -> Any:
+    return apply_tokens_to_ui(ui, new_colors, None, pack_id)
 
 
 def presentation_theme_from_pack(pack: dict[str, Any]) -> dict[str, Any]:

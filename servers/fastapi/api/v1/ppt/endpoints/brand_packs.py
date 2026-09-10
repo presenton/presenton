@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.sql.presentation import PresentationModel
 from services.brand_pack import (
+    apply_tokens_to_ui,
     list_brand_packs,
     load_brand_pack,
     presentation_theme_from_pack,
-    recolor_slide_ui,
     save_brand_pack,
     update_brand_pack,
 )
@@ -72,10 +72,12 @@ async def apply_brand_pack(
             "graph_2": "#3153a0",
             "graph_3": "#476bba",
         }
-    new_colors = ((pack.get("tokens") or {}).get("colors") or {})
-    logo = (pack.get("tokens") or {}).get("logo")
+    tokens = pack.get("tokens") or {}
+    new_colors = tokens.get("colors") or {}
+    fonts = tokens.get("fonts") if isinstance(tokens.get("fonts"), dict) else {}
+    logo = tokens.get("logo")
     for slide in snapshot.get("slides") or []:
-        ui = recolor_slide_ui(slide.get("ui") or {}, old_colors, new_colors, pack["id"])
+        ui = apply_tokens_to_ui(slide.get("ui") or {}, new_colors, fonts, pack["id"])
         if logo and isinstance(ui, dict):
             els = list(ui.get("elements") or [])
             found = False
