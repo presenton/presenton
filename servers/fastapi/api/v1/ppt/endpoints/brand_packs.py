@@ -67,6 +67,10 @@ async def apply_brand_pack(
             "stroke": "#d1d1d1",
             "primary_text": "#dedede",
             "background_text": "#060301",
+            "graph_0": "#09256d",
+            "graph_1": "#1c3c86",
+            "graph_2": "#3153a0",
+            "graph_3": "#476bba",
         }
     new_colors = ((pack.get("tokens") or {}).get("colors") or {})
     logo = (pack.get("tokens") or {}).get("logo")

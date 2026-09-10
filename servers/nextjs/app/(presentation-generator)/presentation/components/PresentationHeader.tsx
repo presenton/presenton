@@ -121,7 +121,23 @@ const PresentationHeader = ({
   const [nielsenPanels, setNielsenPanels] = useState<string[]>(["Total National Urban"]);
   const [packItems, setPackItems] = useState<Array<{ id: string; name?: string; tokens?: { colors?: Record<string, string>; logo?: string } }>>([]);
   const [packEditId, setPackEditId] = useState<string | null>(null);
-  const [packDraft, setPackDraft] = useState({ primary: "#f26b00", background: "#ffffff", background_text: "#1f1a14", logo: "" });
+  const [packDraft, setPackDraft] = useState({
+    primary: "#f26b00",
+    primary_text: "#ffffff",
+    background: "#ffffff",
+    background_text: "#1f1a14",
+    card: "#fff6ec",
+    stroke: "#e8e0d4",
+    graph_0: "#f26b00",
+    graph_1: "#2f8f3a",
+    graph_2: "#f5c400",
+    graph_3: "#4a90a4",
+    heading: "Manrope",
+    body: "Manrope",
+    radius: "12",
+    logo: "",
+    background_image: "",
+  });
   const [qualityIssues, setQualityIssues] = useState<Array<{ code: string; slideId?: string }>>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
@@ -806,7 +822,7 @@ const PresentationHeader = ({
                 Pack
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[320px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
+            <PopoverContent align="end" className="w-[340px] rounded-[18px] p-3" data-testid="dozer-catalog-panel">
               <ul className="space-y-2">
                 {packItems.map((item) => (
                   <li key={item.id} className="rounded-lg border border-[#EEE] p-2">
@@ -833,12 +849,25 @@ const PresentationHeader = ({
                         className="text-xs text-[#667]"
                         onClick={() => {
                           const colors = item.tokens?.colors || {};
+                          const fonts = (item as any).tokens?.fonts || {};
                           setPackEditId(packEditId === item.id ? null : item.id);
+                          const hx = (v: string | undefined, d: string) => (v && v.startsWith("#") ? v : v ? `#${v}` : d);
                           setPackDraft({
-                            primary: colors.primary || "#f26b00",
-                            background: colors.background || "#ffffff",
-                            background_text: colors.background_text || "#1f1a14",
-                            logo: item.tokens?.logo || "",
+                            primary: hx(colors.primary, "#f26b00"),
+                            primary_text: hx(colors.primary_text, "#ffffff"),
+                            background: hx(colors.background, "#ffffff"),
+                            background_text: hx(colors.background_text, "#1f1a14"),
+                            card: hx(colors.card, "#fff6ec"),
+                            stroke: hx(colors.stroke, "#e8e0d4"),
+                            graph_0: hx(colors.graph_0, "#f26b00"),
+                            graph_1: hx(colors.graph_1, "#2f8f3a"),
+                            graph_2: hx(colors.graph_2, "#f5c400"),
+                            graph_3: hx(colors.graph_3, "#4a90a4"),
+                            heading: fonts.heading || "Manrope",
+                            body: fonts.body || "Manrope",
+                            radius: String((item as any).tokens?.radius || "12"),
+                            logo: (item as any).tokens?.logo || "",
+                            background_image: (item as any).tokens?.background_image || "",
                           });
                         }}
                       >
@@ -846,25 +875,44 @@ const PresentationHeader = ({
                       </button>
                     </div>
                     {packEditId === item.id && (
-                      <div className="space-y-1.5">
-                        <label className="flex items-center justify-between text-xs">Primary
-                          <input type="color" value={packDraft.primary.startsWith("#") ? packDraft.primary : `#${packDraft.primary}`}
-                            onChange={(e) => setPackDraft({ ...packDraft, primary: e.target.value })} />
+                      <div className="max-h-[55vh] space-y-2 overflow-auto pt-1">
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">Palette</p>
+                        {([
+                          ["primary", "Primary"],
+                          ["primary_text", "On primary"],
+                          ["background", "Background"],
+                          ["background_text", "Text"],
+                          ["card", "Card"],
+                          ["stroke", "Stroke"],
+                        ] as const).map(([key, label]) => (
+                          <label key={key} className="flex items-center justify-between text-xs">
+                            {label}
+                            <input type="color" value={(packDraft as any)[key]}
+                              onChange={(e) => setPackDraft({ ...packDraft, [key]: e.target.value } as any)} />
+                          </label>
+                        ))}
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">Charts</p>
+                        {(["graph_0", "graph_1", "graph_2", "graph_3"] as const).map((key) => (
+                          <label key={key} className="flex items-center justify-between text-xs">
+                            {key}
+                            <input type="color" value={(packDraft as any)[key]}
+                              onChange={(e) => setPackDraft({ ...packDraft, [key]: e.target.value } as any)} />
+                          </label>
+                        ))}
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">Type</p>
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Heading font"
+                          value={packDraft.heading} onChange={(e) => setPackDraft({ ...packDraft, heading: e.target.value })} />
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Body font"
+                          value={packDraft.body} onChange={(e) => setPackDraft({ ...packDraft, body: e.target.value })} />
+                        <label className="flex items-center justify-between text-xs">Radius
+                          <input className="w-16 rounded border border-[#EDEEEF] px-1 py-0.5 text-xs" value={packDraft.radius}
+                            onChange={(e) => setPackDraft({ ...packDraft, radius: e.target.value })} />
                         </label>
-                        <label className="flex items-center justify-between text-xs">Background
-                          <input type="color" value={packDraft.background.startsWith("#") ? packDraft.background : `#${packDraft.background}`}
-                            onChange={(e) => setPackDraft({ ...packDraft, background: e.target.value })} />
-                        </label>
-                        <label className="flex items-center justify-between text-xs">Text
-                          <input type="color" value={packDraft.background_text.startsWith("#") ? packDraft.background_text : `#${packDraft.background_text}`}
-                            onChange={(e) => setPackDraft({ ...packDraft, background_text: e.target.value })} />
-                        </label>
-                        <input
-                          className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs"
-                          placeholder="Logo URL"
-                          value={packDraft.logo}
-                          onChange={(e) => setPackDraft({ ...packDraft, logo: e.target.value })}
-                        />
+                        <p className="text-[10px] uppercase tracking-wide text-[#889]">Chrome</p>
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Logo URL"
+                          value={packDraft.logo} onChange={(e) => setPackDraft({ ...packDraft, logo: e.target.value })} />
+                        <input className="w-full rounded border border-[#EDEEEF] px-2 py-1 text-xs" placeholder="Background image URL"
+                          value={packDraft.background_image} onChange={(e) => setPackDraft({ ...packDraft, background_image: e.target.value })} />
                         <button
                           type="button"
                           className="w-full rounded-lg border border-[#EDEEEF] py-1 text-xs font-medium"
@@ -874,14 +922,24 @@ const PresentationHeader = ({
                                 tokens: {
                                   colors: {
                                     primary: packDraft.primary,
+                                    primary_text: packDraft.primary_text,
                                     background: packDraft.background,
                                     background_text: packDraft.background_text,
+                                    card: packDraft.card,
+                                    stroke: packDraft.stroke,
+                                    graph_0: packDraft.graph_0,
+                                    graph_1: packDraft.graph_1,
+                                    graph_2: packDraft.graph_2,
+                                    graph_3: packDraft.graph_3,
                                   },
+                                  fonts: { heading: packDraft.heading, body: packDraft.body },
+                                  radius: packDraft.radius,
                                   logo: packDraft.logo,
+                                  background_image: packDraft.background_image,
                                 },
                               });
                               await PresentationGenerationApi.applyBrandPack(item.id, presentation_id);
-                              notify.success("Theme saved");
+                              notify.success("Design system saved");
                               window.location.reload();
                             } catch (error) {
                               notify.error("Save failed", error instanceof Error ? error.message : "Try again.");
@@ -1016,7 +1074,7 @@ const PresentationHeader = ({
                 Nielsen
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[320px] rounded-[18px] p-3" data-testid="nielsen-panel">
+            <PopoverContent align="end" className="w-[340px] rounded-[18px] p-3" data-testid="nielsen-panel">
               <label className="text-[11px] uppercase text-[#667085]">Panel</label>
               <select
                 data-testid="nielsen-panel-select"

@@ -142,7 +142,7 @@ def update_brand_pack(pack_id: str, body: dict[str, Any]) -> dict[str, Any]:
     fonts = incoming.get("fonts") if isinstance(incoming.get("fonts"), dict) else current.get("fonts")
     if fonts:
         tokens["fonts"] = fonts
-    for extra in ("logo", "background_image"):
+    for extra in ("logo", "background_image", "radius"):
         if extra in incoming:
             tokens[extra] = incoming[extra]
         elif extra in current:
