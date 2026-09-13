@@ -51,6 +51,16 @@ def test_custom_provider_uses_openai_client_config(monkeypatch):
     assert isinstance(config, OpenAIClientConfig)
 
 
+def test_api_route_provider_uses_openai_client_config(monkeypatch):
+    monkeypatch.setenv("LLM", "api_route")
+    monkeypatch.setenv("API_ROUTE_API_KEY", "test-key")
+
+    config = get_llm_config()
+
+    assert isinstance(config, OpenAIClientConfig)
+    assert config.base_url == "https://www.api-route.com/v1"
+
+
 def test_deepseek_disable_thinking_uses_deepseek_payload(monkeypatch):
     monkeypatch.setenv("LLM", "deepseek")
     monkeypatch.setenv("DISABLE_THINKING", "true")

@@ -35,6 +35,8 @@ from utils.get_env import (
     get_azure_openai_deployment_env,
     get_azure_openai_endpoint_env,
     get_anthropic_api_key_env,
+    get_api_route_api_key_env,
+    get_api_route_base_url_env,
     get_bedrock_api_key_env,
     get_bedrock_aws_access_key_id_env,
     get_bedrock_aws_secret_access_key_env,
@@ -463,6 +465,18 @@ def _get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
             return OpenAIClientConfig(
                 base_url=base_url,
                 api_key=get_custom_llm_api_key_env() or "null",
+            )
+        case LLMProvider.API_ROUTE:
+            api_key = get_api_route_api_key_env()
+            if not api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="API Route API Key is not set",
+                )
+            base_url = get_api_route_base_url_env() or "https://www.api-route.com/v1"
+            return OpenAIClientConfig(
+                base_url=base_url,
+                api_key=api_key,
             )
         case LLMProvider.CODEX:
             return ChatGPTClientConfig(

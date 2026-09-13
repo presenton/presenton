@@ -78,6 +78,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "OPENAI_MODEL";
       case "deepseek":
         return "DEEPSEEK_MODEL";
+      case "api_route":
+        return "API_ROUTE_MODEL";
       case "google":
         return "GOOGLE_MODEL";
       case "vertex":
@@ -117,6 +119,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "OPENAI_API_KEY";
       case "deepseek":
         return "DEEPSEEK_API_KEY";
+      case "api_route":
+        return "API_ROUTE_API_KEY";
       case "google":
         return "GOOGLE_API_KEY";
       case "vertex":
@@ -178,6 +182,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       ? "Custom LLM API Key"
       : selectedProvider === "deepseek"
       ? "DeepSeek API Key"
+      : selectedProvider === "api_route"
+      ? "API Route API Key"
       : selectedProvider === "vertex"
       ? "Vertex API Key"
       : selectedProvider === "azure"
@@ -233,6 +239,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         ? "OPENAI_API_KEY"
         : llm === "deepseek"
         ? "DEEPSEEK_API_KEY"
+        : llm === "api_route"
+        ? "API_ROUTE_API_KEY"
         : llm === "google"
         ? "GOOGLE_API_KEY"
         : llm === "vertex"
@@ -268,6 +276,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
     if (isManualModelProvider) return;
     if (selectedProvider === "openai" && !currentApiKey) return;
     if (selectedProvider === "deepseek" && !currentApiKey) return;
+    if (selectedProvider === "api_route" && !currentApiKey) return;
     if (selectedProvider === "google" && !currentApiKey) return;
     if (selectedProvider === "anthropic" && !currentApiKey) return;
     if (selectedProvider === "openrouter" && !currentApiKey) return;
@@ -362,6 +371,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
               ? "gpt-4.1"
               : selectedProvider === "deepseek"
               ? "deepseek-chat"
+              : selectedProvider === "api_route"
+              ? "gpt-5.4-mini"
               : selectedProvider === "google"
               ? "models/gemini-2.5-flash"
               : selectedProvider === "anthropic"

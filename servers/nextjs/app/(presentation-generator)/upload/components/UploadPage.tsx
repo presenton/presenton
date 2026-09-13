@@ -81,6 +81,8 @@ const getSelectedTextModel = (config?: LLMConfig): string => {
       return config.OPENAI_MODEL || "";
     case "deepseek":
       return config.DEEPSEEK_MODEL || "";
+    case "api_route":
+      return config.API_ROUTE_MODEL || "";
     case "google":
       return config.GOOGLE_MODEL || "";
     case "vertex":

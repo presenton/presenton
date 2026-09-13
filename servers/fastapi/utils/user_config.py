@@ -4,6 +4,9 @@ from models.user_config import UserConfig
 from utils.get_env import (
     get_anthropic_api_key_env,
     get_anthropic_model_env,
+    get_api_route_api_key_env,
+    get_api_route_base_url_env,
+    get_api_route_model_env,
     get_comfyui_url_env,
     get_comfyui_workflow_env,
     get_custom_llm_api_key_env,
@@ -101,6 +104,9 @@ from utils.user_config_store import read_user_config_file, update_user_config_fi
 from utils.set_env import (
     set_anthropic_api_key_env,
     set_anthropic_model_env,
+    set_api_route_api_key_env,
+    set_api_route_base_url_env,
+    set_api_route_model_env,
     set_comfyui_url_env,
     set_comfyui_workflow_env,
     set_custom_llm_api_key_env,
@@ -301,6 +307,9 @@ def get_user_config():
         DEEPSEEK_BASE_URL=existing_config.DEEPSEEK_BASE_URL or get_deepseek_base_url_env(),
         DEEPSEEK_API_KEY=existing_config.DEEPSEEK_API_KEY or get_deepseek_api_key_env(),
         DEEPSEEK_MODEL=existing_config.DEEPSEEK_MODEL or get_deepseek_model_env(),
+        API_ROUTE_BASE_URL=existing_config.API_ROUTE_BASE_URL or get_api_route_base_url_env(),
+        API_ROUTE_API_KEY=existing_config.API_ROUTE_API_KEY or get_api_route_api_key_env(),
+        API_ROUTE_MODEL=existing_config.API_ROUTE_MODEL or get_api_route_model_env(),
         IMAGE_PROVIDER=existing_config.IMAGE_PROVIDER or get_image_provider_env(),
         DISABLE_IMAGE_GENERATION=(
             existing_config.DISABLE_IMAGE_GENERATION
@@ -510,6 +519,12 @@ def update_env_with_user_config():
         set_deepseek_api_key_env(user_config.DEEPSEEK_API_KEY)
     if user_config.DEEPSEEK_MODEL:
         set_deepseek_model_env(user_config.DEEPSEEK_MODEL)
+    if user_config.API_ROUTE_BASE_URL:
+        set_api_route_base_url_env(user_config.API_ROUTE_BASE_URL)
+    if user_config.API_ROUTE_API_KEY:
+        set_api_route_api_key_env(user_config.API_ROUTE_API_KEY)
+    if user_config.API_ROUTE_MODEL:
+        set_api_route_model_env(user_config.API_ROUTE_MODEL)
     if user_config.DISABLE_IMAGE_GENERATION is not None:
         set_disable_image_generation_env(str(user_config.DISABLE_IMAGE_GENERATION))
     if user_config.IMAGE_PROVIDER:

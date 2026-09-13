@@ -273,6 +273,8 @@ const SettingsPage = () => {
       ? llmConfig.OPENAI_MODEL
       : textProviderKey === "deepseek"
         ? llmConfig.DEEPSEEK_MODEL
+      : textProviderKey === "api_route"
+        ? llmConfig.API_ROUTE_MODEL
       : textProviderKey === "google"
         ? llmConfig.GOOGLE_MODEL
         : textProviderKey === "vertex"
@@ -338,6 +340,7 @@ const SettingsPage = () => {
       (llmConfig.LLM === "codex" && !llmConfig.CODEX_MODEL) ||
       (llmConfig.LLM === "openai" && !llmConfig.OPENAI_MODEL) ||
       (llmConfig.LLM === "deepseek" && !llmConfig.DEEPSEEK_MODEL) ||
+      (llmConfig.LLM === "api_route" && !llmConfig.API_ROUTE_MODEL) ||
       (llmConfig.LLM === "google" && !llmConfig.GOOGLE_MODEL) ||
       (llmConfig.LLM === "vertex" && !llmConfig.VERTEX_MODEL) ||
       (llmConfig.LLM === "azure" && !llmConfig.AZURE_OPENAI_MODEL) ||

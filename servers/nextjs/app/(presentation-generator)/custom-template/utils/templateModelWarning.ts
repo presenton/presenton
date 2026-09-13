@@ -25,6 +25,8 @@ function selectedTextModel(config: LLMConfig): string {
             return config.AZURE_OPENAI_MODEL || "";
         case "openrouter":
             return config.OPENROUTER_MODEL || "";
+        case "api_route":
+            return config.API_ROUTE_MODEL || "";
         case "anthropic":
             return config.ANTHROPIC_MODEL || "";
         case "bedrock":

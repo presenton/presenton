@@ -132,6 +132,13 @@ export const getLLMConfigValidationError = (
     if (!isProvided(llmConfig.DEEPSEEK_MODEL)) {
       return "Enter or select a DeepSeek model ID.";
     }
+  } else if (llm === "api_route") {
+    if (!isProvided(llmConfig.API_ROUTE_API_KEY)) {
+      return "API Route API key is required.";
+    }
+    if (!isProvided(llmConfig.API_ROUTE_MODEL)) {
+      return "Enter or select an API Route model ID.";
+    }
   } else if (llm === "google") {
     if (!isProvided(llmConfig.GOOGLE_API_KEY)) {
       return "Google API key is required.";

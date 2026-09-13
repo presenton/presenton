@@ -90,6 +90,11 @@ class UserConfig(BaseModel):
     DEEPSEEK_API_KEY: Optional[str] = None
     DEEPSEEK_MODEL: Optional[str] = None
 
+    # API Route
+    API_ROUTE_BASE_URL: Optional[str] = None
+    API_ROUTE_API_KEY: Optional[str] = None
+    API_ROUTE_MODEL: Optional[str] = None
+
     # Image Provider
     DISABLE_IMAGE_GENERATION: Optional[bool] = None
     IMAGE_PROVIDER: Optional[str] = None

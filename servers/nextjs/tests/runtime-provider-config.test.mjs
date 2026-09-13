@@ -75,3 +75,38 @@ test("regular-user runtime config keeps provider choices and redacts secrets", a
     else process.env.USER_CONFIG_PATH = previousPath;
   }
 });
+
+test("regular-user runtime config keeps API Route provider choices and redacts secrets", async () => {
+  const configPath = path.join(temporaryDirectory, "userConfig-api-route.json");
+  await writeFile(
+    configPath,
+    JSON.stringify({
+      LLM: "api_route",
+      API_ROUTE_MODEL: "gpt-5.4-mini",
+      API_ROUTE_BASE_URL: "https://www.api-route.com/v1",
+      API_ROUTE_API_KEY: "shared-api-route-secret",
+      IMAGE_PROVIDER: "pexels",
+      PEXELS_API_KEY: "shared-image-secret",
+      DISABLE_IMAGE_GENERATION: false,
+      LLM_MAX_OUTPUT_TOKENS: 16384,
+    })
+  );
+  const previousPath = process.env.USER_CONFIG_PATH;
+  process.env.USER_CONFIG_PATH = configPath;
+
+  try {
+    const result = runtimeConfig.readRuntimeProviderConfig();
+    assert.equal(result.configured, true);
+    assert.equal(result.config.LLM, "api_route");
+    assert.equal(result.config.API_ROUTE_MODEL, "gpt-5.4-mini");
+    assert.equal(result.config.API_ROUTE_BASE_URL, "https://www.api-route.com/v1");
+    assert.equal(result.config.API_ROUTE_API_KEY, "__configured__");
+    assert.equal(result.config.PEXELS_API_KEY, "__configured__");
+    assert.equal(result.config.LLM_MAX_OUTPUT_TOKENS, 16384);
+    assert.doesNotMatch(JSON.stringify(result), /shared-api-route-secret/);
+  } finally {
+    if (previousPath === undefined) delete process.env.USER_CONFIG_PATH;
+    else process.env.USER_CONFIG_PATH = previousPath;
+  }
+});
+

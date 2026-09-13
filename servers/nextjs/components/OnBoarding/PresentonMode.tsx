@@ -120,6 +120,8 @@ const PresentonMode = ({
                 return 'OPENAI_MODEL';
             case 'deepseek':
                 return 'DEEPSEEK_MODEL';
+            case 'api_route':
+                return 'API_ROUTE_MODEL';
             case 'google':
                 return 'GOOGLE_MODEL';
             case 'vertex':
@@ -156,6 +158,8 @@ const PresentonMode = ({
                 return 'OPENAI_API_KEY';
             case 'deepseek':
                 return 'DEEPSEEK_API_KEY';
+            case 'api_route':
+                return 'API_ROUTE_API_KEY';
             case 'google':
                 return 'GOOGLE_API_KEY';
             case 'vertex':
@@ -205,6 +209,8 @@ const PresentonMode = ({
             ? 'Custom LLM API Key'
             : llmConfig.LLM === 'deepseek'
                 ? 'DeepSeek API Key'
+            : llmConfig.LLM === 'api_route'
+                ? 'API Route API Key'
             : llmConfig.LLM === 'vertex'
                 ? 'Vertex API Key'
                 : llmConfig.LLM === 'azure'
@@ -249,6 +255,8 @@ const PresentonMode = ({
                 return config.OPENAI_MODEL || '';
             case 'deepseek':
                 return config.DEEPSEEK_MODEL || '';
+            case 'api_route':
+                return config.API_ROUTE_MODEL || '';
             case 'google':
                 return config.GOOGLE_MODEL || '';
             case 'vertex':
@@ -322,6 +330,7 @@ const PresentonMode = ({
         if (isManualModelProvider) return;
         if (llmConfig.LLM === 'openai' && !currentApiKey) return;
         if (llmConfig.LLM === 'deepseek' && !currentApiKey) return;
+        if (llmConfig.LLM === 'api_route' && !currentApiKey) return;
         if (llmConfig.LLM === 'google' && !currentApiKey) return;
         if (llmConfig.LLM === 'anthropic' && !currentApiKey) return;
         if (llmConfig.LLM === 'openrouter' && !currentApiKey) return;
@@ -401,6 +410,8 @@ const PresentonMode = ({
                             ? 'gpt-4.1'
                             : llmConfig.LLM === 'deepseek'
                                 ? 'deepseek-chat'
+                            : llmConfig.LLM === 'api_route'
+                                ? 'gpt-5.4-mini'
                             : llmConfig.LLM === 'google'
                                 ? 'models/gemini-2.5-flash'
                                 : llmConfig.LLM === 'anthropic'

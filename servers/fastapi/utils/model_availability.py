@@ -7,6 +7,8 @@ from utils.get_env import (
     get_azure_openai_endpoint_env,
     get_anthropic_api_key_env,
     get_anthropic_model_env,
+    get_api_route_api_key_env,
+    get_api_route_model_env,
     get_bedrock_api_key_env,
     get_bedrock_aws_access_key_id_env,
     get_bedrock_aws_secret_access_key_env,
@@ -118,6 +120,14 @@ async def check_llm_and_image_provider_api_or_model_availability():
                 raise Exception("DEEPSEEK_API_KEY must be provided")
             if not deepseek_model:
                 raise Exception("DEEPSEEK_MODEL must be provided")
+
+        elif get_llm_provider() == LLMProvider.API_ROUTE:
+            api_route_api_key = (get_api_route_api_key_env() or "").strip()
+            api_route_model = (get_api_route_model_env() or "").strip()
+            if not api_route_api_key:
+                raise Exception("API_ROUTE_API_KEY must be provided")
+            if not api_route_model:
+                raise Exception("API_ROUTE_MODEL must be provided")
 
         elif get_llm_provider() == LLMProvider.VERTEX:
             vertex_api_key = get_vertex_api_key_env()

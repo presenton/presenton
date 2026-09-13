@@ -4,6 +4,7 @@ from openai import OpenAI
 
 from constants.llm import (
     DEFAULT_ANTHROPIC_MODEL,
+    DEFAULT_API_ROUTE_MODEL,
     DEFAULT_AZURE_MODEL,
     DEFAULT_BEDROCK_MODEL,
     DEFAULT_CEREBRAS_MODEL,
@@ -24,6 +25,7 @@ from utils.get_env import (
     get_azure_openai_deployment_env,
     get_azure_openai_model_env,
     get_anthropic_model_env,
+    get_api_route_model_env,
     get_bedrock_model_env,
     get_codex_model_env,
     get_custom_model_env,
@@ -123,6 +125,10 @@ def is_lmstudio_selected():
     return get_llm_provider() == LLMProvider.LMSTUDIO
 
 
+def is_api_route_selected():
+    return get_llm_provider() == LLMProvider.API_ROUTE
+
+
 def get_model():
     selected_llm = get_llm_provider()
     if selected_llm == LLMProvider.OPENAI:
@@ -159,6 +165,8 @@ def get_model():
         return get_litellm_model_env() or DEFAULT_LITELLM_MODEL
     elif selected_llm == LLMProvider.LMSTUDIO:
         return get_lmstudio_model_env() or DEFAULT_LMSTUDIO_MODEL
+    elif selected_llm == LLMProvider.API_ROUTE:
+        return get_api_route_model_env() or DEFAULT_API_ROUTE_MODEL
     elif selected_llm == LLMProvider.CODEX:
         codex_model = get_codex_model_env()
         return codex_model if codex_model in SUPPORTED_CODEX_MODELS else DEFAULT_CODEX_MODEL
@@ -169,7 +177,7 @@ def get_model():
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
                 "fireworks, together, cerebras, anthropic, litellm, "
-                "lmstudio, ollama, custom, codex"
+                "lmstudio, ollama, custom, api_route, codex"
             ),
         )
 

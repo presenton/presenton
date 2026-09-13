@@ -14,6 +14,8 @@ const CurrentConfig = ({ webSearchEnabled }: { webSearchEnabled: boolean }) => {
             ? llmConfig.OPENAI_MODEL
             : textProviderKey === "deepseek"
                 ? llmConfig.DEEPSEEK_MODEL
+            : textProviderKey === "api_route"
+                ? llmConfig.API_ROUTE_MODEL
             : textProviderKey === "google"
                 ? llmConfig.GOOGLE_MODEL
                 : textProviderKey === "vertex"

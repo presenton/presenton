@@ -33,6 +33,18 @@ def set_deepseek_model_env(value):
     os.environ["DEEPSEEK_MODEL"] = value
 
 
+def set_api_route_base_url_env(value):
+    os.environ["API_ROUTE_BASE_URL"] = value
+
+
+def set_api_route_api_key_env(value):
+    os.environ["API_ROUTE_API_KEY"] = value
+
+
+def set_api_route_model_env(value):
+    os.environ["API_ROUTE_MODEL"] = value
+
+
 def set_openai_api_key_env(value):
     os.environ["OPENAI_API_KEY"] = value
 

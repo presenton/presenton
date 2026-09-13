@@ -75,6 +75,7 @@ const FALLBACK_MODEL_MAX_OUTPUT_TOKENS = 32_768;
 
 const MODEL_FIELDS: Partial<Record<string, keyof LLMConfig>> = {
   anthropic: "ANTHROPIC_MODEL",
+  api_route: "API_ROUTE_MODEL",
   azure: "AZURE_OPENAI_MODEL",
   bedrock: "BEDROCK_MODEL",
   cerebras: "CEREBRAS_MODEL",

@@ -113,6 +113,18 @@ def get_deepseek_model_env():
     return os.getenv("DEEPSEEK_MODEL")
 
 
+def get_api_route_base_url_env():
+    return os.getenv("API_ROUTE_BASE_URL")
+
+
+def get_api_route_api_key_env():
+    return os.getenv("API_ROUTE_API_KEY")
+
+
+def get_api_route_model_env():
+    return os.getenv("API_ROUTE_MODEL")
+
+
 def get_openai_api_key_env():
     return os.getenv("OPENAI_API_KEY")
 
