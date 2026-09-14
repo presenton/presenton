@@ -210,8 +210,8 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
   },
   api_route: {
     value: "api_route",
-    label: "API Route",
-    description: "Access top AI models through API Route OpenAI-compatible API",
+    label: "API-Route",
+    description: "Access top AI models through API-Route OpenAI-compatible API",
     url: "https://www.api-route.com/v1",
     icon: "/providers/api-route.png",
     getApiKeyUrl: "https://www.api-route.com",
