@@ -68,6 +68,8 @@
     "react-simple-code-editor": "^0.14.1",
     "recharts": "^2.15.4",
     "sharp": "^0.34.3",
+    "node-addon-api": "^8.9.2",
+    "node-gyp": "^13.0.2",
     "sonner": "^2.0.6",
     "tailwind-merge": "^2.5.3",
     "tailwindcss-animate": "^1.0.7",
