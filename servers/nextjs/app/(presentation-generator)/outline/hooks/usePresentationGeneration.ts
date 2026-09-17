@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { notify } from "@/components/ui/sonner";
 import { clearPresentationData } from "@/store/slices/presentationGeneration";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
+import type { GeneratedThemeColors } from "../../services/api/theme";
 import { LoadingState } from "../types/index";
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
@@ -23,7 +24,8 @@ const DEFAULT_LOADING_STATE: LoadingState = {
 
 export const usePresentationGeneration = (
   presentationId: string | null,
-  selectedTemplateId: string | null
+  selectedTemplateId: string | null,
+  themeOverride?: GeneratedThemeColors | null
 ) => {
   const dispatch = useDispatch();
   const router = useRouter();
@@ -108,6 +110,7 @@ export const usePresentationGeneration = (
         presentation_id: presentationId,
         outlines: preparedOutlines,
         layout: selectedTemplateId,
+        theme: themeOverride ?? undefined,
       });
 
       if (response) {
@@ -146,6 +149,7 @@ export const usePresentationGeneration = (
     dispatch,
     router,
     selectedTemplateId,
+    themeOverride,
     pathname,
   ]);
 

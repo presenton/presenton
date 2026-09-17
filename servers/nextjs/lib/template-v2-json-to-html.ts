@@ -1,6 +1,15 @@
 import { resolveBackendAssetUrl } from "@/utils/api";
-import { markdownToPlainChartText } from "@/components/slide-editor/charts/chart-data";
-import { normalizeRawTextMarkdownElement } from "@/components/slide-editor/text/template-v2-text";
+import {
+  captionBandHeight,
+  markdownToPlainChartText,
+} from "@/components/slide-editor/charts/chart-data";
+import {
+  autofitFontScale,
+  DEFAULT_FONT,
+  fontFromRecord,
+  normalizeRawTextMarkdownElement,
+  type RenderTextRun,
+} from "@/components/slide-editor/text/template-v2-text";
 import { isLatexTextRun } from "@/components/slide-editor/text/text-runs";
 import { normalizeMathLatex, renderMathHtml } from "@/lib/math";
 import { buildSvgUpdateUrl } from "@/lib/svg-color";
@@ -379,20 +388,106 @@ function renderImage(item: JsonRecord, mode: RenderMode): string {
   )}display:block;max-width:none;max-height:none;object-fit:${fit};${focusStyle}${clipPath}">`;
 }
 
+function toAutofitRun(run: JsonRecord, fallbackFontJson: JsonRecord): RenderTextRun {
+  const font = fontFromRecord(
+    { ...fallbackFontJson, ...readRecord(run.font) },
+    DEFAULT_FONT
+  );
+  if (readString(run.type) === "latex") {
+    const latex = readStringValue(run.latex);
+    return {
+      type: "latex",
+      text: latex,
+      latex,
+      displayMode: readBoolean(run.display_mode) ?? false,
+      font,
+    };
+  }
+  return { text: readStringValue(run.text), font };
+}
+
+function scaleJsonFontForAutofit(font: JsonRecord, scale: number): JsonRecord {
+  if (scale === 1) return font;
+  const next = { ...font };
+  const size = readNumber(font.size);
+  if (size != null) next.size = size * scale;
+  if (hasOwn(font, "letterSpacing")) {
+    const letterSpacing = readNumber(font.letterSpacing);
+    if (letterSpacing != null) next.letterSpacing = letterSpacing * scale;
+  }
+  if (hasOwn(font, "letter_spacing")) {
+    const letterSpacing = readNumber(font.letter_spacing);
+    if (letterSpacing != null) next.letter_spacing = letterSpacing * scale;
+  }
+  return next;
+}
+
+function textAutofitScale(
+  item: JsonRecord,
+  fallbackFontJson: JsonRecord,
+  runs: JsonRecord[]
+): number {
+  const box = readBox(item);
+  if (box.width == null || box.height == null) return 1;
+  const lineHeight =
+    readNumber(fallbackFontJson.lineHeight ?? fallbackFontJson.line_height) ?? 1.15;
+  const autofitRuns = runs.map((run) => toAutofitRun(run, fallbackFontJson));
+  return autofitFontScale(
+    autofitRuns,
+    { width: box.width, height: box.height },
+    lineHeight
+  );
+}
+
+function textListAutofitScale(
+  item: JsonRecord,
+  fallbackFontJson: JsonRecord,
+  perItemRuns: JsonRecord[][],
+  itemGap: number
+): number {
+  const box = readBox(item);
+  if (box.width == null || box.height == null) return 1;
+  if (perItemRuns.length === 0) return 1;
+  const gapTotal = perItemRuns.length > 1 ? itemGap * (perItemRuns.length - 1) : 0;
+  const budgetHeight = Math.max(0, box.height - gapTotal);
+  const lineHeight =
+    readNumber(fallbackFontJson.lineHeight ?? fallbackFontJson.line_height) ?? 1.15;
+  const combinedRuns: RenderTextRun[] = [];
+  perItemRuns.forEach((runs, index) => {
+    if (index > 0) {
+      combinedRuns.push({
+        text: "\n",
+        font: fontFromRecord(fallbackFontJson, DEFAULT_FONT),
+      });
+    }
+    runs.forEach((run) => combinedRuns.push(toAutofitRun(run, fallbackFontJson)));
+  });
+  return autofitFontScale(
+    combinedRuns,
+    { width: box.width, height: budgetHeight },
+    lineHeight
+  );
+}
+
 function renderText(item: JsonRecord, mode: RenderMode): string {
   const font = readRecord(item.font);
   const alignment = readRecord(item.alignment);
   const horizontal = readString(alignment.horizontal);
   const vertical = readString(alignment.vertical);
   const runs = normalizedRunsForHtml(item, font);
+  const scale = textAutofitScale(item, font, runs);
+  const scaledFont = scaleJsonFontForAutofit(font, scale);
   const runHtml = runs
     .map((run) => {
-      const runFont = { ...font, ...readRecord(run.font) };
+      const runFont = scaleJsonFontForAutofit(
+        { ...font, ...readRecord(run.font) },
+        scale
+      );
       return renderTextRunHtml(run, runFont);
     })
     .join("");
 
-  return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(font, {
+  return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(scaledFont, {
     includeLineHeight: false,
     includeTextDecoration: false,
   })}${textShadowStyle(item)}display:flex;align-items:${verticalAlign(
@@ -411,12 +506,18 @@ function renderTextList(item: JsonRecord, mode: RenderMode): string {
   const rawMarkerGap = readNumber(item.marker_gap ?? item.markerGap);
   const markerGap = rawMarkerGap == null ? null : Math.max(0, rawMarkerGap);
   const usesCustomMarkers = marker !== "none" && markerGap != null;
-  const entries = readArray(item.items)
+  const rawItems = readArray(item.items);
+  const perItemRuns = rawItems.map((entry) => normalizedListRunsForHtml(entry, font));
+  const scale = textListAutofitScale(item, font, perItemRuns, itemGap);
+  const entries = rawItems
     .map((entry, index) => {
-      const runs = normalizedListRunsForHtml(entry, font);
+      const runs = perItemRuns[index] ?? [];
       const html = runs
         .map((run) =>
-          renderTextRunHtml(run, { ...font, ...readRecord(run.font) }),
+          renderTextRunHtml(
+            run,
+            scaleJsonFontForAutofit({ ...font, ...readRecord(run.font) }, scale)
+          ),
         )
         .join("");
       const gapStyle =
@@ -437,7 +538,7 @@ function renderTextList(item: JsonRecord, mode: RenderMode): string {
     }`;
 
   return `<div style="${frameStyle(item, mode)}${transformStyle(item)}${fontStyle(
-    font,
+    scaleJsonFontForAutofit(font, scale),
     { includeTextDecoration: false }
   )}${textOverflowStyle()}"><${tag} style="${listStyle}">${entries}</${tag}></div>`;
 }
@@ -898,16 +999,24 @@ function renderSvg(item: JsonRecord, mode: RenderMode): string {
 function renderChart(item: JsonRecord, mode: RenderMode): string {
   const box = readBox(item);
   const width = Math.max(1, box.width ?? 1);
-  const height = Math.max(1, box.height ?? 1);
+  const originalHeight = Math.max(1, box.height ?? 1);
+  const caption = captionBand(
+    readString(item.takeaway),
+    originalHeight,
+    chartTakeawayColor(item)
+  );
+  const height = Math.max(1, originalHeight - caption.height);
   const config = chartConfig(item, height);
 
   return `<div style="${frameStyle(item, mode)}${transformStyle(
     item
-  )}overflow:hidden"><canvas data-presenton-chart="true" data-chart-config="${escapeAttribute(
+  )}overflow:hidden;display:flex;flex-direction:column"><canvas data-presenton-chart="true" data-chart-config="${escapeAttribute(
     JSON.stringify(config)
   )}" width="${cssNumber(Math.round(width))}" height="${cssNumber(
     Math.round(height)
-  )}" style="display:block;width:100%;height:100%"></canvas></div>`;
+  )}" style="display:block;width:100%;height:${cssNumber(
+    height
+  )}px;flex:0 0 auto"></canvas>${caption.html}</div>`;
 }
 
 type InfographicDesignSize = { width: number; height: number };
@@ -993,14 +1102,20 @@ function renderScaledInfographic(
   const box = readBox(item, designSize);
   const width = box.width ?? designSize.width;
   const height = box.height ?? designSize.height;
+  const caption = captionBand(
+    readString(item.takeaway),
+    height,
+    infographicTextColor(item, "#475467")
+  );
+  const availableHeight = Math.max(1, height - caption.height);
   const scale = Math.min(
     width / designSize.width,
-    height / designSize.height
+    availableHeight / designSize.height
   );
   const renderedWidth = designSize.width * scale;
   const renderedHeight = designSize.height * scale;
   const offsetX = (width - renderedWidth) / 2;
-  const offsetY = (height - renderedHeight) / 2;
+  const offsetY = (availableHeight - renderedHeight) / 2;
   const normalizedItem: JsonRecord = {
     ...item,
     position: {
@@ -1019,6 +1134,13 @@ function renderScaledInfographic(
     flip_v: false,
     flipV: false,
   };
+  const captionHtml = caption.html
+    ? `<div style="position:absolute;left:0;top:${cssNumber(
+        availableHeight
+      )}px;width:100%;height:${cssNumber(
+        caption.height
+      )}px;display:flex;align-items:center">${caption.html}</div>`
+    : "";
 
   return `<div style="${frameStyleFromBox(box, mode)}${transformStyle(
     item
@@ -1030,7 +1152,7 @@ function renderScaledInfographic(
     designSize.height
   )}px;transform:scale(${cssNumber(
     scale
-  )});transform-origin:0 0">${renderer(normalizedItem, "absolute")}</div></div>`;
+  )});transform-origin:0 0">${renderer(normalizedItem, "absolute")}</div>${captionHtml}</div>`;
 }
 
 function renderInfographic(item: JsonRecord, mode: RenderMode): string {
@@ -1065,13 +1187,16 @@ function renderProgressBarInfographic(item: JsonRecord, mode: RenderMode): strin
   const baseColor = infographicBaseColor(item);
   const fallbackSize = { width: 180, height: 40 };
   const box = readBox(item, fallbackSize);
-  const showLabel = (box.height ?? fallbackSize.height) >= 28;
+  const boxHeight = box.height ?? fallbackSize.height;
   const textColor = infographicTextColor(item, highlightColor);
+  const caption = captionBand(readString(item.takeaway), boxHeight, textColor);
+  const availableHeight = Math.max(1, boxHeight - caption.height);
+  const showLabel = availableHeight >= 28;
   const label = showLabel
     ? `<div style="color:${escapeCssColor(textColor)};font-size:${cssNumber(
       Math.max(
         10,
-        Math.min(16, Math.round((box.height ?? fallbackSize.height) * 0.3))
+        Math.min(16, Math.round(availableHeight * 0.3))
       )
     )}px;font-weight:700;line-height:1;text-align:right">${escapeHtml(
       metrics.label
@@ -1083,13 +1208,13 @@ function renderProgressBarInfographic(item: JsonRecord, mode: RenderMode): strin
   )}display:flex;flex-direction:column;gap:6px;justify-content:center;overflow:hidden"><div style="position:relative;width:100%;height:${cssNumber(
     Math.max(
       6,
-      Math.min(18, Math.round((box.height ?? fallbackSize.height) * 0.35))
+      Math.min(18, Math.round(availableHeight * 0.35))
     )
   )}px;border-radius:999px;background:${escapeCssColor(
     baseColor
   )};overflow:hidden"><div style="height:100%;width:${cssNumber(
     metrics.ratio * 100
-  )}%;border-radius:inherit;background:${escapeCssColor(highlightColor)}"></div></div>${label}</div>`;
+  )}%;border-radius:inherit;background:${escapeCssColor(highlightColor)}"></div></div>${label}${caption.html}</div>`;
 }
 
 function renderGaugeInfographic(item: JsonRecord, mode: RenderMode): string {
@@ -1097,6 +1222,14 @@ function renderGaugeInfographic(item: JsonRecord, mode: RenderMode): string {
   const highlightColor = infographicHighlightColor(item);
   const baseColor = infographicBaseColor(item);
   const fallbackSize = { width: 160, height: 96 };
+  const box = readBox(item, fallbackSize);
+  const boxHeight = box.height ?? fallbackSize.height;
+  const caption = captionBand(
+    readString(item.takeaway),
+    boxHeight,
+    infographicTextColor(item, highlightColor)
+  );
+  const availableHeight = Math.max(1, boxHeight - caption.height);
   const progressPath =
     metrics.ratio > 0
       ? `<path d="${escapeAttribute(
@@ -1108,9 +1241,11 @@ function renderGaugeInfographic(item: JsonRecord, mode: RenderMode): string {
 
   return `<div style="${frameStyle(item, mode, fallbackSize)}${transformStyle(
     item
-  )}overflow:hidden"><svg width="100%" height="100%" viewBox="0 0 120 72" preserveAspectRatio="xMidYMid meet" style="display:block"><path d="M 12 60 A 48 48 0 0 1 108 60" fill="none" stroke="${escapeAttribute(
+  )}display:flex;flex-direction:column;overflow:hidden"><svg width="100%" height="${cssNumber(
+    availableHeight
+  )}" viewBox="0 0 120 72" preserveAspectRatio="xMidYMid meet" style="display:block;flex:0 0 auto"><path d="M 12 60 A 48 48 0 0 1 108 60" fill="none" stroke="${escapeAttribute(
     escapeCssColor(baseColor)
-  )}" stroke-width="12" stroke-linecap="round"/>${progressPath}</svg></div>`;
+  )}" stroke-width="12" stroke-linecap="round"/>${progressPath}</svg>${caption.html}</div>`;
 }
 
 function renderGanttInfographic(item: JsonRecord, mode: RenderMode): string {
@@ -3399,6 +3534,35 @@ function tableCellStyle(
   if (forceHeaderBold && !readBoolean(cellFont.bold)) style += "font-weight:700;";
   style += `background:${escapeCssColor(background)};`;
   return style;
+}
+
+function captionBand(
+  text: string | undefined | null,
+  boxHeight: number,
+  color: string
+): { height: number; html: string } {
+  if (!text) return { height: 0, html: "" };
+  const height = captionBandHeight(text, boxHeight);
+  const fontSize = clamp(height * 0.62, 10, 15);
+  const html = `<div style="width:100%;box-sizing:border-box;opacity:0.85;color:${escapeCssColor(
+    color
+  )};font-size:${cssNumber(
+    fontSize
+  )}px;line-height:${cssNumber(
+    height
+  )}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Arial,Helvetica,sans-serif">${escapeHtml(
+    text
+  )}</div>`;
+  return { height, html };
+}
+
+function chartTakeawayColor(item: JsonRecord): string {
+  return safeChartColor(
+    readString(
+      item.legendColor ?? item.legend_color ?? item.textColor ?? item.text_color
+    ),
+    "#475467"
+  );
 }
 
 function textOverflowStyle(): string {

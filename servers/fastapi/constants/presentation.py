@@ -24,6 +24,7 @@ MAX_OUTLINE_CONTENT_WORDS = get_max_outline_words()
 
 _PREFERRED_TEMPLATE_ORDER = [
     "momentum",
+    "nebula",
     "dynamic",
     "executive",
     "general",

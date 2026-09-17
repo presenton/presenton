@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Group, Image as KonvaImage, Rect } from "react-konva";
+import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import {
   loadChartBrowserRuntime,
   type ChartConfigurationLike as ChartConfiguration,
@@ -10,6 +10,7 @@ import {
   type DataLabelsContextLike as DataLabelsContext,
 } from "@/lib/chart-browser";
 import {
+  captionBandHeight,
   ellipsizeChartText,
   markdownToPlainChartText,
   normalizeChartTypeName,
@@ -87,8 +88,11 @@ export function TemplateV2ChartJsElement({
   width: number;
 }) {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const takeaway = readString(element.takeaway);
+  const captionHeight = captionBandHeight(takeaway, height);
+  const chartHeight = Math.max(1, height - captionHeight);
   const logicalWidth = Math.max(1, Math.round(width));
-  const logicalHeight = Math.max(1, Math.round(height));
+  const logicalHeight = Math.max(1, Math.round(chartHeight));
   const pixelRatio =
     typeof window === "undefined"
       ? 1
@@ -160,10 +164,39 @@ export function TemplateV2ChartJsElement({
           perfectDrawEnabled={false}
           shadowForStrokeEnabled={false}
           width={width}
-          height={height}
+          height={chartHeight}
+        />
+      ) : null}
+      {takeaway ? (
+        <Text
+          x={0}
+          y={chartHeight}
+          width={width}
+          height={captionHeight}
+          text={takeaway}
+          fill={chartTakeawayColor(element)}
+          opacity={0.85}
+          fontFamily={CHART_FONT_FAMILY}
+          fontSize={clamp(captionHeight * 0.62, 10, 15)}
+          verticalAlign="middle"
+          wrap="none"
+          ellipsis
+          listening={false}
         />
       ) : null}
     </Group>
+  );
+}
+
+function chartTakeawayColor(element: RawElement): string {
+  return safeChartColor(
+    readString(
+      element.legend_color ??
+        element.legendColor ??
+        element.text_color ??
+        element.textColor,
+    ),
+    "#475467",
   );
 }
 

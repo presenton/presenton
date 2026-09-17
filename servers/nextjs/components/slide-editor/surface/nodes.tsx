@@ -29,6 +29,7 @@ import { effectiveLineHeight } from "@/components/slide-editor/text/text-line-he
 import { textRunsContent } from "@/components/slide-editor/text/text-runs";
 import { TRANSFORM_ANCHOR_ATTR } from "@/components/slide-editor/selection/transformSession";
 import {
+  autofitFontScale,
   displayText,
   layoutTextListRenderItems,
   layoutRenderTextRuns,
@@ -38,7 +39,10 @@ import {
   rawFont,
   rawRenderTextRuns,
   rawTextContent,
+  rawTextListRenderTextRuns,
   renderKonvaTextSegment,
+  scaleRawTextMetrics,
+  scaleRenderTextRuns,
   textListVisualLocalBox,
   textVisualLocalBox,
   type RenderTextRun,
@@ -56,6 +60,7 @@ import {
   type LatestFrameBatch,
 } from "@/components/slide-editor/surface/latestFrameBatch";
 import { TemplateV2ChartJsElement as RawChartElement } from "@/components/slide-editor/charts/TemplateV2ChartJsElement";
+import { captionBandHeight } from "@/components/slide-editor/charts/chart-data";
 import { TemplateV2TableElement as RawTableElement } from "@/components/slide-editor/tables/TemplateV2TableElement";
 import { blackOrWhiteTextColor } from "@/components/slide-editor/tables/table-colors";
 import { LatexRunNode } from "@/components/slide-editor/math/LatexRunNode";
@@ -2454,7 +2459,15 @@ function RawRichTextElement({
 
   const layoutRuns =
     renderRuns.length > 0 ? renderRuns : [{ text: displayContent, font }];
-  const lines = layoutRenderTextRuns(layoutRuns, width, "word");
+  const autofitScale = autofitFontScale(
+    layoutRuns,
+    { width, height },
+    textLineHeight,
+    "word",
+  );
+  const scaledLayoutRuns =
+    autofitScale === 1 ? layoutRuns : scaleRenderTextRuns(layoutRuns, autofitScale);
+  const lines = layoutRenderTextRuns(scaledLayoutRuns, width, "word");
   const lineMetrics = lines.map((line) => ({
     height: lineRenderHeight(line, textLineHeight),
     width: line.reduce((sum, segment) => sum + segment.width, 0),
@@ -2563,7 +2576,17 @@ function RawTextListElement({
   height: number;
   interactive: boolean;
 }) {
-  const { tokens } = layoutTextListRenderItems(element, width, height);
+  const font = rawFont(element);
+  const itemGap = Math.max(0, readNumber(element.gap) ?? 0);
+  const itemCount = readArray(element.items).length;
+  const gapTotal = itemCount > 1 ? itemGap * (itemCount - 1) : 0;
+  const scale = autofitFontScale(
+    rawTextListRenderTextRuns(element),
+    { width, height: Math.max(0, height - gapTotal) },
+    font.lineHeight,
+  );
+  const scaledElement = scale === 1 ? element : scaleRawTextMetrics(element, scale);
+  const { tokens } = layoutTextListRenderItems(scaledElement, width, height);
 
   return (
     <Group listening={interactive}>
@@ -3442,6 +3465,54 @@ function drawRoundedImageClip(
 
 
 function RawInfographicElement({
+  element,
+  width,
+  height,
+  interactive,
+}: {
+  element: RawElement;
+  width: number;
+  height: number;
+  interactive: boolean;
+}) {
+  const takeaway = readString(element.takeaway);
+  const captionHeight = captionBandHeight(takeaway, height);
+  const availableHeight = Math.max(1, height - captionHeight);
+  const captionColor =
+    withHash(readString(element.text_color)) ??
+    withHash(readString(readArray(element.colors)[1])) ??
+    "#475467";
+
+  return (
+    <Group listening={interactive}>
+      <RawInfographicElementBody
+        element={element}
+        width={width}
+        height={availableHeight}
+        interactive={interactive}
+      />
+      {takeaway ? (
+        <Text
+          x={0}
+          y={availableHeight}
+          width={width}
+          height={captionHeight}
+          text={takeaway}
+          fill={captionColor}
+          opacity={0.85}
+          fontFamily="Arial, Helvetica, sans-serif"
+          fontSize={clamp(captionHeight * 0.62, 10, 15)}
+          verticalAlign="middle"
+          wrap="none"
+          ellipsis
+          listening={false}
+        />
+      ) : null}
+    </Group>
+  );
+}
+
+function RawInfographicElementBody({
   element,
   width,
   height,

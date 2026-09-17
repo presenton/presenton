@@ -348,6 +348,7 @@ class Chart(BaseModel):
     y_axis_grid: Optional[bool] = None
     grid_color: Optional[str] = None
     source: Optional[str] = None
+    takeaway: Optional[str] = None
 
     # Schema
     decorative: bool
@@ -510,6 +511,7 @@ class Infographic(BaseModel):
     # Design
     colors: List[str] = Field(default_factory=list)
     text_color: Optional[str] = None
+    takeaway: Optional[str] = None
 
     # Schema
     decorative: bool

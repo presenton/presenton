@@ -1,0 +1,2508 @@
+{
+  "id": "nebula",
+  "name": "Nebula",
+  "description": "Dark, glass-surfaced template for high-impact, futuristic presentations.",
+  "thumbnail": "static/thumbnail.png",
+  "icon_type": "thin",
+  "theme": {
+    "colors": {
+      "primary": "#7C5CFF",
+      "background": "#0A0D18",
+      "card": "#141A2E",
+      "stroke": "#2A3352",
+      "primary_text": "#FFFFFF",
+      "background_text": "#E6EAF5",
+      "graph_0": "#7C5CFF",
+      "graph_1": "#5B8CFF",
+      "graph_2": "#35C8F0",
+      "graph_3": "#2DE1C2",
+      "graph_4": "#9B7BFF",
+      "graph_5": "#4E6BFF",
+      "graph_6": "#1FA8D8",
+      "graph_7": "#22C3A6",
+      "graph_8": "#B6A4FF",
+      "graph_9": "#1A2340"
+    },
+    "fonts": {
+      "textFont": {
+        "name": "Inter",
+        "url": "/vendor/fonts/sans_serif/inter/Inter[opsz,wght].ttf"
+      }
+    }
+  },
+  "layouts": [
+    {
+      "id": "title_hero",
+      "description": "Opening cover slide for a presentation: a large left-aligned headline over generous negative space, a short kicker label, a one-line subtitle, and a compact presenter/date footer. Use for the first slide of a deck.",
+      "components": [
+        {
+          "id": "background_wash",
+          "description": "Full-bleed dark background wash for the slide.",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 720.0
+                },
+                {
+                  "x": 0,
+                  "y": 720.0
+                }
+              ],
+              "closed": true,
+              "fill": {
+                "color": "#0A0D18",
+                "opacity": 1
+              },
+              "decorative": true,
+              "opacity": 1
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": 860,
+                  "y": -220
+                },
+                {
+                  "x": 1480,
+                  "y": 360
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#7C5CFF",
+                "opacity": 0.16
+              }
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": -220,
+                  "y": 480
+                },
+                {
+                  "x": 260,
+                  "y": 900
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#35C8F0",
+                "opacity": 0.12
+              }
+            }
+          ]
+        },
+        {
+          "id": "hero_copy",
+          "description": "Kicker label, headline, and supporting subtitle stacked on the left.",
+          "position": {
+            "x": 80.0,
+            "y": 190
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 640,
+                "height": 26
+              },
+              "font": {
+                "size": 15,
+                "family": "Inter",
+                "color": "#7C5CFF",
+                "line_height": 1.1,
+                "letter_spacing": 3.2,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "STRATEGY BRIEFING",
+                  "font": {
+                    "size": 15,
+                    "family": "Inter",
+                    "color": "#7C5CFF",
+                    "line_height": 1.1,
+                    "letter_spacing": 3.2,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "cover_kicker",
+              "max_length": 30,
+              "min_length": 10
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 34
+              },
+              "size": {
+                "width": 920,
+                "height": 220
+              },
+              "font": {
+                "size": 80,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.04,
+                "letter_spacing": -2.2,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "The Next Chapter\nStarts Here",
+                  "font": {
+                    "size": 80,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.04,
+                    "letter_spacing": -2.2,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "cover_title",
+              "max_length": 40,
+              "min_length": 14
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 4,
+                "y": 268
+              },
+              "size": {
+                "width": 760,
+                "height": 70
+              },
+              "font": {
+                "size": 20,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.4,
+                "letter_spacing": 0.0
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "One clear line framing why this presentation matters right now.",
+                  "font": {
+                    "size": 20,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.4,
+                    "letter_spacing": 0.0
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "cover_subtitle",
+              "max_length": 140,
+              "min_length": 40
+            }
+          ]
+        },
+        {
+          "id": "footer_metadata",
+          "description": "Bottom metadata row with presenter and date.",
+          "position": {
+            "x": 80.0,
+            "y": 628
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 300,
+                "height": 24
+              },
+              "font": {
+                "size": 15,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.1,
+                "letter_spacing": 0.0
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Presenter: ",
+                  "font": {
+                    "size": 15,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.1,
+                    "letter_spacing": 0.0,
+                    "bold": true
+                  }
+                },
+                {
+                  "text": "Jordan Lee, CEO",
+                  "font": {
+                    "size": 15,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.1,
+                    "letter_spacing": 0.0
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "presenter_metadata",
+              "max_length": 40,
+              "min_length": 16
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 700,
+                "y": 0
+              },
+              "size": {
+                "width": 340,
+                "height": 24
+              },
+              "font": {
+                "size": 15,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.1,
+                "letter_spacing": 0.0
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Date: ",
+                  "font": {
+                    "size": 15,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.1,
+                    "letter_spacing": 0.0,
+                    "bold": true
+                  }
+                },
+                {
+                  "text": "Sep 16, 2026",
+                  "font": {
+                    "size": 15,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.1,
+                    "letter_spacing": 0.0
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "date_metadata",
+              "max_length": 30,
+              "min_length": 12
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "agenda_list",
+      "description": "Agenda or roadmap slide introducing the sections of the presentation as a numbered list, with a short eyebrow label and section title above it. Use for a contents or overview slide near the start of the deck.",
+      "components": [
+        {
+          "id": "background_wash",
+          "description": "Full-bleed dark background wash for the slide.",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 720.0
+                },
+                {
+                  "x": 0,
+                  "y": 720.0
+                }
+              ],
+              "closed": true,
+              "fill": {
+                "color": "#0A0D18",
+                "opacity": 1
+              },
+              "decorative": true,
+              "opacity": 1
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": -200,
+                  "y": -200
+                },
+                {
+                  "x": 340,
+                  "y": 260
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#7C5CFF",
+                "opacity": 0.14
+              }
+            }
+          ]
+        },
+        {
+          "id": "section_heading",
+          "description": "Eyebrow label and section title above the agenda list.",
+          "position": {
+            "x": 80.0,
+            "y": 96
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 400,
+                "height": 24
+              },
+              "font": {
+                "size": 14,
+                "family": "Inter",
+                "color": "#7C5CFF",
+                "line_height": 1.1,
+                "letter_spacing": 3,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "AGENDA",
+                  "font": {
+                    "size": 14,
+                    "family": "Inter",
+                    "color": "#7C5CFF",
+                    "line_height": 1.1,
+                    "letter_spacing": 3,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "agenda_kicker",
+              "max_length": 20,
+              "min_length": 6
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 30
+              },
+              "size": {
+                "width": 640,
+                "height": 60
+              },
+              "font": {
+                "size": 40,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.1,
+                "letter_spacing": -0.6,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "What We'll Cover",
+                  "font": {
+                    "size": 40,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.1,
+                    "letter_spacing": -0.6,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "agenda_title",
+              "max_length": 30,
+              "min_length": 10
+            }
+          ]
+        },
+        {
+          "id": "agenda_items",
+          "description": "Numbered list of agenda sections.",
+          "position": {
+            "x": 80.0,
+            "y": 236
+          },
+          "elements": [
+            {
+              "type": "text-list",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 900,
+                "height": 380
+              },
+              "font": {
+                "size": 20,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.3,
+                "letter_spacing": 0.0
+              },
+              "marker": "number",
+              "gap": 26,
+              "marker_gap": 16,
+              "items": [
+                [
+                  {
+                    "text": "Market context and the opportunity ahead"
+                  }
+                ],
+                [
+                  {
+                    "text": "Where we stand today"
+                  }
+                ],
+                [
+                  {
+                    "text": "The plan and what changes"
+                  }
+                ],
+                [
+                  {
+                    "text": "What we need from this room"
+                  }
+                ]
+              ],
+              "decorative": false,
+              "name": "agenda_list",
+              "max_items": 6,
+              "min_items": 3,
+              "max_item_length": 60,
+              "min_item_length": 20
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stat_tiles",
+      "description": "KPI or highlights slide showing three to four key metrics as glass tiles in a row, each with a large number and a short label. Use for a by-the-numbers or highlights summary slide.",
+      "components": [
+        {
+          "id": "background_wash",
+          "description": "Full-bleed dark background wash for the slide.",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 720.0
+                },
+                {
+                  "x": 0,
+                  "y": 720.0
+                }
+              ],
+              "closed": true,
+              "fill": {
+                "color": "#0A0D18",
+                "opacity": 1
+              },
+              "decorative": true,
+              "opacity": 1
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": 980,
+                  "y": -180
+                },
+                {
+                  "x": 1420,
+                  "y": 260
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#9B7BFF",
+                "opacity": 0.13
+              }
+            }
+          ]
+        },
+        {
+          "id": "section_heading",
+          "description": "Title and short supporting line above the stat row.",
+          "position": {
+            "x": 80.0,
+            "y": 92
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 600,
+                "height": 50
+              },
+              "font": {
+                "size": 36,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.1,
+                "letter_spacing": -0.6,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "By the Numbers",
+                  "font": {
+                    "size": 36,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.1,
+                    "letter_spacing": -0.6,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "stats_title",
+              "max_length": 26,
+              "min_length": 8
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 54
+              },
+              "size": {
+                "width": 700,
+                "height": 30
+              },
+              "font": {
+                "size": 16,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.1,
+                "letter_spacing": 0.0
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "The headline metrics from this quarter.",
+                  "font": {
+                    "size": 16,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.1,
+                    "letter_spacing": 0.0
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "stats_subtitle",
+              "max_length": 60,
+              "min_length": 20
+            }
+          ]
+        },
+        {
+          "id": "stat_row",
+          "description": "Row of four glass stat cards.",
+          "position": {
+            "x": 80.0,
+            "y": 236
+          },
+          "elements": [
+            {
+              "type": "container",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 262,
+                "height": 200
+              },
+              "fill": {
+                "color": "#141A2E",
+                "opacity": 0.55
+              },
+              "stroke": {
+                "color": "#2A3352",
+                "opacity": 0.7,
+                "width": 1
+              },
+              "border_radius": {
+                "tl": 20,
+                "tr": 20,
+                "bl": 20,
+                "br": 20
+              },
+              "shadow": {
+                "color": "#0A0D18",
+                "blur": 40,
+                "opacity": 0.45,
+                "offset_x": 0,
+                "offset_y": 12
+              },
+              "child": {
+                "type": "flex",
+                "direction": "column",
+                "align_items": "flex-start",
+                "justify_content": "center",
+                "gap": 8,
+                "children": [
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 220,
+                      "height": 60
+                    },
+                    "font": {
+                      "size": 44,
+                      "family": "Inter",
+                      "color": "#7C5CFF",
+                      "line_height": 1.0,
+                      "letter_spacing": -1,
+                      "bold": true
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "42%",
+                        "font": {
+                          "size": 44,
+                          "family": "Inter",
+                          "color": "#7C5CFF",
+                          "line_height": 1.0,
+                          "letter_spacing": -1,
+                          "bold": true
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "stat_value",
+                    "max_length": 8,
+                    "min_length": 2
+                  },
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 220,
+                      "height": 44
+                    },
+                    "font": {
+                      "size": 15,
+                      "family": "Inter",
+                      "color": "#E6EAF5",
+                      "line_height": 1.3,
+                      "letter_spacing": 0.0
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "Revenue growth YoY",
+                        "font": {
+                          "size": 15,
+                          "family": "Inter",
+                          "color": "#E6EAF5",
+                          "line_height": 1.3,
+                          "letter_spacing": 0.0
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "stat_label",
+                    "max_length": 30,
+                    "min_length": 10
+                  }
+                ],
+                "name": "stat_stack",
+                "max_children": 2,
+                "min_children": 2
+              },
+              "padding": {
+                "top": 28,
+                "right": 24,
+                "bottom": 28,
+                "left": 24
+              }
+            },
+            {
+              "type": "container",
+              "position": {
+                "x": 286,
+                "y": 0
+              },
+              "size": {
+                "width": 262,
+                "height": 200
+              },
+              "fill": {
+                "color": "#141A2E",
+                "opacity": 0.55
+              },
+              "stroke": {
+                "color": "#2A3352",
+                "opacity": 0.7,
+                "width": 1
+              },
+              "border_radius": {
+                "tl": 20,
+                "tr": 20,
+                "bl": 20,
+                "br": 20
+              },
+              "shadow": {
+                "color": "#0A0D18",
+                "blur": 40,
+                "opacity": 0.45,
+                "offset_x": 0,
+                "offset_y": 12
+              },
+              "child": {
+                "type": "flex",
+                "direction": "column",
+                "align_items": "flex-start",
+                "justify_content": "center",
+                "gap": 8,
+                "children": [
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 220,
+                      "height": 60
+                    },
+                    "font": {
+                      "size": 44,
+                      "family": "Inter",
+                      "color": "#5B8CFF",
+                      "line_height": 1.0,
+                      "letter_spacing": -1,
+                      "bold": true
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "128",
+                        "font": {
+                          "size": 44,
+                          "family": "Inter",
+                          "color": "#5B8CFF",
+                          "line_height": 1.0,
+                          "letter_spacing": -1,
+                          "bold": true
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "stat_value",
+                    "max_length": 8,
+                    "min_length": 2
+                  },
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 220,
+                      "height": 44
+                    },
+                    "font": {
+                      "size": 15,
+                      "family": "Inter",
+                      "color": "#E6EAF5",
+                      "line_height": 1.3,
+                      "letter_spacing": 0.0
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "Active accounts",
+                        "font": {
+                          "size": 15,
+                          "family": "Inter",
+                          "color": "#E6EAF5",
+                          "line_height": 1.3,
+                          "letter_spacing": 0.0
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "stat_label",
+                    "max_length": 30,
+                    "min_length": 10
+                  }
+                ],
+                "name": "stat_stack",
+                "max_children": 2,
+                "min_children": 2
+              },
+              "padding": {
+                "top": 28,
+                "right": 24,
+                "bottom": 28,
+                "left": 24
+              }
+            },
+            {
+              "type": "container",
+              "position": {
+                "x": 572,
+                "y": 0
+              },
+              "size": {
+                "width": 262,
+                "height": 200
+              },
+              "fill": {
+                "color": "#141A2E",
+                "opacity": 0.55
+              },
+              "stroke": {
+                "color": "#2A3352",
+                "opacity": 0.7,
+                "width": 1
+              },
+              "border_radius": {
+                "tl": 20,
+                "tr": 20,
+                "bl": 20,
+                "br": 20
+              },
+              "shadow": {
+                "color": "#0A0D18",
+                "blur": 40,
+                "opacity": 0.45,
+                "offset_x": 0,
+                "offset_y": 12
+              },
+              "child": {
+                "type": "flex",
+                "direction": "column",
+                "align_items": "flex-start",
+                "justify_content": "center",
+                "gap": 8,
+                "children": [
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 220,
+                      "height": 60
+                    },
+                    "font": {
+                      "size": 44,
+                      "family": "Inter",
+                      "color": "#35C8F0",
+                      "line_height": 1.0,
+                      "letter_spacing": -1,
+                      "bold": true
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "3.4x",
+                        "font": {
+                          "size": 44,
+                          "family": "Inter",
+                          "color": "#35C8F0",
+                          "line_height": 1.0,
+                          "letter_spacing": -1,
+                          "bold": true
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "stat_value",
+                    "max_length": 8,
+                    "min_length": 2
+                  },
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 220,
+                      "height": 44
+                    },
+                    "font": {
+                      "size": 15,
+                      "family": "Inter",
+                      "color": "#E6EAF5",
+                      "line_height": 1.3,
+                      "letter_spacing": 0.0
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "Pipeline coverage",
+                        "font": {
+                          "size": 15,
+                          "family": "Inter",
+                          "color": "#E6EAF5",
+                          "line_height": 1.3,
+                          "letter_spacing": 0.0
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "stat_label",
+                    "max_length": 30,
+                    "min_length": 10
+                  }
+                ],
+                "name": "stat_stack",
+                "max_children": 2,
+                "min_children": 2
+              },
+              "padding": {
+                "top": 28,
+                "right": 24,
+                "bottom": 28,
+                "left": 24
+              }
+            },
+            {
+              "type": "container",
+              "position": {
+                "x": 858,
+                "y": 0
+              },
+              "size": {
+                "width": 262,
+                "height": 200
+              },
+              "fill": {
+                "color": "#141A2E",
+                "opacity": 0.55
+              },
+              "stroke": {
+                "color": "#2A3352",
+                "opacity": 0.7,
+                "width": 1
+              },
+              "border_radius": {
+                "tl": 20,
+                "tr": 20,
+                "bl": 20,
+                "br": 20
+              },
+              "shadow": {
+                "color": "#0A0D18",
+                "blur": 40,
+                "opacity": 0.45,
+                "offset_x": 0,
+                "offset_y": 12
+              },
+              "child": {
+                "type": "flex",
+                "direction": "column",
+                "align_items": "flex-start",
+                "justify_content": "center",
+                "gap": 8,
+                "children": [
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 220,
+                      "height": 60
+                    },
+                    "font": {
+                      "size": 44,
+                      "family": "Inter",
+                      "color": "#2DE1C2",
+                      "line_height": 1.0,
+                      "letter_spacing": -1,
+                      "bold": true
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "97%",
+                        "font": {
+                          "size": 44,
+                          "family": "Inter",
+                          "color": "#2DE1C2",
+                          "line_height": 1.0,
+                          "letter_spacing": -1,
+                          "bold": true
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "stat_value",
+                    "max_length": 8,
+                    "min_length": 2
+                  },
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 220,
+                      "height": 44
+                    },
+                    "font": {
+                      "size": 15,
+                      "family": "Inter",
+                      "color": "#E6EAF5",
+                      "line_height": 1.3,
+                      "letter_spacing": 0.0
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "Retention rate",
+                        "font": {
+                          "size": 15,
+                          "family": "Inter",
+                          "color": "#E6EAF5",
+                          "line_height": 1.3,
+                          "letter_spacing": 0.0
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "stat_label",
+                    "max_length": 30,
+                    "min_length": 10
+                  }
+                ],
+                "name": "stat_stack",
+                "max_children": 2,
+                "min_children": 2
+              },
+              "padding": {
+                "top": 28,
+                "right": 24,
+                "bottom": 28,
+                "left": 24
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "radial_orbit",
+      "description": "Ecosystem or operating-model slide showing several equal, connected dimensions arranged in a wheel around a shared center. Use for a slide about roles, pillars, or interlocking parts of a system.",
+      "components": [
+        {
+          "id": "background_wash",
+          "description": "Full-bleed dark background wash for the slide.",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 720.0
+                },
+                {
+                  "x": 0,
+                  "y": 720.0
+                }
+              ],
+              "closed": true,
+              "fill": {
+                "color": "#0A0D18",
+                "opacity": 1
+              },
+              "decorative": true,
+              "opacity": 1
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": -180,
+                  "y": 200
+                },
+                {
+                  "x": 220,
+                  "y": 620
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#1FA8D8",
+                "opacity": 0.1
+              }
+            }
+          ]
+        },
+        {
+          "id": "section_heading",
+          "description": "Title and short supporting line above the wheel.",
+          "position": {
+            "x": 80.0,
+            "y": 72
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 640,
+                "height": 50
+              },
+              "font": {
+                "size": 34,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.1,
+                "letter_spacing": -0.5,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Our Operating Model",
+                  "font": {
+                    "size": 34,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.1,
+                    "letter_spacing": -0.5,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "orbit_title",
+              "max_length": 28,
+              "min_length": 10
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 52
+              },
+              "size": {
+                "width": 700,
+                "height": 30
+              },
+              "font": {
+                "size": 16,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.1,
+                "letter_spacing": 0.0
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Five pillars that move together, not in isolation.",
+                  "font": {
+                    "size": 16,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.1,
+                    "letter_spacing": 0.0
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "orbit_subtitle",
+              "max_length": 60,
+              "min_length": 20
+            }
+          ]
+        },
+        {
+          "id": "operating_model_wheel",
+          "description": "Segmented wheel showing five operating-model pillars.",
+          "position": {
+            "x": 330,
+            "y": 148
+          },
+          "elements": [
+            {
+              "type": "infographic",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 620,
+                "height": 520
+              },
+              "data": {
+                "type": "segmented_wheel",
+                "items": [
+                  {
+                    "heading": "Strategy"
+                  },
+                  {
+                    "heading": "People"
+                  },
+                  {
+                    "heading": "Systems"
+                  },
+                  {
+                    "heading": "Customers"
+                  },
+                  {
+                    "heading": "Technology"
+                  }
+                ]
+              },
+              "colors": [
+                "#7C5CFF",
+                "#5B8CFF",
+                "#35C8F0",
+                "#2DE1C2",
+                "#9B7BFF"
+              ],
+              "text_color": "#FFFFFF",
+              "takeaway": "Five interlocking pillars keep the operating model resilient.",
+              "decorative": false,
+              "name": "operating_model_wheel"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "process_pipeline",
+      "description": "Sequential process slide showing an ordered, directional pipeline of steps from left to right. Use for a slide walking through how work moves from start to finish.",
+      "components": [
+        {
+          "id": "background_wash",
+          "description": "Full-bleed dark background wash for the slide.",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 720.0
+                },
+                {
+                  "x": 0,
+                  "y": 720.0
+                }
+              ],
+              "closed": true,
+              "fill": {
+                "color": "#0A0D18",
+                "opacity": 1
+              },
+              "decorative": true,
+              "opacity": 1
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": 1000,
+                  "y": 480
+                },
+                {
+                  "x": 1420,
+                  "y": 900
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#22C3A6",
+                "opacity": 0.12
+              }
+            }
+          ]
+        },
+        {
+          "id": "section_heading",
+          "description": "Title and short supporting line above the pipeline.",
+          "position": {
+            "x": 80.0,
+            "y": 72
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 640,
+                "height": 50
+              },
+              "font": {
+                "size": 34,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.1,
+                "letter_spacing": -0.5,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "How We Deliver",
+                  "font": {
+                    "size": 34,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.1,
+                    "letter_spacing": -0.5,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "pipeline_title",
+              "max_length": 24,
+              "min_length": 8
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 52
+              },
+              "size": {
+                "width": 700,
+                "height": 30
+              },
+              "font": {
+                "size": 16,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.1,
+                "letter_spacing": 0.0
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "The same four steps, every engagement.",
+                  "font": {
+                    "size": 16,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.1,
+                    "letter_spacing": 0.0
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "pipeline_subtitle",
+              "max_length": 60,
+              "min_length": 20
+            }
+          ]
+        },
+        {
+          "id": "delivery_pipeline",
+          "description": "Chevron process showing four delivery steps.",
+          "position": {
+            "x": 280,
+            "y": 190
+          },
+          "elements": [
+            {
+              "type": "infographic",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 720,
+                "height": 340
+              },
+              "data": {
+                "type": "chevron_process",
+                "items": [
+                  {
+                    "heading": "Discover",
+                    "description": "Understand the problem."
+                  },
+                  {
+                    "heading": "Design",
+                    "description": "Shape the solution."
+                  },
+                  {
+                    "heading": "Build",
+                    "description": "Ship the work."
+                  },
+                  {
+                    "heading": "Launch",
+                    "description": "Release and measure."
+                  }
+                ]
+              },
+              "colors": [
+                "#7C5CFF",
+                "#5B8CFF",
+                "#35C8F0",
+                "#2DE1C2"
+              ],
+              "text_color": "#FFFFFF",
+              "takeaway": "Every engagement moves through the same four disciplined steps.",
+              "decorative": false,
+              "name": "delivery_pipeline"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chart_focus",
+      "description": "Single-chart slide pairing one business metric chart with a short supporting text block beside it. Use for a slide centered on one data story, such as revenue, growth, or performance over time.",
+      "components": [
+        {
+          "id": "background_wash",
+          "description": "Full-bleed dark background wash for the slide.",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 720.0
+                },
+                {
+                  "x": 0,
+                  "y": 720.0
+                }
+              ],
+              "closed": true,
+              "fill": {
+                "color": "#0A0D18",
+                "opacity": 1
+              },
+              "decorative": true,
+              "opacity": 1
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": -200,
+                  "y": -220
+                },
+                {
+                  "x": 260,
+                  "y": 200
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#4E6BFF",
+                "opacity": 0.12
+              }
+            }
+          ]
+        },
+        {
+          "id": "section_heading",
+          "description": "Title above the chart.",
+          "position": {
+            "x": 80.0,
+            "y": 64
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 640,
+                "height": 50
+              },
+              "font": {
+                "size": 34,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.1,
+                "letter_spacing": -0.5,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Revenue Momentum",
+                  "font": {
+                    "size": 34,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.1,
+                    "letter_spacing": -0.5,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "chart_title",
+              "max_length": 26,
+              "min_length": 10
+            }
+          ]
+        },
+        {
+          "id": "primary_chart",
+          "description": "Bar chart of quarterly revenue.",
+          "position": {
+            "x": 80.0,
+            "y": 156
+          },
+          "elements": [
+            {
+              "type": "chart",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 620,
+                "height": 400
+              },
+              "chart_type": "bar",
+              "title_color": "#FFFFFF",
+              "legend_color": "#E6EAF5",
+              "text_color": "#E6EAF5",
+              "colors": [
+                "#7C5CFF"
+              ],
+              "x_axis": true,
+              "y_axis": true,
+              "axis_color": "#E6EAF5",
+              "categories": [
+                "Q1",
+                "Q2",
+                "Q3",
+                "Q4"
+              ],
+              "series": [
+                {
+                  "name": "Revenue ($M)",
+                  "values": [
+                    18,
+                    22,
+                    27,
+                    31
+                  ]
+                }
+              ],
+              "legend": false,
+              "x_axis_grid": false,
+              "y_axis_grid": true,
+              "grid_color": "#2A3352",
+              "takeaway": "Revenue grew every quarter, closing 72% above Q1.",
+              "decorative": false,
+              "name": "revenue_chart"
+            }
+          ]
+        },
+        {
+          "id": "supporting_copy",
+          "description": "Short supporting narrative beside the chart.",
+          "position": {
+            "x": 760,
+            "y": 200
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 420,
+                "height": 40
+              },
+              "font": {
+                "size": 22,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.2,
+                "letter_spacing": 0.0,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Steady, compounding growth",
+                  "font": {
+                    "size": 22,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.2,
+                    "letter_spacing": 0.0,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "chart_support_heading",
+              "max_length": 34,
+              "min_length": 12
+            },
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 50
+              },
+              "size": {
+                "width": 420,
+                "height": 220
+              },
+              "font": {
+                "size": 16,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.5,
+                "letter_spacing": 0.0
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Each quarter outpaced the last, driven by expansion revenue from existing accounts rather than new logos alone.",
+                  "font": {
+                    "size": 16,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.5,
+                    "letter_spacing": 0.0
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "chart_support_body",
+              "max_length": 150,
+              "min_length": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "two_column_glass",
+      "description": "Side-by-side comparison slide with two glass cards, each covering one topic or state with a heading and short body text. Use for before/after, option A vs option B, or two-topic comparison slides.",
+      "components": [
+        {
+          "id": "background_wash",
+          "description": "Full-bleed dark background wash for the slide.",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 720.0
+                },
+                {
+                  "x": 0,
+                  "y": 720.0
+                }
+              ],
+              "closed": true,
+              "fill": {
+                "color": "#0A0D18",
+                "opacity": 1
+              },
+              "decorative": true,
+              "opacity": 1
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": 560,
+                  "y": -200
+                },
+                {
+                  "x": 900,
+                  "y": 100
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#7C5CFF",
+                "opacity": 0.12
+              }
+            }
+          ]
+        },
+        {
+          "id": "section_heading",
+          "description": "Title above the two comparison cards.",
+          "position": {
+            "x": 80.0,
+            "y": 72
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 700,
+                "height": 50
+              },
+              "font": {
+                "size": 34,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.1,
+                "letter_spacing": -0.5,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Two Paths Forward",
+                  "font": {
+                    "size": 34,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.1,
+                    "letter_spacing": -0.5,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "compare_title",
+              "max_length": 26,
+              "min_length": 10
+            }
+          ]
+        },
+        {
+          "id": "comparison_cards",
+          "description": "Two glass cards placed side by side.",
+          "position": {
+            "x": 80.0,
+            "y": 170
+          },
+          "elements": [
+            {
+              "type": "container",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 500,
+                "height": 380
+              },
+              "fill": {
+                "color": "#141A2E",
+                "opacity": 0.55
+              },
+              "stroke": {
+                "color": "#2A3352",
+                "opacity": 0.7,
+                "width": 1
+              },
+              "border_radius": {
+                "tl": 20,
+                "tr": 20,
+                "bl": 20,
+                "br": 20
+              },
+              "shadow": {
+                "color": "#0A0D18",
+                "blur": 40,
+                "opacity": 0.45,
+                "offset_x": 0,
+                "offset_y": 12
+              },
+              "child": {
+                "type": "flex",
+                "direction": "column",
+                "align_items": "flex-start",
+                "justify_content": "flex-start",
+                "gap": 16,
+                "children": [
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 440,
+                      "height": 36
+                    },
+                    "font": {
+                      "size": 24,
+                      "family": "Inter",
+                      "color": "#4E6BFF",
+                      "line_height": 1.15,
+                      "letter_spacing": 0.0,
+                      "bold": true
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "Current State",
+                        "font": {
+                          "size": 24,
+                          "family": "Inter",
+                          "color": "#4E6BFF",
+                          "line_height": 1.15,
+                          "letter_spacing": 0.0,
+                          "bold": true
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "compare_heading",
+                    "max_length": 30,
+                    "min_length": 10
+                  },
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 440,
+                      "height": 220
+                    },
+                    "font": {
+                      "size": 16,
+                      "family": "Inter",
+                      "color": "#E6EAF5",
+                      "line_height": 1.5,
+                      "letter_spacing": 0.0
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "Manual handoffs, disconnected tools, and reporting that lags a full week behind reality.",
+                        "font": {
+                          "size": 16,
+                          "family": "Inter",
+                          "color": "#E6EAF5",
+                          "line_height": 1.5,
+                          "letter_spacing": 0.0
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "compare_body",
+                    "max_length": 220,
+                    "min_length": 80
+                  }
+                ],
+                "name": "compare_stack",
+                "max_children": 2,
+                "min_children": 2
+              },
+              "padding": {
+                "top": 36,
+                "right": 36,
+                "bottom": 36,
+                "left": 36
+              }
+            },
+            {
+              "type": "container",
+              "position": {
+                "x": 620,
+                "y": 0
+              },
+              "size": {
+                "width": 500,
+                "height": 380
+              },
+              "fill": {
+                "color": "#141A2E",
+                "opacity": 0.55
+              },
+              "stroke": {
+                "color": "#2A3352",
+                "opacity": 0.7,
+                "width": 1
+              },
+              "border_radius": {
+                "tl": 20,
+                "tr": 20,
+                "bl": 20,
+                "br": 20
+              },
+              "shadow": {
+                "color": "#0A0D18",
+                "blur": 40,
+                "opacity": 0.45,
+                "offset_x": 0,
+                "offset_y": 12
+              },
+              "child": {
+                "type": "flex",
+                "direction": "column",
+                "align_items": "flex-start",
+                "justify_content": "flex-start",
+                "gap": 16,
+                "children": [
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 440,
+                      "height": 36
+                    },
+                    "font": {
+                      "size": 24,
+                      "family": "Inter",
+                      "color": "#2DE1C2",
+                      "line_height": 1.15,
+                      "letter_spacing": 0.0,
+                      "bold": true
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "Target State",
+                        "font": {
+                          "size": 24,
+                          "family": "Inter",
+                          "color": "#2DE1C2",
+                          "line_height": 1.15,
+                          "letter_spacing": 0.0,
+                          "bold": true
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "compare_heading",
+                    "max_length": 30,
+                    "min_length": 10
+                  },
+                  {
+                    "type": "text",
+                    "position": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "size": {
+                      "width": 440,
+                      "height": 220
+                    },
+                    "font": {
+                      "size": 16,
+                      "family": "Inter",
+                      "color": "#E6EAF5",
+                      "line_height": 1.5,
+                      "letter_spacing": 0.0
+                    },
+                    "alignment": {
+                      "horizontal": "left",
+                      "vertical": "top"
+                    },
+                    "runs": [
+                      {
+                        "text": "One connected workflow with live reporting and no manual handoffs left in the loop.",
+                        "font": {
+                          "size": 16,
+                          "family": "Inter",
+                          "color": "#E6EAF5",
+                          "line_height": 1.5,
+                          "letter_spacing": 0.0
+                        }
+                      }
+                    ],
+                    "decorative": false,
+                    "name": "compare_body",
+                    "max_length": 220,
+                    "min_length": 80
+                  }
+                ],
+                "name": "compare_stack",
+                "max_children": 2,
+                "min_children": 2
+              },
+              "padding": {
+                "top": 36,
+                "right": 36,
+                "bottom": 36,
+                "left": 36
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "closing",
+      "description": "Closing slide that mirrors the opening cover with a large, simple statement and no subtitle. Use for the final slide of a deck, such as a thank-you or call-to-action slide.",
+      "components": [
+        {
+          "id": "background_wash",
+          "description": "Full-bleed dark background wash for the slide.",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "elements": [
+            {
+              "type": "vector",
+              "shape": "polygon",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 0
+                },
+                {
+                  "x": 1280.0,
+                  "y": 720.0
+                },
+                {
+                  "x": 0,
+                  "y": 720.0
+                }
+              ],
+              "closed": true,
+              "fill": {
+                "color": "#0A0D18",
+                "opacity": 1
+              },
+              "decorative": true,
+              "opacity": 1
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": 860,
+                  "y": 380
+                },
+                {
+                  "x": 1480,
+                  "y": 900
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#7C5CFF",
+                "opacity": 0.16
+              }
+            },
+            {
+              "type": "vector",
+              "shape": "ellipse",
+              "points": [
+                {
+                  "x": -220,
+                  "y": -220
+                },
+                {
+                  "x": 260,
+                  "y": 200
+                }
+              ],
+              "opacity": 1,
+              "fill": {
+                "color": "#35C8F0",
+                "opacity": 0.12
+              }
+            }
+          ]
+        },
+        {
+          "id": "closing_copy",
+          "description": "Large centered closing statement.",
+          "position": {
+            "x": 80.0,
+            "y": 300
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 920,
+                "height": 140
+              },
+              "font": {
+                "size": 88,
+                "family": "Inter",
+                "color": "#FFFFFF",
+                "line_height": 1.02,
+                "letter_spacing": -2,
+                "bold": true
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Thank You",
+                  "font": {
+                    "size": 88,
+                    "family": "Inter",
+                    "color": "#FFFFFF",
+                    "line_height": 1.02,
+                    "letter_spacing": -2,
+                    "bold": true
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "closing_title",
+              "max_length": 20,
+              "min_length": 6
+            }
+          ]
+        },
+        {
+          "id": "footer_metadata",
+          "description": "Small closing footer line.",
+          "position": {
+            "x": 80.0,
+            "y": 628
+          },
+          "elements": [
+            {
+              "type": "text",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "width": 500,
+                "height": 24
+              },
+              "font": {
+                "size": 15,
+                "family": "Inter",
+                "color": "#E6EAF5",
+                "line_height": 1.1,
+                "letter_spacing": 0.0
+              },
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              },
+              "runs": [
+                {
+                  "text": "Questions & discussion",
+                  "font": {
+                    "size": 15,
+                    "family": "Inter",
+                    "color": "#E6EAF5",
+                    "line_height": 1.1,
+                    "letter_spacing": 0.0
+                  }
+                }
+              ],
+              "decorative": false,
+              "name": "closing_footer",
+              "max_length": 30,
+              "min_length": 10
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fonts": {
+    "Inter": "/vendor/fonts/sans_serif/inter/Inter[opsz,wght].ttf"
+  }
+}

@@ -3,7 +3,37 @@ import { getHeader, getHeaderForFormData } from "./header"
 import { Theme, ThemeParams } from "./types"
 import { getApiUrl } from "@/utils/api"
 
+// Flat color-role dict returned by the backend's ThemeData/PresentationThemeColors
+// model (primary/background/card/stroke/background_text/primary_text/graph_0..9).
+// Distinct from `Theme` above, which is a saved custom-theme *record*.
+export interface GeneratedThemeColors {
+  primary: string;
+  background: string;
+  card: string;
+  stroke: string;
+  background_text: string;
+  primary_text: string;
+  graph_0: string;
+  graph_1: string;
+  graph_2: string;
+  graph_3: string;
+  graph_4: string;
+  graph_5: string;
+  graph_6: string;
+  graph_7: string;
+  graph_8: string;
+  graph_9: string;
+}
 
+export interface ReferencePaletteSeeds {
+  primary: string;
+  background: string;
+  accent_1: string;
+  accent_2: string;
+  text_1: string;
+  text_2: string;
+  mood: string;
+}
 
 class ThemeApi {
 
@@ -84,6 +114,22 @@ class ThemeApi {
 
     catch (error) {
       console.error("Error generating theme:", error)
+      throw error
+    }
+  }
+  static async generateThemeFromImage(image: File): Promise<{ theme: GeneratedThemeColors; seeds: ReferencePaletteSeeds }> {
+    try {
+      const formData = new FormData();
+      formData.append("image", image);
+      const response = await fetch(getApiUrl(`/api/v1/ppt/theme/from-image`), {
+        method: "POST",
+        headers: getHeaderForFormData(),
+        body: formData,
+      })
+      return await ApiResponseHandler.handleResponse(response, "Failed to generate theme from image")
+    }
+    catch (error) {
+      console.error("Error generating theme from image:", error)
       throw error
     }
   }

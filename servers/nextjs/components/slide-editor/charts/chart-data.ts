@@ -37,6 +37,14 @@ export function limitChartText(value: string) {
   return value.slice(0, CHART_TEXT_MAX_LENGTH);
 }
 
+export function captionBandHeight(
+  text: string | null | undefined,
+  boxHeight: number,
+) {
+  if (!text) return 0;
+  return Math.min(30, Math.max(16, boxHeight * 0.11));
+}
+
 export function markdownToPlainChartText(value: string) {
   return value
     .replace(/\r\n?/g, "\n")

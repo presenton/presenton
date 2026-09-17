@@ -1450,14 +1450,21 @@ def _infographic_content_schema(
 ) -> dict[str, Any]:
     data = element.get("data") if isinstance(element, dict) else None
     infographic_type = data.get("type") if isinstance(data, dict) else None
+    takeaway_schema = {
+        "type": "string",
+        "maxLength": 140,
+        "description": "One sentence stating what this chart proves, not a restatement of the axis labels.",
+    }
+
     if infographic_type in INFOGRAPHIC_BY_TYPE:
         return {
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "data": _infographic_data_content_schema(infographic_type)
+                "data": _infographic_data_content_schema(infographic_type),
+                "takeaway": takeaway_schema,
             },
-            "required": ["data"],
+            "required": ["data", "takeaway"],
         }
 
     return {
@@ -1469,9 +1476,10 @@ def _infographic_content_schema(
                     _infographic_data_content_schema("progress_bar"),
                     _infographic_data_content_schema("gauge"),
                 ]
-            }
+            },
+            "takeaway": takeaway_schema,
         },
-        "required": ["data"],
+        "required": ["data", "takeaway"],
     }
 
 
@@ -1492,7 +1500,12 @@ def _chart_content_schema(element: dict[str, Any]) -> dict[str, Any]:
         "chart_type": {
             "type": "string",
             "enum": CHART_TYPE_VALUES,
-        }
+        },
+        "takeaway": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "One sentence stating what this chart proves, not a restatement of the axis labels.",
+        },
     }
 
     title = element.get("title")

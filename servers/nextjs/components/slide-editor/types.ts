@@ -572,6 +572,7 @@ export type ChartElement = ElementBase & {
   legend?: boolean | null;
   legend_color?: string | null;
   source?: string | null;
+  takeaway?: string | null;
 };
 
 export type InfographicElement = ElementBase & {
@@ -579,6 +580,7 @@ export type InfographicElement = ElementBase & {
   data: InfographicData;
   colors: string[];
   text_color?: string | null;
+  takeaway?: string | null;
 };
 
 export type FlexElement = RequiredElementBase & {

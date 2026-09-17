@@ -48,7 +48,7 @@ export type TemplateV2TextBox = {
 };
 
 const TEXT_AVERAGE_CHAR_EM = 0.5;
-const DEFAULT_FONT: RenderTextFont = {
+export const DEFAULT_FONT: RenderTextFont = {
   family: "Arial",
   size: 18,
   color: "#111827",
@@ -1078,6 +1078,63 @@ export function lineRenderHeight(
         segment.font.size * (segment.font.lineHeight ?? fallbackLineHeight),
     ),
   );
+}
+
+export function scaleRenderTextRuns(
+  runs: RenderTextRun[],
+  scale: number,
+): RenderTextRun[] {
+  return runs.map((run) => ({
+    ...run,
+    font: {
+      ...run.font,
+      size: run.font.size * scale,
+      letterSpacing: (run.font.letterSpacing ?? 0) * scale,
+    },
+  }));
+}
+
+function autofitTextFits(
+  runs: RenderTextRun[],
+  box: { width: number; height: number },
+  lineHeight: number,
+  wrap: string | null | undefined,
+): boolean {
+  const lines = layoutRenderTextRuns(runs, box.width, wrap);
+  const height = lines.reduce(
+    (sum, line) => sum + lineRenderHeight(line, lineHeight),
+    0,
+  );
+  return height <= box.height;
+}
+
+export function autofitFontScale(
+  runs: RenderTextRun[],
+  box: { width: number; height: number },
+  lineHeight: number,
+  wrap: string | null | undefined = TEXT_RENDER_WRAP,
+  minScale = 0.72,
+): number {
+  if (!box.height) return 1;
+  if (autofitTextFits(runs, box, lineHeight, wrap)) return 1;
+  if (!autofitTextFits(scaleRenderTextRuns(runs, minScale), box, lineHeight, wrap)) {
+    return minScale;
+  }
+
+  let low = minScale;
+  let high = 1;
+  let best = minScale;
+  for (let i = 0; i < 6; i += 1) {
+    const mid = (low + high) / 2;
+    if (autofitTextFits(scaleRenderTextRuns(runs, mid), box, lineHeight, wrap)) {
+      best = mid;
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  return Math.round(best * 100) / 100;
 }
 
 function splitOversizedTextSegment(

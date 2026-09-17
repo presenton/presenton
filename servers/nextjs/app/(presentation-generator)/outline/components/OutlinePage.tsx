@@ -32,6 +32,7 @@ import {
   VerbosityType,
 } from "../../upload/type";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
+import type { GeneratedThemeColors } from "../../services/api/theme";
 import { useOutlineManagement } from "../hooks/useOutlineManagement";
 import { useOutlineStreaming } from "../hooks/useOutlineStreaming";
 import { usePresentationGeneration } from "../hooks/usePresentationGeneration";
@@ -128,6 +129,8 @@ const OutlinePage: React.FC = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     null
   );
+  const [themeOverride, setThemeOverride] =
+    useState<GeneratedThemeColors | null>(null);
   const [draftConfig, setDraftConfig] = useState<PresentationConfig>(
     savedConfig ? normalizeOutlineConfig(savedConfig) : DEFAULT_OUTLINE_CONFIG
   );
@@ -143,7 +146,8 @@ const OutlinePage: React.FC = () => {
   const { handleDragEnd, handleAddSlide } = useOutlineManagement(outlines);
   const { loadingState, handleSubmit } = usePresentationGeneration(
     presentation_id,
-    selectedTemplateId
+    selectedTemplateId,
+    themeOverride
   );
 
   const documentPaths = useMemo(() => getDocumentPaths(files), [files]);
@@ -399,6 +403,8 @@ const OutlinePage: React.FC = () => {
             presentationId={presentation_id}
             selectedTemplateId={selectedTemplateId}
             suggestedTemplate={suggestedTemplate}
+            themeOverride={themeOverride}
+            onThemeOverrideChange={setThemeOverride}
             onSuggestedTemplateResolved={(template) =>
               setSelectedTemplateId((current) => current ?? template.id)
             }

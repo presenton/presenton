@@ -205,6 +205,52 @@ test("preserves edited infographic number labels and restores blank defaults", (
   assert.match(impact, /I7/);
 });
 
+function renderInfographicWithTakeaway(type, takeaway, data = {}) {
+  return renderer.templateV2UiToHtml({
+    background: "#FFFFFF",
+    elements: [
+      {
+        type: "infographic",
+        position: { x: 20, y: 20 },
+        size: { width: 720, height: 420 },
+        data: { type, items: [], ...data },
+        colors: ["#FFFFFF", "#102E79", "#6388D0"],
+        text_color: "#111111",
+        ...(takeaway == null ? {} : { takeaway }),
+      },
+    ],
+    components: [],
+  });
+}
+
+test("renders an infographic takeaway caption and omits it when unset", () => {
+  const withTakeaway = renderInfographicWithTakeaway(
+    "timeline",
+    "Adoption doubled after launch",
+  );
+  const withoutTakeaway = renderInfographicWithTakeaway("timeline", null);
+
+  assert.match(withTakeaway, /Adoption doubled after launch/);
+  assert.match(withTakeaway, /text-overflow:ellipsis/);
+  assert.doesNotMatch(withoutTakeaway, /text-overflow:ellipsis/);
+});
+
+test("renders a takeaway caption on progress and gauge meters", () => {
+  const progress = renderInfographicWithTakeaway(
+    "progress_bar",
+    "On track for quarterly target",
+    { min_value: 0, max_value: 100, value: 65 },
+  );
+  const gauge = renderInfographicWithTakeaway(
+    "gauge",
+    "Above the 70% threshold",
+    { min_value: 0, max_value: 100, value: 75 },
+  );
+
+  assert.match(progress, /On track for quarterly target/);
+  assert.match(gauge, /Above the 70% threshold/);
+});
+
 test("keeps progress and gauge exports on their native meter renderers", () => {
   const progress = renderInfographic("progress_bar", {
     min_value: 0,

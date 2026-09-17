@@ -159,3 +159,41 @@ test("honors text-list item and marker gaps in HTML", () => {
   assert.match(listHtml, /<span aria-hidden="true">•<\/span>/);
   assert.match(listHtml, /<li style="margin-top:11px;/);
 });
+
+test("renders a chart takeaway caption below the canvas", () => {
+  const withTakeaway = renderer.templateV2UiToHtmlFragment(
+    {
+      elements: [
+        {
+          type: "chart",
+          size: { width: 400, height: 300 },
+          chart_type: "bar",
+          data: [{ label: "A", value: 1 }],
+          takeaway: "Revenue grew 3x year over year",
+        },
+      ],
+    },
+    { width: 400, height: 300 },
+  );
+
+  assert.match(withTakeaway, /Revenue grew 3x year over year/);
+  assert.match(withTakeaway, /text-overflow:ellipsis/);
+});
+
+test("omits the chart caption band when no takeaway is set", () => {
+  const withoutTakeaway = renderer.templateV2UiToHtmlFragment(
+    {
+      elements: [
+        {
+          type: "chart",
+          size: { width: 400, height: 300 },
+          chart_type: "bar",
+          data: [{ label: "A", value: 1 }],
+        },
+      ],
+    },
+    { width: 400, height: 300 },
+  );
+
+  assert.doesNotMatch(withoutTakeaway, /text-overflow:ellipsis/);
+});

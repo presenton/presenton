@@ -6,6 +6,8 @@ from typing import Any
 
 from models.sql.template_v2 import TemplateV2
 from templates import default_templates
+from templates.v2.models.layouts import SlideLayouts
+from utils.theme_recolor import COLOR_KEYS
 
 
 def _component() -> dict[str, Any]:
@@ -389,3 +391,50 @@ def test_resolve_default_template_id_maps_public_name_to_json_id():
 
 def test_resolve_default_template_id_rejects_paths(tmp_path):
     assert default_templates.resolve_default_template_id("../general", tmp_path) is None
+
+
+def _collect_theme_colors(node: Any, found: set[str]) -> None:
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in COLOR_KEYS and isinstance(value, str):
+                found.add(value)
+            elif key == "colors" and isinstance(value, list):
+                found.update(v for v in value if isinstance(v, str))
+            else:
+                _collect_theme_colors(value, found)
+    elif isinstance(node, list):
+        for item in node:
+            _collect_theme_colors(item, found)
+
+
+def test_nebula_uses_only_theme_role_colors():
+    template_dir = Path(__file__).resolve().parents[4] / "templates" / "nebula"
+    raw = json.loads((template_dir / "template.json").read_text(encoding="utf-8"))
+
+    assert len(raw["theme"]["colors"]) == 16
+    allowed = {value.lower() for value in raw["theme"]["colors"].values()}
+
+    used: set[str] = set()
+    _collect_theme_colors(raw["layouts"], used)
+    assert used, "expected to find at least one themed color in nebula's layouts"
+
+    used_lower = {value.lower() for value in used}
+    assert used_lower <= allowed, (
+        f"nebula uses colors outside its own theme.colors: {used_lower - allowed}"
+    )
+
+
+def test_nebula_template_json_matches_template_v2_shapes():
+    template_dir = Path(__file__).resolve().parents[4] / "templates" / "nebula"
+    raw = json.loads((template_dir / "template.json").read_text(encoding="utf-8"))
+
+    # Every layout must validate against the same schema the app enforces at
+    # generation time.
+    SlideLayouts.model_validate({"layouts": raw["layouts"]})
+
+    template = default_templates._load_default_template(template_dir)
+    assert template.id == "nebula"
+    assert template.is_default is True
+    assert list(template.layouts) == ["layouts"]
+    assert len(template.layouts["layouts"]) == 8
+    assert template.theme["colors"]["background"] == "#0A0D18"

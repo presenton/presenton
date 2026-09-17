@@ -49,6 +49,7 @@ from services.mem0_presentation_memory_service import (
     MEM0_PRESENTATION_MEMORY_SERVICE,
 )
 from utils.dict_utils import deep_update
+from utils.theme_recolor import recolor_ui
 from utils.export_utils import export_presentation
 from utils.mcp_public_urls import absolute_mcp_result_links
 from utils.llm_calls.generate_presentation_outlines import (
@@ -305,13 +306,14 @@ async def _resolve_generation_layout(
 def _hydrate_template_slide_ui(
     slide: SlideModel,
     layout_payload: Any = None,
+    theme: Optional[dict] = None,
 ) -> None:
     if not _is_template_layout_payload(layout_payload):
         return
 
     ui = slide.ui
     if not isinstance(ui, dict):
-        ui = _template_slide_ui(layout_payload, slide.layout)
+        ui = _template_slide_ui(layout_payload, slide.layout, theme=theme)
     slide.ui = _apply_template_content_to_ui(ui, slide.content)
 
 
@@ -476,13 +478,24 @@ def _is_template_layout_payload(layout_payload: Any) -> bool:
 def _template_slide_ui(
     layout_payload: Any,
     layout_id: str,
+    theme: Optional[dict] = None,
 ) -> Optional[dict[str, Any]]:
     if not _is_template_layout_payload(layout_payload):
         return None
 
     for layout in layout_payload["layouts"]:
         if isinstance(layout, dict) and str(layout.get("id")) == str(layout_id):
-            return copy.deepcopy(layout)
+            slide_ui = copy.deepcopy(layout)
+            source_theme = (
+                layout_payload.get("theme")
+                if isinstance(layout_payload.get("theme"), dict)
+                else None
+            )
+            source_colors = source_theme.get("colors") if source_theme else None
+            target_colors = theme.get("colors") if theme else None
+            if source_colors and target_colors and source_colors != target_colors:
+                return recolor_ui(slide_ui, source_colors, target_colors)
+            return slide_ui
     return None
 
 
@@ -1770,6 +1783,7 @@ async def prepare_presentation(
     outlines: Annotated[List[SlideOutlineModel], Body()],
     layout: Annotated[str, Body()],
     title: Annotated[Optional[str], Body()] = None,
+    theme: Annotated[Optional[dict], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     if not outlines:
@@ -1844,6 +1858,7 @@ async def prepare_presentation(
     presentation.language = ""
     presentation.layout = layout_payload
     presentation.fonts = template_fonts
+    presentation.theme = theme or layout_payload.get("theme")
     presentation.set_structure(presentation_structure)
     await sql_session.commit()
 
@@ -2314,7 +2329,9 @@ async def stream_presentation(
                 index=i,
                 speaker_note=slide_content.get("__speaker_note__", ""),
                 content=slide_content,
-                ui=_template_slide_ui(presentation.layout, slide_layout.id),
+                ui=_template_slide_ui(
+                    presentation.layout, slide_layout.id, theme=presentation.theme
+                ),
             )
             slides.append(slide)
 
@@ -2460,6 +2477,7 @@ async def update_presentation(
     if not presentation:
         raise HTTPException(status_code=404, detail="Presentation not found")
 
+    old_theme = presentation.theme
     presentation_update_dict = {}
     if n_slides is not None:
         if n_slides < 1:
@@ -2480,6 +2498,28 @@ async def update_presentation(
 
     if presentation_update_dict:
         presentation.sqlmodel_update(presentation_update_dict)
+
+    # Retheme already-stored slide.ui when a new theme is supplied without a
+    # full slide replacement in the same request (A3: retheme-on-PATCH).
+    if (
+        theme is not None
+        and not slides
+        and isinstance(old_theme, dict)
+        and isinstance(theme, dict)
+        and old_theme.get("colors")
+        and theme.get("colors")
+        and old_theme.get("colors") != theme.get("colors")
+    ):
+        stored_slides = await sql_session.scalars(
+            select(SlideModel).where(SlideModel.presentation == presentation.id)
+        )
+        for stored_slide in stored_slides:
+            if isinstance(stored_slide.ui, dict):
+                stored_slide.ui = recolor_ui(
+                    stored_slide.ui, old_theme["colors"], theme["colors"]
+                )
+                sql_session.add(stored_slide)
+
     if slides:
         if len(slides) > MAX_NUMBER_OF_SLIDES:
             raise HTTPException(
@@ -2881,7 +2921,7 @@ async def generate_presentation_handler(
             verbosity=request.verbosity.value,
             instructions=request.instructions,
             fonts=template_fonts,
-            theme=template_theme,
+            theme=request.theme or template_theme,
         )
 
         # Updating async status
@@ -2943,7 +2983,9 @@ async def generate_presentation_handler(
                     index=i,
                     speaker_note=slide_content.get("__speaker_note__"),
                     content=slide_content,
-                    ui=_template_slide_ui(layout_payload, slide_layout.id),
+                    ui=_template_slide_ui(
+                        layout_payload, slide_layout.id, theme=presentation.theme
+                    ),
                 )
                 slides.append(slide)
                 batch_slides.append(slide)
@@ -3005,7 +3047,7 @@ async def generate_presentation_handler(
             )
 
         for slide in slides:
-            _hydrate_template_slide_ui(slide, layout_payload)
+            _hydrate_template_slide_ui(slide, layout_payload, theme=presentation.theme)
 
         # 8. Save PresentationModel and Slides
         sql_session.add(presentation)
@@ -3243,7 +3285,7 @@ async def edit_presentation_with_new_content(
         if new_slide_data:
             updated_content = deep_update(each_slide.content, new_slide_data[0].content)
             new_slide = each_slide.get_new_slide(presentation.id, updated_content)
-            _hydrate_template_slide_ui(new_slide, presentation.layout)
+            _hydrate_template_slide_ui(new_slide, presentation.layout, theme=presentation.theme)
             new_slides.append(new_slide)
             slides_to_delete.append(each_slide.id)
 
@@ -3294,7 +3336,9 @@ async def derive_presentation_from_existing_one(
         if new_slide_data:
             updated_content = deep_update(each_slide.content, new_slide_data[0].content)
         new_slide = each_slide.get_new_slide(new_presentation.id, updated_content)
-        _hydrate_template_slide_ui(new_slide, new_presentation.layout)
+        _hydrate_template_slide_ui(
+            new_slide, new_presentation.layout, theme=new_presentation.theme
+        )
         new_slides.append(new_slide)
 
     sql_session.add(new_presentation)

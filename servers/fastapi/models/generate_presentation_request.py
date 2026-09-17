@@ -44,6 +44,10 @@ class GeneratePresentationRequest(BaseModel):
     trigger_webhook: bool = Field(
         default=False, description="Whether to trigger subscribed webhooks"
     )
+    theme: Optional[dict] = Field(
+        default=None,
+        description="PresentationThemeData override; falls back to the template's own theme",
+    )
 
 
 class GenerateSmartPresentationRequest(BaseModel):
