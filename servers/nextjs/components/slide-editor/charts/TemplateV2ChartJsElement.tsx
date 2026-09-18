@@ -55,6 +55,9 @@ type ChartJsKind = {
   horizontal: boolean;
   pieLike: boolean;
   stacked: boolean;
+  waterfall: boolean;
+  heatmap: boolean;
+  histogram: boolean;
 };
 
 const DEFAULT_CHART_COLORS = [
@@ -407,10 +410,59 @@ function createChartJsConfig(
   };
 }
 
+function waterfallRanges(values: number[]): Array<[number, number]> {
+  let running = 0;
+  return values.map((value) => {
+    const start = running;
+    running += value;
+    const end = running;
+    return value >= 0 ? [start, end] : [end, start];
+  });
+}
+
 function createChartJsDatasets(
   kind: ChartJsKind,
   datasets: RawChartDataset[],
 ): ChartDataset[] {
+  if (kind.heatmap) {
+    const max = Math.max(1, ...datasets.flatMap((d) => d.values));
+    return datasets.map((dataset, index) => ({
+      backgroundColor: dataset.values.map((value) => {
+        const t = value / max;
+        return `rgba(127, 34, 254, ${0.2 + t * 0.8})`;
+      }),
+      borderWidth: 1,
+      data: dataset.values,
+      label: displayChartLegendLabel(dataset.name),
+      maxBarThickness: 48,
+    }));
+  }
+  if (kind.histogram) {
+    const dataset = datasets[0] ?? emptyDataset();
+    return [{
+      backgroundColor: "#155DFC",
+      borderWidth: 0,
+      data: dataset.values,
+      label: displayChartLegendLabel(dataset.name),
+      maxBarThickness: 62,
+    }];
+  }
+  if (kind.waterfall) {
+    const dataset = datasets[0] ?? emptyDataset();
+    const ranges = waterfallRanges(dataset.values);
+    const colors = dataset.values.map((value) =>
+      value >= 0 ? "#12B76A" : "#EF4444",
+    );
+    return [
+      {
+        backgroundColor: colors,
+        borderWidth: 0,
+        data: ranges,
+        label: displayChartLegendLabel(dataset.name),
+        maxBarThickness: 62,
+      },
+    ];
+  }
   if (kind.chartJsType === "pie" || kind.chartJsType === "doughnut") {
     const dataset = datasets[0] ?? emptyDataset();
     return [
@@ -782,6 +834,12 @@ function rawChartJsKind(value: unknown): ChartJsKind {
     case "horizontal_stack_bar":
     case "horizontal_stacked_bar":
       return baseKind("bar", { horizontal: true, stacked: true });
+    case "waterfall":
+      return baseKind("bar", { waterfall: true });
+    case "heatmap":
+      return baseKind("bar", { heatmap: true });
+    case "histogram":
+      return baseKind("bar", { histogram: true });
     case "bar":
     default:
       return baseKind("bar");
@@ -798,6 +856,9 @@ function baseKind(
     horizontal: false,
     pieLike: false,
     stacked: false,
+    waterfall: false,
+    heatmap: false,
+    histogram: false,
     ...overrides,
   };
 }

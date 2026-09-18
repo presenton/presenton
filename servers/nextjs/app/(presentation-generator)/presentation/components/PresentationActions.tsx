@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import {
   AlignCenter,
   AreaChart,
@@ -261,9 +262,14 @@ export const chartTypeItems = [
   { id: "scatter", label: "Scatter Chart", icon: Circle },
   { id: "radar", label: "Radar Chart", icon: PieChart },
   { id: "polar_area", label: "Polar Area", icon: PieChart },
+  { id: "waterfall", label: "Waterfall", icon: BarChart3 },
+  { id: "heatmap", label: "Heatmap", icon: Grid3X3 },
+  { id: "histogram", label: "Histogram", icon: BarChart3 },
 ] satisfies PaletteItem[];
 
 export const infographicItems = [
+  { id: "kpi", label: "KPI", icon: Gauge },
+  { id: "punch", label: "KPI row", icon: Columns2 },
   { id: "progress_bar", label: "Progress Bar", icon: ChartNoAxesGantt },
   { id: "gauge", label: "Gauge Chart", icon: Gauge },
   { id: "gantt", label: "Gantt Chart", icon: ChartNoAxesGantt },
@@ -1308,6 +1314,33 @@ function ActionsPanel({
   presentationId: string;
   templateTheme: TemplateTheme;
 }) {
+  const [libraryItems, setLibraryItems] = useState<PaletteItem[]>([]);
+  useEffect(() => {
+    if (activeAction !== "images") return;
+    let cancelled = false;
+    PresentationGenerationApi.listAssets()
+      .then((items) => {
+        if (cancelled || !Array.isArray(items)) return;
+        setLibraryItems(
+          items.slice(0, 24).map((asset: { filename?: string; path?: string }, index: number) => {
+            const path = String(asset.path || "");
+            const appData = path.includes("/app_data/")
+              ? path.slice(path.indexOf("/app_data/"))
+              : path;
+            return {
+              id: `library:${appData}`,
+              label: asset.filename || `Asset ${index + 1}`,
+              icon: Image,
+            };
+          }),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAction]);
+
   return (
     <div className="min-w-0 flex-1 bg-white">
       <div className={cn("h-full", activeAction === "ai" ? "block" : "hidden")}>
@@ -1370,7 +1403,10 @@ function ActionsPanel({
         <InsertPanel
           disabled={editingDisabled}
           title="Images"
-          groups={[{ label: "Add", items: imageItems }]}
+          groups={[
+            { label: "Add", items: imageItems },
+            { label: "Library", items: libraryItems },
+          ]}
           onItemSelect={onImageItemSelect}
           previewKind="image"
           theme={templateTheme}
@@ -1579,6 +1615,62 @@ const PresentationActions = (props: PresentationActionsProps) => {
   };
 
   const handleInfographicItemSelect = (item: PaletteItem) => {
+    if (item.id === "punch") {
+      const cells = [
+        { value: "163888582", label: "MAT TY · money units" },
+        { value: "133903381", label: "MAT LY · money units" },
+        { value: "+22.4%", label: "YoY (from TY/LY)" },
+      ];
+      const els: any[] = [];
+      cells.forEach((cell, i) => {
+        const value = createTextInsertElements("title-block", templateTheme).map((el) => ({
+          ...el,
+          name: `kpi_value_${i + 1}`,
+          runs: [{ text: cell.value }],
+          position: { x: 60 + i * 310, y: (el as any).position?.y ?? 160 },
+        }));
+        const label = createTextInsertElements("subtitle", templateTheme).map((el) => ({
+          ...el,
+          name: `kpi_label_${i + 1}`,
+          runs: [{ text: cell.label }],
+          position: { x: 60 + i * 310, y: ((el as any).position?.y ?? 180) + 90 },
+        }));
+        els.push(...value, ...label);
+      });
+      if (insertEditorElements(els, item.label)) {
+        trackEvent(MixpanelEvent.Editor_Insert_Palette_Item_Selected, {
+          presentation_id: props.presentationId,
+          category: "infographics",
+          item_id: item.id,
+          item_label: item.label,
+          slide_index: props.currentSlide,
+        });
+      }
+      return;
+    }
+    if (item.id === "kpi") {
+      const value = createTextInsertElements("title-block", templateTheme).map((el) => ({
+        ...el,
+        name: "kpi_value",
+        runs: [{ text: "10" }],
+      }));
+      const label = createTextInsertElements("subtitle", templateTheme).map((el) => ({
+        ...el,
+        name: "kpi_label",
+        runs: [{ text: "Q1 revenue" }],
+        position: { x: (el as any).position?.x ?? 160, y: ((el as any).position?.y ?? 180) + 90 },
+      }));
+      if (insertEditorElements([...value, ...label] as any, item.label)) {
+        trackEvent(MixpanelEvent.Editor_Insert_Palette_Item_Selected, {
+          presentation_id: props.presentationId,
+          category: "infographics",
+          item_id: item.id,
+          item_label: item.label,
+          slide_index: props.currentSlide,
+        });
+      }
+      return;
+    }
     const infographicElements = createInfographicInsertElements(
       item.id,
       templateTheme,
@@ -1612,6 +1704,35 @@ const PresentationActions = (props: PresentationActionsProps) => {
   };
 
   const handleImageItemSelect = (item: PaletteItem) => {
+    if (item.id?.startsWith("library:")) {
+      const src = item.id.slice("library:".length);
+      if (
+        insertEditorElements(
+          [
+            {
+              type: "image",
+              position: { x: 134, y: 128 },
+              size: { width: 400, height: 240 },
+              data: src,
+              fit: "cover",
+              decorative: false,
+              name: item.label,
+              is_icon: false,
+            } as SlideElement,
+          ],
+          item.label,
+        )
+      ) {
+        trackEvent(MixpanelEvent.Editor_Insert_Palette_Item_Selected, {
+          presentation_id: props.presentationId,
+          category: "images-library",
+          item_id: item.id,
+          item_label: item.label,
+          slide_index: props.currentSlide,
+        });
+      }
+      return;
+    }
     if (
       insertEditorContent(
         createImageInsertContent(item.id, templateTheme),

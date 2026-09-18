@@ -182,3 +182,23 @@ async def update_files(
     await TEMP_FILE_SERVICE.update_temp_file_from_upload(file_path, file)
 
     return {"message": "File updated successfully"}
+
+
+class ExtractTableRequest(BaseModel):
+    file_path: str
+    sheet: Optional[str] = None
+    range: Optional[str] = None
+    persist: bool = True
+
+
+@FILES_ROUTER.post("/extract-table")
+async def extract_table(request: ExtractTableRequest):
+    from services.tabular_source import extract_tabular_source, persist_source_snapshot
+    sheet = request.sheet
+    sheet_value: str | int | None = sheet
+    if sheet and str(sheet).isdigit():
+        sheet_value = int(sheet)
+    table = extract_tabular_source(request.file_path, sheet_value, request.range)
+    if request.persist:
+        table = persist_source_snapshot(table)
+    return table

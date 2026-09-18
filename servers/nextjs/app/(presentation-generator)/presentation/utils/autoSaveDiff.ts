@@ -2,9 +2,11 @@ import type { PresentationData } from "@/store/slices/presentationGeneration";
 
 export interface AutoSaveSnapshot {
   presentationId: string;
+  revision: number;
   slideOrder: string[];
   slideFingerprints: Record<string, string>;
   metadataFingerprint: string;
+  persistedMetadataFingerprint: string;
 }
 
 export interface AutoSaveChanges {
@@ -35,8 +37,10 @@ export const createAutoSaveSnapshot = (
 
   return {
     presentationId: data.id,
+    revision: typeof data.revision === "number" ? data.revision : 0,
     slideOrder,
     slideFingerprints,
+    persistedMetadataFingerprint: fingerprintValue({title: data.title, theme: data.persistedTheme !== undefined ? data.persistedTheme : data.theme}),
     metadataFingerprint: fingerprintValue({
       title: data.title,
       theme: data.theme,

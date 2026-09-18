@@ -111,6 +111,7 @@ class ChatTools:
             "saveSlide": self._save_slide,
             "updateSlide": self._update_slide,
             "deleteSlide": self._delete_slide,
+            "listSlides": self._list_slides,
             "addElement": self._add_element,
             "addInfographic": self._add_infographic,
             "updateElement": self._update_slide_element,
@@ -246,6 +247,16 @@ class ChatTools:
                     "Search current slides for text/topics and return slide indices and snippets."
                 ),
                 schema=SearchSlidesInput,
+                strict=False,
+            ),
+            Tool(
+                name="listSlides",
+                description=(
+                    "Authoritative deck inventory: n_slides plus 0-based index, "
+                    "1-based slide_number, and description. Call this after delete/merge "
+                    "before telling the user the deck changed."
+                ),
+                schema=NoArgsInput,
                 strict=False,
             ),
             Tool(
@@ -605,37 +616,29 @@ class ChatTools:
 
     async def _get_slide_at_index(self, args: dict[str, Any]) -> dict[str, Any]:
         normalized_args = dict(args)
-        normalized_args.setdefault("includeFullContent", False)
+        if "index" not in normalized_args and "slideNumber" in normalized_args:
+            try:
+                normalized_args["index"] = max(0, int(normalized_args["slideNumber"]) - 1)
+            except (TypeError, ValueError):
+                pass
+        normalized_args.pop("slideNumber", None)
         payload = GetSlideAtIndexInput(**normalized_args)
         slide = await self._memory.get_slide_at_index(
             payload.index,
             include_full_content=payload.include_full_content,
         )
-        if not slide and payload.index > 0:
-            # Users often refer to slides as 1-based; allow a safe fallback.
-            fallback_index = payload.index - 1
-            fallback_slide = await self._memory.get_slide_at_index(
-                fallback_index,
-                include_full_content=payload.include_full_content,
-            )
-            if fallback_slide:
-                return {
-                    "found": True,
-                    "slide": fallback_slide,
-                    "requested_index": payload.index,
-                    "resolved_index": fallback_index,
-                    "note": (
-                        "No slide found at requested index; returned one-based fallback "
-                        f"at index {fallback_index}."
-                    ),
-                }
         if not slide:
             return {
                 "found": False,
-                "message": f"No slide found at index {payload.index}.",
+                "message": (
+                    f"No slide found at zero-based index {payload.index} "
+                    f"(user slide {payload.index + 1}). Do not assume slide 1."
+                ),
             }
         return {
             "found": True,
+            "index": payload.index,
+            "slide_number": payload.index + 1,
             "slide": slide,
         }
 
@@ -679,20 +682,51 @@ class ChatTools:
             }
         )
 
+    def _is_batch_all_slides(self) -> bool:
+        return "BATCH SCOPE is all slides" in (self._turn_user_message or "")
+
+    async def _all_slide_indices(self) -> list[int]:
+        found: list[int] = []
+        for index in range(50):
+            try:
+                slide = await self._memory.get_slide_at_index(
+                    index=index, include_full_content=False
+                )
+            except Exception:
+                break
+            if not slide:
+                break
+            found.append(index)
+        return found
+
     async def _update_slide(self, args: dict[str, Any]) -> dict[str, Any]:
         payload_args = json.loads(json.dumps(dict(args), ensure_ascii=False))
         raw_content = payload_args.get("content")
         if isinstance(raw_content, dict):
             payload_args["content"] = json.dumps(raw_content, ensure_ascii=False)
         payload = UpdateSlideInput(**payload_args)
-        return await self._save_slide(
-            {
-                "content": payload.content,
-                "layoutId": payload.layout_id,
-                "index": payload.index,
-                "replaceOldSlideAtIndex": True,
+        save_args = {
+            "content": payload.content,
+            "layoutId": payload.layout_id,
+            "index": payload.index,
+            "replaceOldSlideAtIndex": True,
+        }
+        result = await self._save_slide(save_args)
+        if self._is_batch_all_slides():
+            extras = []
+            for index in await self._all_slide_indices():
+                if index == payload.index:
+                    continue
+                extras.append(await self._save_slide({**save_args, "index": index}))
+            result = {
+                **result,
+                "batch_applied": 1 + len(extras),
+                "batch_indices": [payload.index] + [
+                    extra.get("index", i)
+                    for i, extra in enumerate(extras)
+                ],
             }
-        )
+        return result
 
     async def _get_available_layouts(self, _: dict[str, Any]) -> dict[str, Any]:
         layouts = await self._memory.get_available_layouts()
@@ -838,9 +872,15 @@ class ChatTools:
             replace_old_slide_at_index=payload.replace_old_slide_at_index,
         )
 
+    async def _list_slides(self, _: dict[str, Any]) -> dict[str, Any]:
+        return await self._memory.list_slides()
+
     async def _delete_slide(self, args: dict[str, Any]) -> dict[str, Any]:
         payload = DeleteSlideInput(**args)
-        return await self._memory.delete_slide(index=payload.index)
+        result = await self._memory.delete_slide(index=payload.index)
+        inventory = await self._memory.list_slides()
+        return {**result, **inventory}
+
 
     async def _get_slide_elements(self, args: dict[str, Any]) -> dict[str, Any]:
         payload = GetSlideAtIndexInput(
@@ -944,8 +984,7 @@ class ChatTools:
         style_patch = self._element_style_patch_from_update_payload(payload)
         if style_patch:
             element_patch = self._merge_dict_patch(element_patch or {}, style_patch)
-        return await self._memory.update_slide_ui_element(
-            index=payload.index,
+        call_kwargs = dict(
             element_path=payload.element_path,
             text=payload.text,
             items=payload.items,
@@ -982,6 +1021,21 @@ class ChatTools:
             ),
             size=payload.size.model_dump() if payload.size is not None else None,
         )
+        result = await self._memory.update_slide_ui_element(
+            index=payload.index, **call_kwargs
+        )
+        if self._is_batch_all_slides():
+            extras = []
+            for index in await self._all_slide_indices():
+                if index == payload.index:
+                    continue
+                extras.append(
+                    await self._memory.update_slide_ui_element(
+                        index=index, **call_kwargs
+                    )
+                )
+            result = {**result, "batch_applied": 1 + len(extras)}
+        return result
 
     async def _update_slide_component(self, args: dict[str, Any]) -> dict[str, Any]:
         payload = UpdateSlideComponentInput(**args)

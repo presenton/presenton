@@ -522,6 +522,7 @@ const Chat = ({
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isFollowAgentEnabled, setIsFollowAgentEnabled] = useState(true);
+  const [chatScope, setChatScope] = useState<"slide" | "all">("slide");
   const [hasChatMutationStarted, setHasChatMutationStarted] = useState(false);
   const [activeAssistantMessageId, setActiveAssistantMessageId] = useState<
     string | null
@@ -1007,10 +1008,16 @@ const Chat = ({
       );
     }
 
-    if (typeof currentSlide === "number") {
+    if (chatScope === "all") {
+      const slides = (presentationData as { slides?: Array<{ id?: string }> } | null)?.slides || [];
+      const ids = slides.map((item) => item.id).filter(Boolean).join(", ");
+      contextLines.push(
+        `UI context: BATCH SCOPE is all slides. Target IDs: ${ids}. Apply the same edit to every listed slide. Do not retarget to the first slide only.`,
+      );
+    } else if (typeof currentSlide === "number") {
       contextLines.push(
         `UI context: the currently selected slide is slide ${currentSlide + 1
-        } (zero-based index ${currentSlide}).`
+        } (zero-based index ${currentSlide}). Target this slide unless the user names another.`
       );
     }
 
@@ -1322,11 +1329,37 @@ const Chat = ({
     dispatch(setPresentationData(nextPresentation));
 
     try {
-      for (const slideIndex of preview.slideIndices) {
-        const slide = nextSlides[slideIndex];
-        if (slide) {
-          await PresentationGenerationApi.updatePresentationSlide(slide);
-        }
+      const snapshot = await PresentationGenerationApi.getDocumentSnapshot(
+        String((currentPresentation as { id?: string }).id || ""),
+      );
+      const operations = preview.slideIndices.flatMap((slideIndex) => {
+        const slide = nextSlides[slideIndex] as Record<string, unknown> | undefined;
+        const id = typeof slide?.id === "string" ? slide.id : null;
+        if (!slide || !id) return [];
+        return [{
+          scope: "slide" as const,
+          targetIds: [id],
+          operationType: "UpdateSlide" as const,
+          payload: {
+            layout_group: slide.layout_group,
+            layout: slide.layout,
+            content: slide.content,
+            html_content: slide.html_content,
+            speaker_note: slide.speaker_note,
+            properties: slide.properties,
+            ui: slide.ui,
+          },
+        }];
+      });
+      if (operations.length) {
+        await PresentationGenerationApi.submitDocumentOperations(
+          String((currentPresentation as { id?: string }).id),
+          {
+            operationId: createMessageId(),
+            baseRevision: Number(snapshot?.revision),
+            operations,
+          },
+        );
       }
       await onPresentationChanged?.();
       notify.success(
@@ -1672,7 +1705,9 @@ const Chat = ({
     };
 
     const assistantMessageId = createMessageId();
-    const previewSlideIndex = typeof currentSlide === "number" ? currentSlide : 0;
+    const frozenSlideIndex =
+      typeof currentSlide === "number" ? currentSlide : undefined;
+    const previewSlideIndex = typeof frozenSlideIndex === "number" ? frozenSlideIndex : 0;
     const originalPreviewSlide = clonePreviewSlide(
       getPresentationSlide(presentationData, previewSlideIndex),
     );
@@ -1704,6 +1739,15 @@ const Chat = ({
     if (selectionContext) dispatch(clearChatHtmlSelection());
     setErrorMessage(null);
     setHasChatMutationStarted(false);
+    try {
+      await onBeforeSend?.();
+    } catch (error) {
+      notify.error(
+        "Could not save local edits",
+        error instanceof Error ? error.message : "Save your changes before chatting.",
+      );
+      return;
+    }
     setIsSending(true);
     setActiveAssistantMessageId(assistantMessageId);
     refreshQueuedRef.current = false;
@@ -1725,7 +1769,7 @@ const Chat = ({
       attachment_image_count: imagesForMessage.length,
       attachment_document_count: attachedDocuments.length,
       link_count: chatLinks.length,
-      has_selected_slide: typeof currentSlide === "number",
+      has_selected_slide: typeof frozenSlideIndex === "number",
       has_selected_template_target: Boolean(selectedTemplateV2Target),
       has_selected_html_element: Boolean(selectionContext),
     });
@@ -1733,7 +1777,6 @@ const Chat = ({
     abortControllerRef.current = streamAbortController;
 
     try {
-      await onBeforeSend?.();
       const response = await chatAdapter.streamMessage(
         {
           resourceId: activeResourceId,
@@ -2608,6 +2651,34 @@ const Chat = ({
                 </div>
               )}
 
+            <div className="flex items-center gap-1.5" data-testid="chat-scope">
+              <button
+                type="button"
+                data-testid="chat-scope-slide"
+                aria-pressed={chatScope === "slide"}
+                onClick={() => setChatScope("slide")}
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                  chatScope === "slide"
+                    ? "border-[#7A5AF8] bg-[#F4F1FF] text-[#7A5AF8]"
+                    : "border-[#EDEEEF] text-[#667085]"
+                }`}
+              >
+                This slide
+              </button>
+              <button
+                type="button"
+                data-testid="chat-scope-all"
+                aria-pressed={chatScope === "all"}
+                onClick={() => setChatScope("all")}
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                  chatScope === "all"
+                    ? "border-[#7A5AF8] bg-[#F4F1FF] text-[#7A5AF8]"
+                    : "border-[#EDEEEF] text-[#667085]"
+                }`}
+              >
+                All slides
+              </button>
+            </div>
             <textarea
               ref={inputRef}
               name="chat-input"

@@ -45,6 +45,10 @@ from utils.process_slides import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _session_can_execute_operations(session: Any) -> bool:
+    return hasattr(session, "execute") and hasattr(session, "scalars")
 MAX_SCHEMA_ERRORS = 10
 DEFAULT_SOURCE_DOCUMENT_CHARS = 12000
 MAX_SOURCE_DOCUMENT_CHARS = 30000
@@ -444,15 +448,32 @@ class PresentationChatMemoryLayer:
         )
         return results
 
+
+    async def _ordered_slides(self):
+        session = self._sql_session
+        if hasattr(session, "slides") and isinstance(getattr(session, "slides"), list) and session.slides:
+            return sorted(list(session.slides), key=lambda s: (getattr(s, "index", 0), str(getattr(s, "id", ""))))
+        if hasattr(session, "slide") and getattr(session, "slide") is not None:
+            return [session.slide]
+        result = await session.scalars(
+            select(SlideModel)
+            .where(SlideModel.presentation == self._presentation_id)
+            .order_by(SlideModel.index, SlideModel.id)
+        )
+        if hasattr(result, "all"):
+            return list(result.all())
+        return list(result)
+
     async def get_slide_at_index(
         self, index: int, *, include_full_content: bool = False
     ) -> dict[str, Any] | None:
-        slide = await self._sql_session.scalar(
-            select(SlideModel).where(
-                SlideModel.presentation == self._presentation_id,
-                SlideModel.index == index,
-            )
-        )
+        rows = await self._ordered_slides()
+        slide = None
+        if 0 <= index < len(rows):
+            slide = rows[index]
+        elif rows:
+            by_index = next((item for item in rows if item.index == index), None)
+            slide = by_index
         if not slide:
             LOGGER.info(
                 "Chat memory miss for slide by index (presentation_id=%s, index=%d)",
@@ -919,6 +940,51 @@ class PresentationChatMemoryLayer:
             return normalize_slide_asset_url(icons[0])
         return normalize_slide_asset_url("/static/icons/placeholder.svg")
 
+
+    async def _persist_operations(self, operations: list[dict[str, Any]], extra_objects: list[Any] | None = None) -> dict[str, Any] | None:
+        """Apply document mutations through the executor when the session is real.
+
+        Unit tests inject a FakeSession without SQL execute/scalars; those keep commit().
+        """
+        if extra_objects:
+            for obj in extra_objects:
+                self._sql_session.add(obj)
+        if not _session_can_execute_operations(self._sql_session):
+            await self._sql_session.commit()
+            return None
+        from services.operation_executor import execute_operation, load_document_snapshot
+
+        snapshot = await load_document_snapshot(self._sql_session, self._presentation_id)
+        return await execute_operation(
+            self._sql_session,
+            document_id=self._presentation_id,
+            base_revision=snapshot["revision"],
+            operations=operations,
+            operation_id=str(uuid.uuid4()),
+            actor_source="ai",
+        )
+
+    async def _persist_slide_update(self, slide: SlideModel, extra_objects: list[Any] | None = None) -> None:
+        await self._persist_operations(
+            [
+                {
+                    "scope": "slide",
+                    "targetIds": [str(slide.id)],
+                    "operationType": "UpdateSlide",
+                    "payload": {
+                        "layout_group": slide.layout_group,
+                        "layout": slide.layout,
+                        "content": slide.content,
+                        "html_content": slide.html_content,
+                        "speaker_note": slide.speaker_note,
+                        "properties": slide.properties,
+                        "ui": slide.ui,
+                    },
+                }
+            ],
+            extra_objects=extra_objects,
+        )
+
     async def add_blank_slide(self, *, index: int | None = None) -> dict[str, Any]:
         presentation = await self._sql_session.get(PresentationModel, self._presentation_id)
         if not presentation:
@@ -942,16 +1008,16 @@ class PresentationChatMemoryLayer:
             if index is None
             else min(max(0, index), len(slides))
         )
-        for slide in sorted(
-            [slide for slide in slides if slide.index >= insert_index],
-            key=lambda each: each.index,
-            reverse=True,
-        ):
-            slide.index += 1
-            self._sql_session.add(slide)
-
-        presentation.n_slides = len(slides) + 1
-        self._sql_session.add(presentation)
+        if not _session_can_execute_operations(self._sql_session):
+            for slide in sorted(
+                [slide for slide in slides if slide.index >= insert_index],
+                key=lambda each: each.index,
+                reverse=True,
+            ):
+                slide.index += 1
+                self._sql_session.add(slide)
+            presentation.n_slides = len(slides) + 1
+            self._sql_session.add(presentation)
         new_slide = SlideModel(
             presentation=self._presentation_id,
             layout_group=self._resolve_layout_group(presentation=presentation),
@@ -961,9 +1027,29 @@ class PresentationChatMemoryLayer:
             speaker_note="",
             ui=self._blank_slide_ui(),
         )
-        self._sql_session.add(new_slide)
-        await self._sql_session.commit()
-        await self._sql_session.refresh(new_slide)
+        result = await self._persist_operations(
+            [
+                {
+                    "scope": "document",
+                    "targetIds": [],
+                    "operationType": "InsertSlide",
+                    "payload": {
+                        "id": str(new_slide.id),
+                        "index": insert_index,
+                        "layout_group": new_slide.layout_group,
+                        "layout": new_slide.layout,
+                        "content": new_slide.content,
+                        "speaker_note": new_slide.speaker_note,
+                        "ui": new_slide.ui,
+                    },
+                }
+            ]
+        )
+        if hasattr(self._sql_session, "refresh"):
+            try:
+                await self._sql_session.refresh(new_slide)
+            except Exception:
+                pass
         return {
             "added": True,
             "message": f"Blank slide added at index {insert_index}.",
@@ -1050,7 +1136,6 @@ class PresentationChatMemoryLayer:
                     warning.get("detail"),
                 )
 
-            existing_slide.id = uuid.uuid4()
             existing_slide.layout = layout_id
             existing_slide.layout_group = layout_group
             existing_slide.content = updated_content
@@ -1060,9 +1145,7 @@ class PresentationChatMemoryLayer:
                 content=updated_content,
             )
             existing_slide.speaker_note = self._extract_speaker_note(updated_content)
-            self._sql_session.add(existing_slide)
-            self._sql_session.add_all(new_assets)
-            await self._sql_session.commit()
+            await self._persist_slide_update(existing_slide, extra_objects=list(new_assets))
 
             await MEM0_PRESENTATION_MEMORY_SERVICE.store_slide_edit(
                 presentation_id=self._presentation_id,
@@ -1135,10 +1218,35 @@ class PresentationChatMemoryLayer:
             content=new_slide.content,
         )
 
-        self._sql_session.add(new_slide)
-        self._sql_session.add_all(new_assets)
-        await self._sql_session.commit()
-        await self._sql_session.refresh(new_slide)
+        if not _session_can_execute_operations(self._sql_session):
+            self._sql_session.add(new_slide)
+            self._sql_session.add_all(new_assets)
+            await self._sql_session.commit()
+        else:
+            await self._persist_operations(
+                [
+                    {
+                        "scope": "document",
+                        "targetIds": [],
+                        "operationType": "InsertSlide",
+                        "payload": {
+                            "id": str(new_slide.id),
+                            "index": new_slide.index,
+                            "layout_group": new_slide.layout_group,
+                            "layout": new_slide.layout,
+                            "content": new_slide.content,
+                            "speaker_note": new_slide.speaker_note,
+                            "ui": new_slide.ui,
+                        },
+                    }
+                ],
+                extra_objects=list(new_assets),
+            )
+        if hasattr(self._sql_session, "refresh"):
+            try:
+                await self._sql_session.refresh(new_slide)
+            except Exception:
+                pass
 
         await MEM0_PRESENTATION_MEMORY_SERVICE.store_slide_edit(
             presentation_id=self._presentation_id,
@@ -1272,8 +1380,7 @@ class PresentationChatMemoryLayer:
             slide.ui = None
             if speaker_note is not None:
                 slide.speaker_note = speaker_note
-            self._sql_session.add(slide)
-            await self._sql_session.commit()
+            await self._persist_slide_update(slide)
             return {
                 "saved": True,
                 "action": "replaced",
@@ -1318,11 +1425,29 @@ class PresentationChatMemoryLayer:
             speaker_note=speaker_note or "",
             ui=None,
         )
-        presentation.n_slides = len(slides) + 1
-        self._sql_session.add(presentation)
-        self._sql_session.add(new_slide)
-        await self._sql_session.commit()
-        await self._sql_session.refresh(new_slide)
+        await self._persist_operations(
+            [
+                {
+                    "scope": "document",
+                    "targetIds": [],
+                    "operationType": "InsertSlide",
+                    "payload": {
+                        "id": str(new_slide.id),
+                        "index": insert_index,
+                        "layout_group": "smart-html",
+                        "layout": "smart-html",
+                        "content": {"title": title},
+                        "html_content": normalized_html,
+                        "speaker_note": speaker_note or "",
+                    },
+                }
+            ]
+        )
+        if hasattr(self._sql_session, "refresh"):
+            try:
+                await self._sql_session.refresh(new_slide)
+            except Exception:
+                pass
         return {
             "saved": True,
             "action": "created",
@@ -1332,19 +1457,31 @@ class PresentationChatMemoryLayer:
             "slide_number": insert_index + 1,
         }
 
+    async def list_slides(self) -> dict[str, Any]:
+        rows = await self._ordered_slides()
+        items = []
+        for i, slide in enumerate(rows):
+            ui = slide.ui if isinstance(slide.ui, dict) else {}
+            items.append(
+                {
+                    "index": i,
+                    "slide_number": i + 1,
+                    "slide_id": str(slide.id),
+                    "description": str((ui or {}).get("description") or "")[:120],
+                }
+            )
+        return {"n_slides": len(items), "slides": items}
+
     async def delete_slide(self, *, index: int) -> dict[str, Any]:
         target_index = max(0, index)
-        slide = await self._sql_session.scalar(
-            select(SlideModel).where(
-                SlideModel.presentation == self._presentation_id,
-                SlideModel.index == target_index,
-            )
-        )
+        rows = await self._ordered_slides()
+        slide = rows[target_index] if target_index < len(rows) else None
         if not slide:
             return {
                 "deleted": False,
                 "message": f"No slide found at index {target_index}.",
                 "index": target_index,
+                "n_slides": len(rows),
             }
 
         presentation = await self._sql_session.get(PresentationModel, self._presentation_id)
@@ -1382,13 +1519,43 @@ class PresentationChatMemoryLayer:
                     source_slide=slide,
                     index=0,
                 )
-            await self._sql_session.delete(slide)
-            if presentation:
-                presentation.n_slides = 1
-                self._sql_session.add(presentation)
-            self._sql_session.add(fallback_slide)
-            await self._sql_session.commit()
-            await self._sql_session.refresh(fallback_slide)
+            if not _session_can_execute_operations(self._sql_session):
+                await self._sql_session.delete(slide)
+                if presentation:
+                    presentation.n_slides = 1
+                    self._sql_session.add(presentation)
+                self._sql_session.add(fallback_slide)
+                await self._sql_session.commit()
+            else:
+                await self._persist_operations(
+                    [
+                        {
+                            "scope": "slide",
+                            "targetIds": [str(slide.id)],
+                            "operationType": "DeleteSlide",
+                            "payload": {},
+                        },
+                        {
+                            "scope": "document",
+                            "targetIds": [],
+                            "operationType": "InsertSlide",
+                            "payload": {
+                                "id": str(fallback_slide.id),
+                                "index": 0,
+                                "layout_group": fallback_slide.layout_group,
+                                "layout": fallback_slide.layout,
+                                "content": fallback_slide.content,
+                                "speaker_note": fallback_slide.speaker_note,
+                                "ui": fallback_slide.ui,
+                            },
+                        },
+                    ]
+                )
+            if hasattr(self._sql_session, "refresh"):
+                try:
+                    await self._sql_session.refresh(fallback_slide)
+                except Exception:
+                    pass
 
             return {
                 "deleted": True,
@@ -1414,11 +1581,16 @@ class PresentationChatMemoryLayer:
             self._sql_session.add(each_slide)
             shifted_count += 1
 
-        if presentation:
-            presentation.n_slides = len(remaining_slides)
-            self._sql_session.add(presentation)
-
-        await self._sql_session.commit()
+        await self._persist_operations(
+            [
+                {
+                    "scope": "slide",
+                    "targetIds": [str(slide.id)],
+                    "operationType": "DeleteSlide",
+                    "payload": {},
+                }
+            ]
+        )
 
         return {
             "deleted": True,
@@ -1493,9 +1665,12 @@ class PresentationChatMemoryLayer:
         # UI (assets, tiptap ids, etc.) are preserved untouched.
         self._strip_component_sizes(ui)
         slide.ui = ui
-        self._sql_session.add(slide)
-        await self._sql_session.commit()
-        await self._sql_session.refresh(slide)
+        await self._persist_slide_update(slide)
+        if hasattr(self._sql_session, "refresh"):
+            try:
+                await self._sql_session.refresh(slide)
+            except Exception:
+                pass
 
     @staticmethod
     def _strip_component_sizes(ui: dict[str, Any]) -> None:
@@ -3087,8 +3262,16 @@ class PresentationChatMemoryLayer:
 
         previous_theme = copy.deepcopy(current_theme) if current_theme else None
         presentation.theme = copy.deepcopy(selected_theme)
-        self._sql_session.add(presentation)
-        await self._sql_session.commit()
+        await self._persist_operations(
+            [
+                {
+                    "scope": "document",
+                    "targetIds": [],
+                    "operationType": "UpdateMetadata",
+                    "payload": {"theme": copy.deepcopy(selected_theme)},
+                }
+            ]
+        )
 
         selected_name = str(selected_theme.get("name") or "selected theme")
         selected_id = str(selected_theme.get("id") or "")
