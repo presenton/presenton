@@ -20,13 +20,13 @@ function ConfigurationLoadingScreen() {
   return (
     <main
       aria-busy="true"
-      className="fixed inset-0 z-[2147483000] flex items-center justify-center overflow-hidden bg-white"
+      className="fixed inset-0 z-[2147483000] flex items-center justify-center overflow-hidden bg-agnosia-beige"
       role="status"
     >
       <div className="flex flex-col items-center gap-7 whitespace-nowrap text-center">
         <div aria-hidden="true" className="configuration-loader" />
-        <p className="font-syne text-[18px] font-normal leading-normal tracking-[-0.54px] text-[#191919]">
-          Loading Presenton...
+        <p className="font-syne text-[18px] font-normal leading-normal tracking-[-0.54px] text-agnosia-ink">
+          Loading Agnosia...
         </p>
       </div>
 
@@ -39,7 +39,7 @@ function ConfigurationLoadingScreen() {
           src="/figma-assets/configuration-status-icon.svg"
           width={14}
         />
-        <p className="whitespace-nowrap font-manrope text-[14px] font-medium leading-normal tracking-[0.3px] text-[#6172F3]">
+        <p className="whitespace-nowrap font-manrope text-[14px] font-medium leading-normal tracking-[0.3px] text-[#A67C52]">
           Checking &amp; configuring application assets.
         </p>
       </div> */}
@@ -111,9 +111,11 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         // credentials. Trust the server-side validity result instead of
         // trying to validate secrets that the browser is not allowed to see.
         if (!isConfigured) {
-          if (!cancelled) {
+          // SaaS keys come from env; a transient false during boot must not
+          // spam every route change. Only redirect when the user can fix keys.
+          if (!cancelled && canChangeKeys) {
             notify.warning(
-              "Provider setup required",
+              "Workspace unavailable",
               "Choose and configure a text provider before opening other pages.",
               { id: "provider-setup-required" }
             );
@@ -347,12 +349,11 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
         );
         dispatch(setLLMConfig(runtimeConfig));
         if (!runtime.configured) {
-          notify.error(
-            "Instance not configured",
-            "Ask the administrator to configure the AI providers in Settings."
+          // Do not hard-block the UI: provider env may still be warming up,
+          // and route revalidation will pick up a valid runtime config.
+          console.warn(
+            "Runtime provider config is not ready yet; continuing without blocking."
           );
-          setIsLoading(false);
-          return;
         }
       } catch (error) {
         console.error("Failed to fetch runtime configuration:", error);

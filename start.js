@@ -755,9 +755,11 @@ const main = async () => {
     await ensurePresentationExportNodeDependencies();
   }
 
-  if (canChangeKeys) {
-    setupUserConfigFromEnv();
-  }
+  // Always merge provider env into userConfig. SaaS (CAN_CHANGE_KEYS=false)
+  // configures OpenRouter / images / search via container env; without this,
+  // Next.js /api/runtime-config reports configured=false and the UI toasts
+  // "Workspace unavailable" on every navigation.
+  setupUserConfigFromEnv();
 
   syncNginxConfigForDev();
 

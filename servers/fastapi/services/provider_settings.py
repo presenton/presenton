@@ -100,16 +100,37 @@ def _mirror_to_legacy_file(config: dict[str, Any]) -> None:
     update_user_config_file(path, replace_provider_config)
 
 
+def _provider_config_from_process_env() -> dict[str, Any]:
+    """Provider settings derived from container env (SaaS / CAN_CHANGE_KEYS=false)."""
+    # Import lazily: get_user_config merges file+env and must not run at module import.
+    from utils.user_config import get_user_config
+
+    raw = get_user_config().model_dump(exclude_none=True)
+    # Drop empty strings / empty lists so merge does not wipe real DB values.
+    return sanitize_provider_settings(
+        {
+            key: value
+            for key, value in raw.items()
+            if value not in ("", [], {})
+        }
+    )
+
+
 async def migrate_provider_settings_from_file(session: AsyncSession) -> dict[str, Any]:
     """One-time startup import, followed by DB-to-file compatibility syncing."""
     row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID)
     path = get_user_config_path_env()
+    legacy_config = sanitize_provider_settings(
+        read_user_config_file(path) if path else {}
+    )
 
     if row is None:
-        legacy_config = read_user_config_file(path) if path else {}
+        seed = legacy_config if legacy_config.get("LLM") else _provider_config_from_process_env()
+        if not seed.get("LLM") and legacy_config:
+            seed = merge_provider_settings(seed, legacy_config)
         row = ProviderSettings(
             id=PROVIDER_SETTINGS_ID,
-            config=sanitize_provider_settings(legacy_config),
+            config=sanitize_provider_settings(seed),
         )
         session.add(row)
         await session.commit()
@@ -117,6 +138,18 @@ async def migrate_provider_settings_from_file(session: AsyncSession) -> dict[str
         logger.info("Migrated provider settings from userConfig.json into the database.")
     else:
         sanitized = sanitize_provider_settings(dict(row.config or {}))
+        if not sanitized.get("LLM"):
+            # Empty DB row (e.g. auth-only first boot) must pick up SaaS env / file
+            # instead of mirroring {} back over a freshly written userConfig.
+            if legacy_config.get("LLM"):
+                sanitized = merge_provider_settings(sanitized, legacy_config)
+            else:
+                from_env = _provider_config_from_process_env()
+                if from_env.get("LLM"):
+                    sanitized = merge_provider_settings(sanitized, from_env)
+                    logger.info(
+                        "Seeded provider settings from process env (no LLM in database)."
+                    )
         if sanitized != row.config:
             row.config = sanitized
             row.updated_at = get_current_utc_datetime()

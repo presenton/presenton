@@ -102,3 +102,37 @@ def test_startup_migrates_user_config_and_rewrites_compatibility_file(
         "AUTH_PASSWORD_HASH": "legacy-hash",
         "AUTH_SECRET_KEY": "jwt-secret",
     }
+
+
+def test_startup_seeds_empty_provider_settings_from_env(monkeypatch, tmp_path):
+    path = tmp_path / "userConfig.json"
+    monkeypatch.setenv("USER_CONFIG_PATH", str(path))
+    monkeypatch.setenv("LLM", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("OPENROUTER_MODEL", "inclusionai/ling-3.0-flash-fin:free")
+    monkeypatch.setenv("IMAGE_PROVIDER", "pexels")
+    monkeypatch.setenv("PEXELS_API_KEY", "pexels-key")
+    update_user_config_file(
+        str(path),
+        lambda _: {
+            "AUTH_USERNAME": "administrator",
+            "AUTH_PASSWORD_HASH": "legacy-hash",
+            "AUTH_SECRET_KEY": "jwt-secret",
+        },
+    )
+    session = ProviderSettingsSession()
+    session.row = type(
+        "Row",
+        (),
+        {"id": 1, "config": {}, "updated_at": None},
+    )()
+
+    migrated = asyncio.run(migrate_provider_settings_from_file(session))
+
+    assert migrated["LLM"] == "openrouter"
+    assert migrated["OPENROUTER_API_KEY"] == "or-key"
+    assert migrated["OPENROUTER_MODEL"] == "inclusionai/ling-3.0-flash-fin:free"
+    mirrored = read_user_config_file(str(path))
+    assert mirrored["AUTH_USERNAME"] == "administrator"
+    assert mirrored["LLM"] == "openrouter"
+    assert mirrored["OPENROUTER_API_KEY"] == "or-key"

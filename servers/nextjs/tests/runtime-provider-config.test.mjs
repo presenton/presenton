@@ -75,3 +75,42 @@ test("regular-user runtime config keeps provider choices and redacts secrets", a
     else process.env.USER_CONFIG_PATH = previousPath;
   }
 });
+
+test("runtime config treats SaaS env as configured when file is auth-only", async () => {
+  const configPath = path.join(temporaryDirectory, "auth-only-userConfig.json");
+  await writeFile(
+    configPath,
+    JSON.stringify({
+      AUTH_USERNAME: "administrator",
+      AUTH_PASSWORD_HASH: "hash",
+      AUTH_SECRET_KEY: "secret",
+    })
+  );
+  const previous = {
+    USER_CONFIG_PATH: process.env.USER_CONFIG_PATH,
+    LLM: process.env.LLM,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    OPENROUTER_MODEL: process.env.OPENROUTER_MODEL,
+    IMAGE_PROVIDER: process.env.IMAGE_PROVIDER,
+    PEXELS_API_KEY: process.env.PEXELS_API_KEY,
+  };
+  process.env.USER_CONFIG_PATH = configPath;
+  process.env.LLM = "openrouter";
+  process.env.OPENROUTER_API_KEY = "env-or-key";
+  process.env.OPENROUTER_MODEL = "inclusionai/ling-3.0-flash-fin:free";
+  process.env.IMAGE_PROVIDER = "pexels";
+  process.env.PEXELS_API_KEY = "env-pexels";
+
+  try {
+    const result = runtimeConfig.readRuntimeProviderConfig();
+    assert.equal(result.configured, true);
+    assert.equal(result.config.LLM, "openrouter");
+    assert.equal(result.config.OPENROUTER_API_KEY, "__configured__");
+    assert.doesNotMatch(JSON.stringify(result), /env-or-key/);
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
