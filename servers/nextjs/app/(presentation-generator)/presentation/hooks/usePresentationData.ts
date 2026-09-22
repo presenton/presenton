@@ -52,6 +52,7 @@ export const usePresentationData = (
         const theme = fetchedTheme ?? responseTheme ?? DEFAULT_TEMPLATE_THEME;
         const themedData = {
           ...normalizedData,
+          persistedTheme: data.theme ?? null,
           ...(templateId && !normalizedData.template_id
             ? { template_id: templateId }
             : {}),
