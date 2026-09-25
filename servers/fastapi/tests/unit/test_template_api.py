@@ -2,11 +2,12 @@ import asyncio
 import base64
 import uuid
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException, Request
+from jsonschema import FormatChecker
 from pydantic import ValidationError
 
 from api.v1.ppt.endpoints.template import (
@@ -19,6 +20,7 @@ from api.v1.ppt.endpoints.template import (
     McpEncodedUpload,
     McpTemplateUploadRequest,
     PatchTemplateSlideLayoutRequest,
+    TemplateListItem,
     UpdateTemplateMetadataRequest,
     _create_template_sync,
     _run_create_template_task,
@@ -928,6 +930,53 @@ def test_list_templates_returns_paginated_summary():
         "templateV2Id=00000000-0000-0000-0000-000000000001"
     )
     assert response.items[0].is_default is False
+
+
+@pytest.mark.parametrize(
+    ("model", "fields"),
+    [
+        (AsyncTaskModel, {"type": "template.create", "status": "completed"}),
+        (TemplateListItem, {"id": "template-id", "name": "Template"}),
+    ],
+)
+@pytest.mark.parametrize(
+    ("timestamp", "expected"),
+    [
+        (
+            datetime(2026, 9, 25, 14, 2, 3, 123456),
+            "2026-09-25T14:02:03.123456+00:00",
+        ),
+        (
+            "2026-09-25T14:02:03.123456",
+            "2026-09-25T14:02:03.123456+00:00",
+        ),
+        (
+            datetime(
+                2026,
+                9,
+                25,
+                14,
+                2,
+                3,
+                123456,
+                tzinfo=timezone(timedelta(hours=5, minutes=30)),
+            ),
+            "2026-09-25T14:02:03.123456+05:30",
+        ),
+    ],
+)
+def test_task_and_template_timestamps_serialize_with_timezone(
+    model, fields, timestamp, expected
+):
+    item = model(created_at=timestamp, updated_at=timestamp, **fields)
+
+    payload = item.model_dump(mode="json")
+
+    for field in ("created_at", "updated_at"):
+        value = payload[field]
+        assert value == expected
+        FormatChecker().check(value, "date-time")
+        assert datetime.fromisoformat(value).utcoffset() is not None
 
 
 def test_list_templates_uses_configured_public_url_for_mcp(monkeypatch):
