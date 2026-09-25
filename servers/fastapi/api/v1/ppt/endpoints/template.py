@@ -9,7 +9,7 @@ import uuid
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import partial
 from typing import Annotated, Any, Optional
 from urllib.parse import unquote, urlencode, urlparse
@@ -34,6 +34,7 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationError,
+    field_serializer,
     model_validator,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -366,6 +367,14 @@ class TemplateListItem(BaseModel):
     is_default: bool = False
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("created_at", "updated_at", when_used="json")
+    def serialize_timestamps(self, value: datetime | str) -> str:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value)
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.isoformat()
 
 
 class TemplateListResponse(BaseModel):
