@@ -889,7 +889,7 @@ class ImageGenerationService:
             model=model,
             prompt=prompt,
             n=1,
-            size="1024x1024",
+            size=os.getenv("OPENAI_COMPAT_IMAGE_SIZE") or "1024x1024",
         )
 
         item = response.data[0]
