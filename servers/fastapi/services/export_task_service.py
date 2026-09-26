@@ -29,6 +29,7 @@ LOGGER = logging.getLogger(__name__)
 
 EXPORT_DIRECTORY_MODE = 0o755
 EXPORT_FILE_MODE = 0o644
+JSON_PREVIEW_CONCURRENCY = 4
 
 
 def _localize_json_image_assets(
@@ -593,32 +594,19 @@ class ExportTaskService:
                 detail="JSON-to-images dimensions must be positive",
             )
 
-        task_payload: dict[str, Any] = {
-            "type": "json-to-images",
-            "jsons": [_localize_json_image_assets(slide) for slide in data],
-            "width": width,
-            "height": height,
-        }
-        if fonts:
-            task_payload["fonts"] = dict(fonts)
+        semaphore = asyncio.Semaphore(JSON_PREVIEW_CONCURRENCY)
 
-        response_data = await self._run_task(
-            task_payload,
-            "JSON-to-images export task did not produce response files",
-        )
-        raw_paths = response_data.get("file_paths")
-        if not isinstance(raw_paths, list) or len(raw_paths) != len(data):
-            raise HTTPException(
-                status_code=500,
-                detail="JSON-to-images export task produced invalid output",
-            )
+        async def render_one(slide: dict[str, Any]) -> str:
+            async with semaphore:
+                result = await self.render_json_to_image(
+                    [_localize_json_image_assets(slide)],
+                    width,
+                    height,
+                    fonts=fonts,
+                )
+            return result.path
 
-        output_paths = [
-            self._resolve_output_path({"file_path": raw_path}) for raw_path in raw_paths
-        ]
-        for output_path in output_paths:
-            self._ensure_output_readable(output_path)
-
+        output_paths = await asyncio.gather(*(render_one(slide) for slide in data))
         return HtmlToImagesTaskResult(paths=output_paths)
 
     async def render_htmls_to_images(
