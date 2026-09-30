@@ -163,6 +163,14 @@ class PresentationPrepareResponse(BaseModel):
     presentation_id: uuid.UUID
 
 
+class UpdatePresentationRequest(BaseModel):
+    id: uuid.UUID
+    n_slides: Optional[int] = None
+    title: Optional[str] = None
+    theme: Optional[dict] = None
+    slides: Optional[List[SlideModel]] = None
+
+
 def _blank_presentation_slide_ui() -> dict[str, Any]:
     return copy.deepcopy(BLANK_PRESENTATION_SLIDE_UI)
 
@@ -2469,37 +2477,37 @@ async def stream_presentation(
 
 @PRESENTATION_ROUTER.patch("/update", response_model=PresentationWithSlides)
 async def update_presentation(
-    id: Annotated[uuid.UUID, Body()],
-    n_slides: Annotated[Optional[int], Body()] = None,
-    title: Annotated[Optional[str], Body()] = None,
-    theme: Annotated[Optional[dict], Body()] = None,
-    slides: Annotated[Optional[List[SlideModel]], Body()] = None,
+    request: UpdatePresentationRequest,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
-    presentation = await sql_session.get(PresentationModel, id)
+    presentation = await sql_session.get(PresentationModel, request.id)
     if not presentation:
         raise HTTPException(status_code=404, detail="Presentation not found")
 
     presentation_update_dict = {}
-    if n_slides is not None:
-        if n_slides < 1:
+    if request.n_slides is not None:
+        if request.n_slides < 1:
             raise HTTPException(
                 status_code=400,
                 detail="Number of slides must be greater than 0",
             )
-        if n_slides > MAX_NUMBER_OF_SLIDES:
+        if request.n_slides > MAX_NUMBER_OF_SLIDES:
             raise HTTPException(
                 status_code=400,
                 detail=f"Number of slides cannot be greater than {MAX_NUMBER_OF_SLIDES}",
             )
-        presentation_update_dict["n_slides"] = n_slides
-    if title:
-        presentation_update_dict["title"] = title
-    if theme or theme is None:
-        presentation_update_dict["theme"] = theme
+        presentation_update_dict["n_slides"] = request.n_slides
+    if request.title:
+        presentation_update_dict["title"] = request.title
+    # Only touch the stored theme when the caller actually sent the key.
+    # Without model_fields_set, "omitted" and "explicit null" are
+    # indistinguishable and a title-only PATCH cleared the theme.
+    if "theme" in request.model_fields_set:
+        presentation_update_dict["theme"] = request.theme
 
     if presentation_update_dict:
         presentation.sqlmodel_update(presentation_update_dict)
+    slides = request.slides
     if slides:
         if len(slides) > MAX_NUMBER_OF_SLIDES:
             raise HTTPException(
