@@ -10,6 +10,7 @@ from jsonschema import Draft202012Validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from api.v1.auth.context import get_current_owner_id
 from constants.presentation import MAX_NUMBER_OF_SLIDES
 from models.image_prompt import ImagePrompt
 from models.presentation_outline_model import PresentationOutlineModel, SlideOutlineModel
@@ -99,6 +100,20 @@ DEFAULT_INSERT_BOXES = {
     },
 }
 THEMES_STORAGE_KEY = "presentation_custom_themes"
+
+
+def _themes_storage_key() -> str:
+    """Scope the stored custom themes to the active owner.
+
+    ``KeyValueSqlModel`` has no owner column, so the key carries the owner id.
+    The theme REST endpoints and the startup bootstrap migration use the same
+    ``presentation_custom_themes:<owner_id>`` format; without it chat read and
+    wrote the global key and shared themes across accounts.
+    """
+    owner_id = get_current_owner_id()
+    return f"{THEMES_STORAGE_KEY}:{owner_id}" if owner_id else THEMES_STORAGE_KEY
+
+
 CHAT_BUILTIN_THEMES: list[dict[str, Any]] = [
     {
         "id": "edge-yellow",
@@ -4527,7 +4542,9 @@ class PresentationChatMemoryLayer:
     async def _get_chat_available_themes(self) -> list[dict[str, Any]]:
         merged_themes: list[dict[str, Any]] = [copy.deepcopy(theme) for theme in CHAT_BUILTIN_THEMES]
         row = await self._sql_session.scalar(
-            select(KeyValueSqlModel).where(KeyValueSqlModel.key == THEMES_STORAGE_KEY)
+            select(KeyValueSqlModel).where(
+                KeyValueSqlModel.key == _themes_storage_key()
+            )
         )
         if not row or not isinstance(row.value, dict):
             return merged_themes
@@ -4559,7 +4576,9 @@ class PresentationChatMemoryLayer:
 
     async def _upsert_custom_theme_in_store(self, theme: dict[str, Any]) -> None:
         row = await self._sql_session.scalar(
-            select(KeyValueSqlModel).where(KeyValueSqlModel.key == THEMES_STORAGE_KEY)
+            select(KeyValueSqlModel).where(
+                KeyValueSqlModel.key == _themes_storage_key()
+            )
         )
         themes: list[dict[str, Any]] = []
         if row and isinstance(row.value, dict):
@@ -4583,7 +4602,11 @@ class PresentationChatMemoryLayer:
             row.value = {"themes": themes}
             self._sql_session.add(row)
             return
-        self._sql_session.add(KeyValueSqlModel(key=THEMES_STORAGE_KEY, value={"themes": themes}))
+        self._sql_session.add(
+            KeyValueSqlModel(
+                key=_themes_storage_key(), value={"themes": themes}
+            )
+        )
 
     @staticmethod
     def _resolve_base_theme_for_customization(
