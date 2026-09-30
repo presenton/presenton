@@ -12,6 +12,7 @@ export type BuiltinLayoutSlide = {
 };
 
 const DEFAULT_ICON_WEIGHT = "bold";
+const TEMPLATE_GROUP_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const ALLOWED_ICON_WEIGHTS = new Set([
   "bold",
   "duotone",
@@ -52,6 +53,12 @@ export async function buildBuiltinTemplateLayoutPayload(group: string): Promise<
   icon_weight: string;
   slides: BuiltinLayoutSlide[];
 } | null> {
+  // `group` becomes a path segment below, so reject separators, `.`, `..`
+  // and anything else that could escape the templates directory.
+  if (!TEMPLATE_GROUP_PATTERN.test(group)) {
+    return null;
+  }
+
   const dir = path.join(
     process.cwd(),
     "app",
