@@ -42,6 +42,17 @@ interface VersionResponse {
 }
 
 /**
+ * Version values come from a remote JSON file and are rendered inside the app.
+ * Keep them to the characters a real version string can contain so the value
+ * cannot break out of the banner markup/script that embeds it.
+ */
+const SAFE_VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$/;
+
+function isSafeVersionString(value: unknown): value is string {
+  return typeof value === "string" && SAFE_VERSION_PATTERN.test(value);
+}
+
+/**
  * Simple semver comparison that strips pre-release labels for numeric comparison.
  * Returns true if `remote` is strictly newer than `current`.
  */
@@ -195,8 +206,14 @@ function injectUpdateBanner(
     return;
   }
 
-  const hasMessage = Boolean(message && message.trim());
-  const safeMessage = hasMessage ? escapeHtml(message!.trim()) : "";
+  if (!isSafeVersionString(latest)) {
+    log("Ignoring unexpected version string for update banner");
+    return;
+  }
+
+  const trimmedMessage = typeof message === "string" ? message.trim() : "";
+  const hasMessage = trimmedMessage.length > 0;
+  const safeMessage = hasMessage ? escapeHtml(trimmedMessage) : "";
   const safeMessageJson = JSON.stringify(safeMessage);
   const viewDetailsBtnHtml = hasMessage
     ? '<button id="__presenton_view_details_btn__" style="color:#64748b;background:none;border:none;cursor:pointer;font-size:12px;padding:4px 8px;text-decoration:underline;text-underline-offset:2px;">View details</button>'
@@ -299,6 +316,10 @@ async function checkForUpdatesWithRetry(win: BrowserWindow): Promise<void> {
     }
 
     if (data) {
+      if (!isSafeVersionString(data.version)) {
+        log("Ignoring update response with an unexpected version value");
+        return;
+      }
       const newer = isNewerVersion(CURRENT_VERSION, data.version);
       log(`Remote ${data.version} vs current ${CURRENT_VERSION} -> newer? ${newer}`);
       if (newer) {
