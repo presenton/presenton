@@ -110,6 +110,56 @@ class TestImageGenerationOpenAICompatible:
                         assert os.path.exists(image_path)
                         assert image_path.startswith(mock_images_directory)
 
+    @pytest.mark.parametrize(
+        "configured_size, expected_size",
+        [
+            (None, "1024x1024"),
+            ("", "1024x1024"),
+            ("2048x2048", "2048x2048"),
+            ("1536x1024", "1536x1024"),
+        ],
+    )
+    @pytest.mark.anyio
+    async def test_generate_image_openai_compatible_size(
+        self, mock_images_directory, monkeypatch, configured_size, expected_size
+    ):
+        """OPENAI_COMPAT_IMAGE_SIZE must reach the provider; unset/empty keeps the default."""
+        service = ImageGenerationService(mock_images_directory)
+
+        if configured_size is None:
+            monkeypatch.delenv("OPENAI_COMPAT_IMAGE_SIZE", raising=False)
+        else:
+            monkeypatch.setenv("OPENAI_COMPAT_IMAGE_SIZE", configured_size)
+
+        with patch(
+            "services.image_generation_service.get_openai_compat_image_base_url_env",
+            return_value="https://api.example.com/v1",
+        ), patch(
+            "services.image_generation_service.get_openai_compat_image_api_key_env",
+            return_value="sk-test-key",
+        ), patch(
+            "services.image_generation_service.get_openai_compat_image_model_env",
+            return_value="custom-model",
+        ), patch(
+            "services.image_generation_service.AsyncOpenAI"
+        ) as MockClient:
+            mock_client_instance = MockClient.return_value
+            mock_response = Mock()
+            mock_data = Mock()
+            mock_data.b64_json = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            mock_data.url = None
+            mock_response.data = [mock_data]
+            mock_client_instance.images.generate = AsyncMock(return_value=mock_response)
+
+            await service.generate_image_openai_compatible(
+                "test prompt", mock_images_directory
+            )
+
+        assert (
+            mock_client_instance.images.generate.call_args.kwargs["size"]
+            == expected_size
+        )
+
     @pytest.mark.anyio
     async def test_generate_image_openai_compatible_missing_config(
         self, mock_images_directory

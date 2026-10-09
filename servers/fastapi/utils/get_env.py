@@ -490,3 +490,7 @@ def get_openai_compat_image_api_key_env():
 
 def get_openai_compat_image_model_env():
     return os.getenv("OPENAI_COMPAT_IMAGE_MODEL")
+
+
+def get_openai_compat_image_size_env():
+    return os.getenv("OPENAI_COMPAT_IMAGE_SIZE")
