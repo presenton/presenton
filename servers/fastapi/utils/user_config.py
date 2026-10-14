@@ -44,6 +44,9 @@ from utils.get_env import (
     get_cerebras_api_key_env,
     get_cerebras_base_url_env,
     get_cerebras_model_env,
+    get_cheaperinference_api_key_env,
+    get_cheaperinference_base_url_env,
+    get_cheaperinference_model_env,
     get_litellm_base_url_env,
     get_litellm_api_key_env,
     get_litellm_model_env,
@@ -147,6 +150,9 @@ from utils.set_env import (
     set_cerebras_api_key_env,
     set_cerebras_base_url_env,
     set_cerebras_model_env,
+    set_cheaperinference_api_key_env,
+    set_cheaperinference_base_url_env,
+    set_cheaperinference_model_env,
     set_litellm_base_url_env,
     set_litellm_api_key_env,
     set_litellm_model_env,
@@ -279,6 +285,12 @@ def get_user_config():
         CEREBRAS_API_KEY=existing_config.CEREBRAS_API_KEY or get_cerebras_api_key_env(),
         CEREBRAS_MODEL=existing_config.CEREBRAS_MODEL or get_cerebras_model_env(),
         CEREBRAS_BASE_URL=existing_config.CEREBRAS_BASE_URL or get_cerebras_base_url_env(),
+        CHEAPERINFERENCE_API_KEY=existing_config.CHEAPERINFERENCE_API_KEY
+        or get_cheaperinference_api_key_env(),
+        CHEAPERINFERENCE_MODEL=existing_config.CHEAPERINFERENCE_MODEL
+        or get_cheaperinference_model_env(),
+        CHEAPERINFERENCE_BASE_URL=existing_config.CHEAPERINFERENCE_BASE_URL
+        or get_cheaperinference_base_url_env(),
         LITELLM_BASE_URL=existing_config.LITELLM_BASE_URL or get_litellm_base_url_env(),
         LITELLM_API_KEY=existing_config.LITELLM_API_KEY or get_litellm_api_key_env(),
         LITELLM_MODEL=existing_config.LITELLM_MODEL or get_litellm_model_env(),
@@ -478,6 +490,12 @@ def update_env_with_user_config():
         set_cerebras_model_env(user_config.CEREBRAS_MODEL)
     if user_config.CEREBRAS_BASE_URL:
         set_cerebras_base_url_env(user_config.CEREBRAS_BASE_URL)
+    if user_config.CHEAPERINFERENCE_API_KEY:
+        set_cheaperinference_api_key_env(user_config.CHEAPERINFERENCE_API_KEY)
+    if user_config.CHEAPERINFERENCE_MODEL:
+        set_cheaperinference_model_env(user_config.CHEAPERINFERENCE_MODEL)
+    if user_config.CHEAPERINFERENCE_BASE_URL:
+        set_cheaperinference_base_url_env(user_config.CHEAPERINFERENCE_BASE_URL)
     if user_config.LITELLM_BASE_URL:
         set_litellm_base_url_env(user_config.LITELLM_BASE_URL)
     if user_config.LITELLM_API_KEY:

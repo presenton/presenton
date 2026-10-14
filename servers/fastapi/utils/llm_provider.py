@@ -7,6 +7,7 @@ from constants.llm import (
     DEFAULT_AZURE_MODEL,
     DEFAULT_BEDROCK_MODEL,
     DEFAULT_CEREBRAS_MODEL,
+    DEFAULT_CHEAPERINFERENCE_MODEL,
     DEFAULT_CODEX_MODEL,
     DEFAULT_DEEPSEEK_MODEL,
     DEFAULT_FIREWORKS_MODEL,
@@ -38,6 +39,7 @@ from utils.get_env import (
     get_openai_api_key_env,
     get_openai_model_env,
     get_cerebras_model_env,
+    get_cheaperinference_model_env,
     get_openrouter_model_env,
     get_together_model_env,
     get_vertex_model_env,
@@ -53,7 +55,7 @@ def get_llm_provider():
             detail=(
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
-                "fireworks, together, cerebras, anthropic, litellm, "
+                "fireworks, together, cerebras, cheaperinference, anthropic, litellm, "
                 "lmstudio, ollama, custom, codex"
             ),
         )
@@ -97,6 +99,10 @@ def is_custom_llm_selected():
 
 def is_cerebras_selected():
     return get_llm_provider() == LLMProvider.CEREBRAS
+
+
+def is_cheaperinference_selected():
+    return get_llm_provider() == LLMProvider.CHEAPERINFERENCE
 
 
 def is_openrouter_selected():
@@ -149,6 +155,8 @@ def get_model():
         return get_together_model_env() or DEFAULT_TOGETHER_MODEL
     elif selected_llm == LLMProvider.CEREBRAS:
         return get_cerebras_model_env() or DEFAULT_CEREBRAS_MODEL
+    elif selected_llm == LLMProvider.CHEAPERINFERENCE:
+        return get_cheaperinference_model_env() or DEFAULT_CHEAPERINFERENCE_MODEL
     elif selected_llm == LLMProvider.ANTHROPIC:
         return get_anthropic_model_env() or DEFAULT_ANTHROPIC_MODEL
     elif selected_llm == LLMProvider.OLLAMA:
@@ -168,7 +176,7 @@ def get_model():
             detail=(
                 "Invalid LLM provider. Please select one of: "
                 "openai, deepseek, google, vertex, azure, bedrock, openrouter, "
-                "fireworks, together, cerebras, anthropic, litellm, "
+                "fireworks, together, cerebras, cheaperinference, anthropic, litellm, "
                 "lmstudio, ollama, custom, codex"
             ),
         )

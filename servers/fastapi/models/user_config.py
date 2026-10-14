@@ -73,6 +73,11 @@ class UserConfig(BaseModel):
     CEREBRAS_MODEL: Optional[str] = None
     CEREBRAS_BASE_URL: Optional[str] = None
 
+    # Cheaper Inference
+    CHEAPERINFERENCE_API_KEY: Optional[str] = None
+    CHEAPERINFERENCE_MODEL: Optional[str] = None
+    CHEAPERINFERENCE_BASE_URL: Optional[str] = None
+
     # LiteLLM (OpenAI-compatible gateway / proxy)
     LITELLM_BASE_URL: Optional[str] = None
     LITELLM_API_KEY: Optional[str] = None

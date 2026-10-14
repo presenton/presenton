@@ -371,7 +371,7 @@ requests.
 | **PRESENTON_PUBLIC_URL** | Optional URL | Browser-reachable Presenton origin, such as `http://localhost:5001` or `https://slides.example.com`. Generated download, edit, and preview links use this origin. |
 | **PRESENTATION_GENERATION_MODE** | `both` (default), `standard`, `smart` | Controls the modes available in the UI and MCP server. A single-mode value hides the selector; `smart` also hides template features. See the **[presentation generation modes guide](docs/presentation-generation-modes.md)**. |
 | **PRESENTON_COMMUNITY_ENABLED** | `true` (default), `false` | Controls the cloud-backed Community gallery and design references. Set to `false` for air-gapped deployments to hide the feature and prevent community API requests. |
-| **LLM** | `openai`, `deepseek`, `google`, `vertex`, `azure`, `bedrock`, `openrouter`, `fireworks`, `together`, `cerebras`, `anthropic`, `litellm`, `lmstudio`, `ollama`, `custom`, `codex` | Selects the text LLM provider. |
+| **LLM** | `openai`, `deepseek`, `google`, `vertex`, `azure`, `bedrock`, `openrouter`, `fireworks`, `together`, `cerebras`, `cheaperinference`, `anthropic`, `litellm`, `lmstudio`, `ollama`, `custom`, `codex` | Selects the text LLM provider. |
 | **OPENAI_API_KEY** | Required for `LLM=openai` | OpenAI API key. |
 | **OPENAI_MODEL** | `gpt-4.1` (default) | OpenAI model. |
 | **DEEPSEEK_API_KEY** | Required for `LLM=deepseek` | DeepSeek API key. |
@@ -411,6 +411,9 @@ requests.
 | **CEREBRAS_API_KEY** | Required for `LLM=cerebras` | Cerebras API key. |
 | **CEREBRAS_MODEL** | `llama-3.3-70b` (default) | Cerebras model. |
 | **CEREBRAS_BASE_URL** | `https://api.cerebras.ai/v1` (default) | Cerebras base URL. |
+| **CHEAPERINFERENCE_API_KEY** | Required for `LLM=cheaperinference` | Cheaper Inference API key. |
+| **CHEAPERINFERENCE_MODEL** | `gpt-5.4-mini` (default) | Cheaper Inference model. |
+| **CHEAPERINFERENCE_BASE_URL** | `https://api.cheaperinference.com/v1` (default) | Cheaper Inference base URL. |
 | **ANTHROPIC_API_KEY** | Required for `LLM=anthropic` | Anthropic API key. |
 | **ANTHROPIC_MODEL** | `claude-3-5-sonnet-20241022` (default) | Anthropic model. |
 | **CODEX_MODEL** | Required for `LLM=codex` | Codex model. The OAuth flow maps host port `1455` for its callback. |

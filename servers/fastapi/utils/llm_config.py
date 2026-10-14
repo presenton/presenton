@@ -27,6 +27,7 @@ from llmai.shared import (
     VertexAIClientConfig,
 )
 
+from constants.llm import CHEAPERINFERENCE_URL
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
     get_azure_openai_api_key_env,
@@ -43,6 +44,8 @@ from utils.get_env import (
     get_bedrock_region_env,
     get_cerebras_api_key_env,
     get_cerebras_base_url_env,
+    get_cheaperinference_api_key_env,
+    get_cheaperinference_base_url_env,
     get_codex_access_token_env,
     get_codex_account_id_env,
     get_codex_refresh_token_env,
@@ -427,6 +430,18 @@ def _get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 api_key=api_key,
                 base_url=base_url or None,
             )
+        case LLMProvider.CHEAPERINFERENCE:
+            api_key = (get_cheaperinference_api_key_env() or "").strip()
+            if not api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cheaper Inference API Key is not set",
+                )
+            base_url = (get_cheaperinference_base_url_env() or "").strip()
+            return OpenAIClientConfig(
+                api_key=api_key,
+                base_url=base_url or CHEAPERINFERENCE_URL,
+            )
         case LLMProvider.LITELLM:
             base_url = normalize_openai_compatible_base_url(
                 get_litellm_base_url_env() or ""
@@ -474,7 +489,7 @@ def _get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
                 status_code=400,
                 detail=(
                     "LLM Provider must be either openai, deepseek, google, vertex, azure, "
-                    "bedrock, openrouter, fireworks, together, cerebras, "
+                    "bedrock, openrouter, fireworks, together, cerebras, cheaperinference, "
                     "anthropic, litellm, lmstudio, ollama, custom, or codex"
                 ),
             )

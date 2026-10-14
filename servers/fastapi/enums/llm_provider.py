@@ -13,6 +13,7 @@ class LLMProvider(Enum):
     FIREWORKS = "fireworks"
     TOGETHER = "together"
     CEREBRAS = "cerebras"
+    CHEAPERINFERENCE = "cheaperinference"
     ANTHROPIC = "anthropic"
     LITELLM = "litellm"
     LMSTUDIO = "lmstudio"

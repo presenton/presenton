@@ -63,6 +63,11 @@ export interface LLMConfig {
   CEREBRAS_MODEL?: string;
   CEREBRAS_BASE_URL?: string;
 
+  // Cheaper Inference
+  CHEAPERINFERENCE_API_KEY?: string;
+  CHEAPERINFERENCE_MODEL?: string;
+  CHEAPERINFERENCE_BASE_URL?: string;
+
   // LiteLLM
   LITELLM_BASE_URL?: string;
   LITELLM_API_KEY?: string;

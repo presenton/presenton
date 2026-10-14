@@ -136,6 +136,8 @@ const PresentonMode = ({
                 return 'TOGETHER_MODEL';
             case 'cerebras':
                 return 'CEREBRAS_MODEL';
+            case 'cheaperinference':
+                return 'CHEAPERINFERENCE_MODEL';
             case 'anthropic':
                 return 'ANTHROPIC_MODEL';
             case 'ollama':
@@ -172,6 +174,8 @@ const PresentonMode = ({
                 return 'TOGETHER_API_KEY';
             case 'cerebras':
                 return 'CEREBRAS_API_KEY';
+            case 'cheaperinference':
+                return 'CHEAPERINFERENCE_API_KEY';
             case 'anthropic':
                 return 'ANTHROPIC_API_KEY';
             case 'custom':
@@ -219,6 +223,8 @@ const PresentonMode = ({
                                 ? 'Together API Key'
                         : llmConfig.LLM === 'cerebras'
                             ? 'Cerebras API Key'
+                        : llmConfig.LLM === 'cheaperinference'
+                            ? 'Cheaper Inference API Key'
                             : llmConfig.LLM === 'litellm'
                                 ? 'LiteLLM API key (optional)'
                                 : llmConfig.LLM === 'lmstudio'
@@ -265,6 +271,8 @@ const PresentonMode = ({
                 return config.TOGETHER_MODEL || '';
             case 'cerebras':
                 return config.CEREBRAS_MODEL || '';
+            case 'cheaperinference':
+                return config.CHEAPERINFERENCE_MODEL || '';
             case 'anthropic':
                 return config.ANTHROPIC_MODEL || '';
             case 'ollama':
@@ -328,6 +336,7 @@ const PresentonMode = ({
         if (llmConfig.LLM === 'fireworks' && !currentApiKey) return;
         if (llmConfig.LLM === 'together' && !currentApiKey) return;
         if (llmConfig.LLM === 'cerebras' && !currentApiKey) return;
+        if (llmConfig.LLM === 'cheaperinference' && !currentApiKey) return;
         if (llmConfig.LLM === 'custom' && !llmConfig.CUSTOM_LLM_URL) return;
         if (llmConfig.LLM === 'litellm' && !currentLitellmUrl) return;
         setModelsLoading(true);
@@ -413,6 +422,8 @@ const PresentonMode = ({
                                                 ? 'openai/gpt-oss-20b'
                                         : llmConfig.LLM === 'cerebras'
                                             ? 'llama-3.3-70b'
+                                        : llmConfig.LLM === 'cheaperinference'
+                                            ? 'gpt-5.4-mini'
                                             : llmConfig.LLM === 'litellm'
                                                 ? 'gpt-4.1'
                                             : llmConfig.LLM === 'lmstudio'
@@ -1529,6 +1540,7 @@ const PresentonMode = ({
                                     (llmConfig.LLM === 'fireworks' && !currentApiKey) ||
                                     (llmConfig.LLM === 'together' && !currentApiKey) ||
                                     (llmConfig.LLM === 'cerebras' && !currentApiKey) ||
+                                    (llmConfig.LLM === 'cheaperinference' && !currentApiKey) ||
                                     (llmConfig.LLM === 'custom' && !llmConfig.CUSTOM_LLM_URL) ||
                                     (llmConfig.LLM === 'litellm' && !currentLitellmUrl)
                                 }

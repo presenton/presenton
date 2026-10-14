@@ -252,6 +252,14 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
     icon: "/providers/cerebras-color.svg",
     getApiKeyUrl: "https://inference-docs.cerebras.ai",
   },
+  cheaperinference: {
+    value: "cheaperinference",
+    label: "Cheaper Inference",
+    description: "Cheaper Inference via OpenAI-compatible API",
+    url: "https://api.cheaperinference.com/v1",
+    icon: "/providers/cheaperinference.svg",
+    getApiKeyUrl: "https://cheaperinference.com/signup",
+  },
   litellm: {
     value: "litellm",
     label: "LiteLLM",

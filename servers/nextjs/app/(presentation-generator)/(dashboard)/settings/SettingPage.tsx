@@ -289,6 +289,8 @@ const SettingsPage = () => {
                   ? llmConfig.TOGETHER_MODEL
               : textProviderKey === "cerebras"
                 ? llmConfig.CEREBRAS_MODEL
+              : textProviderKey === "cheaperinference"
+                ? llmConfig.CHEAPERINFERENCE_MODEL
                 : textProviderKey === "litellm"
                     ? llmConfig.LITELLM_MODEL
                     : textProviderKey === "lmstudio"
@@ -346,6 +348,8 @@ const SettingsPage = () => {
       (llmConfig.LLM === "fireworks" && !llmConfig.FIREWORKS_MODEL) ||
       (llmConfig.LLM === "together" && !llmConfig.TOGETHER_MODEL) ||
       (llmConfig.LLM === "cerebras" && !llmConfig.CEREBRAS_MODEL) ||
+      (llmConfig.LLM === "cheaperinference" &&
+        !llmConfig.CHEAPERINFERENCE_MODEL) ||
       (llmConfig.LLM === "litellm" && !llmConfig.LITELLM_MODEL) ||
       (llmConfig.LLM === "lmstudio" && !llmConfig.LMSTUDIO_MODEL) ||
       (llmConfig.LLM === "anthropic" && !llmConfig.ANTHROPIC_MODEL) ||

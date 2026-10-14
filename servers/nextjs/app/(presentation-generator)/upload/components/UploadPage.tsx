@@ -104,6 +104,8 @@ const getSelectedTextModel = (config?: LLMConfig): string => {
       return config.TOGETHER_MODEL || "";
     case "cerebras":
       return config.CEREBRAS_MODEL || "";
+    case "cheaperinference":
+      return config.CHEAPERINFERENCE_MODEL || "";
     case "litellm":
       return config.LITELLM_MODEL || "";
     case "lmstudio":

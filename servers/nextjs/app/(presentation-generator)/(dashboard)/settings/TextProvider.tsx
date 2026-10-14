@@ -94,6 +94,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "TOGETHER_MODEL";
       case "cerebras":
         return "CEREBRAS_MODEL";
+      case "cheaperinference":
+        return "CHEAPERINFERENCE_MODEL";
       case "litellm":
         return "LITELLM_MODEL";
       case "lmstudio":
@@ -133,6 +135,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         return "TOGETHER_API_KEY";
       case "cerebras":
         return "CEREBRAS_API_KEY";
+      case "cheaperinference":
+        return "CHEAPERINFERENCE_API_KEY";
       case "litellm":
         return "LITELLM_API_KEY";
       case "lmstudio":
@@ -192,6 +196,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       ? "Together API Key"
       : selectedProvider === "cerebras"
       ? "Cerebras API Key"
+      : selectedProvider === "cheaperinference"
+      ? "Cheaper Inference API Key"
       : selectedProvider === "litellm"
       ? "LiteLLM API key (optional)"
       : selectedProvider === "lmstudio"
@@ -249,6 +255,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
         ? "TOGETHER_API_KEY"
         : llm === "cerebras"
         ? "CEREBRAS_API_KEY"
+        : llm === "cheaperinference"
+        ? "CHEAPERINFERENCE_API_KEY"
         : llm === "litellm"
         ? "LITELLM_API_KEY"
         : llm === "lmstudio"
@@ -274,6 +282,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
     if (selectedProvider === "fireworks" && !currentApiKey) return;
     if (selectedProvider === "together" && !currentApiKey) return;
     if (selectedProvider === "cerebras" && !currentApiKey) return;
+    if (selectedProvider === "cheaperinference" && !currentApiKey) return;
     if (selectedProvider === "custom" && !currentCustomUrl) return;
     if (selectedProvider === "litellm" && !currentLitellmUrl) return;
 
@@ -374,6 +383,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
               ? "openai/gpt-oss-20b"
               : selectedProvider === "cerebras"
               ? "llama-3.3-70b"
+              : selectedProvider === "cheaperinference"
+              ? "gpt-5.4-mini"
               : selectedProvider === "litellm"
               ? "gpt-4.1"
               : selectedProvider === "lmstudio"
@@ -820,6 +831,8 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                       (selectedProvider === "fireworks" && !currentApiKey) ||
                       (selectedProvider === "together" && !currentApiKey) ||
                       (selectedProvider === "cerebras" && !currentApiKey) ||
+                      (selectedProvider === "cheaperinference" &&
+                        !currentApiKey) ||
                       (selectedProvider === "custom" && !currentCustomUrl) ||
                       (selectedProvider === "litellm" && !currentLitellmUrl)
                     }

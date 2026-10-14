@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 GENERATION_ROUTER = APIRouter(prefix="/generation", tags=["Generation"])
 
 PROVIDER_ALIASES = {
+    "cheaperinference": "openai",
     "codex": "chatgpt",
     "custom": "openai",
     "ollama": "openai",

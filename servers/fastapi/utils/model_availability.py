@@ -13,6 +13,7 @@ from utils.get_env import (
     get_bedrock_model_env,
     get_can_change_keys_env,
     get_cerebras_api_key_env,
+    get_cheaperinference_api_key_env,
     get_fireworks_api_key_env,
     get_fireworks_model_env,
     get_google_model_env,
@@ -185,6 +186,10 @@ async def check_llm_and_image_provider_api_or_model_availability():
         elif get_llm_provider() == LLMProvider.CEREBRAS:
             if not get_cerebras_api_key_env():
                 raise Exception("CEREBRAS_API_KEY must be provided")
+
+        elif get_llm_provider() == LLMProvider.CHEAPERINFERENCE:
+            if not get_cheaperinference_api_key_env():
+                raise Exception("CHEAPERINFERENCE_API_KEY must be provided")
 
         elif get_llm_provider() == LLMProvider.LITELLM:
             if not (get_litellm_base_url_env() or "").strip():

@@ -78,6 +78,7 @@ const MODEL_FIELDS: Partial<Record<string, keyof LLMConfig>> = {
   azure: "AZURE_OPENAI_MODEL",
   bedrock: "BEDROCK_MODEL",
   cerebras: "CEREBRAS_MODEL",
+  cheaperinference: "CHEAPERINFERENCE_MODEL",
   codex: "CODEX_MODEL",
   custom: "CUSTOM_MODEL",
   deepseek: "DEEPSEEK_MODEL",

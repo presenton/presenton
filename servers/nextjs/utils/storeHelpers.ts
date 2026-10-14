@@ -200,6 +200,13 @@ export const getLLMConfigValidationError = (
     if (!isProvided(llmConfig.CEREBRAS_MODEL)) {
       return "Select or enter a Cerebras model id.";
     }
+  } else if (llm === "cheaperinference") {
+    if (!isProvided(llmConfig.CHEAPERINFERENCE_API_KEY)) {
+      return "Cheaper Inference API key is required.";
+    }
+    if (!isProvided(llmConfig.CHEAPERINFERENCE_MODEL)) {
+      return "Select or enter a Cheaper Inference model id.";
+    }
   } else if (llm === "fireworks") {
     if (!isProvided(llmConfig.FIREWORKS_API_KEY)) {
       return "Fireworks API key is required.";

@@ -277,6 +277,18 @@ def get_cerebras_base_url_env():
     return os.getenv("CEREBRAS_BASE_URL")
 
 
+def get_cheaperinference_api_key_env():
+    return os.getenv("CHEAPERINFERENCE_API_KEY")
+
+
+def get_cheaperinference_model_env():
+    return os.getenv("CHEAPERINFERENCE_MODEL")
+
+
+def get_cheaperinference_base_url_env():
+    return os.getenv("CHEAPERINFERENCE_BASE_URL")
+
+
 def get_litellm_base_url_env():
     return os.getenv("LITELLM_BASE_URL")
 

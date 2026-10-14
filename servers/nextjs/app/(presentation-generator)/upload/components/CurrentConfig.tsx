@@ -30,6 +30,8 @@ const CurrentConfig = ({ webSearchEnabled }: { webSearchEnabled: boolean }) => {
                                     ? llmConfig.TOGETHER_MODEL
                             : textProviderKey === "cerebras"
                                 ? llmConfig.CEREBRAS_MODEL
+                            : textProviderKey === "cheaperinference"
+                                ? llmConfig.CHEAPERINFERENCE_MODEL
                                 : textProviderKey === "litellm"
                                     ? llmConfig.LITELLM_MODEL
                                 : textProviderKey === "lmstudio"

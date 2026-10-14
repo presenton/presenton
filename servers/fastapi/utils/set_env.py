@@ -189,6 +189,18 @@ def set_cerebras_base_url_env(value):
     os.environ["CEREBRAS_BASE_URL"] = value
 
 
+def set_cheaperinference_api_key_env(value):
+    os.environ["CHEAPERINFERENCE_API_KEY"] = value
+
+
+def set_cheaperinference_model_env(value):
+    os.environ["CHEAPERINFERENCE_MODEL"] = value
+
+
+def set_cheaperinference_base_url_env(value):
+    os.environ["CHEAPERINFERENCE_BASE_URL"] = value
+
+
 def set_litellm_base_url_env(value):
     os.environ["LITELLM_BASE_URL"] = value
 
