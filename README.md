@@ -1,4 +1,6 @@
 <p align="center">
+
+[![Deploy to Railyard](https://app.railyard.run/deploy/badge)](https://app.railyard.run/deploy?repo=https://github.com/presenton/presenton)
   <img src="./readme_assets/images/logo.png" alt="Presenton" />
 </p>
 
