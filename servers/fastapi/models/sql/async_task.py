@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import secrets
 from typing import Any, Optional
 
@@ -59,3 +59,11 @@ class AsyncTaskModel(SQLModel, table=True):
     def serialize_status(self, status: AsyncTaskStatus | str) -> str:
         """Serialize values hydrated from the database's string column."""
         return status.value if isinstance(status, AsyncTaskStatus) else status
+
+    @field_serializer("created_at", "updated_at", when_used="json")
+    def serialize_timestamps(self, value: datetime | str) -> str:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value)
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.isoformat()
