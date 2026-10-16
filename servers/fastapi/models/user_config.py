@@ -89,6 +89,7 @@ class UserConfig(BaseModel):
 
     # Ollama
     OLLAMA_URL: Optional[str] = None
+    OLLAMA_API_KEY: Optional[str] = None
     OLLAMA_MODEL: Optional[str] = None
 
     # Custom LLM

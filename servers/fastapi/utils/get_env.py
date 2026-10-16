@@ -105,6 +105,10 @@ def get_ollama_url_env():
     return os.getenv("OLLAMA_URL")
 
 
+def get_ollama_api_key_env():
+    return os.getenv("OLLAMA_API_KEY")
+
+
 def get_custom_llm_url_env():
     return os.getenv("CUSTOM_LLM_URL")
 

@@ -9,9 +9,15 @@ from fastapi import HTTPException
 
 from constants.supported_ollama_models import SUPPORTED_OLLAMA_MODELS
 from models.ollama_model_status import OllamaModelStatus
-from utils.get_env import get_ollama_url_env
+from utils.get_env import get_ollama_api_key_env, get_ollama_url_env
 
 LOGGER = logging.getLogger(__name__)
+
+def _get_ollama_auth_headers() -> dict:
+    ollama_api_key = (get_ollama_api_key_env() or "").strip()
+    if not ollama_api_key:
+        return {}
+    return {"Authorization": f"Bearer {ollama_api_key}"}
 
 def _extract_ollama_parameter_suffix(model_ref: str) -> str:
     suffix_match = re.search(
@@ -97,6 +103,7 @@ async def list_available_ollama_models(
         ) as session:
             async with session.get(
                 f"{base_url}/api/tags",
+                headers=_get_ollama_auth_headers(),
             ) as response:
                 if response.status == 200:
                     pulled_models = await response.json(content_type=None)
@@ -158,6 +165,7 @@ async def pull_ollama_model(
             async with session.post(
                 f"{base_url}/api/pull",
                 json={"name": model_name, "stream": True, "insecure": False},
+                headers=_get_ollama_auth_headers(),
             ) as response:
                 if response.status != 200:
                     body = await response.text()
