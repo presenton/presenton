@@ -213,6 +213,13 @@ Create AI-powered presentations using your own model provider (BYOK) or run ever
       style="height:36px;"
     />
   </a>
+  <a href="https://zop.dev/zopday/app/deploy?image=ghcr.io/presenton/presenton:latest&port=80">
+    <img
+      src="https://zop.dev/deploytozopday-inkhard.svg"
+      alt="Deploy to ZopDay"
+      style="height:38px;"
+    />
+  </a>
 </div>
 
 #
