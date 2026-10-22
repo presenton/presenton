@@ -17,6 +17,10 @@ def set_ollama_url_env(value):
     os.environ["OLLAMA_URL"] = value
 
 
+def set_ollama_api_key_env(value):
+    os.environ["OLLAMA_API_KEY"] = value
+
+
 def set_custom_llm_url_env(value):
     os.environ["CUSTOM_LLM_URL"] = value
 

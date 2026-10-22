@@ -60,6 +60,7 @@ from utils.get_env import (
     get_litellm_base_url_env,
     get_lmstudio_api_key_env,
     get_lmstudio_base_url_env,
+    get_ollama_api_key_env,
     get_ollama_url_env,
     get_openai_api_key_env,
     get_openrouter_api_key_env,
@@ -451,7 +452,7 @@ def _get_llm_config(*, use_openai_responses_api: bool = False) -> ClientConfig:
         case LLMProvider.OLLAMA:
             return OpenAIClientConfig(
                 base_url=(get_ollama_url_env() or "http://localhost:11434") + "/v1",
-                api_key="ollama",
+                api_key=(get_ollama_api_key_env() or "").strip() or "ollama",
             )
         case LLMProvider.CUSTOM:
             base_url = get_custom_llm_url_env()
