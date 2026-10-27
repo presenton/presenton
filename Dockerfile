@@ -59,6 +59,7 @@ COPY package.json /app/
 RUN mkdir -p /app/document-extraction-liteparse \
     && cd /app/document-extraction-liteparse \
     && npm init -y \
+    && npm pkg set overrides.sharp=0.35.5 \
     && npm install @llamaindex/liteparse@1.5.2 --omit=dev
 
 COPY electron/resources/document-extraction/liteparse_runner.mjs /app/document-extraction-liteparse/liteparse_runner.mjs
