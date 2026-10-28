@@ -213,6 +213,13 @@ Create AI-powered presentations using your own model provider (BYOK) or run ever
       style="height:36px;"
     />
   </a>
+  <a href="https://console.light-cloud.com/new?repo=https://github.com/presenton/presenton">
+    <img
+      src="https://light-cloud.com/button.svg"
+      alt="Deploy to Light Cloud"
+      style="height:36px;"
+    />
+  </a>
 </div>
 
 #
