@@ -23,6 +23,7 @@ from utils.get_env import (
     get_openai_compat_image_base_url_env,
     get_openai_compat_image_api_key_env,
     get_openai_compat_image_model_env,
+    get_openai_compat_image_size_env,
     is_parallel_image_generation_enabled,
 )
 from utils.get_env import get_pixabay_api_key_env
@@ -1057,7 +1058,9 @@ class ImageGenerationService:
 
         client = AsyncOpenAI(base_url=base_url, api_key=api_key)
 
-        selected_size = _openai_image_size(model, target_size)
+        selected_size = get_openai_compat_image_size_env() or _openai_image_size(
+            model, target_size
+        )
         print(f"OpenAI-compatible image API size: {selected_size}", flush=True)
         try:
             response = await client.images.generate(
