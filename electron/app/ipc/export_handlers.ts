@@ -218,7 +218,8 @@ function getExportRuntimeCandidates(): RuntimeCandidate[] {
 function isRetryableRuntimeError(error: any): boolean {
   const code = String(error?.code || "");
   // Try another runtime when binary is missing or cannot be spawned.
-  return ["ENOENT", "EACCES", "EPERM", "EAGAIN"].includes(code);
+  // Windows rejects .cmd runtimes with EINVAL when spawning without a shell.
+  return ["ENOENT", "EACCES", "EPERM", "EAGAIN", "EINVAL"].includes(code);
 }
 
 async function runExportTaskWithRuntimeFallback(
