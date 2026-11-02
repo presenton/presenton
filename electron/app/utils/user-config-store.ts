@@ -65,7 +65,7 @@ function readJsonIfValid<T extends object>(filePath: string): T | undefined {
     );
     const trimmed = content.trim();
     if (!trimmed) {
-      return {} as T;
+      return undefined;
     }
     const parsed = JSON.parse(trimmed);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
