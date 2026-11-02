@@ -164,10 +164,12 @@ async def test_stock_image_search_keeps_original_query():
 @pytest.mark.parametrize(
     ("model", "target_size", "expected"),
     [
-        ("gpt-image-1.5", None, "1024x1024"),
-        ("gpt-image-1.5", (1200, 1100), "1024x1024"),
-        ("gpt-image-1.5", (1600, 900), "1536x1024"),
-        ("gpt-image-1.5", (900, 1600), "1024x1536"),
+        ("gpt-image-2.5-flare", None, "1024x1024"),
+        ("gpt-image-2.5-flare", (1200, 1100), "1024x1024"),
+        ("gpt-image-2.5-flare", (1600, 900), "1536x1024"),
+        ("gpt-image-2.5-flare", (900, 1600), "1024x1536"),
+        ("gpt-image-2.5-sunburst", (1600, 900), "1536x1024"),
+        ("gpt-image-2.5-sunburst", (900, 1600), "1024x1536"),
         ("gpt-image-2", (1600, 900), "1536x1024"),
         ("gpt-image-2", (900, 1600), "1024x1536"),
         ("custom-model", (1600, 900), "1024x1024"),
@@ -229,7 +231,7 @@ async def test_openai_provider_retries_square_if_supported_size_is_rejected(tmp_
 
     with patch("services.image_generation_service.AsyncOpenAI", return_value=client):
         await service.generate_image_openai(
-            "landscape", str(tmp_path), "gpt-image-1.5", "medium", (1600, 900)
+            "landscape", str(tmp_path), "gpt-image-2.5-flare", "medium", (1600, 900)
         )
 
     assert [call.kwargs["size"] for call in client.images.generate.await_args_list] == [
@@ -253,7 +255,7 @@ async def test_openai_compatible_known_model_sends_mapped_size(tmp_path):
         return_value="test-key",
     ), patch(
         "services.image_generation_service.get_openai_compat_image_model_env",
-        return_value="gpt-image-1.5",
+        return_value="gpt-image-2.5-flare",
     ), patch("services.image_generation_service.AsyncOpenAI", return_value=client):
         await service.generate_image_openai_compatible(
             "landscape", str(tmp_path), (1600, 900)

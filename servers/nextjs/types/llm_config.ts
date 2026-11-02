@@ -107,7 +107,9 @@ export interface LLMConfig {
 
   // GPT Image 2 Quality
   GPT_IMAGE_2_QUALITY?: string;
-  // GPT Image 1.5 Quality
+  // GPT Image 2.5 quality, shared by Flare and Sunburst
+  GPT_IMAGE_2_5_QUALITY?: string;
+  // Legacy configuration accepted during migration
   GPT_IMAGE_1_5_QUALITY?: string;
 
   // Other Configs

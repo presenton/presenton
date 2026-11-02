@@ -4,6 +4,7 @@ from utils.get_env import (
     get_image_provider_env,
 )
 from utils.parsers import parse_bool_or_none
+from utils.image_config import LEGACY_GPT_IMAGE_PROVIDERS
 
 
 def is_image_generation_disabled() -> bool:
@@ -34,8 +35,12 @@ def is_gpt_image_2_selected() -> bool:
     return ImageProvider.GPT_IMAGE_2 == get_selected_image_provider()
 
 
-def is_gpt_image_1_5_selected() -> bool:
-    return ImageProvider.GPT_IMAGE_1_5 == get_selected_image_provider()
+def is_gpt_image_2_5_flare_selected() -> bool:
+    return ImageProvider.GPT_IMAGE_2_5_FLARE == get_selected_image_provider()
+
+
+def is_gpt_image_2_5_sunburst_selected() -> bool:
+    return ImageProvider.GPT_IMAGE_2_5_SUNBURST == get_selected_image_provider()
 
 
 def is_comfyui_selected() -> bool:
@@ -56,6 +61,8 @@ def get_selected_image_provider() -> ImageProvider | None:
     # Existing deployments may still have the removed model in their environment.
     if image_provider_env == "dall-e-3":
         return ImageProvider.GPT_IMAGE_2
+    if image_provider_env in LEGACY_GPT_IMAGE_PROVIDERS:
+        return ImageProvider.GPT_IMAGE_2_5_FLARE
     if image_provider_env:
         return ImageProvider(image_provider_env)
     return None

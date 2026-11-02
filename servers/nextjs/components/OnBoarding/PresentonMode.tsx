@@ -4,7 +4,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/colla
 import { Button } from '../ui/button';
 import { ArrowUpRight, Blocks, Check, ChevronDown, ChevronLeft, ChevronUp, Eye, EyeOff, Info, Laptop, Loader2, Search } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
-import { GPT_IMAGE_2_QUALITY_OPTIONS, GPT_IMAGE_1_5_QUALITY_OPTIONS, IMAGE_PROVIDERS, LLM_PROVIDERS, WEB_SEARCH_PROVIDERS } from '@/utils/providerConstants';
+import { GPT_IMAGE_2_QUALITY_OPTIONS, GPT_IMAGE_2_5_QUALITY_OPTIONS, isGPTImage25Provider, IMAGE_PROVIDERS, LLM_PROVIDERS, WEB_SEARCH_PROVIDERS } from '@/utils/providerConstants';
 import { cn } from '@/lib/utils';
 import { LLMConfig } from '@/types/llm_config';
 import { RootState } from '@/store/store';
@@ -285,7 +285,7 @@ const PresentonMode = ({
 
     const getSelectedImageQuality = (config: LLMConfig): string => {
         if (config.IMAGE_PROVIDER === 'gpt-image-2') return config.GPT_IMAGE_2_QUALITY || '';
-        if (config.IMAGE_PROVIDER === 'gpt-image-1.5') return config.GPT_IMAGE_1_5_QUALITY || '';
+        if (isGPTImage25Provider(config.IMAGE_PROVIDER)) return config.GPT_IMAGE_2_5_QUALITY || 'medium';
         return '';
     };
 
@@ -492,23 +492,23 @@ const PresentonMode = ({
             );
         }
 
-        if (llmConfig.IMAGE_PROVIDER === "gpt-image-1.5") {
+        if (isGPTImage25Provider(llmConfig.IMAGE_PROVIDER)) {
             return (
                 <div className="w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        GPT Image 1.5 Quality
+                        GPT Image 2.5 Quality
                     </label>
                     <div className="">
                         <Select
-                            value={llmConfig.GPT_IMAGE_1_5_QUALITY || 'low'}
+                            value={llmConfig.GPT_IMAGE_2_5_QUALITY || 'medium'}
                             onValueChange={(value) => {
                                 trackEvent(MixpanelEvent.Onboarding_Image_Quality_Selected, {
-                                    image_provider: "gpt-image-1.5",
+                                    image_provider: llmConfig.IMAGE_PROVIDER,
                                     quality: value,
                                 });
                                 setLlmConfig((prev) => ({
                                     ...prev,
-                                    GPT_IMAGE_1_5_QUALITY: value
+                                    GPT_IMAGE_2_5_QUALITY: value
                                 }));
                             }}
                         >
@@ -518,7 +518,7 @@ const PresentonMode = ({
                                 <SelectValue placeholder="Select a quality" />
                             </SelectTrigger>
                             <SelectContent>
-                                {GPT_IMAGE_1_5_QUALITY_OPTIONS.map((option) => (
+                                {GPT_IMAGE_2_5_QUALITY_OPTIONS.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                                 ))}
                             </SelectContent>

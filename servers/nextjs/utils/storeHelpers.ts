@@ -1,3 +1,4 @@
+import { DEFAULT_OPENAI_IMAGE_PROVIDER } from "@/utils/providerConstants";
 import { setLLMConfig } from "@/store/slices/userConfig";
 import { store } from "@/store/store";
 import { LLMConfig } from "@/types/llm_config";
@@ -35,6 +36,11 @@ export const normalizeLLMConfig = (llmConfig: LLMConfig): LLMConfig => {
     );
   }
   delete (normalizedConfig as Record<string, unknown>).DALL_E_3_QUALITY;
+  if (["gpt-image-1.5", "gpt-image-1.5-2025-12-16"].includes(normalizedConfig.IMAGE_PROVIDER || "")) {
+    normalizedConfig.IMAGE_PROVIDER = DEFAULT_OPENAI_IMAGE_PROVIDER;
+    normalizedConfig.GPT_IMAGE_2_5_QUALITY ||= normalizedConfig.GPT_IMAGE_1_5_QUALITY || "medium";
+  }
+  delete normalizedConfig.GPT_IMAGE_1_5_QUALITY;
 
   const parsedDisableImageGeneration = parseOptionalBool(
     (normalizedConfig as Record<string, unknown>).DISABLE_IMAGE_GENERATION
@@ -274,9 +280,10 @@ export const getLLMConfigValidationError = (
           return "OpenAI API key is required for GPT Image 2.";
         }
         break;
-      case "gpt-image-1.5":
+      case "gpt-image-2.5-flare":
+      case "gpt-image-2.5-sunburst":
         if (!isProvided(llmConfig.OPENAI_API_KEY)) {
-          return "OpenAI API key is required for GPT Image 1.5.";
+          return "OpenAI API key is required for GPT Image 2.5.";
         }
         break;
       case "gemini_flash":
