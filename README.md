@@ -71,6 +71,11 @@ Create presentations from a prompt, an uploaded document, or your own PowerPoint
 
 Browse in-built AI presentation templates for pitch decks, business reports, executive updates, educational presentations, and more. Preview each editable slide layout, choose a design, and use Presenton to generate fully editable PowerPoint (`.pptx`) or PDF presentations from a prompt or document.
 
+To customize a built-in design, open its preview and select **Copy to custom**.
+The copy appears under **Custom** templates and uses the existing template editor.
+
+
+
 <table border="1" cellpadding="16" cellspacing="0" width="100%">
 <tr>
 <td align="center" width="33%">

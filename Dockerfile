@@ -39,6 +39,9 @@ WORKDIR /app/servers/nextjs
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Match the npm version that supports the frontend lockfile's range overrides.
+RUN npm install --global npm@11.16.0
+
 COPY servers/nextjs/package.json servers/nextjs/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
