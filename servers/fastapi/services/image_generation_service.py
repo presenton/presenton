@@ -16,7 +16,7 @@ from models.image_prompt import ImagePrompt
 from models.sql.image_asset import ImageAsset
 from utils.get_env import (
     get_gpt_image_2_quality_env,
-    get_gpt_image_1_5_quality_env,
+    get_gpt_image_2_5_quality_env,
     get_pexels_api_key_env,
     get_open_webui_image_url_env,
     get_open_webui_image_api_key_env,
@@ -29,7 +29,8 @@ from utils.get_env import get_pixabay_api_key_env
 from utils.get_env import get_comfyui_url_env
 from utils.get_env import get_comfyui_workflow_env
 from utils.image_provider import (
-    is_gpt_image_1_5_selected,
+    is_gpt_image_2_5_flare_selected,
+    is_gpt_image_2_5_sunburst_selected,
     is_image_generation_disabled,
     is_pixels_selected,
     is_pixabay_selected,
@@ -42,6 +43,7 @@ from utils.image_provider import (
 )
 from utils.asset_directory_utils import absolute_fastapi_asset_url
 from utils.image_generation_error import normalize_image_generation_error
+from utils.image_config import migrate_legacy_image_config
 import uuid
 
 
@@ -91,7 +93,7 @@ def _closest_ratio_option(
 
 
 def _openai_image_size(model: str, target_size: tuple[float, float] | None) -> str:
-    if model in ("gpt-image-2", "gpt-image-1.5"):
+    if model in ("gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"):
         sizes = GPT_IMAGE_SIZES
     else:
         return DEFAULT_IMAGE_SIZE
@@ -132,7 +134,7 @@ def _get_image_generation_lock() -> asyncio.Lock:
 class ImageGenerationService:
     def __init__(self, output_directory: str, config: dict[str, str] | None = None):
         self.output_directory = output_directory
-        self.config = config
+        self.config = migrate_legacy_image_config(config) if config is not None else None
         self.is_image_generation_disabled = (
             False if config is not None else is_image_generation_disabled()
         )
@@ -150,7 +152,8 @@ class ImageGenerationService:
                 "gemini_flash": self.generate_image_gemini_flash,
                 "nanobanana_pro": self.generate_image_nanobanana_pro,
                 "gpt-image-2": self.generate_image_openai_gpt_image_2,
-                "gpt-image-1.5": self.generate_image_openai_gpt_image_1_5,
+                "gpt-image-2.5-flare": self.generate_image_openai_gpt_image_2_5_flare,
+                "gpt-image-2.5-sunburst": self.generate_image_openai_gpt_image_2_5_sunburst,
                 "comfyui": self.generate_image_comfyui,
                 "open_webui": self.generate_image_open_webui,
                 "openai_compatible": self.generate_image_openai_compatible,
@@ -169,8 +172,10 @@ class ImageGenerationService:
             return self.generate_image_nanobanana_pro
         elif is_gpt_image_2_selected():
             return self.generate_image_openai_gpt_image_2
-        elif is_gpt_image_1_5_selected():
-            return self.generate_image_openai_gpt_image_1_5
+        elif is_gpt_image_2_5_flare_selected():
+            return self.generate_image_openai_gpt_image_2_5_flare
+        elif is_gpt_image_2_5_sunburst_selected():
+            return self.generate_image_openai_gpt_image_2_5_sunburst
         elif is_comfyui_selected():
             return self.generate_image_comfyui
         elif is_open_webui_selected():
@@ -308,7 +313,7 @@ class ImageGenerationService:
             target_size,
         )
 
-    async def generate_image_openai_gpt_image_1_5(
+    async def generate_image_openai_gpt_image_2_5_flare(
         self,
         prompt: str,
         output_directory: str,
@@ -317,8 +322,22 @@ class ImageGenerationService:
         return await self.generate_image_openai(
             prompt,
             output_directory,
-            "gpt-image-1.5",
-            self._setting("GPT_IMAGE_1_5_QUALITY", get_gpt_image_1_5_quality_env) or "medium",
+            "gpt-image-2.5-flare",
+            self._setting("GPT_IMAGE_2_5_QUALITY", get_gpt_image_2_5_quality_env) or "medium",
+            target_size,
+        )
+
+    async def generate_image_openai_gpt_image_2_5_sunburst(
+        self,
+        prompt: str,
+        output_directory: str,
+        target_size: tuple[float, float] | None = None,
+    ) -> str:
+        return await self.generate_image_openai(
+            prompt,
+            output_directory,
+            "gpt-image-2.5-sunburst",
+            self._setting("GPT_IMAGE_2_5_QUALITY", get_gpt_image_2_5_quality_env) or "medium",
             target_size,
         )
 

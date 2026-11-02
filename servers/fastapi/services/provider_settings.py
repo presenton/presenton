@@ -8,6 +8,7 @@ from models.sql.provider_settings import ProviderSettings
 from utils.datetime_utils import get_current_utc_datetime
 from utils.db_utils import get_database_url_and_connect_args, to_sync_sqlalchemy_url
 from utils.get_env import get_user_config_path_env
+from utils.image_config import migrate_legacy_image_config
 from utils.user_config_store import read_user_config_file, update_user_config_file
 
 
@@ -51,19 +52,27 @@ OPTIONAL_ADVANCED_FIELDS = {
 
 def sanitize_provider_settings(config: dict[str, Any]) -> dict[str, Any]:
     """Keep provider/runtime settings and exclude every legacy auth field."""
-    return {
-        key: value
-        for key, value in config.items()
-        if not key.upper().startswith("AUTH_")
-    }
+    return migrate_legacy_image_config(
+        {
+            key: value
+            for key, value in config.items()
+            if not key.upper().startswith("AUTH_")
+        },
+    )
 
 
 def merge_provider_settings(
     existing: dict[str, Any], incoming: dict[str, Any]
 ) -> dict[str, Any]:
     """Preserve the previous settings API's patch and managed-token behavior."""
-    sanitized = sanitize_provider_settings(incoming)
-    merged = {**sanitize_provider_settings(existing), **sanitized}
+    # Normalize after overlaying the raw patch so an existing explicit new-model
+    # quality takes precedence over legacy quality values and migration defaults.
+    sanitized = {
+        key: value
+        for key, value in incoming.items()
+        if not key.upper().startswith("AUTH_")
+    }
+    merged = sanitize_provider_settings({**existing, **sanitized})
 
     for key in OAUTH_MANAGED_FIELDS:
         if key in existing:

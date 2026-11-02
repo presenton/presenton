@@ -38,7 +38,10 @@ class TestImageGenerationOpenAICompatible:
             "services.image_generation_service.is_gpt_image_2_selected",
             return_value=False,
         ), patch(
-            "services.image_generation_service.is_gpt_image_1_5_selected",
+            "services.image_generation_service.is_gpt_image_2_5_flare_selected",
+            return_value=False,
+        ), patch(
+            "services.image_generation_service.is_gpt_image_2_5_sunburst_selected",
             return_value=False,
         ), patch(
             "services.image_generation_service.is_comfyui_selected",

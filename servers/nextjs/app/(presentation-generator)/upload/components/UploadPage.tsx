@@ -10,6 +10,7 @@
  */
 
 "use client";
+import { isGPTImage25Provider } from "@/utils/providerConstants";
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
@@ -124,7 +125,7 @@ const getSelectedTextModel = (config?: LLMConfig): string => {
 const getSelectedImageQuality = (config?: LLMConfig): string => {
   if (!config) return "";
   if (config.IMAGE_PROVIDER === "gpt-image-2") return config.GPT_IMAGE_2_QUALITY || "";
-  if (config.IMAGE_PROVIDER === "gpt-image-1.5") return config.GPT_IMAGE_1_5_QUALITY || "";
+  if (isGPTImage25Provider(config.IMAGE_PROVIDER)) return config.GPT_IMAGE_2_5_QUALITY || "medium";
   return "";
 };
 

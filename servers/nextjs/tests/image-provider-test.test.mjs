@@ -58,3 +58,16 @@ test("preserves request aborts so stale tests cannot update the form", async () 
   globalThis.fetch = async () => { throw new DOMException("Aborted", "AbortError"); };
   await assert.rejects(ImagesApi.testProvider({ IMAGE_PROVIDER: "gpt-image-2" }), { name: "AbortError" });
 });
+
+
+for (const model of ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"]) {
+  test(`forwards ${model} and its quality to the image test endpoint`, async () => {
+    const config = { IMAGE_PROVIDER: model, OPENAI_API_KEY: "draft-key", GPT_IMAGE_2_5_QUALITY: "max" };
+    globalThis.fetch = async (url, options) => {
+      assert.equal(url, "/api/v1/ppt/images/test");
+      assert.deepEqual(JSON.parse(options.body), config);
+      return Response.json({ image_url: "data:image/png;base64,c2FtcGxl" });
+    };
+    assert.equal((await ImagesApi.testProvider(config)).image_url, "data:image/png;base64,c2FtcGxl");
+  });
+}

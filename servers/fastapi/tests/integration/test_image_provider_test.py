@@ -22,7 +22,8 @@ def client():
 
 @pytest.mark.parametrize(("provider", "method", "fields"), [
     ("gpt-image-2", "generate_image_openai_gpt_image_2", {"OPENAI_API_KEY": "draft-key"}),
-    ("gpt-image-1.5", "generate_image_openai_gpt_image_1_5", {"OPENAI_API_KEY": "draft-key"}),
+    ("gpt-image-2.5-flare", "generate_image_openai_gpt_image_2_5_flare", {"OPENAI_API_KEY": "draft-key"}),
+    ("gpt-image-2.5-sunburst", "generate_image_openai_gpt_image_2_5_sunburst", {"OPENAI_API_KEY": "draft-key"}),
     ("gemini_flash", "generate_image_gemini_flash", {"GOOGLE_API_KEY": "draft-key"}),
     ("nanobanana_pro", "generate_image_nanobanana_pro", {"GOOGLE_API_KEY": "draft-key"}),
     ("pexels", "get_image_from_pexels", {"PEXELS_API_KEY": "draft-key"}),
@@ -68,6 +69,8 @@ def test_uses_unsaved_provider_without_changing_runtime_or_saving_assets(
 
 @pytest.mark.parametrize("config", [
     {}, {"IMAGE_PROVIDER": "unsupported"}, {"IMAGE_PROVIDER": "gpt-image-2"},
+    {"IMAGE_PROVIDER": "gpt-image-2.5-flare"},
+    {"IMAGE_PROVIDER": "gpt-image-2.5-sunburst"},
     {"IMAGE_PROVIDER": "open_webui", "OPEN_WEBUI_IMAGE_URL": " "},
     {"IMAGE_PROVIDER": "comfyui", "COMFYUI_URL": "http://localhost:8188", "COMFYUI_WORKFLOW": "[]"},
     {"IMAGE_PROVIDER": "comfyui", "COMFYUI_URL": "http://localhost:8188", "COMFYUI_WORKFLOW": "{"},
@@ -141,3 +144,44 @@ def test_redacted_key_uses_configured_secret(client, monkeypatch):
     assert response.status_code == 200
     assert observed[0].startswith("__presenton_auth_check_")
     assert len(observed) == 2
+
+
+@pytest.mark.parametrize("provider", ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"])
+@pytest.mark.parametrize("quality", ["low", "medium", "high", "xhigh", "max", "auto"])
+def test_gpt_image_2_5_draft_configuration_reaches_openai(client, monkeypatch, provider, quality):
+    monkeypatch.setenv("OPENAI_API_KEY", "saved-key")
+    monkeypatch.setenv("GPT_IMAGE_2_5_QUALITY", "high")
+
+    async def generate(**kwargs):
+        assert kwargs["model"] == provider
+        assert kwargs["quality"] == quality
+        from io import BytesIO
+        buffer = BytesIO()
+        Image.new("RGB", (1, 1)).save(buffer, format="PNG")
+        return SimpleNamespace(data=[SimpleNamespace(b64_json=base64.b64encode(buffer.getvalue()).decode())])
+
+    sdk = SimpleNamespace(images=SimpleNamespace(generate=generate))
+    with patch("services.image_generation_service.AsyncOpenAI", return_value=sdk) as constructor:
+        response = client.post("/images/test", json={
+            "IMAGE_PROVIDER": provider, "OPENAI_API_KEY": "draft-key",
+            "GPT_IMAGE_2_5_QUALITY": quality,
+        })
+    assert response.status_code == 200, response.text
+    constructor.assert_called_once_with(api_key="draft-key")
+
+
+@pytest.mark.parametrize("legacy_provider", ["gpt-image-1.5", "gpt-image-1.5-2025-12-16"])
+def test_image_provider_test_migrates_old_drafts(client, monkeypatch, legacy_provider):
+    async def generate(service, *_args, **_kwargs):
+        assert service.config["IMAGE_PROVIDER"] == "gpt-image-2.5-flare"
+        assert service.config["GPT_IMAGE_2_5_QUALITY"] == "high"
+        path = Path(service.output_directory) / "test.png"
+        Image.new("RGB", (1, 1)).save(path)
+        return str(path)
+
+    monkeypatch.setattr(ImageGenerationService, "generate_image_openai_gpt_image_2_5_flare", generate)
+    response = client.post("/images/test", json={
+        "IMAGE_PROVIDER": legacy_provider, "OPENAI_API_KEY": "draft-key",
+        "GPT_IMAGE_1_5_QUALITY": "high",
+    })
+    assert response.status_code == 200, response.text
