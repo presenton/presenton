@@ -135,7 +135,7 @@ export function setupExportHandlers() {
         PUPPETEER_CACHE_DIR: puppeteerCacheDir,
         PUPPETEER_TMP_DIR: puppeteerTempDir,
       };
-      const responsePath = exportTaskPath.replace(".json", ".response.json");
+      const responsePath = exportTaskPath.replace(/\.json$/i, ".response.json");
       const responseRaw = await runExportTaskAndReadResponse(
         exportScriptPath,
         exportTaskPath,
