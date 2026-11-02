@@ -185,6 +185,7 @@ const GroupLayoutPreview = ({
     });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCloning, setIsCloning] = useState(false);
   const [isReconstructing, setIsReconstructing] = useState(false);
   const [promptLayoutId, setPromptLayoutId] = useState<string | null>(null);
   const [isPromptGenerating, setIsPromptGenerating] = useState(false);
@@ -1121,6 +1122,23 @@ const GroupLayoutPreview = ({
     templateNameDraft,
   ]);
 
+  const copyToCustomTemplate = useCallback(async () => {
+    if (!templateId || !template?.is_default || isCloning) return;
+    setIsCloning(true);
+    try {
+      const copiedTemplateId = await TemplateService.cloneTemplate(templateId);
+      notify.success("Template copied", "You can now edit your custom template.");
+      router.push(`/template-preview?templateV2Id=${encodeURIComponent(copiedTemplateId)}`);
+    } catch (copyError) {
+      notify.error(
+        "Could not copy template",
+        copyError instanceof Error ? copyError.message : "Please try again.",
+      );
+    } finally {
+      setIsCloning(false);
+    }
+  }, [isCloning, router, template?.is_default, templateId]);
+
   const openDeleteTemplateDialog = useCallback(() => {
     if (!templateId || template?.is_default) return;
     setIsDeleteDialogOpen(true);
@@ -1211,10 +1229,12 @@ const GroupLayoutPreview = ({
         canUndo={historyAvailability.canUndo}
         canDelete={!template.is_default}
         hasUnsavedChanges={hasUnsavedChanges}
+        isCloning={isCloning}
         isSaving={isSaving}
         templateName={templateNameDraft}
         onBack={() => router.push("/templates")}
         onCopy={copyTemplateId}
+        onClone={copyToCustomTemplate}
         onDelete={openDeleteTemplateDialog}
         onTemplateNameCancel={cancelTemplateNameEdit}
         onTemplateNameChange={setTemplateNameDraft}

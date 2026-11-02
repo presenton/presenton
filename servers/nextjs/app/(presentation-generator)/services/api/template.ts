@@ -253,6 +253,15 @@ class TemplateService {
         }
     }
 
+    static async cloneTemplate(templateId: string): Promise<string> {
+        const apiTemplateId = this.normalizeTemplateId(templateId);
+        const response = await fetch(
+            getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(apiTemplateId)}/clone`),
+            { method: "POST", headers: getHeader() },
+        );
+        return ApiResponseHandler.handleResponse(response, "Failed to copy template");
+    }
+
     static async deleteTemplate(templateId: string) {
         try {
             const response = await fetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(templateId)}`), {
