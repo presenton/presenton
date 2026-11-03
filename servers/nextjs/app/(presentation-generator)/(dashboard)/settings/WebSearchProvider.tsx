@@ -22,6 +22,7 @@ const EXTERNAL_WEB_SEARCH_OPTIONS = [
   "exa",
   "tavily",
   "brave",
+  "keenable",
   // "serper",
   "searxng",
 ] as const;

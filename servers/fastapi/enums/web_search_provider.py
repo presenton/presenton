@@ -8,4 +8,5 @@ class WebSearchProvider(Enum):
     TAVILY = "tavily"
     EXA = "exa"
     BRAVE = "brave"
+    KEENABLE = "keenable"
     SERPER = "serper"

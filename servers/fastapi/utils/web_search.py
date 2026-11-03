@@ -14,6 +14,7 @@ from enums.web_search_provider import WebSearchProvider
 from utils.get_env import (
     get_brave_search_api_key_env,
     get_exa_api_key_env,
+    get_keenable_api_key_env,
     get_searxng_base_url_env,
     get_serper_api_key_env,
     get_tavily_api_key_env,
@@ -129,6 +130,8 @@ async def search_web(query: str, max_results: int | None = None) -> list[WebSear
                 results = await _search_exa(session, query, limit)
             elif provider == WebSearchProvider.BRAVE:
                 results = await _search_brave(session, query, limit)
+            elif provider == WebSearchProvider.KEENABLE:
+                results = await _search_keenable(session, query, limit)
             elif provider == WebSearchProvider.SERPER:
                 results = await _search_serper(session, query, limit)
             else:
@@ -311,6 +314,32 @@ async def _search_brave(session: aiohttp.ClientSession, query: str, limit: int) 
     return [
         WebSearchResult(_clean_text(item.get("title")), str(item.get("url") or ""), _clean_text(item.get("description")))
         for item in payload.get("web", {}).get("results", [])[:limit]
+        if item.get("title") and item.get("url")
+    ]
+
+
+async def _search_keenable(session: aiohttp.ClientSession, query: str, limit: int) -> list[WebSearchResult]:
+    # KEENABLE_API_KEY is optional: without it Keenable's rate-limited keyless endpoint is used.
+    api_key = (get_keenable_api_key_env() or "").strip()
+    if api_key:
+        url = "https://api.keenable.ai/v1/search"
+        headers = {"X-API-Key": api_key}
+    else:
+        url = "https://api.keenable.ai/v1/search/public"
+        headers = {"X-Keenable-Title": "Presenton"}
+    async with session.post(
+        url,
+        json={"query": query, "max_results": limit},
+        headers=headers,
+    ) as response:
+        payload = await _json_response(response)
+    return [
+        WebSearchResult(
+            _clean_text(item.get("title")),
+            str(item.get("url") or ""),
+            _clean_text(item.get("snippet") or item.get("description")),
+        )
+        for item in payload.get("results", [])[:limit]
         if item.get("title") and item.get("url")
     ]
 

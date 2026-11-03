@@ -436,10 +436,11 @@ account setup available so an admin can finish configuration in Settings.
 | **LMSTUDIO_MODEL** | For example `openai/gpt-oss-20b` | LM Studio model. |
 | **DISABLE_THINKING** | `true` / `false` | Disables thinking for providers that support it, including DeepSeek. |
 | **WEB_GROUNDING** | `true` / `false` | Enables web search by default. |
-| **WEB_SEARCH_PROVIDER** | `auto`, `native`, `searxng`, `tavily`, `exa` | Selects the search mode. `auto` uses native search for OpenAI, Google, and Anthropic and otherwise leaves search off unless an external provider is selected. |
+| **WEB_SEARCH_PROVIDER** | `auto`, `native`, `searxng`, `tavily`, `exa`, `keenable` | Selects the search mode. `auto` uses native search for OpenAI, Google, and Anthropic and otherwise leaves search off unless an external provider is selected. |
 | **WEB_SEARCH_MAX_RESULTS** | `5` (default), maximum `10` | Maximum external search results added to model context. |
 | **SEARXNG_BASE_URL** | Optional URL | Self-hosted SearXNG base URL. |
 | **TAVILY_API_KEY**, **EXA_API_KEY** | Optional | Credentials for hosted search providers. |
+| **KEENABLE_API_KEY** | Optional | Keenable works without a key on its keyless endpoint; a key raises rate limits. |
 | **EXTENDED_REASONING** | `true` / `false` | Enables extended reasoning where supported. |
 | **LLM_GENERATION_PROFILE** | `fast`, `balanced` (default), `deep`, `model_max` | Global generation profile. |
 | **LLM_MAX_OUTPUT_TOKENS** | Optional positive integer | Output-token override for every text provider. |
