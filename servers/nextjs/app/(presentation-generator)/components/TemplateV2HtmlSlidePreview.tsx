@@ -223,6 +223,7 @@ export function TemplateV2HtmlSlidePreview({
   fitBounds,
   fitPadding,
   fitMaxScale,
+  minCjkLineHeight,
   className = "",
   contentClassName = "",
 }: {
@@ -233,6 +234,7 @@ export function TemplateV2HtmlSlidePreview({
   fitBounds?: { left: number; top: number; right: number; bottom: number };
   fitPadding?: { x: number; y: number };
   fitMaxScale?: number;
+  minCjkLineHeight?: number;
   className?: string;
   contentClassName?: string;
 }) {
@@ -246,8 +248,9 @@ export function TemplateV2HtmlSlidePreview({
     if (!slide || typeof slide !== "object") return null;
     return templateV2UiToHtmlFragment((slide as Record<string, unknown>).ui, {
       fonts,
+      minCjkLineHeight,
     });
-  }, [fonts, slide]);
+  }, [fonts, minCjkLineHeight, slide]);
   const htmlMarkup = useMemo(
     () => ({ __html: html ?? "" }),
     [html]

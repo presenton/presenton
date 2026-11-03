@@ -23,6 +23,17 @@ import { normalizeBackendAssetUrls } from "@/utils/api";
 import { ensureTailwindBrowserScript } from "@/lib/tailwind-browser";
 import { useSmartChartInjection } from "@/app/(presentation-generator)/components/useSmartChartInjection";
 
+/**
+ * Bundled templates declare `line_height` below 1.0 for many text elements
+ * (`standard` goes down to 0.76, `general` to 0.8). The PPTX exporter writes
+ * that as fixed point spacing, so the line box ends up shorter than the font
+ * size. Latin glyphs only occupy x-height plus ascender/descender and survive
+ * it; CJK glyphs fill the whole em box and get their top and bottom strokes
+ * clipped. Export is the only surface that clips, so the floor lives here
+ * instead of in the shared preview renderer.
+ */
+const EXPORT_MIN_CJK_LINE_HEIGHT = 1.35;
+
 const PDF_PRINT_STYLE = `
   html,
   body {
@@ -294,6 +305,7 @@ const PresentationPage = ({ presentation_id, exportCookie }: PresentationPagePro
                           slide={slide}
                           fonts={presentationData?.fonts}
                           fixedSize
+                          minCjkLineHeight={EXPORT_MIN_CJK_LINE_HEIGHT}
                         />
                       ) : typeof slide?.html_content === "string" &&
                         slide.html_content.trim() ? (
