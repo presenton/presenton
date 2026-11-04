@@ -25,6 +25,14 @@ from utils.schema_utils import get_schema_validation_errors
 
 LOGGER = logging.getLogger(__name__)
 CLIENT_DISCONNECT_POLL_SECONDS = 0.1
+# Backoff (seconds) for transient provider overload errors raised before any
+# stream event arrives. ChatGPT/Codex returns these intermittently under load.
+TRANSIENT_RETRY_DELAYS = (3, 6, 12, 20, 30, 45)
+TRANSIENT_ERROR_MARKERS = (
+    "server_is_overloaded",
+    "servers are currently overloaded",
+    "an error occurred while processing your request",
+)
 DisconnectChecker = Callable[[], Awaitable[bool]]
 TextChunkCallback = Callable[[str], Awaitable[None]]
 
@@ -455,6 +463,11 @@ def message_content_to_text(content: Sequence[Any] | str | None) -> Optional[str
     return joined or None
 
 
+def is_transient_llm_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return any(marker in message for marker in TRANSIENT_ERROR_MARKERS)
+
+
 async def stream_generate_events(
     client: Any,
     *,
@@ -475,15 +488,37 @@ async def stream_generate_events(
     def worker():
         events = None
         try:
-            events = iter(client.generate(**kwargs))
-            while not stop_requested.is_set():
+            for attempt in range(len(TRANSIENT_RETRY_DELAYS) + 1):
+                received_event = False
                 try:
-                    event = next(events)
-                except StopIteration:
+                    events = iter(client.generate(**kwargs))
+                    while not stop_requested.is_set():
+                        try:
+                            event = next(events)
+                        except StopIteration:
+                            break
+                        if stop_requested.is_set():
+                            break
+                        received_event = True
+                        enqueue(event)
                     break
-                if stop_requested.is_set():
-                    break
-                enqueue(event)
+                except Exception as exc:
+                    if (
+                        received_event
+                        or stop_requested.is_set()
+                        or attempt == len(TRANSIENT_RETRY_DELAYS)
+                        or not is_transient_llm_error(exc)
+                    ):
+                        raise
+                    delay = TRANSIENT_RETRY_DELAYS[attempt]
+                    LOGGER.warning(
+                        "Transient LLM error (%s); retry %d in %ss",
+                        exc,
+                        attempt + 1,
+                        delay,
+                    )
+                    if stop_requested.wait(delay):
+                        break
         except Exception as exc:
             if not stop_requested.is_set():
                 enqueue(exc)

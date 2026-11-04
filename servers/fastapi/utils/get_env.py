@@ -457,6 +457,13 @@ def get_codex_model_env():
     return os.getenv("CODEX_MODEL")
 
 
+def get_slide_generation_batch_size() -> int:
+    try:
+        return max(1, int(os.getenv("SLIDE_GENERATION_BATCH_SIZE", "10")))
+    except ValueError:
+        return 10
+
+
 def get_migrate_database_on_startup_env():
     return os.getenv("MIGRATE_DATABASE_ON_STARTUP", "true")
 
