@@ -1,0 +1,30 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "templates": "Templates",
+    "community": "Community",
+    "settings": "Settings",
+    "help": "Help",
+    "newPresentation": "New presentation",
+    "new": "New"
+  },
+  "sidebar": {
+    "ariaLabel": "Dashboard sidebar",
+    "navLabel": "Dashboard sections"
+  },
+  "settings": {
+    "locale": {
+      "label": "Language",
+      "description": "Interface language. Presentation content keeps its own language setting."
+    },
+    "filterBy": "FILTER BY:",
+    "selectProvider": "Select Provider",
+    "textProvider": "Text Provider",
+    "imageProvider": "Image Provider",
+    "webSearchProvider": "Web Search Provider",
+    "other": "Other",
+    "usageAnalytics": "Usage Analytics",
+    "admin": "Admin",
+    "signOut": "Sign out"
+  }
+}

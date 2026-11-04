@@ -54,6 +54,7 @@
     "marked": "^15.0.11",
     "mixpanel-browser": "^2.67.0",
     "next": "16.4.1",
+    "next-intl": "^4.14.9",
     "next-themes": "^0.4.6",
     "prismjs": "^1.30.0",
     "react": "19.2.6",

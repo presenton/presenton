@@ -1,0 +1,30 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "templates": "القوالب",
+    "community": "المجتمع",
+    "settings": "الإعدادات",
+    "help": "المساعدة",
+    "newPresentation": "عرض تقديمي جديد",
+    "new": "جديد"
+  },
+  "sidebar": {
+    "ariaLabel": "الشريط الجانبي للوحة التحكم",
+    "navLabel": "أقسام لوحة التحكم"
+  },
+  "settings": {
+    "locale": {
+      "label": "اللغة",
+      "description": "لغة واجهة التطبيق. يحتفظ محتوى العرض التقديمي بإعداد اللغة الخاص به."
+    },
+    "filterBy": "تصفية حسب:",
+    "selectProvider": "اختر المزوّد",
+    "textProvider": "مزوّد النصوص",
+    "imageProvider": "مزوّد الصور",
+    "webSearchProvider": "مزوّد البحث",
+    "other": "أخرى",
+    "usageAnalytics": "تحليلات الاستخدام",
+    "admin": "المشرف",
+    "signOut": "تسجيل الخروج"
+  }
+}

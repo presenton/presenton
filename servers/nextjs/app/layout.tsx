@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./motion.css";
 import "katex/dist/katex.min.css";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+import { getLocaleDir } from "@/i18n/config";
 import { Providers } from "./providers";
 import MixpanelInitializer from "./MixpanelInitializer";
 import { Toaster } from "@/components/ui/sonner";
@@ -50,22 +53,26 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
+  const dir = getLocaleDir(locale);
 
   return (
-    <html lang="en">
+    <html lang={locale} dir={dir}>
       <body className="antialiased">
-        <Providers>
-          <MixpanelInitializer>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <Providers>
+            <MixpanelInitializer>
 
-            {children}
+              {children}
 
-          </MixpanelInitializer>
-        </Providers>
+            </MixpanelInitializer>
+          </Providers>
+        </NextIntlClientProvider>
         <TailwindBrowserRuntime />
         <Toaster position="top-center" />
       </body>

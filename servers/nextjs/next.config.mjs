@@ -1,7 +1,9 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const nextjsRoot = path.dirname(fileURLToPath(import.meta.url));
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 const isElectronBuild = process.env.PRESENTON_ELECTRON_BUILD === "true";
 const isElectronRuntime = process.env.PRESENTON_ELECTRON === "true";
 
@@ -77,4 +79,4 @@ const nextConfig = {
   
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);
