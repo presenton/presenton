@@ -419,12 +419,13 @@ const SettingsPage = () => {
     <div className="relative flex h-screen flex-col overflow-hidden font-syne">
       <main className="mx-auto flex min-h-0 w-full flex-1 gap-6 overflow-hidden">
         <SettingSideBar
+          className={selectedProvider === "admin" ? "max-md:hidden" : ""}
           selectedProvider={selectedProvider}
           setSelectedProvider={selectSettingsSection}
           presentonSelected={llmConfig.LLM === "presenton"}
         />
-        <div className="custom_scrollbar min-h-0 w-full flex-1 overflow-y-auto pb-36 pr-5">
-          <div className="sticky right-0 top-0 z-40 mb-4 bg-white/90 py-[28px] backdrop-blur">
+        <div className={`custom_scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto pb-36 pr-5 ${selectedProvider === "admin" ? "max-md:pl-4 max-md:pr-4" : ""}`}>
+          {selectedProvider !== "admin" && <div className="sticky right-0 top-0 z-40 mb-4 bg-white/90 py-[28px] backdrop-blur">
             <div className="flex  gap-3 items-center ">
               <h3 className=" text-[28px] tracking-[-0.84px] font-syne font-normal text-black flex items-center gap-2">
                 Settings
@@ -433,7 +434,7 @@ const SettingsPage = () => {
                 {textSummary} · {imageSummary} · {webSearchSummary}
               </p>
             </div>
-          </div>
+          </div>}
 
           {!llmConfig.LLM && selectedProvider === "text-provider" && (
             <div
@@ -466,7 +467,7 @@ const SettingsPage = () => {
             </div>
           )}
           {selectedProvider === 'privacy' && <div className="motion-fade"><PrivacySettings /></div>}
-          {selectedProvider === "admin" && <div className="motion-fade"><AdminPanel embedded /></div>}
+          {selectedProvider === "admin" && <div className="pt-7"><AdminPanel embedded onBackToSettings={() => selectSettingsSection("text-provider")} /></div>}
           {selectedProvider === "session" && (
             <div className="motion-fade w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
               <div>

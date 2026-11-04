@@ -35,7 +35,7 @@ const DashboardSidebar = ({
 
     return (
         <aside
-            className="sticky top-0 flex h-screen w-[114px] shrink-0 flex-col justify-between border-r border-[#E1E1E5] bg-[#F6F6F9] px-4 py-8 backdrop-blur"
+            className={`sticky top-0 flex h-screen w-[114px] shrink-0 flex-col justify-between border-r border-[#E1E1E5] bg-[#F6F6F9] px-4 py-8 backdrop-blur ${pathname === "/admin" ? "max-sm:w-[64px] max-sm:px-2 max-sm:[&_span]:hidden" : ""}`}
             aria-label="Dashboard sidebar"
         >
             <div>
@@ -107,6 +107,7 @@ const DashboardSidebar = ({
             <div className="border-t border-[#E1E1E5] pt-5 font-syne">
                   <Link
                     href="/settings"
+                    aria-label="Settings"
                     className="flex flex-col items-center gap-2 transition-colors"
                 >
                     <Settings className="h-4 w-4" />
@@ -115,6 +116,7 @@ const DashboardSidebar = ({
                 <div className="py-2"/>
                 <Link
                     href="https://docs.presenton.ai/help"
+                    aria-label="Help"
                     target="_blank"
                     className="flex flex-col items-center gap-2 transition-colors"
                 >
