@@ -378,21 +378,23 @@ export function TemplateTabSwitcher({
 }) {
   if (libraryPage) {
     return (
-      <div role="group" aria-label="Template type" className="flex h-9 w-[180px] shrink-0 items-center rounded-lg border border-[#EDEEEF] bg-white p-[3px] font-manrope">
+      <div role="group" aria-label="Template type" data-selection={tab === "custom" ? "1" : "0"} className="motion-segments flex h-9 w-[180px] shrink-0 items-center rounded-lg border border-[#EDEEEF] bg-white p-[3px] font-manrope">
+        <span aria-hidden="true" className="motion-segment-indicator rounded-lg bg-[#F6F6F9]" />
         {([{ value: "default", label: "Built-In" }, { value: "custom", label: "Custom" }] as const).map((item) => (
-          <button key={item.value} type="button" aria-pressed={tab === item.value} onClick={() => onTabChange(item.value)} className={cn("flex h-7 flex-1 items-center justify-center rounded-lg text-[13px] font-medium leading-6 text-[#191919] outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30", tab === item.value ? "bg-[#F6F6F9]" : "hover:bg-[#F9FAFB]")}>{item.label}</button>
+          <button key={item.value} type="button" aria-pressed={tab === item.value} onClick={() => onTabChange(item.value)} className={cn("flex h-7 flex-1 items-center justify-center rounded-lg text-[13px] font-medium leading-6 text-[#191919] outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30", tab !== item.value && "hover:bg-[#F9FAFB]")}>{item.label}</button>
         ))}
       </div>
     );
   }
   return (
-    <div className="p-1 rounded-[40px] bg-[#ffffff] w-fit border border-[#EDEEEF] flex items-center justify-center">
+    <div role="group" aria-label="Template type" data-selection={tab === "default" ? "1" : "0"} className="motion-segments grid w-fit grid-cols-2 items-center rounded-[40px] border border-[#EDEEEF] bg-white p-1 [--motion-segment-inset:4px] [--motion-segment-inset-y:4px]">
+      <span aria-hidden="true" className="motion-segment-indicator rounded-[70px] bg-[#F4F3FF]" />
       <button
         type="button"
+        aria-pressed={tab === "custom"}
         className="px-5 py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]"
         onClick={() => onTabChange("custom")}
         style={{
-          background: tab === "custom" ? "#F4F3FF" : "transparent",
           color: tab === "custom" ? "#5146E5" : "#3A3A3A",
         }}
       >
@@ -400,7 +402,7 @@ export function TemplateTabSwitcher({
       </button>
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        className="mx-1"
+        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
         width="2"
         height="17"
         viewBox="0 0 2 17"
@@ -411,10 +413,10 @@ export function TemplateTabSwitcher({
       </svg>
       <button
         type="button"
+        aria-pressed={tab === "default"}
         className="px-5 py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]"
         onClick={() => onTabChange("default")}
         style={{
-          background: tab === "default" ? "#F4F3FF" : "transparent",
           color: tab === "default" ? "#5146E5" : "#3A3A3A",
         }}
       >

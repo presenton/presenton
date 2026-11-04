@@ -3,12 +3,32 @@
   top: 50%;
   left: 2px;
   transform: translateY(-50%);
-  transition: left 200ms ease;
-  will-change: left;
 }
 
 .thumb[data-state="checked"] {
   left: calc(100% - 18px);
+}
+
+/* The track's content box is its width minus the two 2px insets. Container
+   units keep a transform-only thumb accurate when callers change track width. */
+@supports (width: 1cqw) {
+  .track {
+    container-type: inline-size;
+  }
+
+  .thumb {
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .thumb[data-state="checked"] {
+    left: 2px;
+    transform: translate(calc(100cqw - 1rem), -50%);
+  }
+}
+
+:global(html[data-motion-input="keyboard"]) .thumb,
+.track:disabled .thumb {
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

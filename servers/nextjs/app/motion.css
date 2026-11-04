@@ -21,6 +21,33 @@
 .motion-delay-2 { animation-delay: 60ms; }
 .motion-delay-3 { animation-delay: 90ms; }
 
+/* Move the selection itself to preserve context when switching modes or tabs.
+   Transitions retarget smoothly if the user changes their mind mid-flight. */
+.motion-segments {
+  position: relative;
+  isolation: isolate;
+}
+
+.motion-segments > .motion-segment-indicator {
+  position: absolute;
+  top: var(--motion-segment-inset-y, 3px);
+  bottom: var(--motion-segment-inset-y, 3px);
+  left: var(--motion-segment-inset, 3px);
+  width: calc(50% - var(--motion-segment-inset, 3px));
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform 240ms var(--motion-ease-out);
+}
+
+.motion-segments[data-selection="1"] > .motion-segment-indicator {
+  transform: translateX(100%);
+}
+
+.motion-segments > button {
+  position: relative;
+  z-index: 1;
+}
+
 @keyframes presenton-content-enter {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
@@ -140,7 +167,8 @@
 }
 
 html[data-motion-input="keyboard"] :is(
-  .motion-enter, .motion-fade, .motion-card, .motion-press, .motion-arrow
+  .motion-enter, .motion-fade, .motion-card, .motion-press, .motion-arrow,
+  .motion-segment-indicator
 ) {
   animation-duration: 0.01ms !important;
   animation-delay: 0ms !important;
@@ -159,7 +187,8 @@ html[data-motion-input="keyboard"] :is(
 
 @media (prefers-reduced-motion: reduce) {
   :is(
-    .motion-enter, .motion-fade, .motion-card, .motion-press, .motion-arrow
+    .motion-enter, .motion-fade, .motion-card, .motion-press, .motion-arrow,
+    .motion-segment-indicator
   ) {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
