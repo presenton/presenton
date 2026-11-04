@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./motion.css";
 import "katex/dist/katex.min.css";
 import { Providers } from "./providers";
 import MixpanelInitializer from "./MixpanelInitializer";

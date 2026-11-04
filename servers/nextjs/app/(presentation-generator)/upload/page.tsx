@@ -52,7 +52,7 @@ const page = () => {
     <div className="relative flex min-h-dvh flex-col">
       <GenerateHeader />
       <main className="flex flex-1 flex-col pb-10 pt-[46px]">
-        <div className="mb-7 flex flex-col items-center justify-center gap-1.5 px-4 text-center">
+        <div className="motion-enter mb-7 flex flex-col items-center justify-center gap-1.5 px-4 text-center">
           <h1 className="font-syne text-[36px] font-medium leading-normal tracking-[-0.58px] text-[#101323] sm:text-[48px] lg:text-[58px] lg:leading-[70px]">
             Turn Ideas into Slides
           </h1>

@@ -131,10 +131,10 @@ export const PresentationCard = ({
         onClick={handlePreview}
         aria-disabled={isUnsupported}
         title={isUnsupported ? "Unsupported in this version of Presenton" : undefined}
-        className={`bg-[#F8FBFB] font-syne relative shadow-none sm:shadow-none presentation-card rounded-[12px] p-0 group transition-all duration-500 slide-theme overflow-hidden flex flex-col ${
+        className={`bg-[#F8FBFB] font-syne relative shadow-none sm:shadow-none presentation-card rounded-[12px] p-0 group slide-theme overflow-hidden flex flex-col ${
           isUnsupported
             ? "cursor-not-allowed border-[#EDEEEF]"
-            : "cursor-pointer hover:shadow-md"
+            : "motion-card cursor-pointer hover:shadow-md"
         }`}
       >
      

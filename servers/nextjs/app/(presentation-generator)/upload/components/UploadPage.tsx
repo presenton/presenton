@@ -624,7 +624,7 @@ const UploadPage = ({
         availableMode={presentationGenerationMode}
       />
       <div className="mx-auto max-w-[742px] space-y-[14px] px-4">
-        <div data-generate-guide="setup" className="flex min-h-[62px] w-full flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div data-generate-guide="setup" className="motion-enter motion-delay-1 flex min-h-[62px] w-full flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-2">
             <button type="button" onClick={() => setModeDialogOpen(true)} className="inline-flex items-center gap-1.5 self-start font-syne text-[13px] leading-[18px] text-[#4C4C4C] hover:text-[#7A5AF8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]">
               <Image src="/generate/mode-info.svg" alt="" width={16} height={16} />
@@ -646,7 +646,7 @@ const UploadPage = ({
           />
         </div>
 
-        <div data-generate-guide="prompt">
+        <div data-generate-guide="prompt" className="motion-enter motion-delay-2">
         <PromptInput
           value={config.prompt}
           variant={generationMode}
@@ -675,7 +675,7 @@ const UploadPage = ({
       </div>
 
       {communityEnabled && generationMode === "smart" && (
-        <div data-generate-guide="designs" className="mt-[92px] px-4 sm:px-6 lg:px-[81px]">
+        <div data-generate-guide="designs" className="motion-fade motion-delay-3 mt-[92px] px-4 sm:px-6 lg:px-[81px]">
           <CommunityReferencePicker
             selectedId={communityReference?.id ?? null}
             onUsePrompt={(prompt) => handleConfigChange("prompt", prompt)}

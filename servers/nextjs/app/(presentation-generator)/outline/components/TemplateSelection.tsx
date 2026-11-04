@@ -147,7 +147,7 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(
 
     if (customTemplates.length === 0) {
       return (
-        <div className="mb-8">
+        <div className="motion-enter mb-8">
           {suggestionNotice}
           <TemplateListSection label="Templates" selectionPage>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -167,7 +167,7 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(
     }
 
     return (
-      <div className="mb-8 space-y-[30px]">
+      <div className="motion-enter mb-8 space-y-[30px]">
         {suggestionNotice}
         <TemplateListSection label="Custom" selectionPage>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

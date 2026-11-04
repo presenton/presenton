@@ -415,16 +415,18 @@ const OutlinePage: React.FC = () => {
         <>
           <div className="lg:mr-[369px]">
             <main className="mx-auto w-[calc(100%-2.5rem)] max-w-[967px] pb-28 pt-10 sm:w-[calc(100%-5rem)]">
-              <OutlinePromptBar
-                config={draftConfig}
-                disabled={outlineControlsBusy}
-                isBusy={outlineControlsBusy}
-                regenerateDisabled={isRegenerateDisabled}
-                onConfigChange={handleConfigChange}
-                onRegenerate={handleRegenerateOutline}
-              />
+              <div className="motion-enter">
+                <OutlinePromptBar
+                  config={draftConfig}
+                  disabled={outlineControlsBusy}
+                  isBusy={outlineControlsBusy}
+                  regenerateDisabled={isRegenerateDisabled}
+                  onConfigChange={handleConfigChange}
+                  onRegenerate={handleRegenerateOutline}
+                />
+              </div>
 
-              <div className="mt-12">
+              <div className="motion-fade motion-delay-1 mt-12">
                 <OutlineContent
                   outlines={outlines}
                   isLoading={streamState.isLoading}

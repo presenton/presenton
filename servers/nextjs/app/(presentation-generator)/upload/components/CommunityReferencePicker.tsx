@@ -170,7 +170,7 @@ export default function CommunityReferencePicker({
             return (
               <article
                 key={item.id}
-                className={`min-w-0 overflow-hidden rounded-xl border bg-white transition ${
+                className={`motion-card min-w-0 overflow-hidden rounded-xl border bg-white ${
                   selected
                     ? "border-[#7A5AF8] ring-2 ring-[#7A5AF8]/15"
                     : "border-[#EDEEEF] hover:border-[#D8D3FA]"

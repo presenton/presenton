@@ -1,6 +1,7 @@
 import React from "react";
 
 import "@/app/globals.css";
+import "@/app/motion.css";
 import {
   Dialog,
   DialogContent,

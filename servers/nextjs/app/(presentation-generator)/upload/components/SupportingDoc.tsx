@@ -108,7 +108,7 @@ export default function SupportingDoc({
       )}
 
       <div className="flex items-center justify-between gap-3">
-        <label className={`relative inline-flex h-[34px] w-[42px] items-center justify-center rounded-full border border-[#EDEEEF] bg-white transition hover:bg-[#F6F6F9] focus-within:ring-2 focus-within:ring-[#7A5AF8] ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+        <label className={`relative inline-flex h-[34px] w-[42px] items-center justify-center rounded-full border border-[#EDEEEF] bg-white hover:bg-[#F6F6F9] focus-within:ring-2 focus-within:ring-[#7A5AF8] ${disabled ? "cursor-not-allowed opacity-50" : "motion-press cursor-pointer"}`}>
           <Image src="/generate/paperclip.svg" alt="" width={14} height={14} />
           <span className="sr-only">{files.length ? `Attach more (${files.length})` : "Attach files"}</span>
           <input
@@ -127,9 +127,9 @@ export default function SupportingDoc({
           onClick={onSubmit}
           disabled={disabled}
           aria-label="Generate presentation"
-          className="flex h-10 w-[60px] items-center justify-center rounded-full bg-[#7A5AF8] text-white shadow-sm transition hover:bg-[#6938EF] disabled:cursor-not-allowed disabled:opacity-50"
+          className="motion-press group flex h-10 w-[60px] items-center justify-center rounded-full bg-[#7A5AF8] text-white shadow-sm hover:bg-[#6938EF] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Image src="/generate/submit-arrow.svg" alt="" width={16} height={16} />
+          <Image src="/generate/submit-arrow.svg" alt="" width={16} height={16} className="motion-arrow" />
         </button>
       </div>
     </div>

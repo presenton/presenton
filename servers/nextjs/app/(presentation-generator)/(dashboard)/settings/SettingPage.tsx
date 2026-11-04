@@ -447,16 +447,28 @@ const SettingsPage = () => {
             </div>
           )}
 
-          {selectedProvider === 'text-provider' && <TextProvider
-            onInputChange={handleTextProviderInputChange}
-            llmConfig={llmConfig}
-          />}
-          {selectedProvider === 'image-provider' && llmConfig.LLM !== "presenton" && <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
-          {selectedProvider === 'web-search-provider' && llmConfig.LLM !== "presenton" && <WebSearchProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />}
-          {selectedProvider === 'privacy' && <PrivacySettings />}
-          {selectedProvider === "admin" && <AdminPanel embedded />}
+          {selectedProvider === 'text-provider' && (
+            <div className="motion-fade">
+              <TextProvider
+                onInputChange={handleTextProviderInputChange}
+                llmConfig={llmConfig}
+              />
+            </div>
+          )}
+          {selectedProvider === 'image-provider' && llmConfig.LLM !== "presenton" && (
+            <div className="motion-fade">
+              <ImageProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />
+            </div>
+          )}
+          {selectedProvider === 'web-search-provider' && llmConfig.LLM !== "presenton" && (
+            <div className="motion-fade">
+              <WebSearchProvider llmConfig={llmConfig} setLlmConfig={setLlmConfig} />
+            </div>
+          )}
+          {selectedProvider === 'privacy' && <div className="motion-fade"><PrivacySettings /></div>}
+          {selectedProvider === "admin" && <div className="motion-fade"><AdminPanel embedded /></div>}
           {selectedProvider === "session" && (
-            <div className="w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
+            <div className="motion-fade w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
               <div>
                 <h4 className="font-syne text-lg font-normal text-black">Sign out</h4>
                 <p className="mt-2 font-syne text-sm leading-relaxed text-[#494A4D]">
@@ -484,7 +496,7 @@ const SettingsPage = () => {
                 "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
               color: "#101323",
             }}
-            className={`w-full font-syne font-semibold flex items-center justify-center gap-2 py-3 px-5 rounded-[58px] transition-all duration-500 ${buttonState.isDisabled
+            className={`motion-press group w-full font-syne font-semibold flex items-center justify-center gap-2 py-3 px-5 rounded-[58px] ${buttonState.isDisabled
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-200"
               } text-white`}
@@ -497,7 +509,7 @@ const SettingsPage = () => {
             ) : (
               buttonState.text
             )}
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="motion-arrow w-4 h-4" />
           </button>
         </div>
       ) : null}

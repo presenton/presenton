@@ -1,0 +1,28 @@
+.floatingCards > div {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Keep the illustration tied to its action, with no movement on keyboard focus. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  :global(html:not([data-motion-input="keyboard"])) .actionCard:hover:not(:disabled) .floatingCards > div:first-child {
+    transform: translateX(-6px) rotate(-3deg);
+  }
+
+  :global(html:not([data-motion-input="keyboard"])) .actionCard:hover:not(:disabled) .floatingCards > div:nth-child(2) {
+    transform: translateY(-3px) scale(1.03);
+  }
+
+  :global(html:not([data-motion-input="keyboard"])) .actionCard:hover:not(:disabled) .floatingCards > div:last-child {
+    transform: translateX(6px) rotate(3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floatingCards > div {
+    transition: none;
+  }
+}
+
+:global(html[data-motion-input="keyboard"]) .floatingCards > div {
+  transition: none;
+}
