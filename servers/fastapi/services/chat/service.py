@@ -25,6 +25,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.chat import ChatAttachment
 from models.sql.presentation import PresentationModel
 from services.chat.conversation_store import ChatConversationStore
+from services.chat.context_budget import (
+    ChatContextBudget,
+    CONTEXT_ERROR_DETAIL,
+    TRUNCATED_ERROR_DETAIL,
+    is_context_overflow,
+    validate_completion,
+)
 from services.chat.presentation_context_store import PresentationContextStore
 from services.chat.prompts import build_system_prompt
 from services.chat.llm_tools import build_chat_llm_tools
@@ -126,6 +133,7 @@ class PresentationChatService:
         client = get_client(config=get_llm_config())
         model = get_model()
         tools = build_chat_llm_tools(self._tools.get_tool_definitions())
+        budget = await asyncio.to_thread(ChatContextBudget.from_client, client, model)
 
         called_tools: list[str] = []
         last_tool_results: list[dict[str, Any]] = []
@@ -136,30 +144,22 @@ class PresentationChatService:
             round_content_chunks: list[str] = []
             thinking_chunks: list[str] = []
 
-            try:
-                async for event in stream_generate_events(
-                    client,
-                    **get_generate_kwargs(
-                        model=model,
-                        messages=messages,
-                        tools=tools,
-                        stream=True,
-                    ),
-                ):
-                    event_type = getattr(event, "type", None)
-                    if event_type == "content":
-                        chunk = getattr(event, "chunk", None)
-                        if chunk:
-                            round_content_chunks.append(chunk)
-                            yield "chunk", chunk
-                    elif event_type == "thinking":
-                        thinking_text = self._event_text(event)
-                        if thinking_text:
-                            thinking_chunks.append(thinking_text)
-                    elif event_type == "completion":
-                        completion_chunk = event
-            except Exception as exc:
-                raise handle_llm_client_exceptions(exc)
+            async for event in self._generate_budgeted(
+                client=client, model=model, messages=messages,
+                tools=tools, budget=budget, stream=True,
+            ):
+                event_type = getattr(event, "type", None)
+                if event_type == "content":
+                    chunk = getattr(event, "chunk", None)
+                    if chunk:
+                        round_content_chunks.append(chunk)
+                        yield "chunk", chunk
+                elif event_type == "thinking":
+                    thinking_text = self._event_text(event)
+                    if thinking_text:
+                        thinking_chunks.append(thinking_text)
+                elif event_type == "completion":
+                    completion_chunk = event
 
             thinking_summary = self._summarize_model_note(thinking_chunks)
             if thinking_summary:
@@ -254,6 +254,7 @@ class PresentationChatService:
                 client=client,
                 model=model,
                 messages=messages,
+                budget=budget,
             )
             if not response_text:
                 response_text = self._build_tool_limit_fallback(last_tool_results)
@@ -377,22 +378,16 @@ class PresentationChatService:
         client = get_client(config=get_llm_config())
         model = get_model()
         tools = build_chat_llm_tools(self._tools.get_tool_definitions())
+        budget = await asyncio.to_thread(ChatContextBudget.from_client, client, model)
 
         called_tools: list[str] = []
         last_tool_results: list[dict[str, Any]] = []
 
         for _ in range(MAX_TOOL_ROUNDS):
-            try:
-                response = await asyncio.to_thread(
-                    client.generate,
-                    **get_generate_kwargs(
-                        model=model,
-                        messages=messages,
-                        tools=tools,
-                    ),
-                )
-            except Exception as exc:
-                raise handle_llm_client_exceptions(exc)
+            async for response in self._generate_budgeted(
+                client=client, model=model, messages=messages, tools=tools, budget=budget,
+            ):
+                pass
 
             if not response.tool_calls:
                 response_text = extract_text(response.content) or (
@@ -424,6 +419,7 @@ class PresentationChatService:
             client=client,
             model=model,
             messages=messages,
+            budget=budget,
         )
         if final_response:
             return final_response, called_tools
@@ -436,20 +432,60 @@ class PresentationChatService:
         client: Any,
         model: str,
         messages: list[Message],
+        budget: ChatContextBudget,
     ) -> str | None:
         try:
-            response = await asyncio.to_thread(
-                client.generate,
-                **get_generate_kwargs(
-                    model=model,
-                    messages=messages,
-                ),
-            )
+            async for response in self._generate_budgeted(
+                client=client, model=model, messages=messages, budget=budget,
+            ):
+                pass
         except Exception:
             LOGGER.warning("Final no-tool synthesis call failed", exc_info=True)
             return None
-
         return extract_text(response.content)
+
+    async def _generate_budgeted(
+        self, *, client: Any, model: str, messages: list[Message],
+        budget: ChatContextBudget, tools: list[Any] | None = None,
+        stream: bool = False,
+    ) -> AsyncGenerator[Any, None]:
+        """Retry only the rejected model call, never previously executed tools."""
+        previous: dict[str, Any] | None = None
+        for attempt in range(2):
+            prepared = budget.prepare(messages, tools)
+            if prepared == previous:
+                raise HTTPException(status_code=422, detail=CONTEXT_ERROR_DETAIL)
+            previous = prepared
+            kwargs = get_generate_kwargs(model=model, tools=tools, stream=stream, **prepared)
+            emitted = False
+            try:
+                if stream:
+                    completed = False
+                    async for event in stream_generate_events(client, **kwargs):
+                        event_type = getattr(event, "type", None)
+                        if event_type == "completion":
+                            validate_completion(event, prepared["max_tokens"])
+                            completed = True
+                        if event_type in {"content", "thinking"}:
+                            emitted = True
+                        yield event
+                    if not completed:
+                        raise HTTPException(status_code=422, detail=TRUNCATED_ERROR_DETAIL)
+                else:
+                    response = await asyncio.to_thread(client.generate, **kwargs)
+                    validate_completion(response, prepared["max_tokens"])
+                    yield response
+                return
+            except Exception as exc:
+                if is_context_overflow(exc):
+                    if attempt == 0 and not emitted:
+                        budget.learn_overflow(exc, prepared["messages"], tools)
+                        LOGGER.info("Retrying chat model call with a smaller context budget")
+                        continue
+                    raise HTTPException(status_code=422, detail=CONTEXT_ERROR_DETAIL) from None
+                if isinstance(exc, HTTPException):
+                    raise
+                raise handle_llm_client_exceptions(exc)
 
     @staticmethod
     def _summarize_model_note(chunks: list[str]) -> str:
