@@ -10,6 +10,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { usePathname, useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { notify } from "@/components/ui/sonner";
 import {
   Dialog,
@@ -43,6 +44,8 @@ export const PresentationCard = ({
   onDeleted?: (presentationId: string) => void;
   onDuplicated?: (presentation: any) => void;
 }) => {
+  const t = useTranslations("dashboard.card");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
@@ -59,8 +62,8 @@ export const PresentationCard = ({
     e.preventDefault();
     if (isUnsupported) {
       notify.warning(
-        "Unsupported presentation",
-        "This deck was created in an older Presenton version. Downgrade to a compatible version to open it."
+        t("unsupportedTitle"),
+        t("unsupportedBody")
       );
       return;
     }
@@ -86,13 +89,13 @@ export const PresentationCard = ({
         presentation_id: id,
         slide_count: presentation?.slides?.length || 0,
       });
-      notify.success("Presentation deleted", "The presentation was removed from your dashboard.");
+      notify.success(t("deletedTitle"), t("deletedBody"));
       setShowDeleteDialog(false);
       if (onDeleted) {
         onDeleted(id);
       }
     } else {
-      notify.error("Could not delete presentation", response?.message || "Something went wrong while deleting the presentation.");
+      notify.error(t("deleteErrorTitle"), response?.message || t("deleteErrorBody"));
     }
     setIsDeleting(false);
   };
@@ -108,12 +111,12 @@ export const PresentationCard = ({
         duplicate_presentation_id: duplicated?.id,
         slide_count: presentation?.slides?.length || 0,
       });
-      notify.success("Presentation duplicated", "A copy was added to your dashboard.");
+      notify.success(t("duplicatedTitle"), t("duplicatedBody"));
       onDuplicated?.(duplicated);
     } catch (error) {
       notify.error(
-        "Could not duplicate presentation",
-        error instanceof Error ? error.message : "Something went wrong while duplicating the presentation."
+        t("duplicateErrorTitle"),
+        error instanceof Error ? error.message : t("duplicateErrorBody")
       );
     } finally {
       setIsDuplicating(false);
@@ -130,7 +133,7 @@ export const PresentationCard = ({
         suppressHydrationWarning={true}
         onClick={handlePreview}
         aria-disabled={isUnsupported}
-        title={isUnsupported ? "Unsupported in this version of Presenton" : undefined}
+        title={isUnsupported ? t("unsupportedHint") : undefined}
         className={`bg-[#F8FBFB] font-syne relative shadow-none sm:shadow-none presentation-card rounded-[12px] p-0 group slide-theme overflow-hidden flex flex-col ${
           isUnsupported
             ? "cursor-not-allowed border-[#EDEEEF]"
@@ -143,12 +146,12 @@ export const PresentationCard = ({
         suppressHydrationWarning={true}
         className={`relative z-40 flex flex-1 ${viewMode === "list" ? "min-h-[122px] flex-row" : "flex-col"}`}
       >
-        {/* <p className=" text-xs font-syne absolute top-2 flex gap-1 capitalize  items-center left-2 rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40 ">
+        {/* <p className=" text-xs font-syne absolute top-2 flex gap-1 capitalize  items-center start-2 rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40 ">
 
           {presentation.type}
         </p> */}
 
-        <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
+        <img src="/card_bg.svg" alt="" className="absolute top-0 start-0 w-full h-full object-cover" />
         <div className={isUnsupported
           ? `relative flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-[#EDEEEF] bg-white/90 ${viewMode === "list" ? "m-3 w-[170px] shrink-0" : "mx-5 mt-4"}`
           : `relative aspect-video overflow-hidden bg-white ${viewMode === "list" ? "m-3 w-[170px] shrink-0 rounded-lg border border-[#EDEEEF]" : "w-full border-b border-[#EDEEEF]"}`
@@ -159,7 +162,7 @@ export const PresentationCard = ({
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4F3FF] text-[#7A5AF8]">
                 <Archive className="h-[18px] w-[18px]" aria-hidden="true" />
               </span>
-              <p className="text-xs font-medium">Preview unavailable</p>
+              <p className="text-xs font-medium">{t("previewUnavailable")}</p>
             </div>
           ) : useTemplateV2HtmlPreview ? (
             <TemplateV2HtmlSlidePreview
@@ -176,7 +179,7 @@ export const PresentationCard = ({
           )}
         </div>
         <p
-          className={`absolute left-2 top-2 z-40 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-sm backdrop-blur-sm ${
+          className={`absolute start-2 top-2 z-40 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize shadow-sm backdrop-blur-sm ${
             presentationType === "smart"
               ? "bg-[#F4F0FF]/95 text-[#6941C6]"
               : "bg-white/90 text-[#475467]"
@@ -184,17 +187,17 @@ export const PresentationCard = ({
         >
           {presentationType}
         </p>
-        <p className="absolute right-2 top-2 z-40 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-[#191919] shadow-sm backdrop-blur-sm">
+        <p className="absolute end-2 top-2 z-40 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-[#191919] shadow-sm backdrop-blur-sm">
           {presentation.n_slides ?? presentation?.slides?.length ?? 0}
         </p>
-        <div className={`z-40 flex bg-white px-5 py-3 ${viewMode === "list" ? "min-w-0 flex-1 items-center border-l border-[#EDEEEF]" : "relative mt-auto w-full border-t border-[#EDEEEF]"}`}>
+        <div className={`z-40 flex bg-white px-5 py-3 ${viewMode === "list" ? "min-w-0 flex-1 items-center border-s border-[#EDEEEF]" : "relative mt-auto w-full border-t border-[#EDEEEF]"}`}>
           <div className="flex items-center justify-between gap-7 w-full">
             <div className="flex flex-col items-start gap-1">
               <div className="text-sm text-[#191919] font-semibold  overflow-hidden line-clamp-1">
                 <MarkdownRenderer content={title} className="text-sm mb-0  font-syne text-[#191919] font-semibold  overflow-hidden line-clamp-1" />
               </div>
               <p className="text-[#808080] text-sm font-syne">
-                {new Date(presentation?.created_at).toLocaleDateString()}
+                {new Date(presentation?.created_at).toLocaleDateString(locale)}
               </p>
 
             </div>
@@ -214,7 +217,7 @@ export const PresentationCard = ({
                       void handleDuplicate();
                     }}
                   >
-                    <p>{isDuplicating ? "Duplicating..." : "Duplicate"}</p>
+                    <p>{isDuplicating ? t("duplicating") : t("duplicate")}</p>
                     {isDuplicating ? (
                       <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
                     ) : (
@@ -231,7 +234,7 @@ export const PresentationCard = ({
                     setShowDeleteDialog(true);
                   }}
                 >
-                  <p>Delete</p>
+                  <p>{t("delete")}</p>
                   <Trash className="h-4 w-4" />
                 </button>
               </PopoverContent>
@@ -254,15 +257,12 @@ export const PresentationCard = ({
           overlayClassName="z-[100] bg-black/40 backdrop-blur-[2px]"
           className="z-[101] w-[calc(100vw-32px)] max-w-[400px] gap-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-0 font-syne shadow-xl sm:max-w-[400px]"
         >
-          <DialogHeader className="items-start space-y-3 p-6 text-left sm:text-left">
+          <DialogHeader className="items-start space-y-3 p-6 text-start sm:text-start">
             <DialogTitle className="text-xl font-semibold leading-7 tracking-[-0.02em] text-neutral-900">
-              Delete presentation?
+              {t("deleteTitle")}
             </DialogTitle>
             <DialogDescription className="w-full break-words text-sm leading-6 text-neutral-500">
-              <span className="font-medium text-neutral-800">
-                &ldquo;{title || "Untitled presentation"}&rdquo;
-              </span>{" "}
-              will be permanently deleted. This action cannot be undone.
+              {t("deleteBody", { title: title || t("untitled") })}
             </DialogDescription>
           </DialogHeader>
 
@@ -273,7 +273,7 @@ export const PresentationCard = ({
               disabled={isDeleting}
               className="h-10 rounded-lg border border-neutral-200 bg-white px-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="button"
@@ -284,10 +284,10 @@ export const PresentationCard = ({
               {isDeleting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  Deleting...
+                  {t("deleting")}
                 </>
               ) : (
-                "Delete"
+                t("delete")
               )}
             </button>
           </DialogFooter>

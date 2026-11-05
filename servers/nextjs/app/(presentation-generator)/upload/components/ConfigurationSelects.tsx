@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { LanguageType, PresentationConfig } from "../type";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Check,
   ChevronUp,
@@ -83,6 +84,7 @@ const SlideCountSelect: React.FC<{
   onOpenChange: (open: boolean) => void;
   compact?: boolean;
 }> = ({ value, onValueChange, open, onOpenChange, compact = false }) => {
+  const t = useTranslations("upload.config");
   const [customInput, setCustomInput] = useState(
     value && !SLIDE_OPTIONS.includes(value as SlideOption) ? value : "",
   );
@@ -114,7 +116,7 @@ const SlideCountSelect: React.FC<{
     }
   };
 
-  const displayLabel = value ? `${value} slides` : "Auto slides";
+  const displayLabel = value ? t("slides", { count: value }) : t("autoSlides");
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -170,14 +172,14 @@ const SlideCountSelect: React.FC<{
                   : "text-xs font-medium min-[1800px]:text-sm min-[2200px]:text-base",
               )}
             >
-              {compact && value ? `Slides ${value}` : displayLabel}
+              {compact && value ? t("slidesCompact", { count: value }) : displayLabel}
             </span>
             {compact && (
               <Image src="/generate/chevron-right.svg" alt="" width={14} height={14} className="rotate-90" />
             )}
           </span>
           {!compact && (
-            <ChevronUp className="ml-2 h-4 w-4 shrink-0 min-[1800px]:h-5 min-[1800px]:w-5" />
+            <ChevronUp className="ms-2 h-4 w-4 shrink-0 min-[1800px]:h-5 min-[1800px]:w-5" />
           )}
         </button>
       </PopoverTrigger>
@@ -220,7 +222,7 @@ const SlideCountSelect: React.FC<{
               className="h-8 w-16 px-2 text-sm min-[1800px]:h-9 min-[1800px]:w-20 min-[1800px]:text-base"
             />
             <span className="text-sm font-medium min-[1800px]:text-base">
-              slides
+              {t("slidesUnit")}
             </span>
           </div>
         </div>
@@ -230,7 +232,7 @@ const SlideCountSelect: React.FC<{
               {SLIDE_OPTIONS.map((option) => (
                 <CommandItem
                   key={option}
-                  value={`${option} slides`}
+                  value={`${option} ${t("slidesUnit")}`}
                   role="option"
                   onPointerDownCapture={() => {
                     isSelectingPresetRef.current = true;
@@ -248,11 +250,11 @@ const SlideCountSelect: React.FC<{
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4",
+                      "me-2 h-4 w-4",
                       value === option ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  {option} slides
+                  {t("slides", { count: option })}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -272,8 +274,10 @@ const LanguageSelect: React.FC<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   compact?: boolean;
-}> = ({ value, onValueChange, open, onOpenChange, compact = false }) => (
-  <Popover open={open} onOpenChange={onOpenChange}>
+}> = ({ value, onValueChange, open, onOpenChange, compact = false }) => {
+  const t = useTranslations("upload.config");
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
     <PopoverTrigger asChild>
       <button
         role="combobox"
@@ -282,10 +286,10 @@ const LanguageSelect: React.FC<{
         aria-expanded={open}
         aria-controls="language-options"
         className={cn(
-          "flex h-[34px] max-w-[160px] items-center gap-2 overflow-hidden rounded-full bg-white px-3.5 font-syne font-semibold text-[#191919]",
+          "flex h-[34px] max-w-[200px] items-center gap-2 overflow-hidden rounded-full bg-white px-3.5 font-syne font-semibold text-[#191919] rtl:max-w-[240px]",
           compact
             ? "border border-[#EDEEEF] shadow-none focus-visible:ring-2 focus-visible:ring-[#5146E5]/25"
-            : "shadow-sm ring-1 ring-inset ring-slate-200 min-[1800px]:h-10 min-[1800px]:max-w-[190px] min-[1800px]:px-4 min-[2200px]:h-11 min-[2200px]:max-w-[220px] min-[2200px]:px-5",
+            : "shadow-sm ring-1 ring-inset ring-slate-200 min-[1800px]:h-10 min-[1800px]:max-w-[230px] min-[1800px]:px-4 min-[2200px]:h-11 min-[2200px]:max-w-[260px] min-[2200px]:px-5",
         )}
       >
         {compact ? <Image src="/generate/language.svg" alt="" width={14} height={14} /> : <Languages aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />}
@@ -303,14 +307,14 @@ const LanguageSelect: React.FC<{
                 : "text-xs font-medium min-[1800px]:text-sm min-[2200px]:text-base",
             )}
           >
-            {value === LanguageType.Auto ? "Auto (English)" : value || "Select language"}
+            {value === LanguageType.Auto ? t("autoEnglish") : value || t("selectLanguage")}
           </span>
           {compact && (
             <Image src="/generate/chevron-right.svg" alt="" width={14} height={14} className="rotate-90" />
           )}
         </span>
         {!compact && (
-          <ChevronUp className="ml-2 h-4 w-4 flex-shrink-0 min-[1800px]:h-5 min-[1800px]:w-5" />
+          <ChevronUp className="ms-2 h-4 w-4 flex-shrink-0 min-[1800px]:h-5 min-[1800px]:w-5" />
         )}
       </button>
     </PopoverTrigger>
@@ -321,11 +325,11 @@ const LanguageSelect: React.FC<{
     >
       <Command>
         <CommandInput
-          placeholder="Search language..."
+          placeholder={t("searchLanguage")}
           className="font-manrope"
         />
         <CommandList>
-          <CommandEmpty>No language found.</CommandEmpty>
+          <CommandEmpty>{t("noLanguage")}</CommandEmpty>
           <CommandGroup>
             {Object.values(LanguageType).map((language) => (
               <CommandItem
@@ -340,7 +344,7 @@ const LanguageSelect: React.FC<{
               >
                 <Check
                   className={cn(
-                    "mr-2 h-4 w-4",
+                    "me-2 h-4 w-4",
                     value === language ? "opacity-100" : "opacity-0",
                   )}
                 />
@@ -352,7 +356,8 @@ const LanguageSelect: React.FC<{
       </Command>
     </PopoverContent>
   </Popover>
-);
+  );
+};
 
 export function ConfigurationSelects({
   config,
@@ -361,6 +366,7 @@ export function ConfigurationSelects({
   mode,
   onModeChange,
 }: ConfigurationSelectsProps) {
+  const t = useTranslations("upload.config");
   const [openSlides, setOpenSlides] = useState(false);
   const [openLanguage, setOpenLanguage] = useState(false);
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
@@ -382,7 +388,7 @@ export function ConfigurationSelects({
             compact ? "h-[34px] shadow-none" : "h-[38px] shadow-sm",
           )}
         >
-          {mode === "standard" ? "Standard" : "Smart"}
+          {mode === "standard" ? t("standard") : t("smart")}
           <ChevronUp className="h-4 w-4" />
         </Button>
       ) : null}

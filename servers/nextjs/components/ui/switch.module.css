@@ -1,12 +1,12 @@
 .thumb {
   position: absolute;
   top: 50%;
-  left: 2px;
+  inset-inline-start: 2px;
   transform: translateY(-50%);
 }
 
 .thumb[data-state="checked"] {
-  left: calc(100% - 18px);
+  inset-inline-start: calc(100% - 18px);
 }
 
 /* The track's content box is its width minus the two 2px insets. Container
@@ -21,8 +21,12 @@
   }
 
   .thumb[data-state="checked"] {
-    left: 2px;
+    inset-inline-start: 2px;
     transform: translate(calc(100cqw - 1rem), -50%);
+  }
+
+  :global(html[dir="rtl"]) .thumb[data-state="checked"] {
+    transform: translate(calc(-1 * (100cqw - 1rem)), -50%);
   }
 }
 

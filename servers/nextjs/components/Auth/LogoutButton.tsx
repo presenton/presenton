@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { getApiUrl } from "@/utils/api";
 import {
@@ -21,6 +22,7 @@ export default function LogoutButton({
   className = "",
   iconOnly = false,
 }: LogoutButtonProps) {
+  const t = useTranslations("common");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogout = async () => {
@@ -71,7 +73,7 @@ export default function LogoutButton({
       title={label}
     >
       <LogOut className="h-4 w-4" />
-      {!iconOnly ? <span>{isSubmitting ? "Signing out..." : label}</span> : null}
+      {!iconOnly ? <span>{isSubmitting ? t("signingOut") : label}</span> : null}
     </button>
   );
 }

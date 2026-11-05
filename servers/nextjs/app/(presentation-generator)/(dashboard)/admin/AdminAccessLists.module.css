@@ -9,7 +9,7 @@
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  text-align: left;
+  text-align: start;
   font-size: 14px;
   line-height: 20px;
 }
@@ -20,8 +20,8 @@
 .table thead tr, .table tbody tr { display: table-row; width: auto; table-layout: auto; }
 .table th { height: 40px; padding: 0 12px; color: #656570; font-size: 12px; font-weight: 500; }
 .table td { height: 72px; padding: 12px; vertical-align: middle; border-top: 1px solid #ededf1; }
-.table th:first-child, .table td:first-child { padding-left: 24px; }
-.table th:last-child, .table td:last-child { padding-right: 20px; }
+.table th:first-child, .table td:first-child { padding-inline-start: 24px; }
+.table th:last-child, .table td:last-child { padding-inline-end: 20px; }
 .usersTable td { height: 68px; }
 .roleColumn { width: 19%; }
 .dateColumn { width: 23%; }
@@ -29,15 +29,15 @@
 .ownerColumn { width: 15%; }
 .keyDateColumn { width: 16%; }
 .keyActionColumn { width: 144px; }
-.actionHeading { text-align: right; }
-.dateHeading { text-align: right; }
+.actionHeading { text-align: end; }
+.dateHeading { text-align: end; }
 
 .identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
 .avatar { display: flex; width: 32px; height: 32px; flex: 0 0 32px; align-items: center; justify-content: center; border-radius: 50%; background: #f0eff4; font-size: 12px; font-weight: 600; color: #595762; }
 .identityText { min-width: 0; }
 .name { display: block; min-width: 0; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .mobileMeta { display: none; }
-.date { color: #656570; font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
+.date { color: #656570; font-size: 12px; font-variant-numeric: tabular-nums; text-align: end; }
 .owner { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .userRole, .adminRole, .expired, .active { display: inline-flex; flex: none; align-items: center; min-height: 22px; padding: 1px 7px; border-radius: 4px; font-size: 12px; line-height: 20px; font-weight: 500; white-space: nowrap; }
 .userRole { background: #f4f4f6; color: #585862; }
@@ -45,7 +45,7 @@
 .expired { color: #92400e; background: #fff7e7; }
 .active { color: #585862; background: #f4f4f6; }
 .protected { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 12px; color: #656570; white-space: nowrap; }
-.actionsCell { text-align: right; }
+.actionsCell { text-align: end; }
 .keyNameLine { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .token { display: block; overflow: hidden; max-width: 100%; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; color: #656570; }
 .keyActions { display: flex; align-items: center; justify-content: flex-end; }
@@ -69,7 +69,7 @@
 .loadError p { flex: 1; min-width: 0; margin: 0; color: #656570; overflow-wrap: anywhere; }
 .loadError button { flex: none; }
 .skeleton { display: block; height: 12px; width: 65%; max-width: 160px; border-radius: 3px; background: #eeeef2; }
-.skeletonRow td:last-child .skeleton { width: 28px; margin-left: auto; }
+.skeletonRow td:last-child .skeleton { width: 28px; margin-inline-start: auto; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .spinner { animation: admin-list-spin 700ms linear infinite; }
 @keyframes admin-list-spin { to { transform: rotate(360deg); } }
@@ -94,14 +94,14 @@
   .protected { width: 44px; height: 44px; justify-content: center; }
   .keysTable tbody tr { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .keysTable .actionsCell { grid-column: 1; }
-  .keyActions { justify-content: flex-start; margin-left: -12px; }
+  .keyActions { justify-content: flex-start; margin-inline-start: -12px; }
   .keyNameLine { flex-wrap: wrap; }
   .keyNameLine .name { max-width: 100%; }
   .resultCount { padding: 16px; }
   .empty { padding: 40px 16px; }
   .loadError { flex-wrap: wrap; padding: 12px 16px; }
   .loadError p { flex-basis: calc(100% - 26px); }
-  .loadError button { margin-left: 26px; }
+  .loadError button { margin-inline-start: 26px; }
   .skeletonRow td:nth-child(n + 2) { display: none; }
   .skeleton { width: 50%; }
 }

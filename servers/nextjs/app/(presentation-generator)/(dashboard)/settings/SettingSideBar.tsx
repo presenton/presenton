@@ -1,14 +1,13 @@
 'use client'
 
 import React from 'react'
-import { LogOut, Search, Shield, ShieldCheck } from 'lucide-react'
+import { LogOut, Search, Shield, ShieldCheck, Languages } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { IMAGE_PROVIDERS, LLM_PROVIDERS } from '@/utils/providerConstants'
 import { useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
-import LocaleSwitcher from '@/components/LocaleSwitcher'
 
-export type SettingsSection = 'text-provider' | 'image-provider' | 'web-search-provider' | 'privacy' | 'admin' | 'session'
+export type SettingsSection = 'text-provider' | 'image-provider' | 'web-search-provider' | 'privacy' | 'preferences' | 'admin' | 'session'
 
 const SettingSideBar = ({ selectedProvider, setSelectedProvider, presentonSelected = false, className = '' }: { selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void, presentonSelected?: boolean, className?: string }) => {
     const { llm_config } = useSelector((state: RootState) => state.userConfig)
@@ -47,13 +46,20 @@ const SettingSideBar = ({ selectedProvider, setSelectedProvider, presentonSelect
                 </div>
             </div>
 
-            <div className='border-t border-[#E1E1E5] py-5'>
-                <LocaleSwitcher />
-            </div>
-
             <div className='border-t border-[#E1E1E5] py-5 relative z-50'>
                 <p className='text-[#3A3A3A] text-xs font-medium pb-2.5'>{t('other')}</p>
                 <div className='space-y-2.5'>
+                    <button
+                        type="button"
+                        aria-current={selectedProvider === 'preferences' ? 'page' : undefined}
+                        className={`w-full rounded-[6px] p-3 py-4 flex items-center gap-1.5 border ${selectedProvider === 'preferences' ? 'bg-[#F4F3FF] border-[#D9D6FE]' : 'bg-white border-[#EDEEEF]'}`}
+                        onClick={() => setSelectedProvider('preferences')}
+                    >
+                        <div className='relative w-6 h-6 rounded-full overflow-hidden border border-[#EDEEEF] flex items-center justify-center bg-white'>
+                            <Languages className='w-3.5 h-3.5 text-[#5146E5]' aria-hidden="true" />
+                        </div>
+                        <p className='text-[#191919] text-xs font-medium'>{t('preferences')}</p>
+                    </button>
                     <button
                         className={`w-full rounded-[6px] p-3 py-4 flex items-center gap-1.5 border ${selectedProvider === 'privacy' ? 'bg-[#F4F3FF] border-[#D9D6FE]' : 'bg-white border-[#EDEEEF]'}`}
                         onClick={() => setSelectedProvider('privacy')}
@@ -77,7 +83,7 @@ const SettingSideBar = ({ selectedProvider, setSelectedProvider, presentonSelect
                         onClick={() => setSelectedProvider('session')}
                     >
                         <div className='relative w-6 h-6 rounded-full overflow-hidden border border-[#EDEEEF] flex items-center justify-center bg-white'>
-                            <LogOut className='w-3.5 h-3.5 text-[#5146E5]' />
+                            <LogOut className='w-3.5 h-3.5 text-[#5146E5] rtl:-scale-x-100' />
                         </div>
                         <p className='text-[#191919] text-xs font-medium'>{t('signOut')}</p>
                     </button>

@@ -23,8 +23,8 @@
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px 16px; }
 .filters { display: flex; flex: 1; min-width: 0; align-items: center; gap: 12px; }
 .search { position: relative; flex: 1; min-width: 0; max-width: 320px; }
-.search > svg { position: absolute; left: 12px; top: 50%; color: #73717c; transform: translateY(-50%); pointer-events: none; }
-.search .input { padding-left: 38px; }
+.search > svg { position: absolute; inset-inline-start: 12px; top: 50%; color: #73717c; transform: translateY(-50%); pointer-events: none; }
+.search .input { padding-inline-start: 38px; }
 .input { display: block; width: 100%; min-width: 0; height: 40px; padding: 0 12px; border: 1px solid #d9d9e1; border-radius: 7px; background: white; color: #191923; font: inherit; font-size: 14px; caret-color: var(--admin-accent, #7147df); }
 .input::placeholder { color: #6b6b76; opacity: 1; }
 .input:focus { border-color: #aaa9b5; outline: none; box-shadow: none; }
@@ -52,8 +52,8 @@
 .field { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
 .field label { font-size: 13px; font-weight: 500; }
 .passwordField { position: relative; }
-.passwordField .input { padding-right: 44px; }
-.passwordField button { position: absolute; top: 0; right: 0; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; border: 0; border-radius: 7px; background: transparent; color: #656570; cursor: pointer; }
+.passwordField .input { padding-inline-end: 44px; }
+.passwordField button { position: absolute; top: 0; inset-inline-end: 0; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; border: 0; border-radius: 7px; background: transparent; color: #656570; cursor: pointer; }
 .passwordField button:focus-visible { outline: 2px solid #7147df; outline-offset: -3px; }
 .formHint { margin: 12px 0 0; color: #656570; font-size: 12px; }
 .scopeNote { display: flex; align-items: flex-start; gap: 8px; margin: 20px 0 0; color: #656570; font-size: 12px; line-height: 20px; }

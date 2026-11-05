@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import React, { memo } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 export function TemplatePreviewStage({
@@ -20,7 +21,7 @@ export function TemplatePreviewStage({
       <img
         src="/card_bg.svg"
         alt=""
-        className="absolute left-0 top-0 h-full w-full object-cover"
+        className="absolute start-0 top-0 h-full w-full object-cover"
       />
       {children}
     </div>
@@ -34,16 +35,17 @@ export const LayoutsBadge = memo(function LayoutsBadge({
   count: number;
   selectionPage?: boolean;
 }) {
+    const t = useTranslations("templates");
     return (
       <span
         className={cn(
           "absolute z-40 inline-flex items-center rounded-full font-syne text-xs text-white",
           selectionPage
-            ? "left-2 top-2 bg-[rgba(58,58,58,0.96)] px-2.5 py-1 font-medium"
-            : "left-4 top-3.5 bg-[#333333] px-3 py-1 font-semibold"
+            ? "start-2 top-2 bg-[rgba(58,58,58,0.96)] px-2.5 py-1 font-medium"
+            : "start-4 top-3.5 bg-[#333333] px-3 py-1 font-semibold"
         )}
       >
-        Layouts-{count}
+        {t("layouts", { count })}
       </span>
     );
 });

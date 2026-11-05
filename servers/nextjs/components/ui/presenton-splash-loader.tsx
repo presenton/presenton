@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useState, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface PresentonSplashLoaderProps {
@@ -51,9 +52,11 @@ function ensureSplashMaskReady(): Promise<void> {
 }
 
 export function PresentonSplashLoader({
-  message = "Preparing your workspace",
+  message,
   className,
 }: PresentonSplashLoaderProps) {
+  const t = useTranslations("loading");
+  const resolvedMessage = message ?? t("workspace");
   const [isWordmarkReady, setIsWordmarkReady] = useState(false);
   const [animationDelayMs, setAnimationDelayMs] = useState(0);
 
@@ -123,7 +126,7 @@ export function PresentonSplashLoader({
   return (
     <main
       aria-busy="true"
-      aria-label={message}
+      aria-label={resolvedMessage}
       className={cn("presenton-splash-loader", className)}
       role="status"
       style={containerStyle}

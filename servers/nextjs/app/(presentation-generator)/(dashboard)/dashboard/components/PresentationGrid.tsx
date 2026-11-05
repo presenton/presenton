@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslations } from "next-intl";
 import { PresentationCard } from "./PresentationCard";
 import { PresentationResponse } from "@/app/(presentation-generator)/services/api/dashboard";
 import { EmptyState } from "./EmptyState";
@@ -20,6 +21,7 @@ export const PresentationGrid = ({
   onPresentationDeleted,
   onPresentationDuplicated,
 }: PresentationGridProps) => {
+  const t = useTranslations("dashboard");
   const ShimmerCard = () => (
     <div className="flex min-h-[216px] flex-col overflow-hidden rounded-[12px] border border-[#EDEEEF] bg-[#F8FBFB] shadow-none animate-pulse">
       <div className="relative flex-1 overflow-hidden p-4">
@@ -61,7 +63,7 @@ export const PresentationGrid = ({
             onClick={() => window.location.reload()}
             className="text-primary hover:text-primary/80 underline"
           >
-            Try again
+            {t("tryAgain")}
           </button>
         </div>
       </div>

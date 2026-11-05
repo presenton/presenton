@@ -1,8 +1,8 @@
 export const LOCALE_COOKIE = "NEXT_LOCALE";
 
 export const SUPPORTED_LOCALES = [
-  { code: "en", label: "English", dir: "ltr" },
-  { code: "ar", label: "العربية", dir: "rtl" },
+  { code: "en", label: "English", short: "EN", dir: "ltr" },
+  { code: "ar", label: "العربية", short: "ع", dir: "rtl" },
 ] as const;
 
 export type AppLocale = (typeof SUPPORTED_LOCALES)[number]["code"];

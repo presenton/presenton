@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import TemplateNavIcon from "./TemplateNavIcon";
+import LocaleMenu from "@/components/LocaleMenu";
 
 
 
@@ -37,7 +38,7 @@ const DashboardSidebar = ({
 
     return (
         <aside
-            className={`sticky top-0 flex h-screen w-[114px] shrink-0 flex-col justify-between border-r border-[#E1E1E5] bg-[#F6F6F9] px-4 py-8 backdrop-blur ${pathname === "/admin" ? "max-sm:w-[64px] max-sm:px-2 max-sm:[&_span]:hidden" : ""}`}
+            className={`sticky top-0 flex h-screen w-[114px] shrink-0 flex-col justify-between border-e border-[#E1E1E5] bg-[#F6F6F9] px-4 py-8 backdrop-blur ${pathname === "/admin" ? "max-sm:w-[64px] max-sm:px-2 max-sm:[&_span]:hidden" : ""}`}
             aria-label={t("sidebar.ariaLabel")}
         >
             <div>
@@ -107,6 +108,8 @@ const DashboardSidebar = ({
             </div>
 
             <div className="border-t border-[#E1E1E5] pt-5 font-syne">
+                <LocaleMenu />
+                <div className="py-2"/>
                   <Link
                     href="/settings"
                     aria-label={t("nav.settings")}

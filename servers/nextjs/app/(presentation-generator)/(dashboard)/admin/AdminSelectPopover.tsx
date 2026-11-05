@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Command,
   CommandEmpty,
@@ -37,20 +38,24 @@ export default function AdminSelectPopover({
   options,
   onChange,
   searchable = false,
-  searchLabel = "Search options",
-  emptyMessage = "No options found.",
-  placeholder = "Select an option",
+  searchLabel,
+  emptyMessage,
+  placeholder,
   disabled = false,
   required = false,
   fullWidth = false,
 }: AdminSelectPopoverProps) {
+  const t = useTranslations("admin.select");
+  const resolvedSearchLabel = searchLabel ?? t("searchOptions");
+  const resolvedEmptyMessage = emptyMessage ?? t("noOptions");
+  const resolvedPlaceholder = placeholder ?? t("placeholder");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState(value);
   const [listId, setListId] = useState<string>();
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? placeholder;
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? resolvedPlaceholder;
   const isDisabled = disabled || options.length === 0;
   const isOpen = open && !isDisabled;
   const filteredOptions = options.filter((option) =>
@@ -114,7 +119,7 @@ export default function AdminSelectPopover({
         }}
       >
         <Command
-          label={searchable ? searchLabel : label}
+          label={searchable ? resolvedSearchLabel : label}
           shouldFilter={false}
           value={highlighted}
           onValueChange={setHighlighted}
@@ -130,14 +135,14 @@ export default function AdminSelectPopover({
           {searchable && (
             <CommandInput
               ref={searchRef}
-              placeholder={`${searchLabel}…`}
+              placeholder={`${resolvedSearchLabel}…`}
               value={query}
               onValueChange={setQuery}
               className={styles.searchInput}
             />
           )}
           <CommandList ref={listRef} label={label} className={styles.list}>
-            <CommandEmpty className={styles.empty}>{emptyMessage}</CommandEmpty>
+            <CommandEmpty className={styles.empty}>{resolvedEmptyMessage}</CommandEmpty>
             <CommandGroup className={styles.group}>
               {filteredOptions.map((option) => (
                 <CommandItem

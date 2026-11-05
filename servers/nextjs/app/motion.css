@@ -32,7 +32,7 @@
   position: absolute;
   top: var(--motion-segment-inset-y, 3px);
   bottom: var(--motion-segment-inset-y, 3px);
-  left: var(--motion-segment-inset, 3px);
+  inset-inline-start: var(--motion-segment-inset, 3px);
   width: calc(50% - var(--motion-segment-inset, 3px));
   pointer-events: none;
   transform: translateX(0);
@@ -41,6 +41,10 @@
 
 .motion-segments[data-selection="1"] > .motion-segment-indicator {
   transform: translateX(100%);
+}
+
+html[dir="rtl"] .motion-segments[data-selection="1"] > .motion-segment-indicator {
+  transform: translateX(-100%);
 }
 
 .motion-segments > button {
@@ -66,7 +70,7 @@
 /* Pointer feedback is interruptible. Touch and keyboard keep a stable target. */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   html:not([data-motion-input="keyboard"]) :is(.motion-card, .motion-press, .motion-arrow) {
-    transition: transform 160ms var(--motion-ease-out);
+    transition: transform 160ms var(--motion-ease-out), translate 160ms var(--motion-ease-out);
   }
 
   html:not([data-motion-input="keyboard"]) .motion-card:hover:not(:disabled):not([aria-disabled="true"]) {
@@ -86,7 +90,13 @@
   }
 
   html:not([data-motion-input="keyboard"]) .group:hover:not(:disabled):not([aria-disabled="true"]) .motion-arrow {
-    transform: translateX(2px);
+    /* Use `translate` rather than `transform` so a mirrored icon's
+       `rtl:rotate-180` (which also rides on transform) is not overridden. */
+    translate: 2px 0;
+  }
+
+  html[dir="rtl"]:not([data-motion-input="keyboard"]) .group:hover:not(:disabled):not([aria-disabled="true"]) .motion-arrow {
+    translate: -2px 0;
   }
 }
 

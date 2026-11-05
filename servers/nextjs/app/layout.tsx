@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { getLocaleDir } from "@/i18n/config";
 import { Providers } from "./providers";
+import { AppDirectionProvider } from "@/components/AppDirectionProvider";
 import MixpanelInitializer from "./MixpanelInitializer";
 import { Toaster } from "@/components/ui/sonner";
 import TailwindBrowserRuntime from "@/components/runtime/TailwindBrowserRuntime";
@@ -65,13 +66,15 @@ export default async function RootLayout({
     <html lang={locale} dir={dir}>
       <body className="antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers>
-            <MixpanelInitializer>
+          <AppDirectionProvider dir={dir}>
+            <Providers>
+              <MixpanelInitializer>
 
-              {children}
+                {children}
 
-            </MixpanelInitializer>
-          </Providers>
+              </MixpanelInitializer>
+            </Providers>
+          </AppDirectionProvider>
         </NextIntlClientProvider>
         <TailwindBrowserRuntime />
         <Toaster position="top-center" />

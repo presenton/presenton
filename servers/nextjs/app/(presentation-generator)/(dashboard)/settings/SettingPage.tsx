@@ -11,6 +11,7 @@ import {
 import { isOllamaModelAvailable } from "@/utils/providerUtils";
 import { providerSetupNavigationAction } from "@/lib/provider-setup-navigation";
 import { useRouter, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { LLMConfig } from "@/types/llm_config";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import SettingSideBar, { SettingsSection } from "./SettingSideBar";
@@ -18,6 +19,7 @@ import TextProvider from "./TextProvider";
 import ImageProvider from "./ImageProvider";
 import WebSearchProvider from "./WebSearchProvider";
 import PrivacySettings from "./PrivacySettings";
+import PreferencesSettings from "./PreferencesSettings";
 import {
   IMAGE_PROVIDERS,
   LLM_PROVIDERS,
@@ -38,13 +40,13 @@ const STOCK_IMAGE_PROVIDERS = new Set(["pexels", "pixabay"]);
 interface ButtonState {
   isLoading: boolean;
   isDisabled: boolean;
-  text: string;
   showProgress: boolean;
   progressPercentage?: number;
   status?: string;
 }
 
 const SettingsPage = () => {
+  const t = useTranslations("settings");
   const router = useRouter();
   const pathname = usePathname();
   const [selectedProvider, setSelectedProvider] = useState<SettingsSection>("text-provider");
@@ -56,7 +58,6 @@ const SettingsPage = () => {
   const [buttonState, setButtonState] = useState<ButtonState>({
     isLoading: false,
     isDisabled: false,
-    text: "Save Configuration",
     showProgress: false,
   });
 
@@ -213,7 +214,6 @@ const SettingsPage = () => {
         ...prev,
         isLoading: true,
         isDisabled: true,
-        text: "Saving Configuration...",
       }));
       trackEvent(MixpanelEvent.Settings_SaveConfiguration_API_Call);
       if (
@@ -229,27 +229,20 @@ const SettingsPage = () => {
         );
       }
       await handleSaveLLMConfig(llmConfig);
-      notify.success(
-        "Settings saved",
-        "Your configuration was saved successfully."
-      );
+      notify.success(t("savedTitle"), t("savedBody"));
       setButtonState((prev) => ({
         ...prev,
         isLoading: false,
         isDisabled: false,
-        text: "Save Configuration",
       }));
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "Something went wrong while saving.";
-      notify.error("Could not save settings", message);
+        error instanceof Error ? error.message : t("errorBody");
+      notify.error(t("errorTitle"), message);
       setButtonState((prev) => ({
         ...prev,
         isLoading: false,
         isDisabled: false,
-        text: "Save Configuration",
       }));
     }
   };
@@ -308,19 +301,19 @@ const SettingsPage = () => {
     : textProviderLabel;
 
   const imageSummary = textProviderKey === "presenton"
-    ? "Cloud images"
+    ? t("summary.cloudImages")
     : llmConfig.DISABLE_IMAGE_GENERATION
-      ? "Image generation disabled"
+      ? t("summary.imageDisabled")
       : llmConfig.IMAGE_PROVIDER
         ? IMAGE_PROVIDERS[llmConfig.IMAGE_PROVIDER]?.label ||
         llmConfig.IMAGE_PROVIDER
-        : "No image provider";
+        : t("summary.noImageProvider");
   const webSearchProviderKey = (llmConfig.WEB_SEARCH_PROVIDER || "").toLowerCase();
   const webSearchSummary = textProviderKey === "presenton"
-    ? "Cloud web search"
+    ? t("summary.cloudWebSearch")
     : llmConfig.WEB_GROUNDING
-      ? `Web: ${WEB_SEARCH_PROVIDERS[webSearchProviderKey]?.label || "No provider"}`
-      : "Web search disabled";
+      ? t("summary.web", { provider: WEB_SEARCH_PROVIDERS[webSearchProviderKey]?.label || t("summary.noProvider") })
+      : t("summary.webDisabled");
 
   useEffect(() => {
     if (
@@ -424,11 +417,11 @@ const SettingsPage = () => {
           setSelectedProvider={selectSettingsSection}
           presentonSelected={llmConfig.LLM === "presenton"}
         />
-        <div className={`custom_scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto pb-36 pr-5 ${selectedProvider === "admin" ? "max-md:pl-4 max-md:pr-4" : ""}`}>
-          {selectedProvider !== "admin" && <div className="sticky right-0 top-0 z-40 mb-4 bg-white/90 py-[28px] backdrop-blur">
+        <div className={`custom_scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto pb-36 pe-5 ${selectedProvider === "admin" ? "max-md:ps-4 max-md:pe-4" : ""}`}>
+          {selectedProvider !== "admin" && <div className="sticky end-0 top-0 z-40 mb-4 bg-white/90 py-[28px] backdrop-blur">
             <div className="flex  gap-3 items-center ">
               <h3 className=" text-[28px] tracking-[-0.84px] font-syne font-normal text-black flex items-center gap-2">
-                Settings
+                {t("heading")}
               </h3>
               <p className="text-[10px] px-2.5 py-0.5 rounded-[50px] text-[#7A5AF8] border border-[#EDEEEF]  font-medium ">
                 {textSummary} · {imageSummary} · {webSearchSummary}
@@ -439,11 +432,11 @@ const SettingsPage = () => {
           {!llmConfig.LLM && selectedProvider === "text-provider" && (
             <div
               role="alert"
-              className="mb-5 mr-7 rounded-[12px] border border-amber-200 bg-amber-50 px-5 py-4 text-[#713F12]"
+              className="mb-5 me-7 rounded-[12px] border border-amber-200 bg-amber-50 px-5 py-4 text-[#713F12]"
             >
-              <p className="text-sm font-semibold">Choose a text provider to continue</p>
+              <p className="text-sm font-semibold">{t("providerRequired.title")}</p>
               <p className="mt-1 text-xs leading-5">
-                Presenton Cloud is disconnected. Select any text provider below and save the configuration before opening another page.
+                {t("providerRequired.body")}
               </p>
             </div>
           )}
@@ -467,17 +460,18 @@ const SettingsPage = () => {
             </div>
           )}
           {selectedProvider === 'privacy' && <div className="motion-fade"><PrivacySettings /></div>}
+          {selectedProvider === 'preferences' && <div className="motion-fade"><PreferencesSettings /></div>}
           {selectedProvider === "admin" && <div className="pt-7"><AdminPanel embedded onBackToSettings={() => selectSettingsSection("text-provider")} /></div>}
           {selectedProvider === "session" && (
             <div className="motion-fade w-full max-w-lg space-y-5 rounded-[20px] border border-[#EDEEEF] bg-white p-7">
               <div>
-                <h4 className="font-syne text-lg font-normal text-black">Sign out</h4>
+                <h4 className="font-syne text-lg font-normal text-black">{t("signOutHeading")}</h4>
                 <p className="mt-2 font-syne text-sm leading-relaxed text-[#494A4D]">
-                  End your session on this deployment. You will need to sign in again to use the app and access the API.
+                  {t("session.body")}
                 </p>
               </div>
               <LogoutButton
-                label="Sign out"
+                label={t("signOut")}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-[58px] border border-[#EDEEEF] bg-[#7C51F8] px-5 py-3 font-syne text-xs font-semibold text-white transition hover:bg-[#6d46e6] disabled:cursor-not-allowed disabled:opacity-60"
               />
             </div>
@@ -488,7 +482,7 @@ const SettingsPage = () => {
 
       {/* Fixed Bottom Button — hidden on Sign out; nothing to save there */}
       {!["session", "admin"].includes(selectedProvider) ? (
-        <div className="fixed bottom-20 right-5 z-50 mx-auto">
+        <div className="fixed bottom-20 end-5 z-50 mx-auto">
           <button
             onClick={handleSaveConfig}
             disabled={buttonState.isDisabled}
@@ -505,12 +499,12 @@ const SettingsPage = () => {
             {buttonState.isLoading ? (
               <div className="flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                {buttonState.text}
+                {t("saving")}
               </div>
             ) : (
-              buttonState.text
+              t("save")
             )}
-            <ChevronRight className="motion-arrow w-4 h-4" />
+            <ChevronRight className="motion-arrow w-4 h-4 rtl:rotate-180" />
           </button>
         </div>
       ) : null}

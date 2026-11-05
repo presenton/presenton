@@ -15,6 +15,26 @@
   :global(html:not([data-motion-input="keyboard"])) .actionCard:hover:not(:disabled) .floatingCards > div:last-child {
     transform: translateX(6px) rotate(3deg);
   }
+
+  /* RTL: the cards carry their tilt in the artwork, so each card is mirrored in
+     place. Because scaleX(-1) is applied first, the LTR translate/rotate values
+     render mirrored — the fan opens outward without leaving its box. */
+  :global(html[dir="rtl"]:not([data-motion-input="keyboard"])) .actionCard:hover:not(:disabled) .floatingCards > div:first-child {
+    transform: translateX(6px) rotate(3deg) scaleX(-1);
+  }
+
+  :global(html[dir="rtl"]:not([data-motion-input="keyboard"])) .actionCard:hover:not(:disabled) .floatingCards > div:nth-child(2) {
+    transform: translateY(-3px) scale(1.03) scaleX(-1);
+  }
+
+  :global(html[dir="rtl"]:not([data-motion-input="keyboard"])) .actionCard:hover:not(:disabled) .floatingCards > div:last-child {
+    transform: translateX(-6px) rotate(-3deg) scaleX(-1);
+  }
+}
+
+/* Resting state in RTL: mirrored, tilt included. */
+:global(html[dir="rtl"]) .floatingCards > div {
+  transform: scaleX(-1);
 }
 
 @media (prefers-reduced-motion: reduce) {
