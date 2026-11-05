@@ -5,8 +5,8 @@ from typing import Any
 
 INVALID_API_KEY_MESSAGE = "Invalid API key. Please verify your API key and try again."
 IMAGE_MODERATION_MESSAGE = (
-    "An image request was blocked by the safety system. "
-    "A placeholder image was used for that slide."
+    "An image request was blocked by the provider's safety system. "
+    "Try a different prompt."
 )
 GENERIC_PROVIDER_ERROR_MESSAGE = (
     "The AI provider returned an error. Please try again."
@@ -17,6 +17,7 @@ _INVALID_API_KEY_PATTERNS = (
     re.compile(r"\binvalid[_\s-]*api[_\s-]*key\b", re.IGNORECASE),
     re.compile(r"\bincorrect\s+api\s+key\b", re.IGNORECASE),
     re.compile(r"\bapi\s+key\s+(?:is\s+)?invalid\b", re.IGNORECASE),
+    re.compile(r"\bapi[_\s-]*key[_\s-]*invalid\b", re.IGNORECASE),
     re.compile(r"\bno\s+api\s+key\b", re.IGNORECASE),
     re.compile(r"\bauthentication(?:_error|\s+error)?\b", re.IGNORECASE),
 )
@@ -132,6 +133,19 @@ def safe_provider_error_detail(
 
     prefix = _provider_operation_prefix(provider, operation)
     normalized_code = _normalize_code(code)
+    messages = {
+        "provider_dns_error": f"The {provider} hostname could not be resolved. Check the provider URL and Docker network configuration.",
+        "provider_unreachable": f"Cannot connect to the {provider}. Check that it is running and that the provider URL and Docker network are correct.",
+        "provider_timeout": f"The {provider} took too long to respond. Try again, or check the provider's load and connection.",
+        "context_window_exceeded": "The AI request exceeded the model's context window. Try a smaller edit or use a model with a larger context window.",
+        "provider_invalid_response": f"The {provider} returned an incomplete or invalid response. Try again, or check that the configured URL and model support this operation.",
+        "provider_configuration_error": "The AI provider configuration is incomplete or invalid. Check provider settings or contact your administrator.",
+        "provider_unavailable": f"The {provider} is temporarily unavailable. Try again shortly or check the provider's status.",
+        "provider_tls_error": f"A secure connection to the {provider} could not be established. Check the provider's HTTPS certificate and the system trust store.",
+        "provider_endpoint_not_found": f"The {provider} endpoint was not found. Check the configured API URL and selected model.",
+    }
+    if normalized_code in messages:
+        return messages[normalized_code]
     if normalized_code == "insufficient_quota":
         return (
             f"{prefix} failed because API quota is unavailable. "
@@ -152,6 +166,13 @@ def safe_provider_error_detail(
             f"The selected {provider} model is not available. "
             "Choose another model or check model access."
         )
+
+    if status_code in {408, 504}:
+        return messages["provider_timeout"]
+    if status_code is not None and status_code >= 500:
+        return messages["provider_unavailable"]
+    if status_code in {400, 422}:
+        return f"The {provider} rejected the request. Check the selected model and provider settings, or try a smaller request."
 
     return f"{prefix} failed. Please try again."
 
@@ -184,4 +205,6 @@ def safe_llm_provider_error_detail(
             message=text,
         )
 
-    return text
+    return safe_provider_error_detail(
+        "AI provider", "API request", status_code=status_code, message=text,
+    )

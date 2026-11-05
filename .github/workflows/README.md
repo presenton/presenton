@@ -25,7 +25,7 @@ No test step is allowed to fail silently.
 
 ## Run the CI checks locally
 
-Install Node.js 20+, npm, Python 3.11, and `uv`, then run:
+Install Node.js 22.12+, npm 11.16.0, Python 3.11, and `uv`, then run:
 
 ```bash
 ./test-local.sh
@@ -52,7 +52,13 @@ uv run --locked python -m pytest --verbose --tb=short
 
 ### Next.js
 
+The Next.js CI job uses Node.js 22 and pins npm 11.16.0, matching Docker's
+frontend dependency installer. npm 10 can report missing lockfile entries such
+as `glob@10.5.0` because it resolves range overrides differently. Use the pinned
+npm version instead of regenerating the frontend lockfile with npm 10.
+
 ```bash
+npm install --global npm@11.16.0
 cd servers/nextjs
 npm ci
 npm test

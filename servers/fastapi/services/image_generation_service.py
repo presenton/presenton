@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import math
+import logging
 import os
 import secrets
 from weakref import WeakKeyDictionary
@@ -43,6 +44,7 @@ from utils.image_provider import (
 )
 from utils.asset_directory_utils import absolute_fastapi_asset_url
 from utils.image_generation_error import normalize_image_generation_error
+from utils.provider_errors import ProviderHTTPException, ProviderResponseError, normalize_provider_error
 from utils.image_config import migrate_legacy_image_config
 import uuid
 
@@ -244,8 +246,8 @@ class ImageGenerationService:
             raise Exception(f"Image not found at {image_path}")
 
         except Exception as e:
-            print(f"Error generating image: {e}")
             normalized_error = normalize_image_generation_error(e)
+            logging.getLogger(__name__).warning("Image generation failed: code=%s exception=%s", getattr(normalized_error, "error_code", "image_error"), type(e).__name__)
             if normalized_error is e:
                 raise
             raise normalized_error from e
@@ -377,16 +379,16 @@ class ImageGenerationService:
             )
 
             if resp.status != 200:
-                error_text = await resp.text()
-                hint = ""
-                if resp.status in (404, 405):
-                    hint = (
-                        " (OPEN_WEBUI_IMAGE_URL should point at the Open WebUI"
-                        f" API root, e.g. {origin}{OPEN_WEBUI_API_PREFIX})"
+                if resp.status in {404, 405}:
+                    raise ProviderHTTPException(
+                        status_code=resp.status,
+                        detail="Open WebUI could not find the image API endpoint. Set OPEN_WEBUI_IMAGE_URL to the API root ending in /api/v1.",
+                        code="provider_endpoint_not_found", retryable=False, source="image",
                     )
-                raise Exception(
-                    f"Open WebUI image generation returned {resp.status}: "
-                    f"{error_text}{hint}"
+                error_text = await resp.text()
+                raise normalize_provider_error(
+                    ProviderResponseError(resp.status, error_text),
+                    provider="Open WebUI", operation="image generation", source="image",
                 )
 
             body = await resp.json()
@@ -968,13 +970,18 @@ class ImageGenerationService:
 
         if response.status != 200:
             error_text = await response.text()
-            raise Exception(f"Failed to submit workflow to ComfyUI: {error_text}")
+            raise normalize_provider_error(
+                ProviderResponseError(response.status, error_text),
+                provider="ComfyUI", operation="image generation", source="image",
+            )
 
         data = await response.json()
+        if not isinstance(data, dict):
+            raise normalize_provider_error(ProviderResponseError(502, "invalid_response"), provider="ComfyUI", source="image")
         prompt_id = data.get("prompt_id")
 
         if not prompt_id:
-            raise Exception("No prompt_id returned from ComfyUI")
+            raise normalize_provider_error(ProviderResponseError(502, "invalid_response"), provider="ComfyUI", source="image")
 
         print(f"ComfyUI workflow submitted. Prompt ID: {prompt_id}")
         return prompt_id
@@ -993,7 +1000,7 @@ class ImageGenerationService:
         while True:
             elapsed = asyncio.get_event_loop().time() - start_time
             if elapsed > timeout:
-                raise Exception(f"ComfyUI workflow timed out after {timeout} seconds")
+                raise TimeoutError("ComfyUI workflow timed out")
 
             await asyncio.sleep(poll_interval)
 
@@ -1003,12 +1010,14 @@ class ImageGenerationService:
             )
 
             if response.status != 200:
-                continue
+                raise normalize_provider_error(
+                    ProviderResponseError(response.status, await response.text()),
+                    provider="ComfyUI", operation="image generation", source="image",
+                )
 
-            try:
-                status_data = await response.json()
-            except Exception as _:
-                continue
+            status_data = await response.json()
+            if not isinstance(status_data, dict):
+                raise normalize_provider_error(ProviderResponseError(502, "invalid_response"), provider="ComfyUI", source="image")
 
             if prompt_id in status_data:
                 execution_data = status_data[prompt_id]
@@ -1016,11 +1025,15 @@ class ImageGenerationService:
                 # Check for completion
                 if "status" in execution_data:
                     status = execution_data["status"]
+                    if "error" in status or status.get("status_str") == "error":
+                        raise ProviderHTTPException(
+                            status_code=422,
+                            detail="ComfyUI could not execute the workflow. Check the configured workflow and required models.",
+                            code="provider_request_rejected", retryable=False, source="image",
+                        )
                     if status.get("completed", False):
                         print("ComfyUI workflow completed successfully")
                         return status_data
-                    if "error" in status:
-                        raise Exception(f"ComfyUI workflow error: {status['error']}")
 
                 # Also check if outputs exist (alternative completion check)
                 if "outputs" in execution_data and execution_data["outputs"]:
@@ -1080,7 +1093,10 @@ class ImageGenerationService:
                         print(f"Downloaded image from ComfyUI: {image_path}")
                         return image_path
                     else:
-                        raise Exception(f"Failed to download image: {response.status}")
+                        raise normalize_provider_error(
+                            ProviderResponseError(response.status, await response.text()),
+                            provider="ComfyUI", operation="image download", source="image",
+                        )
 
     async def generate_image_openai_compatible(
         self,
