@@ -24,6 +24,7 @@ from utils.get_env import (
 from utils.mime_types import init_sandbox_safe_mimetypes
 from utils.path_helpers import get_resource_path
 from api.v1.auth.assets import mount_app_data_assets
+from utils.api_errors import register_error_handlers
 
 
 init_sandbox_safe_mimetypes()
@@ -116,3 +117,7 @@ async def static_icon_fallback_middleware(request: Request, call_next):
     if not os.path.isfile(placeholder):
         return response
     return FileResponse(placeholder, media_type="image/svg+xml")
+
+
+# Register last so the boundary also covers authentication/config middleware.
+register_error_handlers(app)

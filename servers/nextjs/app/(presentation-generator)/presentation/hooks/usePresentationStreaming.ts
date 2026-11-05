@@ -13,6 +13,7 @@ import { notify } from "@/components/ui/sonner";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import { sanitizeAnalyticsError } from "@/utils/analytics";
 import { getApiUrl, normalizeBackendAssetUrls } from "@/utils/api";
+import { extractApiErrorMessage } from "@/utils/apiErrorMessages";
 import { store } from "@/store/store";
 import {
   isChatGptAuthRequiredMessage,
@@ -656,8 +657,7 @@ export const usePresentationStreaming = (
             }
             const completedSlides = Number(data.completed_slides);
             const totalSlides = Number(data.total_slides);
-            const detail =
-              data.detail || "Failed to connect to the server. Please try again.";
+            const detail = extractApiErrorMessage(data, "The presentation could not be generated. Please try again.", data.status_code);
             const detailWithProgress =
               Number.isFinite(completedSlides) && completedSlides > 0
                 ? `${detail} ${completedSlides}${

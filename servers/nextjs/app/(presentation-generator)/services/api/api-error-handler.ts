@@ -6,6 +6,7 @@ import {
 import {
   extractApiErrorMessage,
   extractApiErrorMetadata,
+  statusErrorMessage,
   type ApiErrorResponse,
 } from "@/utils/apiErrorMessages";
 
@@ -13,158 +14,81 @@ export class ApiResponseError extends Error {
   readonly status: number;
   readonly code?: string;
   readonly retryable: boolean;
+  readonly requestId?: string;
 
   constructor(
     message: string,
-    {
-      status,
-      code,
-      retryable,
-    }: { status: number; code?: string; retryable: boolean }
+    metadata: { status: number; code?: string; retryable: boolean; requestId?: string },
   ) {
     super(message);
     this.name = "ApiResponseError";
-    this.status = status;
-    this.code = code;
-    this.retryable = retryable;
+    this.status = metadata.status;
+    this.code = metadata.code;
+    this.retryable = metadata.retryable;
+    this.requestId = metadata.requestId;
   }
 }
 
-// API Response Handler Utility
+/** Normalize transport errors without retrying potentially mutating requests. */
+export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    const timeout = (error instanceof Error && error.name === "TimeoutError") || init?.signal?.reason?.name === "TimeoutError";
+    if (!timeout && (init?.signal?.aborted || (error instanceof Error && error.name === "AbortError"))) {
+      throw error;
+    }
+    throw new ApiResponseError(
+      timeout
+        ? "The request took too long to complete. Please try again."
+        : "Could not reach Presenton. Check your connection and that the server is running, then try again.",
+      { status: timeout ? 504 : 0, code: timeout ? "request_timeout" : "backend_unreachable", retryable: true },
+    );
+  }
+}
+
 export class ApiResponseHandler {
   static async handleResponse(response: Response, defaultErrorMessage: string): Promise<any> {
-    // Handle successful responses
     if (response.ok) {
-      // Handle 204 No Content responses
-      if (response.status === 204) {
-        return true;
-      }
-      
-      // Try to parse JSON response
+      if (response.status === 204) return true;
       try {
         return await response.json();
-      } catch {
-        // If JSON parsing fails but response is ok, return empty object
-        return {};
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") throw error;
+        // Invalid JSON must not become an empty successful object that causes
+        // an unrelated rendering failure later.
+        throw new ApiResponseError(
+          "Presenton returned an incomplete or invalid response. Please try again.",
+          { status: 502, code: "invalid_response", retryable: true },
+        );
       }
     }
 
-    // Handle error responses
-    let errorMessage = defaultErrorMessage;
     let errorData: ApiErrorResponse | null = null;
-    
     try {
       errorData = await response.json();
-      errorMessage = extractApiErrorMessage(
-        errorData,
-        defaultErrorMessage,
-        response.status
-      );
-
-      if (isChatGptAuthRequiredResponse(response, errorData, errorMessage)) {
-        errorMessage = normalizeChatGptAuthMessage(errorMessage);
-        requestChatGptReauth({
-          message: errorMessage,
-          source: "api-response",
-        });
-      }
     } catch {
-      // If JSON parsing fails, use status-based messages
-      errorMessage = this.getStatusBasedErrorMessage(response.status, defaultErrorMessage);
-      if (isChatGptAuthRequiredResponse(response, null, errorMessage)) {
-        errorMessage = normalizeChatGptAuthMessage(errorMessage);
-        requestChatGptReauth({
-          message: errorMessage,
-          source: "api-response",
-        });
-      }
+      // Gateways may return HTML or an empty body. Never display that payload.
     }
-
-    const metadata = extractApiErrorMetadata(errorData, response.status);
-    throw new ApiResponseError(errorMessage, {
+    const fallback = statusErrorMessage(response.status, defaultErrorMessage);
+    let message = extractApiErrorMessage(errorData, fallback, response.status);
+    if (isChatGptAuthRequiredResponse(response, errorData, message)) {
+      message = normalizeChatGptAuthMessage(message);
+      requestChatGptReauth({ message, source: "api-response" });
+    }
+    throw new ApiResponseError(message, {
       status: response.status,
-      code: metadata.code,
-      retryable: metadata.retryable,
+      ...extractApiErrorMetadata(errorData, response.status),
     });
   }
 
-
-  static async handleResponseWithResult(response: Response, defaultErrorMessage: string): Promise<{success: boolean, message?: string}> {
+  static async handleResponseWithResult(response: Response, defaultErrorMessage: string): Promise<{ success: boolean; message?: string }> {
+    if (response.ok) return { success: true };
     try {
-      // Handle successful responses
-      if (response.ok) {
-        return { success: true };
-      }
-
-      // Handle error responses
-      let errorMessage = defaultErrorMessage;
-      
-      try {
-        const errorData: ApiErrorResponse = await response.json();
-        errorMessage = extractApiErrorMessage(
-          errorData,
-          defaultErrorMessage,
-          response.status
-        );
-
-        if (isChatGptAuthRequiredResponse(response, errorData, errorMessage)) {
-          errorMessage = normalizeChatGptAuthMessage(errorMessage);
-          requestChatGptReauth({
-            message: errorMessage,
-            source: "api-response-result",
-          });
-        }
-      } catch {
-        // If JSON parsing fails, use status-based messages
-        errorMessage = this.getStatusBasedErrorMessage(response.status, defaultErrorMessage);
-        if (isChatGptAuthRequiredResponse(response, null, errorMessage)) {
-          errorMessage = normalizeChatGptAuthMessage(errorMessage);
-          requestChatGptReauth({
-            message: errorMessage,
-            source: "api-response-result",
-          });
-        }
-      }
-
-      return {
-        success: false,
-        message: errorMessage,
-      };
+      await this.handleResponse(response, defaultErrorMessage);
+      return { success: true };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : defaultErrorMessage,
-      };
-    }
-  }
-
-
-  private static getStatusBasedErrorMessage(status: number, defaultMessage: string): string {
-    switch (status) {
-      case 400:
-        return "Bad request. Please check your input and try again.";
-      case 401:
-        return "Unauthorized. Please log in and try again.";
-      case 403:
-        return "Access forbidden. You don't have permission to perform this action.";
-      case 404:
-        return "Resource not found. The requested item may have been deleted or moved.";
-      case 409:
-        return "Conflict. The resource already exists or there's a conflict with the current state.";
-      case 422:
-        return "Validation error. Please check your input and try again.";
-      case 429:
-        return "Too many requests. Please wait a moment and try again.";
-      case 500:
-        return "Internal server error. Please try again later.";
-      case 502:
-        return "Bad gateway. The server is temporarily unavailable.";
-      case 503:
-        return "Service unavailable. Please try again later.";
-      case 504:
-        return "Gateway timeout. The request took too long to process.";
-      default:
-        return defaultMessage;
+      return { success: false, message: error instanceof Error ? error.message : defaultErrorMessage };
     }
   }
 }

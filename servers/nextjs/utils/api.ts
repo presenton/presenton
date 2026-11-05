@@ -1,4 +1,4 @@
-import { extractApiErrorMessage } from "@/utils/apiErrorMessages";
+import { extractApiErrorMessage, statusErrorMessage } from "@/utils/apiErrorMessages";
 
 export const BACKEND_CONNECTION_ERROR_MESSAGE =
   "Check that the FastAPI backend is running and that the frontend can reach it.";
@@ -24,6 +24,7 @@ export async function getApiErrorMessage(
   response: Response,
   fallbackMessage: string
 ): Promise<string> {
+  fallbackMessage = statusErrorMessage(response.status, fallbackMessage);
   try {
     const errorData: unknown = await response.clone().json();
     return extractApiErrorMessage(errorData, fallbackMessage, response.status);
