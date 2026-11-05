@@ -1,7 +1,7 @@
 import {
   getHeader,
 } from "@/app/(presentation-generator)/services/api/header";
-import { ApiResponseHandler } from "@/app/(presentation-generator)/services/api/api-error-handler";
+import { ApiResponseHandler, apiFetch } from "@/app/(presentation-generator)/services/api/api-error-handler";
 import { getApiUrl } from "@/utils/api";
 
 export type PresentationVersion = "v1-standard" | "v2-standard";
@@ -47,7 +47,7 @@ export class DashboardApi {
         params.set("include_slides", "false");
       }
       const query = params.toString();
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/all${query ? `?${query}` : ""}`),
         {
           method: "GET",
@@ -72,7 +72,7 @@ export class DashboardApi {
     options?: { cache?: RequestCache }
   ) {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/${id}`),
         {
           method: "GET",
@@ -90,7 +90,7 @@ export class DashboardApi {
 
   static async deletePresentation(presentation_id: string) {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/${presentation_id}`),
         {
           method: "DELETE",
@@ -110,7 +110,7 @@ export class DashboardApi {
 
   static async duplicatePresentation(presentation_id: string) {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/${presentation_id}/duplicate`),
         {
           method: "POST",

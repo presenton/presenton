@@ -194,7 +194,7 @@ async def stream_outlines(
                 continue
 
             if isinstance(chunk, HTTPException):
-                yield SSEErrorResponse(detail=chunk.detail).to_string()
+                yield SSEErrorResponse.from_exception(chunk).to_string()
                 return
 
             yield SSEResponse(
@@ -211,7 +211,8 @@ async def stream_outlines(
         except Exception as e:
             traceback.print_exc()
             yield SSEErrorResponse(
-                detail=f"Failed to generate presentation outlines. Please try again. {str(e)}",
+                detail="The AI returned invalid presentation outlines. Please try again.",
+                code="provider_invalid_response", retryable=True,
             ).to_string()
             return
 

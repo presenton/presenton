@@ -1,8 +1,9 @@
 from typing import Annotated, List
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body
+
+from utils.provider_errors import normalize_provider_error
 
 from utils.available_models import (
-    ModelAvailabilityError,
     list_available_anthropic_models,
 )
 
@@ -15,7 +16,5 @@ async def get_available_models(
 ):
     try:
         return await list_available_anthropic_models(api_key)
-    except ModelAvailabilityError as e:
-        raise HTTPException(status_code=e.status_code, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise normalize_provider_error(e, provider="Anthropic") from e

@@ -1,5 +1,6 @@
 import { buildAbsoluteApiRequestUrl, getApiUrl } from "@/utils/api";
-import { ApiResponseHandler } from "./api-error-handler";
+import { ApiResponseError, ApiResponseHandler, apiFetch } from "./api-error-handler";
+import { extractApiErrorMessage, extractApiErrorMetadata } from "@/utils/apiErrorMessages";
 import { getHeader } from "./header";
 import {
   isChatGptAuthRequiredMessage,
@@ -81,6 +82,7 @@ interface ChatStreamDataComplete {
 interface ChatStreamDataError {
   type: "error";
   detail?: unknown;
+  status_code?: number;
 }
 
 interface ChatStreamDataStatus {
@@ -107,7 +109,7 @@ async function streamChatMessage(
   handlers: ChatStreamHandlers = {},
   options?: { signal?: AbortSignal }
 ): Promise<ChatMessageResponse> {
-  const response = await fetch(getApiUrl(endpoint), {
+  const response = await apiFetch(getApiUrl(endpoint), {
     method: "POST",
     headers: getHeader(),
     body: JSON.stringify(payload),
@@ -124,7 +126,7 @@ async function streamChatMessage(
   }
 
   if (!response.body) {
-    throw new Error("No response body received from chat stream");
+    throw new ApiResponseError("The AI editor returned an empty response. Please try again.", { status: 502, code: "invalid_response", retryable: true });
   }
 
   const reader = response.body.getReader();
@@ -159,7 +161,10 @@ async function streamChatMessage(
     try {
       parsedData = JSON.parse(dataLines.join("\n")) as ChatStreamData;
     } catch {
-      return;
+      throw new ApiResponseError("The AI editor returned an invalid response. Refresh to check saved changes before trying again.", { status: 502, code: "invalid_response", retryable: false });
+    }
+    if (!parsedData || typeof parsedData !== "object") {
+      throw new ApiResponseError("The AI editor returned an invalid response. Please try again.", { status: 502, code: "invalid_response", retryable: false });
     }
 
     const payloadType = parsedData.type;
@@ -200,20 +205,18 @@ async function streamChatMessage(
     }
 
     if (payloadType === "error") {
-      const detail = (parsedData as ChatStreamDataError).detail;
-      const message =
-        typeof detail === "string" && detail.trim().length > 0
-          ? detail
-          : "Chat stream failed";
+      const status = typeof parsedData.status_code === "number" ? parsedData.status_code : 500;
+      const metadata = extractApiErrorMetadata(parsedData, status);
+      const message = extractApiErrorMessage(parsedData, "The AI editor could not complete this request. Please try again.", status);
       if (isChatGptAuthRequiredMessage(message)) {
         const authMessage = normalizeChatGptAuthMessage(message);
         requestChatGptReauth({
           message: authMessage,
           source: "chat-stream",
         });
-        throw new Error(authMessage);
+        throw new ApiResponseError(authMessage, { status, ...metadata });
       }
-      throw new Error(message);
+      throw new ApiResponseError(message, { status, ...metadata });
     }
 
     if (payloadType === "status") {
@@ -291,31 +294,42 @@ async function streamChatMessage(
     }
   };
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      buffer = buffer.replaceAll("\r\n", "\n");
+
+      let delimiterIndex = buffer.indexOf("\n\n");
+      while (delimiterIndex >= 0) {
+        const frame = buffer.slice(0, delimiterIndex);
+        buffer = buffer.slice(delimiterIndex + 2);
+        processSseFrame(frame);
+        if (finalResponse) return finalResponse;
+        delimiterIndex = buffer.indexOf("\n\n");
+      }
     }
-    buffer += decoder.decode(value, { stream: true });
 
-    let delimiterIndex = buffer.indexOf("\n\n");
-    while (delimiterIndex >= 0) {
-      const frame = buffer.slice(0, delimiterIndex);
-      buffer = buffer.slice(delimiterIndex + 2);
-      processSseFrame(frame);
-      delimiterIndex = buffer.indexOf("\n\n");
+    buffer += decoder.decode();
+    if (buffer.trim().length > 0) {
+      processSseFrame(buffer);
     }
-  }
 
-  if (buffer.trim().length > 0) {
-    processSseFrame(buffer);
-  }
+    if (finalResponse) {
+      return finalResponse;
+    }
 
-  if (finalResponse) {
-    return finalResponse;
+    throw new ApiResponseError("The connection ended before the AI editor finished. Refresh to check saved changes before trying again.", { status: 0, code: "stream_interrupted", retryable: false });
+  } catch (error) {
+    if (error instanceof ApiResponseError || options?.signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+    throw new ApiResponseError("The connection to the AI editor was interrupted. Refresh to check saved changes before trying again.", { status: 0, code: "stream_interrupted", retryable: false });
+  } finally {
+    try { await reader.cancel(); } catch { /* Transport may already be closed. */ }
+    reader.releaseLock();
   }
-
-  throw new Error("Chat stream ended before completion");
 }
 
 export class PresentationChatApi {
@@ -328,7 +342,7 @@ export class PresentationChatApi {
     );
     u.searchParams.set("presentation_id", presentationId);
     u.searchParams.set("presentation_type", presentationType);
-    const response = await fetch(u.toString(), {
+    const response = await apiFetch(u.toString(), {
       headers: getHeader(),
       cache: "no-cache",
     });
@@ -347,7 +361,7 @@ export class PresentationChatApi {
     u.searchParams.set("presentation_id", presentationId);
     u.searchParams.set("presentation_type", presentationType);
     u.searchParams.set("conversation_id", conversationId);
-    const response = await fetch(u.toString(), {
+    const response = await apiFetch(u.toString(), {
       headers: getHeader(),
       cache: "no-cache",
     });
@@ -368,7 +382,7 @@ export class PresentationChatApi {
     u.searchParams.set("presentation_id", presentationId);
     u.searchParams.set("presentation_type", presentationType);
     u.searchParams.set("conversation_id", conversationId);
-    const response = await fetch(u.toString(), {
+    const response = await apiFetch(u.toString(), {
       method: "DELETE",
       headers: getHeader(),
       cache: "no-cache",
@@ -382,7 +396,7 @@ export class PresentationChatApi {
   static async sendMessage(
     payload: ChatMessageRequest
   ): Promise<ChatMessageResponse> {
-    const response = await fetch(getApiUrl("/api/v1/ppt/chat/message"), {
+    const response = await apiFetch(getApiUrl("/api/v1/ppt/chat/message"), {
       method: "POST",
       headers: getHeader(),
       body: JSON.stringify(payload),

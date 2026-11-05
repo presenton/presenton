@@ -207,7 +207,7 @@ def test_safe_sse_stream_converts_late_exception_to_error_frame():
     assert len(chunks) == 2
     event, data = _parse_sse_frame(chunks[-1])
     assert event == "response"
-    assert data == {"type": "error", "detail": "Stream failed"}
+    assert data == {"type": "error", "detail": "Stream failed", "code": "internal_error", "status_code": 500, "retryable": True, "source": "generation"}
 
 
 def test_safe_sse_stream_includes_structured_progress_metadata():
@@ -240,6 +240,7 @@ def test_safe_sse_stream_includes_structured_progress_metadata():
     assert data == {
         "type": "error",
         "detail": "Generation was incomplete",
+        "code": "validation_error",
         "source": "generation",
         "status_code": 422,
         "retryable": False,
@@ -429,11 +430,6 @@ def test_presentation_language_invalid_code_fallback(monkeypatch):
 
 
 def test_handle_llm_client_exceptions(monkeypatch):
-    monkeypatch.setattr(
-        handle_llm_client_exceptions.__globals__["traceback"],
-        "print_exc",
-        lambda: None,
-    )
     assert (
         handle_llm_client_exceptions(HTTPException(status_code=401, detail="auth")).detail
         == "auth"
@@ -444,7 +440,7 @@ def test_handle_llm_client_exceptions(monkeypatch):
     from utils.provider_error_messages import INVALID_API_KEY_MESSAGE
 
     llmai_err = LLMAIBaseError(status_code=429, message="busy")
-    assert handle_llm_client_exceptions(llmai_err).detail == "busy"
+    assert "rate limited" in handle_llm_client_exceptions(llmai_err).detail
 
     wrapped_auth_err = LLMAIBaseError(
         status_code=401,
@@ -458,7 +454,7 @@ def test_handle_llm_client_exceptions(monkeypatch):
     assert wrapped_auth_response.detail == INVALID_API_KEY_MESSAGE
     assert "sk-proj" not in wrapped_auth_response.detail
 
-    assert "OpenAI API request failed" in handle_llm_client_exceptions(
+    assert "AI provider" in handle_llm_client_exceptions(
         OpenAIAPIError(
             message="boom",
             request=httpx.Request("POST", "https://x"),
@@ -466,7 +462,7 @@ def test_handle_llm_client_exceptions(monkeypatch):
         )
     ).detail
 
-    assert "Google API error" in handle_llm_client_exceptions(
+    assert "temporarily unavailable" in handle_llm_client_exceptions(
         GoogleAPIError(503, {})
     ).detail
 
@@ -485,7 +481,8 @@ def test_handle_llm_client_exceptions(monkeypatch):
     assert codex_auth.headers == {"X-Presenton-Auth-Action": "codex-reauth"}
 
     generic = handle_llm_client_exceptions(ValueError("oops"))
-    assert generic.detail.startswith("LLM API error")
+    assert generic.error_code == "provider_error"
+    assert "oops" not in generic.detail
 
 
 def test_concurrent_service_runs_tasks(monkeypatch):

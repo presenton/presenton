@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from openai import APIError as OpenAIAPIError
 
 from utils.provider_error_messages import safe_provider_error_detail
+from utils.provider_errors import normalize_provider_error
 
 
 class ImageGenerationHTTPException(HTTPException):
@@ -59,28 +60,25 @@ def normalize_image_generation_error(error: Exception) -> HTTPException:
     if isinstance(error, HTTPException):
         return error
 
-    if isinstance(error, OpenAIAPIError):
-        return ImageGenerationHTTPException(
-            status_code=getattr(error, "status_code", None) or 500,
-            detail=openai_error_detail(error, operation="image generation"),
-            provider_code=_openai_error_code(error),
-        )
-
-    return ImageGenerationHTTPException(
-        status_code=500,
-        detail="Image generation failed. Please try again or use a different prompt.",
+    normalized = normalize_provider_error(
+        error, provider="OpenAI" if isinstance(error, OpenAIAPIError) else "image provider",
+        operation="image generation", source="image",
     )
+    # Preserve legacy image-warning codes without copying arbitrary provider data.
+    code = _openai_error_code(error) if isinstance(error, OpenAIAPIError) else None
+    normalized.provider_code = code if code in {"insufficient_quota", "moderation_blocked", "invalid_api_key"} else None
+    return normalized
 
 
 def image_generation_warning(error: Exception) -> dict[str, Any]:
     normalized = normalize_image_generation_error(error)
-    code = (
-        _openai_error_code(error)
-        if isinstance(error, OpenAIAPIError)
-        else getattr(error, "provider_code", None)
-    )
+    code = getattr(normalized, "provider_code", None)
+    if code not in {"insufficient_quota", "moderation_blocked", "invalid_api_key"}:
+        code = None
     return {
         "status_code": normalized.status_code,
         "detail": str(normalized.detail),
         "code": code,
+        "error_code": getattr(normalized, "error_code", None),
+        "retryable": getattr(normalized, "retryable", False),
     }

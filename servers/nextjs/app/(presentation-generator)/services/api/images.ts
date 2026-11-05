@@ -1,5 +1,5 @@
 import { getHeaderForFormData } from "./header";
-import { ApiResponseHandler } from "./api-error-handler";
+import { ApiResponseHandler, apiFetch } from "./api-error-handler";
 import { ImageAssetResponse } from "./types";
 import { getApiUrl } from "@/utils/api";
 
@@ -16,7 +16,7 @@ export class ImagesApi {
     config: Record<string, string>,
     signal?: AbortSignal,
   ): Promise<{ image_url: string }> {
-    const response = await fetch(getApiUrl("/api/v1/ppt/images/test"), {
+    const response = await apiFetch(getApiUrl("/api/v1/ppt/images/test"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
@@ -33,7 +33,7 @@ export class ImagesApi {
     try {
           const formData = new FormData();
       formData.append("file", file);
-    const response = await fetch(getApiUrl(`/api/v1/ppt/images/upload`), {
+    const response = await apiFetch(getApiUrl(`/api/v1/ppt/images/upload`), {
       method: "POST",
       headers: getHeaderForFormData(),
       body: formData,
@@ -47,7 +47,7 @@ export class ImagesApi {
 
   static async getUploadedImages(): Promise<ImageAssetResponse[]> {
     try {
-    const response = await fetch(getApiUrl(`/api/v1/ppt/images/uploaded`), {
+    const response = await apiFetch(getApiUrl(`/api/v1/ppt/images/uploaded`), {
       cache: "no-cache",
     });
    return await ApiResponseHandler.handleResponse(response, "Failed to get uploaded images") as ImageAssetResponse[];
@@ -58,7 +58,7 @@ export class ImagesApi {
   }
 
   static async getGeneratedImages(): Promise<ImageAssetResponse[]> {
-    const response = await fetch(getApiUrl(`/api/v1/ppt/images/generated`), {
+    const response = await apiFetch(getApiUrl(`/api/v1/ppt/images/generated`), {
       cache: "no-cache",
     });
     return await ApiResponseHandler.handleResponse(
@@ -76,7 +76,7 @@ export class ImagesApi {
       params.set("width", String(targetSize.width));
       params.set("height", String(targetSize.height));
     }
-    const response = await fetch(
+    const response = await apiFetch(
       getApiUrl(`/api/v1/ppt/images/generate?${params.toString()}`),
       { cache: "no-cache" },
     );
@@ -88,7 +88,7 @@ export class ImagesApi {
 
   static async deleteImage(image_id: string): Promise<{success: boolean, message?: string}> {
     try {
-      const response = await fetch(getApiUrl(`/api/v1/ppt/images/${image_id}`), {
+      const response = await apiFetch(getApiUrl(`/api/v1/ppt/images/${image_id}`), {
         method: "DELETE"
       });
       return await ApiResponseHandler.handleResponse(response, "Failed to delete image") as {success: boolean, message?: string};
@@ -122,7 +122,7 @@ export class ImagesApi {
         headers["X-Provider-Api-Key"] = trimmedApiKey;
       }
 
-      const response = await fetch(getApiUrl(`/api/v1/ppt/images/search?${params.toString()}`), {
+      const response = await apiFetch(getApiUrl(`/api/v1/ppt/images/search?${params.toString()}`), {
         method: "GET",
         headers,
       });

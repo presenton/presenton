@@ -270,6 +270,8 @@ def test_slide_asset_processing_can_fallback_with_visible_warning():
                 "Check OpenAI API billing and the limits for the project that owns this API key."
             ),
             "code": "insufficient_quota",
+            "error_code": "provider_quota_exceeded",
+            "retryable": False,
         }
     ]
 
