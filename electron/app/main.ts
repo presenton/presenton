@@ -115,9 +115,9 @@ function profileHash(userDataDir: string): string {
   return crypto.createHash("sha256").update(userDataDir).digest("hex").slice(0, 16);
 }
 
-function updateSentryRuntimeContext(cacheRecovery: ChromiumCacheRecoveryStatus): void {
+function updateSentryRuntimeContext(cacheRecovery: ChromiumCacheRecoveryStatus, userDataDir: string): void {
   setMainSentryRuntimeContext({
-    profileHash: profileHash(electronAppPaths.userDataDir),
+    profileHash: profileHash(userDataDir),
     cacheRecoveryStatus: cacheRecovery.status,
     cacheRecoveryMode: cacheRecovery.mode,
   });
@@ -191,24 +191,25 @@ if (!gotSingleInstanceLock) {
   app.quit();
 }
 
-const electronAppPaths = initializeAppPaths();
-const chromiumCacheRecovery = prepareChromiumCacheRecovery(
-  electronAppPaths.cacheDir,
-  electronAppPaths.userDataDir,
-);
-safeLog("[Presenton] Electron paths initialized:", electronAppPaths);
+const electronAppPaths = gotSingleInstanceLock ? initializeAppPaths() : undefined;
+const chromiumCacheRecovery = electronAppPaths
+  ? prepareChromiumCacheRecovery(electronAppPaths.cacheDir, electronAppPaths.userDataDir)
+  : undefined;
 
-initMainSentry();
-updateSentryRuntimeContext(chromiumCacheRecovery);
+if (electronAppPaths && chromiumCacheRecovery) {
+  safeLog("[Presenton] Electron paths initialized:", electronAppPaths);
+  initMainSentry();
+  updateSentryRuntimeContext(chromiumCacheRecovery, electronAppPaths.userDataDir);
 
-app.on("child-process-gone", (_event, details) => {
-  recordProcessGone("child", details);
-});
+  app.on("child-process-gone", (_event, details) => {
+    recordProcessGone("child", details);
+  });
 
-addMainBreadcrumb("memory", "electron.main.startup", memorySnapshotMb());
-safeLog("[Presenton] Startup memory:", {
-  memory: memorySnapshotMb(),
-});
+  addMainBreadcrumb("memory", "electron.main.startup", memorySnapshotMb());
+  safeLog("[Presenton] Startup memory:", {
+    memory: memorySnapshotMb(),
+  });
+}
 
 function isAllowedMainWindowUrl(url: string, appOrigin: string): boolean {
   try {
@@ -451,7 +452,7 @@ async function forceQuitApp(exitCode = 0) {
   }
 }
 
-if (gotSingleInstanceLock) {
+if (gotSingleInstanceLock && electronAppPaths && chromiumCacheRecovery) {
 app.whenReady().then(async () => {
   const disableAuthForElectron = resolveElectronDisableAuth();
   process.env.DISABLE_AUTH = disableAuthForElectron;
@@ -478,7 +479,7 @@ app.whenReady().then(async () => {
     electronAppPaths.userDataDir,
     chromiumCacheRecovery,
   );
-  updateSentryRuntimeContext(chromiumCacheRecovery);
+  updateSentryRuntimeContext(chromiumCacheRecovery, electronAppPaths.userDataDir);
 
   // Create the main window hidden; the app splash handles the visible startup state.
   createWindow(`${localhost}:${nextjsPort}`);
