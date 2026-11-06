@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import {
   ChevronDown,
   ChevronLeft,
@@ -56,6 +57,8 @@ const getFilterAnalyticsProps = (
 };
 
 export default function CommunityPage() {
+  const t = useTranslations("community");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
@@ -181,7 +184,7 @@ export default function CommunityPage() {
         ),
       });
       notify.error(
-        "Could not load the complete preview",
+        t("previewErrorTitle"),
         previewError instanceof Error ? previewError.message : undefined
       );
     } finally {
@@ -217,8 +220,8 @@ export default function CommunityPage() {
     const prompt = presentation.prompt?.trim();
     if (!prompt) {
       notify.error(
-        "Prompt unavailable",
-        "This community presentation does not include a shared prompt."
+        t("promptUnavailableTitle"),
+        t("promptUnavailableBody")
       );
       return;
     }
@@ -241,15 +244,15 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen font-manrope">
-      <header className="sticky right-0 top-0 z-40 ml-7 mr-[9px] flex min-h-[105px] items-center justify-between border-b border-[#EDEEEF] bg-white px-1">
+      <header className="sticky end-0 top-0 z-40 ms-7 me-[9px] flex min-h-[105px] items-center justify-between border-b border-[#EDEEEF] bg-white px-1">
         <h1 className="font-syne text-[22px] font-medium tracking-[-0.66px] text-[#101323]">
-          Community
+          {t("heading")}
         </h1>
         <Link
           href="/upload"
           className="motion-press group inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(270deg,#D5CAFC_2.4%,#E3D2EB_27.88%,#F4DCD3_69.23%,#FDE4C2_100%)] px-4 font-syne text-sm font-medium text-[#191919] shadow-sm hover:shadow-md"
         >
-          New presentation
+          {t("newPresentation")}
           <ChevronRight className="motion-arrow h-4 w-4" />
         </Link>
       </header>
@@ -258,21 +261,21 @@ export default function CommunityPage() {
         <div className="flex min-h-10 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-base font-medium text-[#191919]">
-              Pick community designs or prompts
+              {t("title")}
             </h2>
             <p className="mt-1 text-xs text-[#808080]">
-              Preview shared decks, then use their design or prompt in Smart mode.
+              {t("description")}
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:w-auto">
             <label className="flex h-10 w-full items-center gap-2.5 rounded-full border border-[#DBDBDB99] bg-white px-2.5 sm:w-[234px]">
               <Search className="h-4 w-4 shrink-0 text-[#808080]" strokeWidth={1.75} />
-              <span className="sr-only">Search community presentations</span>
+              <span className="sr-only">{t("searchAria")}</span>
               <input
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search ..."
+                placeholder={t("searchPlaceholder")}
                 className="min-w-0 flex-1 bg-transparent font-syne text-base font-normal text-[#191919] outline-none placeholder:text-[#808080]"
               />
             </label>
@@ -299,7 +302,7 @@ export default function CommunityPage() {
             className="mt-5 rounded-xl border border-red-200 bg-red-50/40 px-6 py-12 text-center"
           >
             <h3 className="text-sm font-semibold text-[#191919]">
-              Could not load community presentations
+              {t("errorTitle")}
             </h3>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-5 text-[#666666]">
               {error.message}
@@ -310,7 +313,7 @@ export default function CommunityPage() {
                 onClick={() => setRetryVersion((current) => current + 1)}
                 className="mt-4 rounded-full border border-[#E0DDFC] bg-white px-4 py-2 text-xs font-medium text-[#6847F4] transition hover:bg-[#F8F7FF]"
               >
-                Try again
+                {t("tryAgain")}
               </button>
             )}
           </div>
@@ -333,13 +336,13 @@ export default function CommunityPage() {
             <Search className="mx-auto h-5 w-5 text-[#808080]" />
             <h3 className="mt-3 text-sm font-semibold text-[#191919]">
               {query.trim() || hasActiveFilters
-                ? "No matching community presentations"
-                : "No community presentations yet"}
+                ? t("empty.noMatchTitle")
+                : t("empty.noneTitle")}
             </h3>
             <p className="mt-1 text-xs text-[#808080]">
               {query.trim() || hasActiveFilters
-                ? "Try another search or clear your filters."
-                : "Shared presentations will appear here."}
+                ? t("empty.noMatchBody")
+                : t("empty.noneBody")}
             </p>
           </div>
         )}
@@ -353,10 +356,10 @@ export default function CommunityPage() {
               className="inline-flex h-9 items-center gap-1 rounded-full border border-[#EDEEEF] bg-white px-3 text-[#191919] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              Previous
+              {t("pagination.previous")}
             </button>
             <span>
-              Page {page} of {totalPages}
+              {t("pagination.page", { page, total: totalPages })}
             </span>
             <button
               type="button"
@@ -366,7 +369,7 @@ export default function CommunityPage() {
               disabled={page >= totalPages}
               className="inline-flex h-9 items-center gap-1 rounded-full border border-[#EDEEEF] bg-white px-3 text-[#191919] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Next
+              {t("pagination.next")}
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -399,6 +402,8 @@ function CommunityPresentationCard({
   onUseDesign: () => void;
   onUsePrompt: () => void;
 }) {
+  const t = useTranslations("community");
+  const locale = useLocale();
   const title = getCommunityPresentationTitle(presentation);
   const thumbnail = presentation.slides?.find((slide) => slide.trim());
   const author = getCommunityPresentationAuthor(presentation);
@@ -409,7 +414,7 @@ function CommunityPresentationCard({
         type="button"
         onClick={onPreview}
         className="group block aspect-[306/169] w-full overflow-hidden bg-[#F8FBFB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#7A5AF8]/35"
-        aria-label={`Preview ${title}`}
+        aria-label={t("previewAria", { title })}
       >
         {thumbnail ? (
           <div>
@@ -418,12 +423,12 @@ function CommunityPresentationCard({
               executeScripts={false}
               html={thumbnail}
               fonts={presentation.fonts}
-              title={`${title} preview`}
+              title={t("previewAria", { title })}
             />
           </div>
         ) : (
           <span className="flex h-full items-center justify-center text-xs text-[#999999]">
-            No preview
+            {t("noPreview")}
           </span>
         )}
       </button>
@@ -437,7 +442,7 @@ function CommunityPresentationCard({
             type="button"
             onClick={onPreview}
             className="flex h-[26px] w-[42px] items-center justify-center rounded-full border border-[#EDEEEF] bg-white text-[#191919] transition hover:bg-[#F6F6F9]"
-            aria-label={`Preview ${title}`}
+            aria-label={t("previewAria", { title })}
           >
             <Eye className="h-3.5 w-3.5" strokeWidth={1.6} />
           </button>
@@ -447,14 +452,14 @@ function CommunityPresentationCard({
               onClick={onUseDesign}
               className="px-3.5 pr-2 font-syne text-xs font-medium text-[#191919] transition hover:bg-[#F6F6F9]"
             >
-              Use
+              {t("use")}
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   className="flex w-6 items-center justify-center border-l border-[#EDEEEF] transition hover:bg-[#F6F6F9]"
-                  aria-label={`Choose how to use ${title}`}
+                  aria-label={t("chooseUseAria", { title })}
                 >
                   <ChevronDown className="h-3.5 w-3.5" />
                 </button>
@@ -462,12 +467,12 @@ function CommunityPresentationCard({
               <DropdownMenuContent align="end" className="w-[190px] rounded-xl p-2 font-manrope">
                 <DropdownMenuItem onSelect={onUseDesign} className="cursor-pointer rounded-md">
                   <Plus className="h-4 w-4" />
-                  Use design
+                  {t("useDesign")}
                 </DropdownMenuItem>
                 {presentation.prompt?.trim() && (
                   <DropdownMenuItem onSelect={onUsePrompt} className="cursor-pointer rounded-md">
                     <FileText className="h-4 w-4" />
-                    Use prompt
+                    {t("usePrompt")}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -476,15 +481,15 @@ function CommunityPresentationCard({
         </div>
 
         <div className="flex min-h-[34px] items-center justify-between border-t border-[#EDEEEF] py-2.5 text-[10px] font-medium tracking-[0.4px] text-[#808080]">
-          <span className="min-w-0 flex-1 truncate" title={author}>by {author}</span>
+          <span className="min-w-0 flex-1 truncate" title={author}>{t("byAuthor", { author })}</span>
           <div className="ml-2 flex shrink-0 items-center gap-3">
-            <span className="inline-flex items-center gap-1" aria-label={`${presentation.views ?? 0} views`}>
+            <span className="inline-flex items-center gap-1" aria-label={t("viewsAria", { count: presentation.views ?? 0 })}>
               <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
-              {formatCount(presentation.views ?? 0)}
+              {formatCount(presentation.views ?? 0, locale)}
             </span>
-            <span className="inline-flex items-center gap-1" aria-label={`${presentation.likes ?? 0} likes`}>
+            <span className="inline-flex items-center gap-1" aria-label={t("likesAria", { count: presentation.likes ?? 0 })}>
               <Heart className="h-3.5 w-3.5" strokeWidth={1.5} />
-              {formatCount(presentation.likes ?? 0)}
+              {formatCount(presentation.likes ?? 0, locale)}
             </span>
           </div>
         </div>
@@ -506,6 +511,6 @@ function CommunityGridSkeleton() {
   );
 }
 
-function formatCount(value: number) {
-  return Intl.NumberFormat("en", { notation: "compact" }).format(value);
+function formatCount(value: number, locale: string) {
+  return Intl.NumberFormat(locale, { notation: "compact" }).format(value);
 }
