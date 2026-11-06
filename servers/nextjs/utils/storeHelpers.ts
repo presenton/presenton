@@ -345,6 +345,9 @@ export const getLLMConfigValidationError = (
           return "Brave Search API key is required.";
         }
         break;
+      case "keenable":
+        // API key is optional: Keenable has a keyless public endpoint.
+        break;
       case "auto":
         break;
       default:

@@ -164,6 +164,7 @@ export const updateLLMConfig = (
     tavily_api_key: "TAVILY_API_KEY",
     exa_api_key: "EXA_API_KEY",
     brave_search_api_key: "BRAVE_SEARCH_API_KEY",
+    keenable_api_key: "KEENABLE_API_KEY",
     serper_api_key: "SERPER_API_KEY",
     comfyui_url: "COMFYUI_URL",
     comfyui_workflow: "COMFYUI_WORKFLOW",
