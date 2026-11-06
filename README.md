@@ -443,6 +443,7 @@ account setup available so an admin can finish configuration in Settings.
 | **EXTENDED_REASONING** | `true` / `false` | Enables extended reasoning where supported. |
 | **LLM_GENERATION_PROFILE** | `fast`, `balanced` (default), `deep`, `model_max` | Global generation profile. |
 | **LLM_MAX_OUTPUT_TOKENS** | Optional positive integer | Output-token override for every text provider. |
+| **LLM_CONTEXT_WINDOW** | Optional positive integer | AI editor context limit in tokens. Set this to the actual deployed limit for custom/local models. Otherwise the editor uses model metadata, or assumes 32,768 for unknown aliases. Budgeting estimates messages and tool schemas with a safety margin, compacts older context, and retries a provider-rejected overflow once. |
 | **MAX_OUTLINE_WORDS** | `100` (default), positive integer | Maximum words in each generated, edited, or `slides_markdown` slide outline. |
 | **LLM_REASONING_MODE** | `auto`, `enabled`, `disabled` | Global reasoning-mode override. |
 | **LLM_REASONING_EFFORT** | `default`, `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` | Reasoning-effort override. |

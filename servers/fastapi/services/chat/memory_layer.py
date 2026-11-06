@@ -247,7 +247,9 @@ class PresentationChatMemoryLayer:
         return results
 
     async def get_slide_at_index(
-        self, index: int, *, include_full_content: bool = False
+        self, index: int, *, include_full_content: bool = False,
+        element_path: str | None = None, component_id: str | None = None,
+        element_offset: int = 0, element_limit: int = 30,
     ) -> dict[str, Any] | None:
         slide = await self._sql_session.scalar(
             select(SlideModel).where(
@@ -262,6 +264,24 @@ class PresentationChatMemoryLayer:
                 index,
             )
             return None
+
+        if element_path or component_id:
+            from services.chat.slide_ui_helpers import _resolve_element_path
+
+            if element_path and component_id:
+                raise ValueError("Use either elementPath or componentId, not both.")
+            ui = self._slide_ui_layout(slide)
+            if self.presentation_type == "smart" or ui is None:
+                raise ValueError("Targeted reads require a rendered UI slide; use includeFullContent=true.")
+            target: dict[str, Any] = {"slide_id": str(slide.id), "index": slide.index}
+            if element_path:
+                target.update(element_path=element_path, element=_resolve_element_path(ui, element_path))
+            else:
+                component = next((item for item in ui.get("components", []) if item.get("id") == component_id), None)
+                if component is None:
+                    raise ValueError("Component not found; read slide discovery to find its current ID.")
+                target.update(component_id=component_id, component=component)
+            return target
 
         response: dict[str, Any] = {
             "slide_id": str(slide.id),
@@ -296,6 +316,9 @@ class PresentationChatMemoryLayer:
             response["ui_summary"] = await self.get_slide_ui_elements(
                 index=slide.index,
                 include_full_json=False,
+                discovery_only=not include_full_content,
+                offset=element_offset,
+                limit=element_limit,
             )
         return response
 
@@ -1337,7 +1360,8 @@ class PresentationChatMemoryLayer:
                 component.pop("size", None)
 
     async def get_slide_ui_elements(
-        self, *, index: int, include_full_json: bool = False
+        self, *, index: int, include_full_json: bool = False,
+        discovery_only: bool = False, offset: int = 0, limit: int = 30,
     ) -> dict[str, Any]:
         # Imported lazily so chat startup does not load rendered-slide helper code
         # unless the assistant actually inspects UI elements.
@@ -1385,6 +1409,21 @@ class PresentationChatMemoryLayer:
         }
         if include_full_json:
             response["ui"] = ui
+        if discovery_only:
+            page = editable[offset:offset + limit]
+            response["elements"] = [
+                {
+                    **{key: element.get(key) for key in (
+                        "path", "component_id", "type", "name", "content_editable", "geometry_editable",
+                    )},
+                    "content_preview": json.dumps(element.get("content"), ensure_ascii=False)[:160],
+                }
+                for element in page
+            ]
+            component_ids = {element.get("component_id") for element in page}
+            response["components"] = [item for item in response["components"] if item["component_id"] in component_ids]
+            response["next_offset"] = offset + limit if offset + limit < len(editable) else None
+            response["message"] = "Discovery previews only. Read elementPath or componentId for complete data before editing."
         return response
 
     async def update_slide_ui_element(
