@@ -357,14 +357,14 @@ async function runExportTaskOnce(
 
   const stdoutTail = new BoundedTextBuffer();
   const stderrTail = new BoundedTextBuffer();
+  exportTaskProcess.stdout?.setEncoding("utf8");
+  exportTaskProcess.stderr?.setEncoding("utf8");
 
-  const onStdoutData = (data: Buffer) => {
-    const text = data.toString();
+  const onStdoutData = (text: string) => {
     stdoutTail.append(text);
     safeLog(`[Export] ${text}`);
   };
-  const onStderrData = (data: Buffer) => {
-    const text = data.toString();
+  const onStderrData = (text: string) => {
     stderrTail.append(text);
     safeError(`[Export] ${text}`);
   };
