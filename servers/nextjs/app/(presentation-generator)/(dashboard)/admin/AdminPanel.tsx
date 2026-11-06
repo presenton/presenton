@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -64,6 +64,8 @@ const inputClass =
 
 export default function AdminPanel({ embedded = false, onBackToSettings }: AdminPanelProps) {
   const t = useTranslations("admin");
+  const locale = useLocale();
+  const dir = locale === "ar" ? "rtl" : "ltr";
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [apiKeyTokens, setApiKeyTokens] = useState<Record<string, string>>({});
@@ -534,7 +536,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
   const clearKeyFilters = () => { setKeySearch(""); setOwnerFilter("all"); };
 
   return (
-    <RootElement className={`${styles.root} ${embedded ? styles.embedded : styles.standalone}`}>
+    <RootElement dir={dir} className={`${styles.root} ${embedded ? styles.embedded : styles.standalone}`}>
       <div className={styles.canvas}>
         {embedded && onBackToSettings && (
           <button type="button" className={styles.backButton} onClick={onBackToSettings}>
@@ -560,7 +562,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           </button>
         </header>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className={styles.sheet}>
+        <Tabs dir={dir} value={activeTab} onValueChange={setActiveTab} className={styles.sheet}>
           <TabsList aria-label={t("viewsAria")} className={styles.tabList}>
             <TabsTrigger value="users" className={styles.tabTrigger}>
               {t("tabs.users")} <span aria-hidden="true" className={styles.tabCount}>{userCount}</span>
@@ -580,7 +582,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
                   </div>
                   <button type="button" className={styles.iconButton} aria-label={t("createUser.closeAria")} disabled={busy === "add"} onClick={() => { setShowUserForm(false); createAction.current?.focus(); }}><X size={16} aria-hidden="true" /></button>
                 </div>
-                <form onSubmit={addUser} className={styles.userForm}>
+                <form dir={dir} onSubmit={addUser} className={styles.userForm}>
                   <div className={styles.field}>
                     <label htmlFor="admin-new-username">{t("createUser.username")}</label>
                     <input ref={usernameInput} id="admin-new-username" className={inputClass} placeholder={t("createUser.usernamePlaceholder")} minLength={3} maxLength={128} pattern={"\\S+"} title={t("createUser.usernameTitle")} value={username} onChange={(event) => setUsername(event.target.value.replace(/\s/g, ""))} required spellCheck={false} autoComplete="off" disabled={busy === "add"} />
@@ -634,7 +636,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
                   </div>
                   <button type="button" className={styles.iconButton} aria-label={t("createKey.closeAria")} disabled={busy === "create-api-key"} onClick={() => { setShowKeyForm(false); createAction.current?.focus(); }}><X size={16} aria-hidden="true" /></button>
                 </div>
-                <form onSubmit={createApiKey} className={styles.keyForm}>
+                <form dir={dir} onSubmit={createApiKey} className={styles.keyForm}>
                   <div className={styles.field}>
                     <label htmlFor="admin-key-user">{t("createKey.user")}</label>
                     <AdminSelectPopover

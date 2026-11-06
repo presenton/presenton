@@ -133,7 +133,7 @@ export function UsersList({
     <div className={styles.list} aria-busy={loading}>
       {error && <LoadError error={error} onRetry={onRetry} />}
       {loading && users.length === 0 && <span className={styles.srOnly} role="status">{t("loadingUsers")}</span>}
-      <table className={`${styles.table} ${styles.usersTable}`} aria-label={t("userAccountsAria")} role="table">
+      <table dir={locale === "ar" ? "rtl" : "ltr"} className={`${styles.table} ${styles.usersTable}`} aria-label={t("userAccountsAria")} role="table">
         <colgroup><col /><col className={styles.roleColumn} /><col className={styles.dateColumn} /><col className={styles.userActionColumn} /></colgroup>
         <thead role="rowgroup">
           <tr role="row">
@@ -219,7 +219,7 @@ export function APIKeysList({
     <div className={styles.list} aria-busy={loading}>
       {error && <LoadError error={error} onRetry={onRetry} />}
       {loading && apiKeys.length === 0 && <span className={styles.srOnly} role="status">{t("loadingKeys")}</span>}
-      <table className={`${styles.table} ${styles.keysTable}`} aria-label={t("apiKeysAria")} role="table">
+      <table dir={locale === "ar" ? "rtl" : "ltr"} className={`${styles.table} ${styles.keysTable}`} aria-label={t("apiKeysAria")} role="table">
         <colgroup><col /><col className={styles.ownerColumn} /><col className={styles.keyDateColumn} /><col className={styles.keyDateColumn} /><col className={styles.keyActionColumn} /></colgroup>
         <thead role="rowgroup">
           <tr role="row">
