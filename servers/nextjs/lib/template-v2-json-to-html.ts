@@ -105,6 +105,23 @@ interface TemplateV2HtmlOptions {
   fonts?: unknown;
   width?: number;
   height?: number;
+  /**
+   * Minimum line height, expressed as a multiple of the font size, applied to
+   * text that contains CJK characters. Off unless a caller opts in.
+   *
+   * The PPTX exporter turns `line-height` into fixed point spacing
+   * (`a:spcPts = font size * line-height`), so a template declaring
+   * `line_height < 1.0` emits a line box shorter than the font itself. Latin
+   * glyphs only fill the x-height and survive that; CJK glyphs fill the whole
+   * em box and lose their top and bottom strokes. The export surface turns
+   * this on; the editor preview leaves it off because HTML overflows instead
+   * of clipping.
+   */
+  minCjkLineHeight?: number;
+}
+
+interface TemplateV2RenderOptions {
+  minCjkLineHeight?: number;
 }
 
 interface TemplateV2RenderPayload {
@@ -113,6 +130,7 @@ interface TemplateV2RenderPayload {
   height: number;
   fonts?: unknown;
   background: string;
+  renderOptions: TemplateV2RenderOptions;
 }
 
 const ELEMENT_TYPES = new Set([
@@ -165,7 +183,8 @@ export function templateV2UiToHtml(
     payload.width,
     payload.height,
     payload.fonts,
-    payload.background
+    payload.background,
+    payload.renderOptions
   );
 }
 
@@ -181,7 +200,8 @@ export function templateV2UiToHtmlFragment(
     payload.width,
     payload.height,
     payload.fonts,
-    payload.background
+    payload.background,
+    payload.renderOptions
   );
 }
 
@@ -210,6 +230,7 @@ function templateV2RenderPayload(
     height,
     fonts: options.fonts,
     background,
+    renderOptions: { minCjkLineHeight: options.minCjkLineHeight },
   };
 }
 
@@ -248,13 +269,14 @@ function jsonToHtml(
   width: number,
   height: number,
   fonts: unknown = {},
-  background = "#FFFFFF"
+  background = "#FFFFFF",
+  renderOptions: TemplateV2RenderOptions = {}
 ): string {
   const records = items.map(readRecord);
   const chartScripts = records.some(hasChartItem) ? renderChartScripts() : "";
   const fontAssetTags = renderFontAssetTags(fonts);
   const bg = escapeCssColor(background);
-  const slideRoot = renderSlideRoot(records, width, height, bg);
+  const slideRoot = renderSlideRoot(records, width, height, bg, renderOptions);
 
   return `<!doctype html>
 <html><head><meta charset="utf-8">${fontAssetTags}<style>
@@ -270,7 +292,8 @@ function jsonToHtmlFragment(
   width: number,
   height: number,
   fonts: unknown = {},
-  background = "#FFFFFF"
+  background = "#FFFFFF",
+  renderOptions: TemplateV2RenderOptions = {}
 ): string {
   const records = items.map(readRecord);
   const bg = escapeCssColor(background);
@@ -279,7 +302,8 @@ function jsonToHtmlFragment(
     records,
     width,
     height,
-    bg
+    bg,
+    renderOptions
   )}`;
 }
 
@@ -287,9 +311,12 @@ function renderSlideRoot(
   records: JsonRecord[],
   width: number,
   height: number,
-  background: string
+  background: string,
+  renderOptions: TemplateV2RenderOptions = {}
 ): string {
-  const content = records.map((item) => renderItem(item, "absolute")).join("");
+  const content = records
+    .map((item) => renderItem(item, "absolute", renderOptions))
+    .join("");
 
   return `<div class="relative overflow-hidden" data-template-v2-html-slide="true" style="box-sizing:border-box;position:relative;width:${cssNumber(
     width
@@ -305,13 +332,18 @@ function renderFontAssetTags(fonts: unknown): string {
   return css ? `<style>${escapeStyleText(css)}</style>` : "";
 }
 
-function renderItem(item: JsonRecord, mode: RenderMode): string {
+function renderItem(
+  item: JsonRecord,
+  mode: RenderMode,
+  renderOptions: TemplateV2RenderOptions = {}
+): string {
   if (isComponent(item)) {
     const { size, ...component } = item;
     void size;
     return renderGroup(
       { ...component, type: "group", children: item.elements },
-      mode
+      mode,
+      renderOptions
     );
   }
 
@@ -323,28 +355,32 @@ function renderItem(item: JsonRecord, mode: RenderMode): string {
     case "image":
       return renderImage(item, mode);
     case "text":
-      return renderText(item, mode);
+      return renderText(item, mode, renderOptions);
     case "text-list":
       return renderTextList(item, mode);
     case "table":
       return renderTable(item, mode);
     case "container":
-      return renderContainer(item, mode);
+      return renderContainer(item, mode, renderOptions);
     case "flex":
     case "list-view":
-      return renderFlex(item, mode);
+      return renderFlex(item, mode, renderOptions);
     case "grid":
     case "grid-view":
-      return renderGrid(item, mode);
+      return renderGrid(item, mode, renderOptions);
     case "group":
-      return renderGroup(item, mode);
+      return renderGroup(item, mode, renderOptions);
     case "chart":
       return renderChart(item, mode);
     case "infographic":
       return renderInfographic(item, mode);
     default:
-      if (Array.isArray(item.children)) return renderGroup(item, mode);
-      if (readRecordOrNull(item.child)) return renderContainer(item, mode);
+      if (Array.isArray(item.children)) {
+        return renderGroup(item, mode, renderOptions);
+      }
+      if (readRecordOrNull(item.child)) {
+        return renderContainer(item, mode, renderOptions);
+      }
       return "";
   }
 }
@@ -388,7 +424,11 @@ function renderImage(item: JsonRecord, mode: RenderMode): string {
   )}display:block;max-width:none;max-height:none;object-fit:${fit};${focusStyle}${clipPath}">`;
 }
 
-function renderText(item: JsonRecord, mode: RenderMode): string {
+function renderText(
+  item: JsonRecord,
+  mode: RenderMode,
+  renderOptions: TemplateV2RenderOptions = {}
+): string {
   const font = readRecord(item.font);
   const alignment = readRecord(item.alignment);
   const horizontal = readString(alignment.horizontal);
@@ -397,7 +437,7 @@ function renderText(item: JsonRecord, mode: RenderMode): string {
   const runHtml = runs
     .map((run) => {
       const runFont = { ...font, ...readRecord(run.font) };
-      return renderTextRunHtml(run, runFont);
+      return renderTextRunHtml(run, runFont, renderOptions.minCjkLineHeight);
     })
     .join("");
 
@@ -408,7 +448,9 @@ function renderText(item: JsonRecord, mode: RenderMode): string {
     vertical
   )};justify-content:${horizontalAlign(horizontal)};${lineHeightStyle(
     font,
-    1.1
+    1.1,
+    renderOptions.minCjkLineHeight,
+    textContent(runs)
   )}${textOverflowStyle()}text-align:${textAlign(horizontal)};"><span style="display:block;width:100%">${runHtml}</span></div>`;
 }
 
@@ -482,7 +524,11 @@ function renderTable(item: JsonRecord, mode: RenderMode): string {
   )}${transformStyle(item)}display:grid;grid-template-columns:repeat(${colCount},minmax(0,1fr));grid-template-rows:repeat(${rowCount},minmax(0,1fr));overflow:hidden">${cells}</div>`;
 }
 
-function renderContainer(item: JsonRecord, mode: RenderMode): string {
+function renderContainer(
+  item: JsonRecord,
+  mode: RenderMode,
+  renderOptions: TemplateV2RenderOptions = {}
+): string {
   const child = readRecordOrNull(item.child);
   const alignment = readRecord(item.alignment);
   const style = `${frameStyle(item, mode)}${boxStyle(item)}${paddingStyle(
@@ -493,7 +539,13 @@ function renderContainer(item: JsonRecord, mode: RenderMode): string {
     readString(alignment.horizontal)
   )};${containerOverflowStyle(item, child)}`;
   return `<div style="${style}">${
-    child ? renderItem(child, readRecordOrNull(child.position) ? "absolute" : "flow") : ""
+    child
+      ? renderItem(
+          child,
+          readRecordOrNull(child.position) ? "absolute" : "flow",
+          renderOptions
+        )
+      : ""
   }</div>`;
 }
 
@@ -531,7 +583,11 @@ function containerOverflowStyle(
   return childOverflows ? "overflow:hidden" : "overflow:visible";
 }
 
-function renderFlex(item: JsonRecord, mode: RenderMode): string {
+function renderFlex(
+  item: JsonRecord,
+  mode: RenderMode,
+  renderOptions: TemplateV2RenderOptions = {}
+): string {
   const direction = readString(item.direction) === "row" ? "row" : "column";
   const gap = readNumber(item.gap) ?? 0;
   const rowGap = readNumber(item.rowGap ?? item.row_gap) ?? gap;
@@ -557,6 +613,7 @@ function renderFlex(item: JsonRecord, mode: RenderMode): string {
             }
           : child,
         "flow",
+        renderOptions,
       ),
     )
     .join("");
@@ -774,7 +831,11 @@ function flowChildSize(child: JsonRecord) {
   };
 }
 
-function renderGrid(item: JsonRecord, mode: RenderMode): string {
+function renderGrid(
+  item: JsonRecord,
+  mode: RenderMode,
+  renderOptions: TemplateV2RenderOptions = {}
+): string {
   const columns = Math.max(1, Math.floor(readNumber(item.columns) ?? 1));
   const gap = readNumber(item.gap) ?? 0;
   const rowGap = readNumber(item.rowGap ?? item.row_gap) ?? gap;
@@ -787,7 +848,7 @@ function renderGrid(item: JsonRecord, mode: RenderMode): string {
   const explicitHeight = readNumber(size.height);
   const explicitWidth = readNumber(size.width);
   const children = childrenList
-    .map((child) => renderItem(readRecord(child), "flow"))
+    .map((child) => renderItem(readRecord(child), "flow", renderOptions))
     .join("");
   const rowTemplate = gridRowTemplate(rows, renderedRows, explicitHeight, rowGap);
   const columnTemplate = gridColumnTemplate(columns, explicitWidth, columnGap);
@@ -836,9 +897,15 @@ function readLayoutChildren(item: JsonRecord): unknown[] {
   return child && count ? Array.from({ length: count }, () => child) : [];
 }
 
-function renderGroup(item: JsonRecord, mode: RenderMode): string {
+function renderGroup(
+  item: JsonRecord,
+  mode: RenderMode,
+  renderOptions: TemplateV2RenderOptions = {}
+): string {
   const children = readArray(item.children).map(readRecord);
-  const content = children.map((child) => renderItem(child, "absolute")).join("");
+  const content = children
+    .map((child) => renderItem(child, "absolute", renderOptions))
+    .join("");
   return `<div style="${frameStyle(item, mode, childrenBounds(children))}${boxStyle(
     item
   )}overflow:visible">${content}</div>`;
@@ -3490,7 +3557,12 @@ function transformStyle(item: JsonRecord): string {
 
 function fontStyle(
   fontValue: unknown,
-  options: { includeLineHeight?: boolean; includeTextDecoration?: boolean } = {}
+  options: {
+    includeLineHeight?: boolean;
+    includeTextDecoration?: boolean;
+    minCjkLineHeight?: number;
+    lineHeightText?: string;
+  } = {}
 ): string {
   const font = readRecord(fontValue);
   let style = `color:${escapeCssColor(
@@ -3506,7 +3578,14 @@ function fontStyle(
   if (hasOwn(font, "bold")) {
     style += readBoolean(font.bold) ? "font-weight:700;" : "font-weight:400;";
   }
-  if (options.includeLineHeight !== false) style += lineHeightStyle(font);
+  if (options.includeLineHeight !== false) {
+    style += lineHeightStyle(
+      font,
+      undefined,
+      options.minCjkLineHeight,
+      options.lineHeightText
+    );
+  }
   const letterSpacing = readNumber(font.letterSpacing ?? font.letter_spacing);
   if (letterSpacing != null) style += `letter-spacing:${cssNumber(letterSpacing)}px;`;
   if (options.includeTextDecoration !== false) {
@@ -3530,11 +3609,37 @@ function textDecorationStyle(font: JsonRecord): string {
   return "";
 }
 
-function lineHeightStyle(font: JsonRecord, fallback?: number): string {
+/**
+ * Characters whose glyphs fill the whole em box: CJK ideographs, kana, Hangul,
+ * CJK punctuation and full-width forms. Latin glyphs stay inside the em box, so
+ * only these clip when the line box is shorter than the font size.
+ */
+const CJK_GLYPH_PATTERN =
+  /[\u1100-\u11ff\u2e80-\u2eff\u3000-\u303f\u3040-\u30ff\u3130-\u318f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\ufe30-\ufe4f\uff00-\uffef]/;
+
+function containsCjkGlyph(text: string): boolean {
+  return CJK_GLYPH_PATTERN.test(text);
+}
+
+function textContent(runs: JsonRecord[]): string {
+  return runs.map((run) => readStringValue(run.text)).join("");
+}
+
+function lineHeightStyle(
+  font: JsonRecord,
+  fallback?: number,
+  minCjkLineHeight?: number,
+  text?: string
+): string {
   const lineHeight = readNumber(font.lineHeight ?? font.line_height) ?? fallback;
   if (lineHeight == null) return "";
 
-  return `line-height:${cssNumber(lineHeight)};`;
+  const effective =
+    minCjkLineHeight != null && text && containsCjkGlyph(text)
+      ? Math.max(lineHeight, minCjkLineHeight)
+      : lineHeight;
+
+  return `line-height:${cssNumber(effective)};`;
 }
 
 function tableRows(item: JsonRecord): unknown[][] {
@@ -3874,11 +3979,17 @@ function joinedRunText(runs: JsonRecord[]): string {
     .join("");
 }
 
-function renderTextRunHtml(run: JsonRecord, font: JsonRecord): string {
+function renderTextRunHtml(
+  run: JsonRecord,
+  font: JsonRecord,
+  minCjkLineHeight?: number
+): string {
+  const runText = readStringValue(run.text);
   if (readString(run.type) !== "latex") {
-    return `<span style="${fontStyle(font)}">${escapeHtml(
-      readStringValue(run.text),
-    )}</span>`;
+    return `<span style="${fontStyle(font, {
+      minCjkLineHeight,
+      lineHeightText: runText,
+    })}">${escapeHtml(runText)}</span>`;
   }
 
   const latex = normalizeMathLatex(run.latex);
