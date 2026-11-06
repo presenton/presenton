@@ -68,7 +68,7 @@ export default function AnthropicConfig({
         const data = await response.json();
         setAvailableModels(data);
         setModelsChecked(true);
-        onInputChange("claude-sonnet-4-20250514", "anthropic_model");
+        onInputChange("claude-sonnet-5-5", "anthropic_model");
       } else {
         const message = await getApiErrorMessage(
           response,

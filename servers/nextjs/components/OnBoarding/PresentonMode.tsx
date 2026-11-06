@@ -404,7 +404,7 @@ const PresentonMode = ({
                             : llmConfig.LLM === 'google'
                                 ? 'models/gemini-2.5-flash'
                                 : llmConfig.LLM === 'anthropic'
-                                    ? 'claude-sonnet-4-20250514'
+                                    ? 'claude-sonnet-5-5'
                                     : llmConfig.LLM === 'openrouter'
                                         ? 'openai/gpt-4o'
                                         : llmConfig.LLM === 'fireworks'
