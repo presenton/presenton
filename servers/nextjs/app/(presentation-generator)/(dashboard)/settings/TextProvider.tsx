@@ -175,30 +175,13 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
       ...availableModels.filter((model) => model.value !== currentModel),
     ];
   }, [availableModels, currentModel]);
+  const providerDisplay = selectedProviderMeta?.label ?? selectedProvider;
   const providerApiKeyLabel =
     selectedProvider === "custom"
-      ? "Custom LLM API Key"
-      : selectedProvider === "deepseek"
-      ? "DeepSeek API Key"
-      : selectedProvider === "vertex"
-      ? "Vertex API Key"
-      : selectedProvider === "azure"
-      ? "Azure OpenAI API Key"
-      : selectedProvider === "bedrock"
-      ? "Bedrock API Key (optional)"
-      : selectedProvider === "openrouter"
-      ? "OpenRouter API Key"
-      : selectedProvider === "fireworks"
-      ? "Fireworks API Key"
-      : selectedProvider === "together"
-      ? "Together API Key"
-      : selectedProvider === "cerebras"
-      ? "Cerebras API Key"
-      : selectedProvider === "litellm"
-      ? "LiteLLM API key (optional)"
-      : selectedProvider === "lmstudio"
-      ? "LM Studio API key (optional)"
-      : `${selectedProvider} API Key`;
+      ? t("text.customApiKey")
+      : ["bedrock", "litellm", "lmstudio"].includes(selectedProvider)
+        ? t("text.apiKeyOptional", { provider: providerDisplay })
+        : t("text.apiKeyFor", { provider: providerDisplay });
 
   useEffect(() => {
     if (currentDeepseekBaseUrl) setDeepseekAdvancedOpen(true);

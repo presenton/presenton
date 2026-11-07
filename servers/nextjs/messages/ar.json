@@ -372,7 +372,20 @@
       "selectVerbosity": "اختر مستوى التفصيل",
       "includeToc": "تضمين جدول المحتويات",
       "titleSlide": "شريحة العنوان",
-      "closeAdvanced": "إغلاق الإعدادات المتقدمة"
+      "closeAdvanced": "إغلاق الإعدادات المتقدمة",
+      "toneOptions": {
+        "default": "افتراضي",
+        "casual": "غير رسمي",
+        "professional": "احترافي",
+        "funny": "مرح",
+        "educational": "تعليمي",
+        "salesPitch": "عرض بيعي"
+      },
+      "verbosityOptions": {
+        "concise": "موجز",
+        "standard": "قياسي",
+        "textHeavy": "نصي مطوّل"
+      }
     },
     "prompt": {
       "label": "موجز العرض",
@@ -669,6 +682,29 @@
         "noModels": "لم يُعثر على نماذج. يمكنك مع ذلك إدخال معرّف نموذج صالح أو اسم مستعار يدويًا أعلاه.",
         "advancedSettings": "إعدادات متقدمة"
       },
+      "apiKeyLabels": {
+        "openai": "مفتاح OpenAI API",
+        "google": "مفتاح Google API",
+        "pexels": "مفتاح Pexels API",
+        "pixabay": "مفتاح Pixabay API",
+        "comfyuiUrl": "رابط خادم ComfyUI",
+        "openWebuiUrl": "رابط Open WebUI",
+        "openaiCompatibleUrl": "رابط أساسي متوافق مع OpenAI"
+      },
+      "imageTest": {
+        "stockDescription": "ابحث عن صورة تجريبية للتحقق من إعداداتك.",
+        "generateDescription": "أنشئ صورة تجريبية للتحقق من إعداداتك.",
+        "testing": "جارٍ الاختبار…",
+        "testSearch": "اختبار البحث عن صور",
+        "testGeneration": "اختبار إنشاء الصور",
+        "searching": "جارٍ البحث عن صورة نموذجية…",
+        "generating": "جارٍ إنشاء صورة نموذجية. قد يستغرق ذلك بضع دقائق…",
+        "searchWorking": "البحث عن الصور يعمل.",
+        "generateWorking": "إنشاء الصور يعمل.",
+        "defaultError": "فشل اختبار الصور. تحقق من إعدادات المزوّد وحاول مرة أخرى.",
+        "previewError": "أعاد المزوّد صورة، لكن تعذّر تحميل معاينتها. تحقق من المزوّد وحاول مرة أخرى.",
+        "sampleAlt": "صورة بحيرة جبلية نموذجية من مزوّد الصور"
+      },
       "text": {
         "title": "إعدادات إنشاء النصوص",
         "desc": "اختيار مصدر محتوى النصوص",
@@ -683,7 +719,10 @@
         "lmstudioUrl": "رابط LM Studio الأساسي",
         "lmstudioHint": "الافتراضي هو localhost:1234/v1، ويُضاف /v1 تلقائيًا عند حذفه.",
         "fireworksUrl": "رابط Fireworks الأساسي (اختياري)",
-        "togetherUrl": "رابط Together الأساسي (اختياري)"
+        "togetherUrl": "رابط Together الأساسي (اختياري)",
+        "apiKeyFor": "مفتاح {provider} API",
+        "apiKeyOptional": "مفتاح {provider} API (اختياري)",
+        "customApiKey": "مفتاح API لمزوّد LLM المخصص"
       },
       "image": {
         "title": "إعدادات إنشاء الصور",

@@ -372,7 +372,20 @@
       "selectVerbosity": "Select verbosity",
       "includeToc": "Include Table of Content",
       "titleSlide": "Title Slide",
-      "closeAdvanced": "Close advanced settings"
+      "closeAdvanced": "Close advanced settings",
+      "toneOptions": {
+        "default": "Default",
+        "casual": "Casual",
+        "professional": "Professional",
+        "funny": "Funny",
+        "educational": "Educational",
+        "salesPitch": "Sales pitch"
+      },
+      "verbosityOptions": {
+        "concise": "Concise",
+        "standard": "Standard",
+        "textHeavy": "Text-heavy"
+      }
     },
     "prompt": {
       "label": "Presentation brief",
@@ -669,6 +682,29 @@
         "noModels": "No models were discovered. You can still enter a valid model ID or alias manually above.",
         "advancedSettings": "Advanced settings"
       },
+      "apiKeyLabels": {
+        "openai": "OpenAI API Key",
+        "google": "Google API Key",
+        "pexels": "Pexels API Key",
+        "pixabay": "Pixabay API Key",
+        "comfyuiUrl": "ComfyUI Server URL",
+        "openWebuiUrl": "Open WebUI URL",
+        "openaiCompatibleUrl": "OpenAI-compatible base URL"
+      },
+      "imageTest": {
+        "stockDescription": "Search for a test image to verify your configuration.",
+        "generateDescription": "Generate a test image to verify your configuration.",
+        "testing": "Testing…",
+        "testSearch": "Test image search",
+        "testGeneration": "Test image generation",
+        "searching": "Searching for a sample image…",
+        "generating": "Generating a sample image. This may take a few minutes…",
+        "searchWorking": "Image search is working.",
+        "generateWorking": "Image generation is working.",
+        "defaultError": "The image test failed. Check your provider settings and try again.",
+        "previewError": "The provider returned an image, but its preview could not load. Check your provider and try again.",
+        "sampleAlt": "Sample mountain lake from your image provider"
+      },
       "text": {
         "title": "Text Generation Settings",
         "desc": "Choosing where text content comes from",
@@ -683,7 +719,10 @@
         "lmstudioUrl": "LM Studio base URL",
         "lmstudioHint": "Defaults to localhost:1234/v1, and /v1 is added automatically when omitted.",
         "fireworksUrl": "Fireworks base URL (optional)",
-        "togetherUrl": "Together base URL (optional)"
+        "togetherUrl": "Together base URL (optional)",
+        "apiKeyFor": "{provider} API Key",
+        "apiKeyOptional": "{provider} API key (optional)",
+        "customApiKey": "Custom LLM API Key"
       },
       "image": {
         "title": "Image Generation Settings",

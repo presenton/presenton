@@ -22,6 +22,21 @@ interface ConfigurationSelectsProps {
 const toggleClassName =
     'h-[22px] w-[36px] border-0 bg-[#D8D8DD] data-[state=checked]:bg-[#7A5AF8] ';
 
+const toneLabelKeys: Record<string, string> = {
+    [ToneType.Default]: 'default',
+    [ToneType.Casual]: 'casual',
+    [ToneType.Professional]: 'professional',
+    [ToneType.Funny]: 'funny',
+    [ToneType.Educational]: 'educational',
+    [ToneType.Sales_Pitch]: 'salesPitch',
+};
+
+const verbosityLabelKeys: Record<string, string> = {
+    [VerbosityType.Concise]: 'concise',
+    [VerbosityType.Standard]: 'standard',
+    [VerbosityType.Text_Heavy]: 'textHeavy',
+};
+
 const AdvanceSettings = ({
     config,
     onConfigChange,
@@ -181,7 +196,7 @@ const AdvanceSettings = ({
                                 <SelectContent className="z-[120] font-syne">
                                     {Object.values(ToneType).map((tone) => (
                                         <SelectItem key={tone} value={tone} className="text-sm font-medium capitalize min-[1800px]:text-base">
-                                            {tone}
+                                            {t(`toneOptions.${toneLabelKeys[tone] ?? "default"}`)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -204,7 +219,7 @@ const AdvanceSettings = ({
                                 <SelectContent className="z-[120] font-syne">
                                     {Object.values(VerbosityType).map((verbosity) => (
                                         <SelectItem key={verbosity} value={verbosity} className="text-sm font-medium capitalize min-[1800px]:text-base">
-                                            {verbosity}
+                                            {t(`verbosityOptions.${verbosityLabelKeys[verbosity] ?? "standard"}`)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

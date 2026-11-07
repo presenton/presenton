@@ -15,6 +15,23 @@ import { useTranslations } from 'next-intl'
 
 const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setLlmConfig: (config: any) => void }) => {
     const t = useTranslations('settings.providers')
+    const getApiKeyLabel = (provider: { value?: string; apiKeyFieldLabel?: string }) => {
+        switch (provider.value) {
+            case 'pexels': return t('apiKeyLabels.pexels');
+            case 'pixabay': return t('apiKeyLabels.pixabay');
+            case 'gpt-image-2':
+            case 'gpt-image-2.5-flare':
+            case 'gpt-image-2.5-sunburst':
+                return t('apiKeyLabels.openai');
+            case 'gemini_flash':
+            case 'nanobanana_pro':
+                return t('apiKeyLabels.google');
+            case 'comfyui': return t('apiKeyLabels.comfyuiUrl');
+            case 'open_webui': return t('apiKeyLabels.openWebuiUrl');
+            case 'openai_compatible': return t('apiKeyLabels.openaiCompatibleUrl');
+            default: return provider.apiKeyFieldLabel ?? '';
+        }
+    };
     const [showApiKey, setShowApiKey] = useState(false);
     const [openImageProviderSelect, setOpenImageProviderSelect] = useState(false);
     const [openaiCompatListMeta, setOpenaiCompatListMeta] = useState<{
@@ -318,12 +335,12 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                             return (
                                                 <div className=" w-[205px]">
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                        {provider.apiKeyFieldLabel}
+                                                        {getApiKeyLabel(provider)}
                                                     </label>
                                                     <div className="relative">
                                                         <input
                                                             type={showApiKey ? 'text' : 'password'}
-                                                            placeholder={t('image.apiKeyEnter', { label: provider.apiKeyFieldLabel ?? "" })}
+                                                            placeholder={t('image.apiKeyEnter', { label: getApiKeyLabel(provider) })}
                                                             className="w-full px-4 pe-12 py-2.5 h-12 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                                                             value={getFieldValue(provider.apiKeyField)}
                                                             onChange={(e) =>
