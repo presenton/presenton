@@ -46,14 +46,14 @@ export default function LoadingSettings() {
 
                 {/* Main column — matches SettingPage + TextProvider default */}
                 <div className="w-full min-w-0 flex flex-col">
-                    <div className="sticky top-0 right-0 z-50 py-[28px] backdrop-blur mb-4">
+                    <div className="sticky top-0 end-0 z-50 py-[28px] backdrop-blur mb-4">
                         <div className="flex gap-3 items-center flex-wrap">
                             <Shimmer className="h-8 w-[132px] rounded-md" />
                             <Shimmer className="h-[22px] w-[min(320px,55%)] rounded-[50px]" />
                         </div>
                     </div>
 
-                    <div className="space-y-6 bg-[#F9F8F8] p-7 rounded-[12px] pr-4 sm:pr-7">
+                    <div className="space-y-6 bg-[#F9F8F8] p-7 rounded-[12px] pe-4 sm:pe-7">
                         {/* TextProvider top card: white panel, icon + copy left, controls right */}
                         <div className="mb-4 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 rounded-[12px] bg-white pt-5 pb-10 px-6 sm:px-10">
                             <div className="max-w-[290px] shrink-0">
@@ -73,7 +73,7 @@ export default function LoadingSettings() {
                                         <Shimmer className="h-12 w-full rounded-lg" />
                                     </div>
                                 </div>
-                                <div className="w-full sm:w-[222px] sm:ml-auto">
+                                <div className="w-full sm:w-[222px] sm:ms-auto">
                                     <Shimmer className="h-4 w-40 mb-2" />
                                     <Shimmer className="h-12 w-full rounded-lg" />
                                 </div>
@@ -96,7 +96,7 @@ export default function LoadingSettings() {
             </main>
 
             {/* Fixed save button — matches SettingPage placement */}
-            <div className="mx-auto fixed bottom-20 right-5 z-40">
+            <div className="mx-auto fixed bottom-20 end-5 z-40">
                 <Shimmer className="h-12 w-[200px] sm:w-[240px] rounded-[58px]" />
             </div>
         </div>

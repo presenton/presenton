@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeft, LayoutTemplate, Loader2, Presentation } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +46,7 @@ function ChoiceCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="group flex min-h-44 flex-col items-start rounded-2xl border border-[#E5E7EB] bg-white p-5 text-left outline-none transition hover:-translate-y-0.5 hover:border-[#7A5AF8] hover:shadow-[0_16px_36px_rgba(34,31,54,0.10)] focus-visible:border-[#7A5AF8] focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30 disabled:cursor-wait disabled:opacity-60"
+      className="group flex min-h-44 flex-col items-start rounded-2xl border border-[#E5E7EB] bg-white p-5 text-start outline-none transition hover:-translate-y-0.5 hover:border-[#7A5AF8] hover:shadow-[0_16px_36px_rgba(34,31,54,0.10)] focus-visible:border-[#7A5AF8] focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30 disabled:cursor-wait disabled:opacity-60"
     >
       <span className="mb-6 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#F0EDFF] text-[#6847F4] transition-colors group-hover:bg-[#E8E2FF]">
         {icon}
@@ -69,6 +70,7 @@ function TemplatePicker({
   onSelect: (template: TemplateListItem) => void;
   onRetry: () => void;
 }) {
+  const t = useTranslations("dashboard.blankDialog");
   const { defaultTemplates, customTemplates, loading, error } =
     useTemplateSummaries();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
@@ -96,7 +98,7 @@ function TemplatePicker({
           onClick={onRetry}
           className="rounded-lg border border-[#E5E7EB] px-4 py-2 text-sm font-medium text-[#6847F4] hover:bg-[#F0EDFF]"
         >
-          Try again
+          {t("retry")}
         </button>
       </div>
     );
@@ -105,7 +107,7 @@ function TemplatePicker({
   const hasTemplates = defaultTemplates.length + customTemplates.length > 0;
 
   if (!hasTemplates) {
-    return <TemplateListEmptyState message="No templates available." />;
+    return <TemplateListEmptyState message={t("noTemplates")} />;
   }
 
   return (
@@ -114,7 +116,7 @@ function TemplatePicker({
         {defaultTemplates.length > 0 && (
           <section>
             <h3 className="mb-4 font-syne text-sm font-semibold text-[#333333]">
-              Built-in templates
+              {t("builtInTemplates")}
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {defaultTemplates.map((template) => (
@@ -132,7 +134,7 @@ function TemplatePicker({
         {customTemplates.length > 0 && (
           <section>
             <h3 className="mb-4 font-syne text-sm font-semibold text-[#333333]">
-              Your templates
+              {t("yourTemplates")}
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {customTemplates.map((template) => (
@@ -152,7 +154,7 @@ function TemplatePicker({
         <div role="status" className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-white/70 backdrop-blur-[1px]">
           <div className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-white px-4 py-2 text-sm font-medium text-[#4F3BC8] shadow-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Creating presentation...
+            {t("creating")}
           </div>
         </div>
       )}
@@ -167,6 +169,7 @@ export function BlankPresentationDialog({
   onContinueWithoutTemplate,
   onContinueWithTemplate,
 }: BlankPresentationDialogProps) {
+  const t = useTranslations("dashboard.blankDialog");
   const [step, setStep] = useState<DialogStep>("choice");
   const [templateLoadAttempt, setTemplateLoadAttempt] = useState(0);
 
@@ -197,25 +200,24 @@ export function BlankPresentationDialog({
           <>
             <DialogHeader>
               <DialogTitle className="font-syne text-xl text-[#191919]">
-                Start a blank presentation
+                {t("title")}
               </DialogTitle>
               <DialogDescription className="pt-1 text-sm text-[#6B6D76]">
-                Choose whether you want to begin with a design or a clean
-                slide.
+                {t("description")}
               </DialogDescription>
             </DialogHeader>
 
             <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <ChoiceCard
-                title="With a template"
-                description="Choose from all built-in and custom templates."
+                title={t("withTemplate")}
+                description={t("withTemplateDescription")}
                 icon={<LayoutTemplate className="h-5 w-5" />}
                 onClick={() => setStep("templates")}
                 disabled={isCreating}
               />
               <ChoiceCard
-                title="Without a template"
-                description="Start with a clean white slide."
+                title={t("withoutTemplate")}
+                description={t("withoutTemplateDescription")}
                 icon={<Presentation className="h-5 w-5" />}
                 onClick={onContinueWithoutTemplate}
                 disabled={isCreating}
@@ -224,7 +226,7 @@ export function BlankPresentationDialog({
             {isCreating && (
               <div role="status" className="flex items-center justify-center gap-2 text-sm text-[#4F3BC8]">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Creating presentation...
+                {t("creating")}
               </div>
             )}
           </>
@@ -237,16 +239,15 @@ export function BlankPresentationDialog({
                 onClick={() => setStep("choice")}
                 className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#64666F] transition-colors hover:text-[#6847F4] disabled:cursor-wait disabled:opacity-50"
               >
-                <ArrowLeft className="h-4 w-4" />
-                Back
+                <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+                {t("back")}
               </button>
               <DialogHeader>
                 <DialogTitle className="font-syne text-xl text-[#191919]">
-                  Choose a template
+                  {t("chooseTitle")}
                 </DialogTitle>
                 <DialogDescription className="pt-1 text-sm text-[#6B6D76]">
-                  Select a template to create your presentation and open it in
-                  the editor.
+                  {t("chooseDescription")}
                 </DialogDescription>
               </DialogHeader>
             </div>

@@ -14,7 +14,7 @@
   color: #191923;
   font-family: var(--font-manrope), sans-serif;
   font-size: 14px;
-  text-align: left;
+  text-align: start;
   box-shadow: none;
   cursor: pointer;
 }

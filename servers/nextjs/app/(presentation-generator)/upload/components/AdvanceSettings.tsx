@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Pencil, SlidersHorizontal, X } from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { PresentationConfig, ToneType, VerbosityType } from '../type';
 import { cn } from '@/lib/utils';
 
@@ -21,11 +22,27 @@ interface ConfigurationSelectsProps {
 const toggleClassName =
     'h-[22px] w-[36px] border-0 bg-[#D8D8DD] data-[state=checked]:bg-[#7A5AF8] ';
 
+const toneLabelKeys: Record<string, string> = {
+    [ToneType.Default]: 'default',
+    [ToneType.Casual]: 'casual',
+    [ToneType.Professional]: 'professional',
+    [ToneType.Funny]: 'funny',
+    [ToneType.Educational]: 'educational',
+    [ToneType.Sales_Pitch]: 'salesPitch',
+};
+
+const verbosityLabelKeys: Record<string, string> = {
+    [VerbosityType.Concise]: 'concise',
+    [VerbosityType.Standard]: 'standard',
+    [VerbosityType.Text_Heavy]: 'textHeavy',
+};
+
 const AdvanceSettings = ({
     config,
     onConfigChange,
     compact = false,
 }: ConfigurationSelectsProps) => {
+    const t = useTranslations('upload.advanced');
     const [openAdvanced, setOpenAdvanced] = useState(false);
     const [openSelect, setOpenSelect] = useState<'tone' | 'verbosity' | null>(null);
     const instructionsRef = useRef<HTMLTextAreaElement>(null);
@@ -69,12 +86,12 @@ const AdvanceSettings = ({
             setOpenAdvanced(open);
             if (!open) setOpenSelect(null);
         }}>
-            <div className={cn(!compact && "ml-auto")}>
-                <ToolTip content="Advanced settings">
+            <div className={cn(!compact && "ms-auto")}>
+                <ToolTip content={t('title')}>
                     <DialogTrigger asChild>
                         <button
-                            aria-label="Advanced settings"
-                            title="Advanced settings"
+                            aria-label={t('title')}
+                            title={t('title')}
                             type="button"
                             onClick={handleOpenAdvanced}
                             className={cn(
@@ -108,8 +125,8 @@ const AdvanceSettings = ({
             >
                 <DialogClose
                     type="button"
-                    aria-label="Close advanced settings"
-                    className="absolute -top-[62px] right-2 flex h-[50px] w-[50px] items-center justify-center rounded-full border border-[#E7E7EC] bg-white text-[#2C2B35] shadow-sm transition hover:bg-[#F8F8FB] min-[1800px]:h-[56px] min-[1800px]:w-[56px]"
+                    aria-label={t('closeAdvanced')}
+                    className="absolute -top-[62px] end-2 flex h-[50px] w-[50px] items-center justify-center rounded-full border border-[#E7E7EC] bg-white text-[#2C2B35] shadow-sm transition hover:bg-[#F8F8FB] min-[1800px]:h-[56px] min-[1800px]:w-[56px]"
                 >
                     <X className="h-3.5 w-3.5 min-[1800px]:h-4 min-[1800px]:w-4" />
                 </DialogClose>
@@ -118,9 +135,9 @@ const AdvanceSettings = ({
                     <div className="flex items-start justify-between gap-4 bg-[#F8F8FA] px-6 py-[22px] min-[1800px]:px-8 min-[1800px]:py-7">
                         <div>
                             <DialogTitle className="font-syne text-lg font-semibold leading-none tracking-normal text-[#191919] min-[1800px]:text-xl min-[2200px]:text-2xl">
-                                Advanced Settings
+                                {t('title')}
                             </DialogTitle>
-                            <DialogDescription className="mt-1 text-sm text-[#808080] min-[1800px]:text-base">Adjust Presentation Behavior</DialogDescription>
+                            <DialogDescription className="mt-1 text-sm text-[#808080] min-[1800px]:text-base">{t('description')}</DialogDescription>
                         </div>
 
                         <Button
@@ -132,7 +149,7 @@ const AdvanceSettings = ({
                             }}
                             className="rounded-full px-[28px] py-[10px] font-syne text-xs font-semibold text-[#1E1D2B] shadow-none hover:opacity-95 min-[1800px]:px-8 min-[1800px]:py-3 min-[1800px]:text-sm"
                         >
-                            Save
+                            {t('save')}
                         </Button>
                     </div>
 
@@ -144,7 +161,7 @@ const AdvanceSettings = ({
                                     htmlFor="advanced-instructions"
                                     className="block font-syne text-sm font-semibold leading-none text-[#1F1D2A] min-[1800px]:text-base"
                                 >
-                                    Write instructions
+                                    {t('writeInstructions')}
                                 </label>
                                 <Textarea
                                     id="advanced-instructions"
@@ -154,7 +171,7 @@ const AdvanceSettings = ({
                                     onChange={(event) =>
                                         setAdvancedDraft((prev) => ({ ...prev, instructions: event.target.value }))
                                     }
-                                    placeholder="Guide the AI: define audience, tone, key points, or constraints."
+                                    placeholder={t('instructionsPlaceholder')}
                                     className="mt-1 min-h-[64px] resize-none border-0 bg-transparent p-0 text-sm leading-[1.3] text-[#242430] shadow-none placeholder:text-[#7C7B87] focus-visible:ring-0 focus-visible:ring-offset-0 min-[1800px]:min-h-[80px] min-[1800px]:text-base"
                                 />
                             </div>
@@ -163,7 +180,7 @@ const AdvanceSettings = ({
 
                     <div className="space-y-4 px-6 pb-5 pt-3.5 min-[1800px]:space-y-5 min-[1800px]:px-8 min-[1800px]:pb-7 min-[1800px]:pt-5">
                         <div className="flex items-center justify-between gap-3">
-                            <label className="font-syne text-sm font-semibold leading-none text-[#1F1D2A] min-[1800px]:text-base">Tone</label>
+                            <label className="font-syne text-sm font-semibold leading-none text-[#1F1D2A] min-[1800px]:text-base">{t('tone')}</label>
                             <Select
                                 open={openSelect === 'tone'}
                                 onOpenChange={(open) => setOpenSelect(open ? 'tone' : null)}
@@ -174,12 +191,12 @@ const AdvanceSettings = ({
 
                             >
                                 <SelectTrigger className="w-[120px] rounded-xl border-[#DBDBE1] bg-white p-2.5 font-syne text-sm font-medium capitalize text-[#2C2B37] shadow-none focus:ring-0 focus-visible:ring-0 min-[1800px]:w-[140px] min-[1800px]:text-base">
-                                    <SelectValue placeholder="Select tone" />
+                                    <SelectValue placeholder={t('selectTone')} />
                                 </SelectTrigger>
                                 <SelectContent className="z-[120] font-syne">
                                     {Object.values(ToneType).map((tone) => (
                                         <SelectItem key={tone} value={tone} className="text-sm font-medium capitalize min-[1800px]:text-base">
-                                            {tone}
+                                            {t(`toneOptions.${toneLabelKeys[tone] ?? "default"}`)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -187,7 +204,7 @@ const AdvanceSettings = ({
                         </div>
 
                         <div className="flex items-center justify-between gap-3">
-                            <label className="font-syne text-sm font-semibold leading-none text-[#1F1D2A] min-[1800px]:text-base">Verbosity</label>
+                            <label className="font-syne text-sm font-semibold leading-none text-[#1F1D2A] min-[1800px]:text-base">{t('verbosity')}</label>
                             <Select
                                 open={openSelect === 'verbosity'}
                                 onOpenChange={(open) => setOpenSelect(open ? 'verbosity' : null)}
@@ -197,12 +214,12 @@ const AdvanceSettings = ({
                                 }
                             >
                                 <SelectTrigger className="w-[120px] rounded-xl border-[#DBDBE1] bg-white p-2.5 font-syne text-sm font-medium capitalize text-[#2C2B37] shadow-none focus:ring-0 focus-visible:ring-0 min-[1800px]:w-[140px] min-[1800px]:text-base">
-                                    <SelectValue placeholder="Select verbosity" />
+                                    <SelectValue placeholder={t('selectVerbosity')} />
                                 </SelectTrigger>
                                 <SelectContent className="z-[120] font-syne">
                                     {Object.values(VerbosityType).map((verbosity) => (
                                         <SelectItem key={verbosity} value={verbosity} className="text-sm font-medium capitalize min-[1800px]:text-base">
-                                            {verbosity}
+                                            {t(`verbosityOptions.${verbosityLabelKeys[verbosity] ?? "standard"}`)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -211,7 +228,7 @@ const AdvanceSettings = ({
 
                         <div className="flex items-center justify-between gap-3">
                             <label className="font-syne text-sm font-semibold leading-none text-[#1F1D2A] min-[1800px]:text-base">
-                                Include Table of Content
+                                {t('includeToc')}
                             </label>
                             <Switch
                                 checked={advancedDraft.includeTableOfContents}
@@ -223,7 +240,7 @@ const AdvanceSettings = ({
                         </div>
 
                         <div className="flex items-center justify-between gap-3">
-                            <label className="font-syne text-sm font-semibold leading-none text-[#1F1D2A] min-[1800px]:text-base">Title Slide</label>
+                            <label className="font-syne text-sm font-semibold leading-none text-[#1F1D2A] min-[1800px]:text-base">{t('titleSlide')}</label>
                             <Switch
                                 checked={advancedDraft.includeTitleSlide}
                                 onCheckedChange={(checked) =>

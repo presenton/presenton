@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -62,6 +63,9 @@ const inputClass =
   styles.input;
 
 export default function AdminPanel({ embedded = false, onBackToSettings }: AdminPanelProps) {
+  const t = useTranslations("admin");
+  const locale = useLocale();
+  const dir = locale === "ar" ? "rtl" : "ltr";
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [apiKeyTokens, setApiKeyTokens] = useState<Record<string, string>>({});
@@ -127,7 +131,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not load users", detail);
+        notify.error(t("toast.loadUsersError"), detail);
       }
     } catch (loadError) {
       setUsersError("Users could not be loaded. Check your connection and try again.");
@@ -139,7 +143,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           "Could not load users"
         ),
       });
-      notify.error("Could not load users", "Please try again.");
+      notify.error(t("toast.loadUsersError"), t("toast.tryAgain"));
     } finally {
       setUsersLoading(false);
     }
@@ -170,11 +174,11 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
       } else {
         const detail = await errorDetail(response);
         setKeysError(`API keys could not be loaded. ${detail}`);
-        notify.error("Could not load API keys", detail);
+        notify.error(t("toast.loadKeysError"), detail);
       }
     } catch {
       setKeysError("API keys could not be loaded. Check your connection and try again.");
-      notify.error("Could not load API keys", "Please try again.");
+      notify.error(t("toast.loadKeysError"), t("toast.tryAgain"));
     } finally {
       setKeysLoading(false);
     }
@@ -219,7 +223,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           username_length: cleanedUsername.length,
           user_count_after: users.length + 1,
         });
-        notify.success("User created", `${cleanedUsername} can now sign in.`);
+        notify.success(t("toast.userCreated"), t("toast.userCreatedBody", { username: cleanedUsername }));
         setUsername("");
         setPassword("");
         setShowPassword(false);
@@ -234,7 +238,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not create user", detail);
+        notify.error(t("toast.createUserError"), detail);
       }
     } catch (createError) {
       trackEvent(MixpanelEvent.Auth_Admin_User_Create_Failed, {
@@ -244,7 +248,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           "Could not create user"
         ),
       });
-      notify.error("Could not create user", "Please try again.");
+      notify.error(t("toast.createUserError"), t("toast.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -285,7 +289,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           target_role: user.role,
           sessions_invalidated: true,
         });
-        notify.success("Password reset", "Existing sessions were signed out.");
+        notify.success(t("toast.passwordReset"), t("toast.passwordResetBody"));
         setDialog(null);
         setResetPasswordValue("");
       } else {
@@ -295,7 +299,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not reset password", detail);
+        notify.error(t("toast.resetError"), detail);
       }
     } catch (resetError) {
       trackEvent(MixpanelEvent.Auth_Admin_User_Password_Reset_Failed, {
@@ -306,7 +310,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           "Could not reset password"
         ),
       });
-      notify.error("Could not reset password", "Please try again.");
+      notify.error(t("toast.resetError"), t("toast.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -331,7 +335,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           target_role: user.role,
           user_count_after: Math.max(0, users.length - 1),
         });
-        notify.success("User deleted", `${user.username}'s workspace was removed.`);
+        notify.success(t("toast.userDeleted"), t("toast.userDeletedBody", { username: user.username }));
         await loadUsers("user_deleted");
         await loadApiKeys();
         setDialog(null);
@@ -342,7 +346,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           status_code: response.status,
           error_message: sanitizeAnalyticsError(detail),
         });
-        notify.error("Could not delete user", detail);
+        notify.error(t("toast.deleteError"), detail);
       }
     } catch (deleteError) {
       trackEvent(MixpanelEvent.Auth_Admin_User_Delete_Failed, {
@@ -353,7 +357,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
           "Could not delete user"
         ),
       });
-      notify.error("Could not delete user", "Please try again.");
+      notify.error(t("toast.deleteError"), t("toast.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -363,12 +367,12 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
     event.preventDefault();
     if (usersLoading || busy === "create-api-key") return;
     if (!users.some((user) => user.id === apiKeyUserId)) {
-      notify.error("Choose a user", "Select the user whose workspace this key will access.");
+      notify.error(t("toast.chooseUser"), t("toast.chooseUserBody"));
       document.getElementById("admin-key-user")?.focus();
       return;
     }
     if (!apiKeyLabel.trim()) {
-      notify.error("Add a key label", "Give this key a name so you can identify its client.");
+      notify.error(t("toast.addKeyLabel"), t("toast.addKeyLabelBody"));
       keyLabelInput.current?.focus();
       return;
     }
@@ -388,7 +392,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
         }),
       });
       if (!response.ok) {
-        notify.error("Could not create API key", await errorDetail(response));
+        notify.error(t("toast.keyCreateError"), await errorDetail(response));
         return;
       }
       const created = (await response.json()) as ApiKeyCreated;
@@ -405,12 +409,12 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
       });
       try {
         await copyTextToClipboard(token);
-        notify.success("API key created", "The key is visible and was copied to your clipboard.");
+        notify.success(t("toast.keyCreated"), t("toast.keyCreatedCopied"));
       } catch {
-        notify.success("API key created", "The key is visible below.");
+        notify.success(t("toast.keyCreated"), t("toast.keyCreatedVisible"));
       }
     } catch {
-      notify.error("Could not create API key", "Please try again.");
+      notify.error(t("toast.keyCreateError"), t("toast.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -444,8 +448,8 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
       setVisibleApiKeys((current) => new Set(current).add(apiKeyId));
     } catch (revealError) {
       notify.error(
-        "Could not reveal API key",
-        revealError instanceof Error ? revealError.message : "Please try again."
+        t("toast.keyRevealError"),
+        revealError instanceof Error ? revealError.message : t("toast.tryAgain")
       );
     } finally {
       setBusy(null);
@@ -456,11 +460,11 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
     setBusy(`reveal-api-key:${apiKeyId}`);
     try {
       await copyTextToClipboard(await getApiKeyToken(apiKeyId));
-      notify.success("API key copied");
+      notify.success(t("toast.keyCopied"));
     } catch (copyError) {
       notify.error(
-        "Could not copy API key",
-        copyError instanceof Error ? copyError.message : "Please try again."
+        t("toast.keyCopyError"),
+        copyError instanceof Error ? copyError.message : t("toast.tryAgain")
       );
     } finally {
       setBusy(null);
@@ -480,7 +484,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
         { method: "POST", credentials: "include" }
       );
       if (!response.ok) {
-        notify.error("Could not revoke API key", await errorDetail(response));
+        notify.error(t("toast.keyRevokeError"), await errorDetail(response));
         return;
       }
       const revoked = (await response.json()) as ApiKey;
@@ -501,9 +505,9 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
         api_key_count_after: Math.max(0, apiKeys.length - 1),
       });
       setDialog(null);
-      notify.success("API key revoked");
+      notify.success(t("toast.keyRevoked"));
     } catch {
-      notify.error("Could not revoke API key", "Please try again.");
+      notify.error(t("toast.keyRevokeError"), t("toast.tryAgain"));
     } finally {
       setBusy(null);
     }
@@ -532,17 +536,17 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
   const clearKeyFilters = () => { setKeySearch(""); setOwnerFilter("all"); };
 
   return (
-    <RootElement className={`${styles.root} ${embedded ? styles.embedded : styles.standalone}`}>
+    <RootElement dir={dir} className={`${styles.root} ${embedded ? styles.embedded : styles.standalone}`}>
       <div className={styles.canvas}>
         {embedded && onBackToSettings && (
           <button type="button" className={styles.backButton} onClick={onBackToSettings}>
-            <ArrowLeft size={15} aria-hidden="true" /> Back to settings
+            <ArrowLeft size={15} aria-hidden="true" className="rtl:rotate-180" /> {t("backToSettings")}
           </button>
         )}
         <header className={styles.header}>
           <div>
-            <h1 className={styles.heading}>Administration</h1>
-            <p className={styles.description}>Manage who can sign in and which clients can connect to Presenton.</p>
+            <h1 className={styles.heading}>{t("heading")}</h1>
+            <p className={styles.description}>{t("description")}</p>
           </div>
           <button
             ref={createAction}
@@ -554,17 +558,17 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
             onClick={() => activeTab === "users" ? setShowUserForm((open) => !open) : setShowKeyForm((open) => !open)}
           >
             {formOpen ? <X size={16} aria-hidden="true" /> : activeTab === "users" ? <UserPlus size={16} aria-hidden="true" /> : <KeyRound size={16} aria-hidden="true" />}
-            {formOpen ? "Cancel" : activeTab === "users" ? "Add user" : "Generate API key"}
+            {formOpen ? t("cancel") : activeTab === "users" ? t("addUser") : t("generateApiKey")}
           </button>
         </header>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className={styles.sheet}>
-          <TabsList aria-label="Administration views" className={styles.tabList}>
+        <Tabs dir={dir} value={activeTab} onValueChange={setActiveTab} className={styles.sheet}>
+          <TabsList aria-label={t("viewsAria")} className={styles.tabList}>
             <TabsTrigger value="users" className={styles.tabTrigger}>
-              Users <span aria-hidden="true" className={styles.tabCount}>{userCount}</span>
+              {t("tabs.users")} <span aria-hidden="true" className={styles.tabCount}>{userCount}</span>
             </TabsTrigger>
             <TabsTrigger value="keys" className={styles.tabTrigger}>
-              API keys <span aria-hidden="true" className={styles.tabCount}>{keyCount}</span>
+              {t("tabs.apiKeys")} <span aria-hidden="true" className={styles.tabCount}>{keyCount}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -573,49 +577,49 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
               <section id="admin-create-user" className={`${styles.createSection} motion-fade`} aria-labelledby="admin-create-user-title">
                 <div className={styles.createHeading}>
                   <div>
-                    <h3 id="admin-create-user-title">Add a user</h3>
-                    <p>Create sign-in credentials for a private workspace.</p>
+                    <h3 id="admin-create-user-title">{t("createUser.title")}</h3>
+                    <p>{t("createUser.description")}</p>
                   </div>
-                  <button type="button" className={styles.iconButton} aria-label="Close add user form" disabled={busy === "add"} onClick={() => { setShowUserForm(false); createAction.current?.focus(); }}><X size={16} aria-hidden="true" /></button>
+                  <button type="button" className={styles.iconButton} aria-label={t("createUser.closeAria")} disabled={busy === "add"} onClick={() => { setShowUserForm(false); createAction.current?.focus(); }}><X size={16} aria-hidden="true" /></button>
                 </div>
-                <form onSubmit={addUser} className={styles.userForm}>
+                <form dir={dir} onSubmit={addUser} className={styles.userForm}>
                   <div className={styles.field}>
-                    <label htmlFor="admin-new-username">Username</label>
-                    <input ref={usernameInput} id="admin-new-username" className={inputClass} placeholder="e.g. maya.chen" minLength={3} maxLength={128} pattern={"\\S+"} title="Username cannot contain spaces" value={username} onChange={(event) => setUsername(event.target.value.replace(/\s/g, ""))} required spellCheck={false} autoComplete="off" disabled={busy === "add"} />
+                    <label htmlFor="admin-new-username">{t("createUser.username")}</label>
+                    <input ref={usernameInput} id="admin-new-username" className={inputClass} placeholder={t("createUser.usernamePlaceholder")} minLength={3} maxLength={128} pattern={"\\S+"} title={t("createUser.usernameTitle")} value={username} onChange={(event) => setUsername(event.target.value.replace(/\s/g, ""))} required spellCheck={false} autoComplete="off" disabled={busy === "add"} />
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="admin-new-password">Password</label>
+                    <label htmlFor="admin-new-password">{t("createUser.password")}</label>
                     <div className={styles.passwordField}>
-                      <input id="admin-new-password" className={inputClass} type={showPassword ? "text" : "password"} placeholder="At least 8 characters" minLength={8} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required disabled={busy === "add"} />
-                      <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((show) => !show)}>{showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}</button>
+                      <input id="admin-new-password" className={inputClass} type={showPassword ? "text" : "password"} placeholder={t("createUser.passwordPlaceholder")} minLength={8} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required disabled={busy === "add"} />
+                      <button type="button" aria-label={showPassword ? t("createUser.hidePassword") : t("createUser.showPassword")} onClick={() => setShowPassword((show) => !show)}>{showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}</button>
                     </div>
                   </div>
                   <button type="submit" className={primaryButtonClass} disabled={busy === "add"}>
                     {busy === "add" && <Loader2 className={styles.spinner} size={16} aria-hidden="true" />}
-                    {busy === "add" ? "Creating…" : "Create user"}
+                    {busy === "add" ? t("createUser.creating") : t("createUser.submit")}
                   </button>
                 </form>
-                <p className={styles.formHint}>New accounts are created as users. Usernames cannot contain spaces.</p>
+                <p className={styles.formHint}>{t("createUser.hint")}</p>
               </section>
             )}
             <div className={styles.toolbar}>
               <div className={styles.filters}>
                 <div className={styles.search}>
                   <Search size={16} aria-hidden="true" />
-                  <input type="search" className={inputClass} aria-label="Search users" placeholder="Search users…" value={userSearch} onChange={(event) => setUserSearch(event.target.value)} />
+                  <input type="search" className={inputClass} aria-label={t("toolbar.searchUsers")} placeholder={t("toolbar.searchUsersPlaceholder")} value={userSearch} onChange={(event) => setUserSearch(event.target.value)} />
                 </div>
                 <AdminSelectPopover
-                  label="Filter users by role"
+                  label={t("toolbar.filterUsersRole")}
                   value={roleFilter}
                   onChange={setRoleFilter}
                   options={[
-                    { value: "all", label: "All roles" },
-                    { value: "admin", label: "Administrators" },
-                    { value: "user", label: "Users" },
+                    { value: "all", label: t("toolbar.allRoles") },
+                    { value: "admin", label: t("toolbar.administrators") },
+                    { value: "user", label: t("toolbar.users") },
                   ]}
                 />
               </div>
-              <button type="button" className={styles.iconButton} aria-label="Refresh accounts" title="Refresh accounts" disabled={usersLoading || busy !== null} onClick={() => void loadUsers("manual")}>
+              <button type="button" className={styles.iconButton} aria-label={t("toolbar.refreshAccounts")} title={t("toolbar.refreshAccounts")} disabled={usersLoading || busy !== null} onClick={() => void loadUsers("manual")}>
                 <RefreshCw size={16} aria-hidden="true" className={usersLoading ? styles.spinner : styles.refreshIcon} />
               </button>
             </div>
@@ -627,41 +631,41 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
               <section id="admin-create-key" className={`${styles.createSection} motion-fade`} aria-labelledby="admin-create-key-title">
                 <div className={styles.createHeading}>
                   <div>
-                    <h3 id="admin-create-key-title">Generate an API key</h3>
-                    <p>Connect REST API and MCP clients to the selected user’s workspace.</p>
+                    <h3 id="admin-create-key-title">{t("createKey.title")}</h3>
+                    <p>{t("createKey.description")}</p>
                   </div>
-                  <button type="button" className={styles.iconButton} aria-label="Close API key form" disabled={busy === "create-api-key"} onClick={() => { setShowKeyForm(false); createAction.current?.focus(); }}><X size={16} aria-hidden="true" /></button>
+                  <button type="button" className={styles.iconButton} aria-label={t("createKey.closeAria")} disabled={busy === "create-api-key"} onClick={() => { setShowKeyForm(false); createAction.current?.focus(); }}><X size={16} aria-hidden="true" /></button>
                 </div>
-                <form onSubmit={createApiKey} className={styles.keyForm}>
+                <form dir={dir} onSubmit={createApiKey} className={styles.keyForm}>
                   <div className={styles.field}>
-                    <label htmlFor="admin-key-user">User</label>
+                    <label htmlFor="admin-key-user">{t("createKey.user")}</label>
                     <AdminSelectPopover
                       id="admin-key-user"
-                      label="API key user"
+                      label={t("createKey.userLabel")}
                       value={apiKeyUserId}
                       onChange={setApiKeyUserId}
                       options={users.map((user) => ({ value: user.id, label: `${user.username} (${user.role})` }))}
-                      placeholder={usersLoading ? "Loading users…" : "Select user"}
+                      placeholder={usersLoading ? t("createKey.loadingUsers") : t("createKey.selectUser")}
                       searchable
-                      searchLabel="Find a user"
-                      emptyMessage="No users found."
+                      searchLabel={t("createKey.findUser")}
+                      emptyMessage={t("createKey.noUsers")}
                       fullWidth
                       required
                       disabled={usersLoading || busy === "create-api-key"}
                     />
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="admin-key-label">Key label</label>
-                    <input ref={keyLabelInput} id="admin-key-label" aria-label="API key label" className={inputClass} value={apiKeyLabel} onChange={(event) => setApiKeyLabel(event.target.value)} minLength={1} maxLength={120} placeholder="e.g. Editorial MCP" required disabled={busy === "create-api-key"} />
+                    <label htmlFor="admin-key-label">{t("createKey.keyLabel")}</label>
+                    <input ref={keyLabelInput} id="admin-key-label" aria-label={t("createKey.keyLabelAria")} className={inputClass} value={apiKeyLabel} onChange={(event) => setApiKeyLabel(event.target.value)} minLength={1} maxLength={120} placeholder={t("createKey.keyLabelPlaceholder")} required disabled={busy === "create-api-key"} />
                   </div>
                   <div className={styles.field}>
-                    <label htmlFor="admin-key-expiry">Expires after</label>
+                    <label htmlFor="admin-key-expiry">{t("createKey.expiresAfter")}</label>
                     <AdminSelectPopover
                       id="admin-key-expiry"
-                      label="API key expiry days"
+                      label={t("createKey.expiryLabel")}
                       value={String(apiKeyExpiryDays)}
                       onChange={(value) => setApiKeyExpiryDays(Number(value))}
-                      options={[30, 90, 180, 365].map((days) => ({ value: String(days), label: `${days} days` }))}
+                      options={[30, 90, 180, 365].map((days) => ({ value: String(days), label: t("createKey.days", { count: days }) }))}
                       fullWidth
                       required
                       disabled={busy === "create-api-key"}
@@ -669,39 +673,39 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
                   </div>
                   <button type="submit" className={primaryButtonClass} disabled={busy === "create-api-key" || usersLoading || !apiKeyUserId || !apiKeyLabel.trim()}>
                     {busy === "create-api-key" && <Loader2 className={styles.spinner} size={16} aria-hidden="true" />}
-                    {busy === "create-api-key" ? "Generating…" : "Generate key"}
+                    {busy === "create-api-key" ? t("createKey.generating") : t("createKey.submit")}
                   </button>
                 </form>
-                <p className={styles.formHint}>{users.length === 0 ? "Add a user before generating a key." : "You can reveal or copy a key again later. Revoking it disconnects its clients immediately."}</p>
+                <p className={styles.formHint}>{users.length === 0 ? t("createKey.hintNoUsers") : t("createKey.hint")}</p>
               </section>
             )}
             <div className={styles.toolbar}>
               <div className={styles.filters}>
                 <div className={styles.search}>
                   <Search size={16} aria-hidden="true" />
-                  <input type="search" className={inputClass} aria-label="Search API keys" placeholder="Search keys or users…" value={keySearch} onChange={(event) => setKeySearch(event.target.value)} />
+                  <input type="search" className={inputClass} aria-label={t("toolbar.searchKeys")} placeholder={t("toolbar.searchKeysPlaceholder")} value={keySearch} onChange={(event) => setKeySearch(event.target.value)} />
                 </div>
                 <AdminSelectPopover
-                  label="Filter API keys by user"
+                  label={t("toolbar.filterKeysUser")}
                   value={ownerFilter}
                   onChange={setOwnerFilter}
                   searchable
-                  searchLabel="Find a user"
-                  emptyMessage="No users found."
+                  searchLabel={t("createKey.findUser")}
+                  emptyMessage={t("createKey.noUsers")}
                   options={[
-                    { value: "all", label: "All users" },
+                    { value: "all", label: t("toolbar.allUsers") },
                     ...users.map((user) => ({ value: user.id, label: user.username })),
                   ]}
                 />
               </div>
-              <button type="button" className={styles.iconButton} aria-label="Refresh API keys" title="Refresh API keys" disabled={keysLoading || busy !== null} onClick={() => void loadApiKeys()}>
+              <button type="button" className={styles.iconButton} aria-label={t("toolbar.refreshKeys")} title={t("toolbar.refreshKeys")} disabled={keysLoading || busy !== null} onClick={() => void loadApiKeys()}>
                 <RefreshCw size={16} aria-hidden="true" className={keysLoading ? styles.spinner : styles.refreshIcon} />
               </button>
             </div>
             <APIKeysList apiKeys={filteredKeys} users={users} total={apiKeys.length} loading={keysLoading} error={keysError} busy={busy} tokens={apiKeyTokens} visibleKeys={visibleApiKeys} onRetry={() => void loadApiKeys()} onReveal={(id) => void toggleApiKeyVisibility(id)} onCopy={(id) => void copyApiKey(id)} onRevoke={(apiKey) => openAdminDialog({ kind: "revoke-key", apiKey })} onClearFilters={clearKeyFilters} />
           </TabsContent>
         </Tabs>
-        <p className={styles.scopeNote}><ShieldCheck size={15} aria-hidden="true" />User workspaces stay private. API and MCP keys use the selected user’s access.</p>
+        <p className={styles.scopeNote}><ShieldCheck size={15} aria-hidden="true" />{t("scopeNote")}</p>
       </div>
 
       <Dialog
@@ -720,25 +724,23 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
         }} className={`${styles.dialog} w-[calc(100vw-32px)] max-w-[440px] gap-0 rounded-2xl border-0 bg-white p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)]`}>
           {dialog?.kind === "reset-password" && (
             <form onSubmit={resetPassword}>
-              <DialogHeader className="px-7 pb-5 pt-7 text-left">
+              <DialogHeader className="px-7 pb-5 pt-7 text-start">
                 <LockKeyhole aria-hidden="true" className="mb-3 h-6 w-6 text-[#656570]" />
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
-                  Reset password
+                  {t("dialog.resetTitle")}
                 </DialogTitle>
                 <DialogDescription className="pt-1 text-sm leading-6 text-[#667085]">
-                  Set a new password for{" "}
-                  <span className="font-semibold text-[#344054]">{dialog.user.username}</span>.
-                  Existing sessions will be signed out.
+                  {t("dialog.resetBody", { username: dialog.user.username })}
                 </DialogDescription>
                 <label className="pt-4 text-xs font-semibold text-[#344054]" htmlFor="reset-password">
-                  New password
+                  {t("dialog.newPassword")}
                 </label>
                 <input
                   id="reset-password"
                   autoFocus
                   className={inputClass}
                   type="password"
-                  placeholder="Minimum 8 characters"
+                  placeholder={t("dialog.minChars")}
                   minLength={8}
                   maxLength={128}
                   value={resetPasswordValue}
@@ -753,11 +755,11 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
-                  Cancel
+                  {t("dialog.cancel")}
                 </button>
                 <button type="submit" className={primaryButtonClass} disabled={dialogBusy}>
                   {dialogBusy && <Loader2 className={`${styles.spinner} h-4 w-4`} aria-hidden="true" />}
-                  Reset password
+                  {t("dialog.resetTitle")}
                 </button>
               </DialogFooter>
             </form>
@@ -765,14 +767,13 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
 
           {dialog?.kind === "delete-user" && (
             <>
-              <DialogHeader className="px-7 pb-6 pt-7 text-left">
+              <DialogHeader className="px-7 pb-6 pt-7 text-start">
                 <AlertTriangle aria-hidden="true" className="mb-3 h-6 w-6 text-[#B42318]" />
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
-                  Delete {dialog.user.username}?
+                  {t("dialog.deleteTitle", { username: dialog.user.username })}
                 </DialogTitle>
                 <DialogDescription className="pt-1 text-sm leading-6 text-[#667085]">
-                  This permanently removes the user and all of their presentations,
-                  templates, chats, tasks, and files. This action cannot be undone.
+                  {t("dialog.deleteBody")}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter className="flex-row gap-3 border-t border-[#EAECF0] p-5 sm:justify-end sm:space-x-0">
@@ -782,7 +783,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
-                  Cancel
+                  {t("dialog.cancel")}
                 </button>
                 <button
                   type="button"
@@ -791,7 +792,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
                   disabled={dialogBusy}
                 >
                   {dialogBusy ? <Loader2 className={`${styles.spinner} h-4 w-4`} aria-hidden="true" /> : <Trash2 className="h-4 w-4" />}
-                  Delete user
+                  {t("dialog.deleteUser")}
                 </button>
               </DialogFooter>
             </>
@@ -799,14 +800,13 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
 
           {dialog?.kind === "revoke-key" && (
             <>
-              <DialogHeader className="px-7 pb-6 pt-7 text-left">
+              <DialogHeader className="px-7 pb-6 pt-7 text-start">
                 <AlertTriangle aria-hidden="true" className="mb-3 h-6 w-6 text-[#B42318]" />
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
-                  Revoke API key?
+                  {t("dialog.revokeTitle")}
                 </DialogTitle>
                 <DialogDescription className="pt-1 text-sm leading-6 text-[#667085]">
-                  Clients using “{dialog.apiKey.label}” will lose REST API and MCP access
-                  immediately. This action cannot be undone.
+                  {t("dialog.revokeBody", { label: dialog.apiKey.label })}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter className="flex-row gap-3 border-t border-[#EAECF0] p-5 sm:justify-end sm:space-x-0">
@@ -816,7 +816,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
-                  Cancel
+                  {t("dialog.cancel")}
                 </button>
                 <button
                   type="button"
@@ -825,7 +825,7 @@ export default function AdminPanel({ embedded = false, onBackToSettings }: Admin
                   disabled={dialogBusy}
                 >
                   {dialogBusy ? <Loader2 className={`${styles.spinner} h-4 w-4`} aria-hidden="true" /> : <Trash2 className="h-4 w-4" />}
-                  Revoke key
+                  {t("dialog.revokeKey")}
                 </button>
               </DialogFooter>
             </>

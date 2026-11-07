@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import { ArrowDownUp, Command, Ellipsis, Search } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,11 +23,11 @@ import type { TemplateListItem } from "../../../services/api/template";
 
 export type TemplateLibrarySort = "name-asc" | "name-desc" | "newest" | "oldest";
 
-const sortOptions: { value: TemplateLibrarySort; label: string }[] = [
-  { value: "name-asc", label: "A to Z" },
-  { value: "name-desc", label: "Z to A" },
-  { value: "newest", label: "Newest first" },
-  { value: "oldest", label: "Oldest first" },
+const sortOptions: { value: TemplateLibrarySort; labelKey: string }[] = [
+  { value: "name-asc", labelKey: "sort.nameAsc" },
+  { value: "name-desc", labelKey: "sort.nameDesc" },
+  { value: "newest", labelKey: "sort.newest" },
+  { value: "oldest", labelKey: "sort.oldest" },
 ];
 
 export function compareTemplateLibraryItems(
@@ -73,6 +74,7 @@ export function TemplateLibraryControls({
   sort: TemplateLibrarySort;
   onSortChange: (sort: TemplateLibrarySort) => void;
 }) {
+  const t = useTranslations("templates");
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -98,12 +100,12 @@ export function TemplateLibraryControls({
           <Input
             ref={searchRef}
             type="search"
-            aria-label="Search templates"
+            aria-label={t("searchAria")}
             aria-keyshortcuts="Meta+K Control+K"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Escape") onQueryChange(""); }}
-            placeholder="Search by title or keyword"
+            placeholder={t("searchPlaceholder")}
             className="h-full min-w-0 rounded-none border-0 bg-transparent p-0 font-syne text-sm font-normal text-[#191919] shadow-none placeholder:text-[#808080] focus-visible:ring-0 sm:text-base"
           />
           <kbd aria-hidden="true" className="hidden shrink-0 items-center gap-px font-syne text-[14.316px] text-[#CCCCCC] sm:flex">
@@ -112,14 +114,14 @@ export function TemplateLibraryControls({
         </label>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" aria-label="Sort templates" className="flex h-[38px] shrink-0 items-center gap-1.5 rounded-md font-manrope text-[13px] font-medium tracking-[-0.39px] text-[#191919] outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30">
-              {sortOptions.find((option) => option.value === sort)?.label}
+            <button type="button" aria-label={t("sortAria")} className="flex h-[38px] shrink-0 items-center gap-1.5 rounded-md font-manrope text-[13px] font-medium tracking-[-0.39px] text-[#191919] outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30">
+              {t(sortOptions.find((option) => option.value === sort)?.labelKey ?? "sort.nameAsc")}
               <ArrowDownUp aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.5} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="font-manrope">
             <DropdownMenuRadioGroup value={sort} onValueChange={(value) => onSortChange(value as TemplateLibrarySort)}>
-              {sortOptions.map((option) => <DropdownMenuRadioItem key={option.value} value={option.value}>{option.label}</DropdownMenuRadioItem>)}
+              {sortOptions.map((option) => <DropdownMenuRadioItem key={option.value} value={option.value}>{t(option.labelKey)}</DropdownMenuRadioItem>)}
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -132,12 +134,14 @@ export function TemplateLibraryCard({ template, onOpen }: {
   template: TemplateListItem;
   onOpen: () => void;
 }) {
+  const t = useTranslations("templates");
+  const locale = useLocale();
   const createdAt = template.created_at ? new Date(template.created_at) : null;
   const hasDate = createdAt !== null && !Number.isNaN(createdAt.getTime());
 
   return (
     <Card className="motion-card relative min-w-0 overflow-hidden rounded-xl border-0 bg-white font-manrope shadow-none after:pointer-events-none after:absolute after:inset-0 after:rounded-xl after:border after:border-[#EDEEEF] hover:after:border-[#D8D3FA]">
-      <button type="button" onClick={onOpen} aria-label={`Open ${template.name} template`} className="group block w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#7A5AF8]">
+      <button type="button" onClick={onOpen} aria-label={t("openAria", { name: template.name })} className="group block w-full text-start outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#7A5AF8]">
         <div className="relative aspect-[304.5/169.183] w-full overflow-hidden bg-[#F8FBFB]">
           <TemplateLibraryPattern />
           <TemplateThumbnailPreview thumbnail={template.thumbnail} templateName={template.name} selectionPage flush />
@@ -152,20 +156,20 @@ export function TemplateLibraryCard({ template, onOpen }: {
         <div className="flex h-[42px] items-center justify-between gap-2 py-2.5">
           <div className="flex min-w-0 items-center gap-1">
             <time dateTime={hasDate ? template.created_at : undefined} className="shrink-0 text-[10px] font-medium leading-[14px] tracking-[0.4px] text-[#808080]">
-              {hasDate ? createdAt.toLocaleDateString("en-GB") : "—"}
+              {hasDate ? createdAt.toLocaleDateString(locale) : "—"}
             </time>
             <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#F4F4F4] px-[5px] py-1 text-[10px] font-medium leading-[14px] text-[#333]">
-              <div aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0BA5EC]" />{template.layout_count ?? 0} Layout
+              <div aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0BA5EC]" />{t("layoutCount", { count: template.layout_count ?? 0 })}
             </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" aria-label={`Options for ${template.name}`} className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded outline-none hover:bg-[#F6F6F9] focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30">
+              <button type="button" aria-label={t("optionsAria", { name: template.name })} className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded outline-none hover:bg-[#F6F6F9] focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30">
                 <Ellipsis aria-hidden="true" className="h-[18px] w-[18px] text-[#808080]" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="font-manrope">
-              <DropdownMenuItem onSelect={onOpen}>Open template</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onOpen}>{t("openTemplate")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

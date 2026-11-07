@@ -20,6 +20,7 @@ import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { notify } from "@/components/ui/sonner";
@@ -54,21 +55,21 @@ const DashboardHeaderDivider = () => (
 );
 
 const FloatingActionCards = () => (
-  <div className={`${styles.floatingCards} pointer-events-none absolute right-[14px] top-[-35px] z-0 hidden h-[64px] w-[158px] sm:block`}>
+  <div className={`${styles.floatingCards} pointer-events-none absolute end-[14px] top-[-35px] z-0 hidden h-[64px] w-[158px] sm:block`}>
     <div
-      className={`${actionCardBase} left-0 top-0 border-none`}
+      className={`${actionCardBase} start-0 top-0 border-none`}
       style={{
         backgroundImage: "url('/create_presentation_card_3.png')",
       }}
     />
     <div
-      className={`${actionCardBase} left-[39px] top-1 z-10 border-none`}
+      className={`${actionCardBase} start-[39px] top-1 z-10 border-none`}
       style={{
         backgroundImage: "url('/create_presentation_card_2.png')",
       }}
     />
     <div
-      className={`${actionCardBase} left-[76px] top-0 border-none`}
+      className={`${actionCardBase} start-[76px] top-0 border-none`}
       style={{
         backgroundImage: "url('/create_presentation_card_1.png')",
       }}
@@ -109,7 +110,7 @@ const DashboardActionCard = ({
         className="pointer-events-none absolute inset-0 z-10 rounded-[10.8px] bg-white"
       />
       <div
-        className={`relative z-20 h-full ${mediaClassName} shrink-0 overflow-hidden rounded-l-[10.8px] bg-[#F8F8FB]`}
+        className={`relative z-20 h-full ${mediaClassName} shrink-0 overflow-hidden rounded-s-[10.8px] bg-[#F8F8FB]`}
       >
         {media}
       </div>
@@ -221,6 +222,8 @@ function formatGitHubStars(stars: number) {
 }
 
 function DashboardHeader() {
+  const t = useTranslations("dashboard");
+  const tNav = useTranslations("nav");
   const pathname = usePathname();
   const llmConfig = useSelector(
     (state: RootState) => state.userConfig.llm_config,
@@ -247,15 +250,15 @@ function DashboardHeader() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 ml-7 mr-[9px] flex h-[105px] items-center justify-between border-b border-[#EDEEEF] bg-white px-1 max-lg:h-auto max-lg:min-h-[105px] max-lg:flex-col max-lg:items-start max-lg:gap-4 max-lg:py-5">
+    <header className="sticky top-0 z-50 ms-7 me-[9px] flex h-[105px] items-center justify-between border-b border-[#EDEEEF] bg-white px-1 max-lg:h-auto max-lg:min-h-[105px] max-lg:flex-col max-lg:items-start max-lg:gap-4 max-lg:py-5">
       <div className="flex w-[504.392px] max-w-full shrink-0 items-center gap-3.5 max-xl:w-auto">
         <h1 className="whitespace-nowrap font-syne text-[22px] font-medium leading-normal tracking-[-0.66px] text-[#101323]">
-          Dashboard
+          {t("heading")}
         </h1>
       </div>
 
       <div className="max-w-full overflow-x-auto hide-scrollbar lg:overflow-visible">
-        <div className="flex h-[42.24px] w-max max-w-none items-center gap-3 rounded-full pl-3">
+        <div className="flex h-[42.24px] w-max max-w-none items-center gap-3 rounded-full ps-3">
           <div className="flex h-[42.24px] items-center gap-[18px] rounded-[32px] border border-[#EDEEEF] bg-white px-3 py-1">
             <Link
               href="/settings"
@@ -278,7 +281,7 @@ function DashboardHeader() {
                   <span
                     key={`${provider.value}-${index}`}
                     className={`relative h-[22px] w-[22px] shrink-0 overflow-hidden rounded-full border-[1.238px] border-[#EDEEEF] bg-white ${
-                      index > 0 ? "-ml-[4.4px]" : "z-10"
+                      index > 0 ? "-ms-[4.4px]" : "z-10"
                     }`}
                   >
                     <Image
@@ -293,7 +296,7 @@ function DashboardHeader() {
                 ))}
               </span>
               <span className="font-syne text-sm font-medium leading-[17.6px] tracking-[0.56px]">
-                Settings
+                {tNav("settings")}
               </span>
             </Link>
 
@@ -321,7 +324,7 @@ function DashboardHeader() {
                 className="h-[17.6px] w-[17.6px] shrink-0"
               />
               <span className="font-syne text-sm font-normal leading-normal tracking-[-0.14px] text-[#191919]">
-                Join Discord
+                {t("joinDiscord")}
               </span>
             </Link>
             <DashboardHeaderDivider />
@@ -354,8 +357,8 @@ function DashboardHeader() {
               href={APP_UPDATE_URL}
               target="_blank"
               rel="noreferrer"
-              aria-label="Update Presenton"
-              title="Update Presenton"
+              aria-label={t("updateApp")}
+              title={t("updateApp")}
               className="relative flex h-[42.24px] w-[42.24px] shrink-0 items-center justify-center rounded-full border-[1.32px] border-[#D9D6FE] bg-[#FAFAFF] transition-colors hover:bg-[#F3F0FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2"
               onClick={() =>
                 trackEvent(MixpanelEvent.Navigation, {
@@ -391,6 +394,7 @@ function DashboardHeader() {
 }
 
 const DashboardPage: React.FC = () => {
+  const t = useTranslations("dashboard");
   const pathname = usePathname();
   const router = useRouter();
   const [presentations, setPresentations] = useState<PresentationResponse[]>(
@@ -478,17 +482,17 @@ const DashboardPage: React.FC = () => {
       const message =
         creationError instanceof Error
           ? creationError.message
-          : "Something went wrong while creating the presentation.";
+          : t("blankDialog.createErrorBody");
       trackEvent(MixpanelEvent.Dashboard_Blank_Presentation_Create_Failed, {
         pathname,
         error_message: sanitizeAnalyticsError(creationError),
       });
-      notify.error("Could not create blank presentation", message);
+      notify.error(t("blankDialog.createErrorTitle"), message);
     } finally {
       blankPresentationRequestInFlight.current = false;
       setIsCreatingBlankPresentation(false);
     }
-  }, [pathname, router]);
+  }, [pathname, router, t]);
 
   const removePresentation = (presentationId: string) => {
     setPresentations((prev) => prev.filter((p) => p.id !== presentationId));
@@ -518,9 +522,9 @@ const DashboardPage: React.FC = () => {
         />
       )}
       <DashboardHeader />
-      <section className="motion-enter relative z-10 overflow-visible pb-0 pl-3 pr-3 pt-[17px] sm:pl-6 sm:pr-[9px]">
+      <section className="motion-enter relative z-10 overflow-visible pb-0 ps-3 pe-3 pt-[17px] sm:ps-6 sm:pe-[9px]">
         <h2 className="w-full font-syne text-[16px] font-medium leading-[normal] text-[#191919]">
-          Actions
+          {t("actions")}
         </h2>
         <div className="mt-[18px] grid w-full max-w-[625px] grid-cols-1 gap-4 sm:grid-cols-2">
           <DashboardActionCard
@@ -531,15 +535,15 @@ const DashboardPage: React.FC = () => {
                 source: "dashboard_actions_card",
               })
             }
-            title="Create new Presentation"
-            ariaLabel="Create new presentation"
+            title={t("createNew")}
+            ariaLabel={t("createNewAria")}
             media={
               <Image
                 src="/create_presentation_bg.png"
                 alt=""
                 fill
                 sizes="96px"
-                className="h-full w-full object-cover object-left"
+                className="h-full w-full object-cover object-left rtl:object-right"
               />
             }
           >
@@ -551,12 +555,12 @@ const DashboardPage: React.FC = () => {
             disabled={isCreatingBlankPresentation}
             isLoading={isCreatingBlankPresentation}
             title={
-              isCreatingBlankPresentation ? "Creating..." : "Blank Presentation"
+              isCreatingBlankPresentation ? t("creating") : t("blank")
             }
             ariaLabel={
               isCreatingBlankPresentation
-                ? "Creating blank presentation"
-                : "Create blank presentation"
+                ? t("creatingBlankAria")
+                : t("createBlankAria")
             }
             mediaClassName="w-[90px]"
             media={
@@ -567,17 +571,17 @@ const DashboardPage: React.FC = () => {
           />
         </div>
       </section>
-      <section className="motion-fade motion-delay-1 relative z-10 mt-[46px] pl-3 pr-3 sm:pl-6 sm:pr-[9px]">
+      <section className="motion-fade motion-delay-1 relative z-10 mt-[46px] ps-3 pe-3 sm:ps-6 sm:pe-[9px]">
         <div className="mb-[14px] flex items-center justify-between gap-4">
           <h2 className="font-syne text-[16px] font-medium leading-[normal] text-[#191919]">
-            Decks
+            {t("decks")}
           </h2>
           <div className="flex items-center gap-[17px]">
             <div className="flex items-center rounded-[4px] border border-[#EDEEEF] p-1">
               <button
                 type="button"
                 onClick={() => setDeckViewMode("grid")}
-                aria-label="Grid view"
+                aria-label={t("gridView")}
                 aria-pressed={deckViewMode === "grid"}
                 className={`flex items-center rounded px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] ${deckViewMode === "grid" ? "bg-[#F6F6F9]" : "hover:bg-[#FAFAFC]"}`}
               >
@@ -586,7 +590,7 @@ const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDeckViewMode("list")}
-                aria-label="List view"
+                aria-label={t("listView")}
                 aria-pressed={deckViewMode === "list"}
                 className={`flex items-center rounded px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] ${deckViewMode === "list" ? "bg-[#F6F6F9]" : "hover:bg-[#FAFAFC]"}`}
               >

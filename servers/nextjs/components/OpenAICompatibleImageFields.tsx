@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { getApiErrorMessage, getApiUrl } from "@/utils/api";
 import { notify } from "@/components/ui/sonner";
+import { useTranslations } from "next-intl";
 
 export interface OpenAICompatibleImageFieldsProps {
   baseUrl: string;
@@ -46,6 +47,7 @@ export default function OpenAICompatibleImageFields({
   onModelListMetaChange,
   layout = "stacked",
 }: OpenAICompatibleImageFieldsProps) {
+  const t = useTranslations("settings.providers");
   const [models, setModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsChecked, setModelsChecked] = useState(false);
@@ -121,19 +123,19 @@ export default function OpenAICompatibleImageFields({
       <div className="flex shrink-0 flex-col items-end gap-4">
         <div className="relative flex w-[222px] min-w-0 max-w-full shrink-0 flex-col items-end justify-end">
           <div className="flex w-full flex-col justify-start">
-            <label className="mb-2 block text-sm font-medium text-gray-700">Image API key</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">{t("openaiImage.apiKey")}</label>
             <div className="relative">
               <input
                 type={showApiKey ? "text" : "password"}
                 value={apiKey}
                 onChange={(e) => onApiKeyChange(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-2 py-3 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Key for your image endpoint"
+                placeholder={t("openaiImage.apiKeyPlaceholder")}
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey((p) => !p)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer bg-white px-2 py-1"
+                className="absolute end-2 top-1/2 -translate-y-1/2 cursor-pointer bg-white px-2 py-1"
               >
                 {showApiKey ? <Eye className="h-4 w-4 text-gray-500" /> : <EyeOff className="h-4 w-4 text-gray-500" />}
               </button>
@@ -143,7 +145,7 @@ export default function OpenAICompatibleImageFields({
               value={baseUrl}
               onChange={(e) => onBaseUrlChange(e.target.value)}
               className="mt-2 w-full rounded-lg border border-gray-300 px-2 py-3 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              placeholder="Base URL (include /v1)"
+              placeholder={t("openaiImage.baseUrl")}
             />
           </div>
           {(!modelsChecked || (modelsChecked && models.length === 0)) && (
@@ -160,10 +162,10 @@ export default function OpenAICompatibleImageFields({
               {modelsLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Checking for models...
+                  {t("common.checkingModels")}
                 </span>
               ) : (
-                "Check models"
+                t("common.checkModels")
               )}
             </button>
           )}
@@ -172,7 +174,7 @@ export default function OpenAICompatibleImageFields({
         {modelsChecked && models.length > 0 ? (
           <div className="w-[222px]">
             <div>
-              <label className="mb-3 block text-sm font-medium text-gray-700">Select image model</label>
+              <label className="mb-3 block text-sm font-medium text-gray-700">{t("openaiImage.selectModel")}</label>
               <div className="w-full">
                 <Popover open={openModelSelect} onOpenChange={setOpenModelSelect}>
                   <PopoverTrigger asChild>
@@ -190,7 +192,7 @@ export default function OpenAICompatibleImageFields({
                   </PopoverTrigger>
                   <PopoverContent className="p-0" align="start" style={{ width: "var(--radix-popover-trigger-width)" }}>
                     <Command>
-                      <CommandInput placeholder="Search models..." />
+                      <CommandInput placeholder={t("openaiImage.searchModels")} />
                       <CommandList>
                         <CommandEmpty>No model found.</CommandEmpty>
                         <CommandGroup>
@@ -203,7 +205,7 @@ export default function OpenAICompatibleImageFields({
                                 setOpenModelSelect(false);
                               }}
                             >
-                              <Check className={cn("mr-2 h-4 w-4", model === m ? "opacity-100" : "opacity-0")} />
+                              <Check className={cn("me-2 h-4 w-4", model === m ? "opacity-100" : "opacity-0")} />
                               <div className="flex flex-1 flex-col space-y-1">
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-sm font-medium text-gray-900">{m}</span>
@@ -235,12 +237,12 @@ export default function OpenAICompatibleImageFields({
       </p>
 
       <div className="mb-4">
-        <label className="mb-2 block text-sm font-medium text-gray-700">OpenAI Compatible URL</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">{t("openaiImage.url")}</label>
         <div className="relative">
           <input
             type="text"
             required
-            placeholder="Enter your URL"
+            placeholder={t("openaiImage.urlPlaceholder")}
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             value={baseUrl}
             onChange={(e) => onBaseUrlChange(e.target.value)}
@@ -249,12 +251,12 @@ export default function OpenAICompatibleImageFields({
       </div>
 
       <div className="mb-4">
-        <label className="mb-2 block text-sm font-medium text-gray-700">OpenAI Compatible API Key</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">{t("openaiImage.apiKeyLabel")}</label>
         <div className="relative">
           <input
             type="text"
             required
-            placeholder="Enter your API Key"
+            placeholder={t("openaiImage.apiKeyPlaceholder2")}
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             value={apiKey}
             onChange={(e) => onApiKeyChange(e.target.value)}
@@ -289,19 +291,19 @@ export default function OpenAICompatibleImageFields({
       {modelsChecked && models.length === 0 && (
         <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
           <p className="text-sm text-yellow-800">
-            No models found. Please make sure your API key is valid and has access to models.
+            {t("openaiImage.noModels")}
           </p>
         </div>
       )}
 
       {modelsChecked && models.length === 0 && (
         <div className="mb-4">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Image model id</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">{t("openaiImage.modelId")}</label>
           <div className="relative">
             <input
               type="text"
               required
-              placeholder="e.g. gpt-image-2, gpt-image-1"
+              placeholder={t("openaiImage.modelIdPlaceholder")}
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               value={model}
               onChange={(e) => onModelChange(e.target.value)}
@@ -314,10 +316,10 @@ export default function OpenAICompatibleImageFields({
         <div className="mb-4">
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm text-amber-800">
-              <strong>Important:</strong> Choose a model your server exposes for image generation.
+              <strong>{t("openaiImage.important")}</strong> {t("openaiImage.importantBody")}
             </p>
           </div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Select image model</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">{t("openaiImage.selectModel")}</label>
           <div className="w-full">
             <Popover open={openModelSelect} onOpenChange={setOpenModelSelect}>
               <PopoverTrigger asChild>
@@ -333,7 +335,7 @@ export default function OpenAICompatibleImageFields({
               </PopoverTrigger>
               <PopoverContent className="p-0" align="start" style={{ width: "var(--radix-popover-trigger-width)" }}>
                 <Command>
-                  <CommandInput placeholder="Search model..." />
+                  <CommandInput placeholder={t("openaiImage.searchModels")} />
                   <CommandList>
                     <CommandEmpty>No model found.</CommandEmpty>
                     <CommandGroup>
@@ -346,7 +348,7 @@ export default function OpenAICompatibleImageFields({
                             setOpenModelSelect(false);
                           }}
                         >
-                          <Check className={cn("mr-2 h-4 w-4", model === m ? "opacity-100" : "opacity-0")} />
+                          <Check className={cn("me-2 h-4 w-4", model === m ? "opacity-100" : "opacity-0")} />
                           <span className="text-sm font-medium text-gray-900">{m}</span>
                         </CommandItem>
                       ))}

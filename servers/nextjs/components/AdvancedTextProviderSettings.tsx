@@ -33,6 +33,7 @@ import {
 import { notify } from "@/components/ui/sonner";
 import { LLMConfig } from "@/types/llm_config";
 import { getApiErrorMessage, getApiUrl } from "@/utils/api";
+import { useTranslations } from "next-intl";
 
 type ConfigValue = string | boolean | number | string[];
 
@@ -51,23 +52,23 @@ interface Props {
 
 interface SelectOption {
   value: string;
-  label: string;
+  labelKey: string;
 }
 
 const REASONING_EFFORT_OPTIONS: SelectOption[] = [
-  { value: "model_default", label: "Model default" },
-  { value: "minimal", label: "Minimal" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-  { value: "xhigh", label: "Extra high" },
-  { value: "max", label: "Maximum" },
+  { value: "model_default", labelKey: "reasoningEffortOptions.modelDefault" },
+  { value: "minimal", labelKey: "reasoningEffortOptions.minimal" },
+  { value: "low", labelKey: "reasoningEffortOptions.low" },
+  { value: "medium", labelKey: "reasoningEffortOptions.medium" },
+  { value: "high", labelKey: "reasoningEffortOptions.high" },
+  { value: "xhigh", labelKey: "reasoningEffortOptions.xhigh" },
+  { value: "max", labelKey: "reasoningEffortOptions.max" },
 ];
 
 const REASONING_MODE_OPTIONS: SelectOption[] = [
-  { value: "model_default", label: "Model default" },
-  { value: "enabled", label: "On" },
-  { value: "disabled", label: "Off" },
+  { value: "model_default", labelKey: "reasoningModeOptions.modelDefault" },
+  { value: "enabled", labelKey: "reasoningModeOptions.on" },
+  { value: "disabled", labelKey: "reasoningModeOptions.off" },
 ];
 
 const FALLBACK_DEFAULT_MAX_OUTPUT_TOKENS = 8_192;
@@ -93,7 +94,7 @@ const MODEL_FIELDS: Partial<Record<string, keyof LLMConfig>> = {
 };
 
 const inputClass =
-  "flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-[#D9DCE3] bg-white px-4 text-left text-sm text-[#191919] outline-none transition-colors hover:border-[#C8CBD3] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15";
+  "flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-[#D9DCE3] bg-white px-4 text-start text-sm text-[#191919] outline-none transition-colors hover:border-[#C8CBD3] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15";
 
 const numberInputClass =
   "h-12 w-full rounded-lg border border-[#D9DCE3] bg-white px-4 text-sm text-[#191919] outline-none transition-colors placeholder:text-[#A4A7AE] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15 disabled:cursor-not-allowed disabled:bg-[#F7F7F8] disabled:text-[#A4A7AE]";
@@ -113,6 +114,7 @@ function SettingSelect({
   disabled?: boolean;
   onValueChange: (value: string) => void;
 }) {
+  const t = useTranslations("settings.providers.advanced");
   return (
     <div className="min-w-0">
       <label className="mb-2 block text-sm font-medium text-[#303036]">
@@ -129,7 +131,7 @@ function SettingSelect({
         <SelectContent className="z-[80] rounded-lg border-[#EDEEEF] bg-white">
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              {t(option.labelKey)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -166,6 +168,7 @@ const deduplicateProviders = (providers: ProviderOption[]) => {
 };
 
 export default function AdvancedTextProviderSettings({ config, onChange }: Props) {
+  const t = useTranslations("settings.providers.advanced");
   const providerListId = useId();
   const modelMaximumId = useId();
   const [providers, setProviders] = useState<ProviderOption[]>([]);
@@ -338,11 +341,11 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-[12px] border border-[#EDEEEF] bg-white px-6 py-5 select-none [&::-webkit-details-marker]:hidden">
         <span>
           <span className="block text-sm font-semibold text-[#191919]">
-            Advanced text-provider settings
-            <span className="ml-1 font-normal text-[#777A82]">(optional)</span>
+            {t("title")}
+            <span className="ms-1 font-normal text-[#777A82]">{t("optional")}</span>
           </span>
           <span className="mt-1 block text-xs font-normal text-[#6B6C70]">
-            Configure output limits and reasoning behavior when needed.
+            {t("desc")}
           </span>
         </span>
         <ChevronDown
@@ -359,23 +362,23 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
             className="inline-flex items-center gap-2 rounded-[48px] border border-[#EDEEEF] bg-white px-4 py-2.5 text-xs font-semibold text-[#5146E5] transition hover:bg-[#F4F3FF]"
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-            Reset to defaults
+            {t("reset")}
           </button>
         </div>
         <section className="space-y-6 rounded-[12px] border border-[#EDEEEF] bg-white p-6">
           <div>
             <h4 className="text-sm font-semibold text-[#191919]">
-              Generation controls
+              {t("controls")}
             </h4>
             <p className="mt-1 text-xs leading-5 text-[#6B6C70]">
-              Set an output limit and control reasoning for supported models.
+              {t("controlsDesc")}
             </p>
           </div>
 
           <div className="space-y-5">
             <div className="min-w-0">
               <label className="mb-2 block text-sm font-medium text-[#303036]">
-                Max output tokens
+                {t("maxTokens")}
               </label>
               <input
                 type="number"
@@ -393,7 +396,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                   );
                 }}
                 placeholder={
-                  useModelMaximum ? "Model maximum" : "Enter a token limit"
+                  useModelMaximum ? t("modelMaximum") : t("tokenLimitPlaceholder")
                 }
                 className={numberInputClass}
               />
@@ -416,23 +419,20 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                   }}
                   className="h-4 w-4 rounded border-[#C8CBD3] accent-[#7A5AF8]"
                 />
-                Use the selected model&apos;s maximum output limit
+                {t("useModelMax")}
               </label>
               <p className="mt-1.5 text-xs leading-5 text-[#6B6C70]">
-                Leave blank to use the default, enter a manual limit, or select
-                model maximum to use the selected model&apos;s advertised limit.
-                The selected limit applies to every generation attempt,
-                including retries.
+                {t("hint")}
                 {!hasManualMaxOutputTokens && !useModelMaximum && (
-                  <> The effective default is shown in the field.</>
+                  <> {t("effectiveDefault")}</>
                 )}
               </p>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               <SettingSelect
-                label="Reasoning mode"
-                description="Use the backend model default, force reasoning on, or turn it off for faster responses."
+                label={t("reasoningMode")}
+                description={t("modeHint")}
                 value={reasoningMode}
                 options={REASONING_MODE_OPTIONS}
                 onValueChange={setReasoningMode}
@@ -440,8 +440,8 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
 
               {reasoningAvailable && (
                 <SettingSelect
-                  label="Reasoning effort"
-                  description="Higher effort may improve difficult generations, but can increase latency and token usage."
+                  label={t("reasoningEffort")}
+                  description={t("effortHint")}
                   value={
                     config.LLM_REASONING_EFFORT === "default" ||
                     config.LLM_REASONING_EFFORT === "none"
@@ -461,10 +461,10 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-[#191919]">
-                  OpenRouter routing
+                  {t("routing")}
                 </h4>
                 <p className="mt-1 text-xs leading-5 text-[#6B6C70]">
-                  Leave the order empty to let OpenRouter route automatically.
+                  {t("routingHint")}
                 </p>
               </div>
               <button
@@ -476,7 +476,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                 {providersLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Load providers"
+                  t("loadProviders")
                 )}
               </button>
             </div>
@@ -497,7 +497,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                     <span className="min-w-0 flex-1 truncate">
                       {providerToAdd
                         ? providerMap.get(providerToAdd)?.label || providerToAdd
-                        : "Default"}
+                        : t("default")}
                     </span>
                     <ChevronDown
                       className={`h-4 w-4 shrink-0 text-[#667085] transition-transform ${
@@ -514,9 +514,9 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                   className="z-[70] overflow-hidden rounded-lg border border-[#EDEEEF] bg-white p-0 shadow-[0_10px_30px_rgba(16,24,40,0.12)]"
                 >
                   <Command>
-                    <CommandInput placeholder="Search providers..." />
+                    <CommandInput placeholder={t("searchProviders")} />
                     <CommandList id={providerListId} className="max-h-60 p-1">
-                      <CommandEmpty>No providers found.</CommandEmpty>
+                      <CommandEmpty>{t("noProvidersFound")}</CommandEmpty>
                       <CommandGroup>
                         {availableProviders.map((provider) => (
                           <CommandItem
@@ -526,19 +526,19 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                               setProviderToAdd(provider.value);
                               setProviderPickerOpen(false);
                             }}
-                            className="relative cursor-pointer rounded-md px-3 py-2.5 pr-9 text-sm text-[#191919]"
+                            className="relative cursor-pointer rounded-md px-3 py-2.5 pe-9 text-sm text-[#191919]"
                           >
                             <span className="min-w-0 flex-1 truncate">
                               {provider.label}
                             </span>
                             {!provider.available && (
                               <span className="shrink-0 text-xs text-[#8A8B91]">
-                                Unavailable
+                                {t("unavailable")}
                               </span>
                             )}
                             {providerToAdd === provider.value && (
                               <Check
-                                className="absolute right-3 h-4 w-4 text-[#7A5AF8]"
+                                className="absolute end-3 h-4 w-4 text-[#7A5AF8]"
                                 aria-hidden="true"
                               />
                             )}
@@ -563,7 +563,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                   setProviderToAdd("");
                 }}
               >
-                Add
+                {t("add")}
               </button>
             </div>
 
@@ -578,11 +578,11 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                     >
                       <span className="min-w-0 flex-1 truncate">
                         {provider?.label || value}
-                        {provider ? "" : " (unverified)"}
+                        {provider ? "" : t("unverified")}
                       </span>
                       <button
                         type="button"
-                        aria-label="Move provider up"
+                        aria-label={t("moveUp")}
                         disabled={index === 0}
                         onClick={() => move(index, -1)}
                         className="rounded p-1 text-[#667085] hover:bg-white disabled:opacity-30"
@@ -591,7 +591,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                       </button>
                       <button
                         type="button"
-                        aria-label="Move provider down"
+                        aria-label={t("moveDown")}
                         disabled={index === order.length - 1}
                         onClick={() => move(index, 1)}
                         className="rounded p-1 text-[#667085] hover:bg-white disabled:opacity-30"
@@ -600,7 +600,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                       </button>
                       <button
                         type="button"
-                        aria-label="Remove provider"
+                        aria-label={t("remove")}
                         onClick={() =>
                           onChange(
                             order.filter((item) => item !== value),

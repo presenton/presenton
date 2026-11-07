@@ -60,7 +60,7 @@ const Header = () => {
                   trackEvent(MixpanelEvent.Navigation, { from: pathname, to: backHref })
                 }
               >
-                <ArrowLeft className="w-4 h-4 shrink-0 text-[#333333]" aria-hidden />
+                <ArrowLeft className="w-4 h-4 shrink-0 text-[#333333] rtl:rotate-180" aria-hidden />
                 <span>{backLabel}</span>
               </Link>
             ) : null}

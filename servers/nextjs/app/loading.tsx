@@ -1,5 +1,7 @@
 import { PresentonSplashLoader } from "@/components/ui/presenton-splash-loader";
+import { useTranslations } from "next-intl";
 
 export default function Loading() {
-  return <PresentonSplashLoader message="Preparing your workspace..." />;
+  const t = useTranslations("loading");
+  return <PresentonSplashLoader message={t("workspace")} />;
 }

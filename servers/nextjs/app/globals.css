@@ -17,8 +17,11 @@
 
 
 :root {
-  --font-syne: "Syne", Arial, sans-serif;
-  --font-manrope: "Manrope", Arial, sans-serif;
+  /* Arabic has no glyphs in Syne/Manrope, so name an Arabic-capable fallback
+     explicitly instead of relying on the browser's default. Latin still
+     resolves to Syne/Manrope first. */
+  --font-syne: "Syne", "Noto Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-manrope: "Manrope", "Noto Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
 @tailwind base;

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { memo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
@@ -32,6 +33,7 @@ export function TemplateThumbnailPreview({
   selectionPage?: boolean;
   flush?: boolean;
 }) {
+  const t = useTranslations("templates");
   const resolvedThumbnail = thumbnail ? resolveBackendAssetUrl(thumbnail) : "";
 
   if (!resolvedThumbnail) {
@@ -55,7 +57,7 @@ export function TemplateThumbnailPreview({
       )}
     >
       <div
-        aria-label={`${templateName} thumbnail`}
+        aria-label={t("thumbnailAria", { name: templateName })}
         className={cn(
           "h-full w-full bg-white bg-no-repeat",
           flush ? "bg-cover bg-left-top" : "bg-contain bg-center",
@@ -84,6 +86,7 @@ export const TemplateListCard = memo(function TemplateListCard({
   showArrow?: boolean;
   selectionPage?: boolean;
 }) {
+  const t = useTranslations("templates");
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.currentTarget.getAttribute("aria-disabled") === "true") {
@@ -117,7 +120,7 @@ export const TemplateListCard = memo(function TemplateListCard({
       role="button"
       tabIndex={0}
       aria-pressed={isSelected}
-      aria-label={`${showArrow ? "Open" : "Select"} ${template.name} template`}
+      aria-label={showArrow ? t("openAria", { name: template.name }) : t("selectAria", { name: template.name })}
       className={cn(
         "group relative overflow-hidden border bg-white shadow-none outline-none transition-all duration-200",
         selectionPage ? "rounded-[12px]" : "rounded-[22px]",
@@ -141,13 +144,13 @@ export const TemplateListCard = memo(function TemplateListCard({
         )}
       />
       {isSelected && (
-        <span className="absolute right-4 top-3.5 z-50 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#7A5AF8] text-white shadow-sm">
+        <span className="absolute end-4 top-3.5 z-50 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#7A5AF8] text-white shadow-sm">
           <CheckCircle2 className="h-4 w-4" />
         </span>
       )}
       {isSuggested && (
-        <span className="absolute right-3.5 top-[52px] z-50 rounded-full border border-[#DDD7FF] bg-white/95 px-2.5 py-1 font-syne text-[10px] font-semibold text-[#6553E8] shadow-sm backdrop-blur">
-          Suggested
+        <span className="absolute end-3.5 top-[52px] z-50 rounded-full border border-[#DDD7FF] bg-white/95 px-2.5 py-1 font-syne text-[10px] font-semibold text-[#6553E8] shadow-sm backdrop-blur">
+          {t("suggested")}
         </span>
       )}
       <TemplatePreviewStage selectionPage={selectionPage}>
@@ -209,7 +212,7 @@ export const TemplateListCard = memo(function TemplateListCard({
             aria-hidden="true"
             strokeWidth={selectionPage ? 1.67 : 2}
             className={cn(
-              "shrink-0",
+              "shrink-0 rtl:-scale-x-100",
               selectionPage
                 ? "h-5 w-5 text-[#808080]"
                 : "h-4 w-4 text-gray-400 transition-colors group-hover:text-purple-600"
@@ -231,8 +234,9 @@ export const ProcessingTemplateListCard = memo(
     onRetry?: () => void;
     retrying?: boolean;
   }) {
+    const t = useTranslations("templates");
     const failed = task.status === "error";
-    const templateName = task.data?.name?.trim() || "New template";
+    const templateName = task.data?.name?.trim() || t("processing.newTemplate");
     const createdLayouts = task.data?.created_layouts ?? 0;
     const remainingLayouts = task.data?.remaining_layouts ?? 0;
     const totalLayouts = createdLayouts + remainingLayouts;
@@ -250,15 +254,15 @@ export const ProcessingTemplateListCard = memo(
     );
     const progressLabel =
       failed
-        ? taskErrorDetail(task.error)
+        ? taskErrorDetail(task.error) ?? t("processing.failedDetail")
         : totalLayouts > 0
-        ? `${createdLayouts} of ${totalLayouts} layouts`
-        : "Preparing layouts";
+        ? t("processing.progress", { created: createdLayouts, total: totalLayouts })
+        : t("processing.preparing");
 
     return (
       <Card
         role="group"
-        aria-label={`${templateName} template ${failed ? "generation failed" : "is processing"}`}
+        aria-label={failed ? t("processing.ariaFailed", { name: templateName }) : t("processing.ariaProcessing", { name: templateName })}
         className={cn(
           "relative overflow-hidden rounded-[22px] border border-[#E8E9EC] bg-white",
           failed ? "shadow-sm" : "cursor-not-allowed opacity-90 shadow-sm"
@@ -277,12 +281,12 @@ export const ProcessingTemplateListCard = memo(
           />
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute bottom-5 right-5 top-5 z-20 rounded-r-xl bg-[#F8F7FF]/70 transition-[width] duration-500 ease-out"
+            className="pointer-events-none absolute bottom-5 end-5 top-5 z-20 rounded-e-xl bg-[#F8F7FF]/70 transition-[width] duration-500 ease-out"
             style={{ width: overlayWidth }}
           />
           <div
             className={cn(
-              "absolute right-8 top-8 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/90 px-2.5 py-1.5 text-xs font-bold shadow-sm backdrop-blur",
+              "absolute end-8 top-8 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/90 px-2.5 py-1.5 text-xs font-bold shadow-sm backdrop-blur",
               failed ? "text-red-600" : "text-[#5146E5]"
             )}
           >
@@ -291,7 +295,7 @@ export const ProcessingTemplateListCard = memo(
             ) : (
               <span className="h-1.5 w-1.5 rounded-full bg-[#7A5AF8]" />
             )}
-            {failed ? "Failed" : `${progressPercent}%`}
+            {failed ? t("processing.failed") : `${progressPercent}%`}
           </div>
           <div className="absolute inset-x-5 bottom-5 z-30 h-1.5 overflow-hidden rounded-full bg-white/70">
             <div
@@ -326,7 +330,7 @@ export const ProcessingTemplateListCard = memo(
               ) : (
                 <RotateCcw className="h-3.5 w-3.5" />
               )}
-              Retry
+              {t("processing.retry")}
             </button>
           )}
         </div>
@@ -335,12 +339,12 @@ export const ProcessingTemplateListCard = memo(
   }
 );
 
-function taskErrorDetail(error: unknown): string {
+function taskErrorDetail(error: unknown): string | null {
   if (error && typeof error === "object" && "detail" in error) {
     const detail = (error as { detail?: unknown }).detail;
     if (typeof detail === "string" && detail.trim()) return detail;
   }
-  return "Template generation failed";
+  return null;
 }
 
 export function TemplateListSection({
@@ -376,18 +380,19 @@ export function TemplateTabSwitcher({
   onTabChange: (tab: TemplateTab) => void;
   libraryPage?: boolean;
 }) {
+  const t = useTranslations("templates");
   if (libraryPage) {
     return (
-      <div role="group" aria-label="Template type" data-selection={tab === "custom" ? "1" : "0"} className="motion-segments flex h-9 w-[180px] shrink-0 items-center rounded-lg border border-[#EDEEEF] bg-white p-[3px] font-manrope">
+      <div role="group" aria-label={t("typeAria")} data-selection={tab === "custom" ? "1" : "0"} className="motion-segments flex h-9 w-[180px] shrink-0 items-center rounded-lg border border-[#EDEEEF] bg-white p-[3px] font-manrope">
         <span aria-hidden="true" className="motion-segment-indicator rounded-lg bg-[#F6F6F9]" />
-        {([{ value: "default", label: "Built-In" }, { value: "custom", label: "Custom" }] as const).map((item) => (
+        {([{ value: "default", label: t("tabs.builtIn") }, { value: "custom", label: t("tabs.custom") }] as const).map((item) => (
           <button key={item.value} type="button" aria-pressed={tab === item.value} onClick={() => onTabChange(item.value)} className={cn("flex h-7 flex-1 items-center justify-center rounded-lg text-[13px] font-medium leading-6 text-[#191919] outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30", tab !== item.value && "hover:bg-[#F9FAFB]")}>{item.label}</button>
         ))}
       </div>
     );
   }
   return (
-    <div role="group" aria-label="Template type" data-selection={tab === "default" ? "1" : "0"} className="motion-segments grid w-fit grid-cols-2 items-center rounded-[40px] border border-[#EDEEEF] bg-white p-1 [--motion-segment-inset:4px] [--motion-segment-inset-y:4px]">
+    <div role="group" aria-label={t("typeAria")} data-selection={tab === "default" ? "1" : "0"} className="motion-segments grid w-fit grid-cols-2 items-center rounded-[40px] border border-[#EDEEEF] bg-white p-1 [--motion-segment-inset:4px] [--motion-segment-inset-y:4px]">
       <span aria-hidden="true" className="motion-segment-indicator rounded-[70px] bg-[#F4F3FF]" />
       <button
         type="button"
@@ -398,7 +403,7 @@ export function TemplateTabSwitcher({
           color: tab === "custom" ? "#5146E5" : "#3A3A3A",
         }}
       >
-        Custom
+        {t("tabs.custom")}
       </button>
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -420,25 +425,27 @@ export function TemplateTabSwitcher({
           color: tab === "default" ? "#5146E5" : "#3A3A3A",
         }}
       >
-        Built-in
+        {t("tabs.builtInLower")}
       </button>
     </div>
   );
 }
 
-export function TemplateListLoadingState({ message = "Loading templates..." }: { message?: string }) {
+export function TemplateListLoadingState({ message }: { message?: string }) {
+  const t = useTranslations("templates.empty");
   return (
     <div className="flex items-center justify-center py-12 font-syne">
       <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      <span className="ml-3 text-gray-600">{message}</span>
+      <span className="ms-3 text-gray-600">{message ?? t("loading")}</span>
     </div>
   );
 }
 
-export function TemplateListEmptyState({ message = "No templates available." }: { message?: string }) {
+export function TemplateListEmptyState({ message }: { message?: string }) {
+  const t = useTranslations("templates.empty");
   return (
     <div className="flex items-center justify-center py-12 font-syne text-gray-600">
-      {message}
+      {message ?? t("noTemplates")}
     </div>
   );
 }

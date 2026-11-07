@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { KeyboardEvent, ReactNode } from "react";
 
 interface PromptReference {
@@ -29,6 +30,7 @@ export function PromptInput({
   onSubmit,
   hasAttachments = false,
 }: PromptInputProps) {
+  const t = useTranslations("upload.prompt");
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
@@ -57,7 +59,7 @@ export function PromptInput({
                   type="button"
                   onClick={() => onRemoveReference(reference.id)}
                   className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-[#666666] hover:bg-[#E4E4E7] hover:text-[#191919]"
-                  aria-label={`Remove ${reference.label}`}
+                  aria-label={t("removeReferenceAria", { label: reference.label })}
                 >
                   <X className="h-2.5 w-2.5" />
                 </button>
@@ -72,14 +74,14 @@ export function PromptInput({
           <Image src="/generate/pencil.svg" alt="" width={14} height={14} />
         </span>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1">
-          <label htmlFor="presentation-brief" className="text-sm font-normal leading-[17px] text-[#333333]">Presentation brief</label>
+          <label htmlFor="presentation-brief" className="text-sm font-normal leading-[17px] text-[#333333]">{t("label")}</label>
           <Textarea
             value={value}
             id="presentation-brief"
             rows={3}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe your topic, audience, and key points, or attach supporting documents."
+            placeholder={t("placeholder")}
             data-testid="prompt-input"
             className={cn(
               "custom_scrollbar max-h-[400px] min-h-[57px] resize-none overflow-y-auto rounded-none border-none bg-transparent p-0 text-base font-normal leading-normal text-[#191919] shadow-none placeholder:text-[#999999] focus-visible:ring-0 focus-visible:ring-offset-0",

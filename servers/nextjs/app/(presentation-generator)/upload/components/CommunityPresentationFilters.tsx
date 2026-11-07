@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import {
   type CommunityPresentationListFilters,
@@ -35,7 +36,7 @@ type FilterDraft = {
 
 type SortOption = {
   value: string;
-  label: string;
+  labelKey: string;
   orderBy?: CommunityPresentationOrderBy;
   order?: CommunityPresentationSortOrder;
 };
@@ -43,52 +44,52 @@ type SortOption = {
 const DEFAULT_SORT_VALUE = "default";
 
 const SORT_OPTIONS: SortOption[] = [
-  { value: DEFAULT_SORT_VALUE, label: "Default" },
+  { value: DEFAULT_SORT_VALUE, labelKey: "sort.default" },
   {
     value: "created_at:desc",
-    label: "Newest",
+    labelKey: "sort.newest",
     orderBy: "created_at",
     order: "desc",
   },
   {
     value: "created_at:asc",
-    label: "Oldest",
+    labelKey: "sort.oldest",
     orderBy: "created_at",
     order: "asc",
   },
   {
     value: "views:desc",
-    label: "Most viewed",
+    labelKey: "sort.mostViewed",
     orderBy: "views",
     order: "desc",
   },
   {
     value: "views:asc",
-    label: "Least viewed",
+    labelKey: "sort.leastViewed",
     orderBy: "views",
     order: "asc",
   },
   {
     value: "likes:desc",
-    label: "Most liked",
+    labelKey: "sort.mostLiked",
     orderBy: "likes",
     order: "desc",
   },
   {
     value: "likes:asc",
-    label: "Least liked",
+    labelKey: "sort.leastLiked",
     orderBy: "likes",
     order: "asc",
   },
   {
     value: "priority:desc",
-    label: "Featured first",
+    labelKey: "sort.featuredFirst",
     orderBy: "priority",
     order: "desc",
   },
   {
     value: "priority:asc",
-    label: "Featured last",
+    labelKey: "sort.featuredLast",
     orderBy: "priority",
     order: "asc",
   },
@@ -112,6 +113,7 @@ export default function CommunityPresentationFilters({
   onChange: (filters: CommunityPresentationListFilters) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations("community.filters");
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<FilterDraft>(() => createDraft(value));
   const sortValue =
@@ -158,14 +160,14 @@ export default function CommunityPresentationFilters({
       >
         <SelectTrigger
           className="h-10 w-[148px] rounded-full border-[#DBDBDB99] bg-white px-3 font-manrope text-xs shadow-none focus:ring-[#7A5AF8]/20"
-          aria-label="Sort community presentations"
+          aria-label={t("sortAria")}
         >
           <SelectValue />
         </SelectTrigger>
         <SelectContent className="font-manrope">
           {SORT_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              {t(option.labelKey)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -190,7 +192,7 @@ export default function CommunityPresentationFilters({
             )}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filters
+            {t("button")}
             {activeFilterCount > 0 && (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#7A5AF8] px-1 text-[10px] text-white">
                 {activeFilterCount}
@@ -207,17 +209,17 @@ export default function CommunityPresentationFilters({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-[#191919]">
-                Community filters
+                {t("title")}
               </h3>
               <p className="mt-0.5 text-[11px] text-[#808080]">
-                Narrow presentations by date and engagement.
+                {t("description")}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="flex h-7 w-7 items-center justify-center rounded-full text-[#666666] hover:bg-[#F6F6F9]"
-              aria-label="Close filters"
+              aria-label={t("closeAria")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -226,14 +228,14 @@ export default function CommunityPresentationFilters({
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <DateFilter
-                label="Created after"
+                label={t("createdAfter")}
                 value={draft.createdAfter}
                 onChange={(createdAfter) =>
                   setDraft((current) => ({ ...current, createdAfter }))
                 }
               />
               <DateFilter
-                label="Created before"
+                label={t("createdBefore")}
                 value={draft.createdBefore}
                 onChange={(createdBefore) =>
                   setDraft((current) => ({ ...current, createdBefore }))
@@ -241,7 +243,7 @@ export default function CommunityPresentationFilters({
               />
             </div>
             <CountFilter
-              label="Views"
+              label={t("views")}
               comparison={draft.viewsComparison}
               value={draft.viewsValue}
               onComparisonChange={(viewsComparison) =>
@@ -252,7 +254,7 @@ export default function CommunityPresentationFilters({
               }
             />
             <CountFilter
-              label="Likes"
+              label={t("likes")}
               comparison={draft.likesComparison}
               value={draft.likesValue}
               onComparisonChange={(likesComparison) =>
@@ -275,14 +277,14 @@ export default function CommunityPresentationFilters({
               disabled={activeFilterCount === 0}
               className="text-xs font-medium text-[#666666] hover:text-[#191919] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Clear filters
+              {t("clear")}
             </button>
             <button
               type="button"
               onClick={applyFilters}
               className="h-9 rounded-full bg-[#7A5AF8] px-5 text-xs font-medium text-white transition hover:bg-[#6938EF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30"
             >
-              Apply
+              {t("apply")}
             </button>
           </div>
         </PopoverContent>
@@ -328,6 +330,7 @@ function CountFilter({
   onComparisonChange: (comparison: CountComparison) => void;
   onValueChange: (value: string) => void;
 }) {
+  const t = useTranslations("community.filters");
   return (
     <div>
       <span className="mb-1.5 block text-xs font-medium text-[#333333]">
@@ -344,10 +347,10 @@ function CountFilter({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="font-manrope">
-            <SelectItem value="any">Any</SelectItem>
-            <SelectItem value="exact">Exactly</SelectItem>
-            <SelectItem value="gt">More than</SelectItem>
-            <SelectItem value="lt">Fewer than</SelectItem>
+            <SelectItem value="any">{t("any")}</SelectItem>
+            <SelectItem value="exact">{t("exactly")}</SelectItem>
+            <SelectItem value="gt">{t("moreThan")}</SelectItem>
+            <SelectItem value="lt">{t("fewerThan")}</SelectItem>
           </SelectContent>
         </Select>
         <input
@@ -358,7 +361,7 @@ function CountFilter({
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
           disabled={comparison === "any"}
-          placeholder="Count"
+          placeholder={t("countPlaceholder")}
           className="h-9 w-full rounded-lg border border-[#E0E0E3] bg-white px-3 text-xs text-[#191919] outline-none transition placeholder:text-[#A0A0A0] focus:border-[#BDB4FB] focus:ring-2 focus:ring-[#7A5AF8]/10 disabled:bg-[#F7F7F9] disabled:text-[#A0A0A0]"
         />
       </div>

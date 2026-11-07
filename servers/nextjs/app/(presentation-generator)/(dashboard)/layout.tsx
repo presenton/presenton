@@ -9,7 +9,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
     )
 
     return (
-        <div className='flex pr-4 bg-white'>
+        <div className='flex pe-4 bg-white'>
             <DashboardSidebar
                 showCommunity={isCommunityEnabled(process.env.PRESENTON_COMMUNITY_ENABLED)}
                 showTemplates={presentationGenerationMode !== "smart"}

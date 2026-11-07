@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LLMConfig } from "@/types/llm_config";
 import { ImagesApi } from "@/app/(presentation-generator)/services/api/images";
 import { IMAGE_PROVIDERS } from "@/utils/providerConstants";
+import { useTranslations } from "next-intl";
 
 export const IMAGE_TEST_FIELDS = [
   "IMAGE_PROVIDER", "OPENAI_API_KEY", "GOOGLE_API_KEY", "PEXELS_API_KEY",
@@ -16,6 +17,7 @@ export const IMAGE_TEST_FIELDS = [
 ] as const;
 
 export default function ImageProviderTest({ config }: { config: LLMConfig }) {
+  const t = useTranslations("settings.providers.imageTest");
   const [result, setResult] = useState<{ imageUrl?: string; error?: string } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const controller = useRef<AbortController | null>(null);
@@ -47,7 +49,7 @@ export default function ImageProviderTest({ config }: { config: LLMConfig }) {
       if (!request.signal.aborted) setResult({ imageUrl: image_url });
     } catch (error) {
       if (!request.signal.aborted) {
-        setResult({ error: error instanceof Error ? error.message : "The image test failed. Check your provider settings and try again." });
+        setResult({ error: error instanceof Error ? error.message : t("defaultError") });
       }
     } finally {
       if (!request.signal.aborted) setIsTesting(false);
@@ -59,16 +61,16 @@ export default function ImageProviderTest({ config }: { config: LLMConfig }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-md text-sm text-gray-600">
           {isStock
-            ? "Search for a test image to verify your configuration."
-            : "Generate a test image to verify your configuration."}
+            ? t("stockDescription")
+            : t("generateDescription")}
         </p>
         <Button type="button" variant="outline" disabled={isTesting} onClick={testProvider}>
           {isTesting && <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-          {isTesting ? "Testing…" : isStock ? "Test image search" : "Test image generation"}
+          {isTesting ? t("testing") : isStock ? t("testSearch") : t("testGeneration")}
         </Button>
       </div>
       <div role="status" aria-live="polite" aria-atomic="true">
-        {isTesting && <p className="text-sm text-gray-600">{isStock ? "Searching for a sample image…" : "Generating a sample image. This may take a few minutes…"}</p>}
+        {isTesting && <p className="text-sm text-gray-600">{isStock ? t("searching") : t("generating")}</p>}
         {result?.error && (
           <p className="flex items-start gap-2 text-sm text-red-700">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -79,11 +81,11 @@ export default function ImageProviderTest({ config }: { config: LLMConfig }) {
           <div className="space-y-3">
             <p className="flex items-center gap-2 text-sm text-green-700">
               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-              {isStock ? "Image search is working." : "Image generation is working."}
+              {isStock ? t("searchWorking") : t("generateWorking")}
             </p>
             {/* Provider previews can be temporary data URLs or remote stock images. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={result.imageUrl} alt="Sample mountain lake from your image provider" className="max-h-64 max-w-full rounded-lg object-contain" onError={() => setResult({ error: "The provider returned an image, but its preview could not load. Check your provider and try again." })} />
+            <img src={result.imageUrl} alt={t("sampleAlt")} className="max-h-64 max-w-full rounded-lg object-contain" onError={() => setResult({ error: t("previewError") })} />
           </div>
         )}
       </div>

@@ -364,7 +364,7 @@ export default function CodexConfig({
                     <span className="text-sm text-gray-600">Waiting for sign-in…</span>
                     <button
                         onClick={handleCancelPolling}
-                        className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 ml-auto"
+                        className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 ms-auto"
                     >
                         Cancel
                     </button>
@@ -494,7 +494,7 @@ export default function CodexConfig({
                                             >
                                                 <Check
                                                     className={cn(
-                                                        "mr-2 h-4 w-4",
+                                                        "me-2 h-4 w-4",
                                                         codexModel === model.id ? "opacity-100" : "opacity-0"
                                                     )}
                                                 />

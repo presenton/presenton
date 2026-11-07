@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import {
   Command,
@@ -30,6 +31,7 @@ export default function CreatableModelInput({
   providerLabel,
   onChange,
 }: CreatableModelInputProps) {
+  const t = useTranslations("settings.providers.modelInput");
   const popoverId = useId();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -77,7 +79,7 @@ export default function CreatableModelInput({
             role="combobox"
             aria-controls={popoverId}
             aria-expanded={open}
-            className="flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-4 text-left text-sm outline-none transition-colors hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            className="flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-4 text-start text-sm outline-none transition-colors hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
           >
             <span
               className={cn(
@@ -110,7 +112,7 @@ export default function CreatableModelInput({
             <CommandInput
               value={query}
               onValueChange={setQuery}
-              placeholder="Search or enter a model ID..."
+              placeholder={t("placeholder")}
             />
             <CommandList id={popoverId} className="max-h-60 hide-scrollbar">
               <CommandGroup>
@@ -120,13 +122,13 @@ export default function CreatableModelInput({
                     onSelect={() => selectModel(customModel)}
                     className="cursor-pointer px-2 py-2.5"
                   >
-                    <Check className="mr-2 h-4 w-4 opacity-0" />
+                    <Check className="me-2 h-4 w-4 opacity-0" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-gray-900">
-                        Use “{customModel}”
+                        {t("useModel", { model: customModel })}
                       </p>
                       <p className="mt-1 text-xs leading-relaxed text-gray-600">
-                        Save as a custom model ID
+                        {t("saveCustom")}
                       </p>
                     </div>
                   </CommandItem>
@@ -143,7 +145,7 @@ export default function CreatableModelInput({
                     >
                       <Check
                         className={cn(
-                          "mr-2 h-4 w-4",
+                          "me-2 h-4 w-4",
                           value === model ? "opacity-100" : "opacity-0"
                         )}
                         aria-hidden="true"
@@ -157,7 +159,7 @@ export default function CreatableModelInput({
                   ))}
                 {!customModel && filteredOptions.length === 0 && (
                   <div className="px-3 py-5 text-center text-sm text-gray-500">
-                    No discovered models yet.
+                    {t("none")}
                   </div>
                 )}
               </CommandGroup>
@@ -166,8 +168,7 @@ export default function CreatableModelInput({
         </PopoverContent>
       </Popover>
       <p className="mt-1.5 text-xs text-gray-500">
-        Discovered models are suggestions. Custom aliases and provider-specific
-        model IDs are accepted.
+        {t("hint")}
       </p>
     </div>
   );
