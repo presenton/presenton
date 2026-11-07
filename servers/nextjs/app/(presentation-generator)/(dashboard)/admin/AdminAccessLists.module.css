@@ -30,14 +30,14 @@
 .keyDateColumn { width: 16%; }
 .keyActionColumn { width: 144px; }
 .table th.actionHeading { text-align: end; }
-.table th.dateHeading { text-align: end; }
+.table th.dateHeading { text-align: right; }
 
 .identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
 .avatar { display: flex; width: 32px; height: 32px; flex: 0 0 32px; align-items: center; justify-content: center; border-radius: 50%; background: #f0eff4; font-size: 12px; font-weight: 600; color: #595762; }
 .identityText { min-width: 0; }
 .name { display: block; min-width: 0; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .mobileMeta { display: none; }
-.date { color: #656570; font-size: 12px; font-variant-numeric: tabular-nums; text-align: end; }
+.date { color: #656570; font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
 .owner { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .userRole, .adminRole, .expired, .active { display: inline-flex; flex: none; align-items: center; min-height: 22px; padding: 1px 7px; border-radius: 4px; font-size: 12px; line-height: 20px; font-weight: 500; white-space: nowrap; }
 .userRole { background: #f4f4f6; color: #585862; }
