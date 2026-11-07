@@ -18,7 +18,7 @@
 .table thead { display: table-header-group; width: auto; }
 .table tbody { display: table-row-group; }
 .table thead tr, .table tbody tr { display: table-row; width: auto; table-layout: auto; }
-.table th { height: 40px; padding: 0 12px; color: #656570; font-size: 12px; font-weight: 500; }
+.table th { height: 40px; padding: 0 12px; color: #656570; font-size: 12px; font-weight: 500; text-align: start; }
 .table td { height: 72px; padding: 12px; vertical-align: middle; border-top: 1px solid #ededf1; }
 .table th:first-child, .table td:first-child { padding-inline-start: 24px; }
 .table th:last-child, .table td:last-child { padding-inline-end: 20px; }
@@ -29,8 +29,8 @@
 .ownerColumn { width: 15%; }
 .keyDateColumn { width: 16%; }
 .keyActionColumn { width: 144px; }
-.actionHeading { text-align: end; }
-.dateHeading { text-align: end; }
+.table th.actionHeading { text-align: end; }
+.table th.dateHeading { text-align: end; }
 
 .identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
 .avatar { display: flex; width: 32px; height: 32px; flex: 0 0 32px; align-items: center; justify-content: center; border-radius: 50%; background: #f0eff4; font-size: 12px; font-weight: 600; color: #595762; }

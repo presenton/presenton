@@ -180,7 +180,7 @@ export default function CommunityDesignPreviewDialog({
                       onClick={handleBackToCommunity}
                       className="mb-1 inline-flex items-center gap-1 text-xs text-[#6847F4] transition hover:text-[#5137C8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30"
                     >
-                      <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
+                      <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5 rtl:rotate-180" />
                       {t("communityPreview")}
                     </button>
                   )}
@@ -324,7 +324,7 @@ export default function CommunityDesignPreviewDialog({
                                     className="h-3 w-3 shrink-0 animate-spin"
                                   />
                                 ) : (
-                                  <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0" />
+                                  <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0 rtl:rotate-180" />
                                 )}
                               </button>
                             );
@@ -395,7 +395,7 @@ export default function CommunityDesignPreviewDialog({
               </div>
             </div>
 
-            <DialogClose className="absolute end-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#191919] shadow-sm transition hover:bg-[#F8F8FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30 min-[1100px]:-end-[68px] min-[1100px]:top-0 min-[1100px]:h-[52px] min-[1100px]:w-[52px]">
+            <DialogClose className={`absolute top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#191919] shadow-sm transition hover:bg-[#F8F8FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30 ${locale === "ar" ? "start-3 min-[1100px]:-start-[68px]" : "end-3 min-[1100px]:-end-[68px]"} min-[1100px]:top-0 min-[1100px]:h-[52px] min-[1100px]:w-[52px]`}>
               <X
                 className="h-5 w-5 min-[1100px]:h-6 min-[1100px]:w-6"
                 strokeWidth={1.5}

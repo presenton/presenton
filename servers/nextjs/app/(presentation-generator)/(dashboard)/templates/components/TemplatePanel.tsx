@@ -128,7 +128,7 @@ const LayoutPreview = () => {
             >
               <span className="hidden md:inline">{t("newTemplate")}</span>
               <span className="md:hidden">{t("new")}</span>
-              <ChevronRight className="motion-arrow w-4 h-4" />
+              <ChevronRight className="motion-arrow w-4 h-4 rtl:rotate-180" />
             </Link>
           </div>
         </div>

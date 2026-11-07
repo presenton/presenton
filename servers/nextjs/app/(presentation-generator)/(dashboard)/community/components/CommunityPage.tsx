@@ -253,7 +253,7 @@ export default function CommunityPage() {
           className="motion-press group inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(270deg,#D5CAFC_2.4%,#E3D2EB_27.88%,#F4DCD3_69.23%,#FDE4C2_100%)] px-4 font-syne text-sm font-medium text-[#191919] shadow-sm hover:shadow-md"
         >
           {t("newPresentation")}
-          <ChevronRight className="motion-arrow h-4 w-4" />
+          <ChevronRight className="motion-arrow h-4 w-4 rtl:rotate-180" />
         </Link>
       </header>
 
@@ -355,7 +355,7 @@ export default function CommunityPage() {
               disabled={page <= 1}
               className="inline-flex h-9 items-center gap-1 rounded-full border border-[#EDEEEF] bg-white px-3 text-[#191919] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <ChevronLeft className="h-3.5 w-3.5" />
+              <ChevronLeft className="h-3.5 w-3.5 rtl:rotate-180" />
               {t("pagination.previous")}
             </button>
             <span>
@@ -370,7 +370,7 @@ export default function CommunityPage() {
               className="inline-flex h-9 items-center gap-1 rounded-full border border-[#EDEEEF] bg-white px-3 text-[#191919] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t("pagination.next")}
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />
             </button>
           </div>
         )}

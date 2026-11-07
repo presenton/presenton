@@ -212,7 +212,7 @@ export const TemplateListCard = memo(function TemplateListCard({
             aria-hidden="true"
             strokeWidth={selectionPage ? 1.67 : 2}
             className={cn(
-              "shrink-0",
+              "shrink-0 rtl:-scale-x-100",
               selectionPage
                 ? "h-5 w-5 text-[#808080]"
                 : "h-4 w-4 text-gray-400 transition-colors group-hover:text-purple-600"
