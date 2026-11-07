@@ -93,6 +93,7 @@ function LinuxInPageSmartHtmlSlide({
   title,
   executeScripts,
   showLoader,
+  loaderLabel,
 }: {
   html: string;
   fonts?: unknown;
@@ -100,6 +101,7 @@ function LinuxInPageSmartHtmlSlide({
   title: string;
   executeScripts: boolean;
   showLoader: boolean;
+  loaderLabel?: string;
 }) {
   const tailwindReady = useTailwindRuntimeReady();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -182,7 +184,7 @@ function LinuxInPageSmartHtmlSlide({
         height: fixedSize ? SLIDE_HEIGHT : SLIDE_HEIGHT * (scale || 1),
       }}
     >
-      {showLoader && isLoading && <SlidePreviewLoader />}
+      {showLoader && isLoading && <SlidePreviewLoader label={loaderLabel} />}
       <div
         ref={slideRef}
         data-smart-slide-instance={instanceId}
@@ -206,12 +208,14 @@ function IframeSmartHtmlSlide({
   fixedSize,
   title,
   showLoader,
+  loaderLabel,
 }: {
   html: string;
   fonts?: unknown;
   fixedSize: boolean;
   title: string;
   showLoader: boolean;
+  loaderLabel?: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
@@ -251,7 +255,7 @@ function IframeSmartHtmlSlide({
         height: fixedSize ? SLIDE_HEIGHT : SLIDE_HEIGHT * (scale || 1),
       }}
     >
-      {showLoader && isLoading && <SlidePreviewLoader />}
+      {showLoader && isLoading && <SlidePreviewLoader label={loaderLabel} />}
       <div
         className="absolute left-1/2 top-0"
         style={{
@@ -285,6 +289,7 @@ export default function SmartHtmlSlide({
   title = "Smart presentation slide",
   executeScripts = true,
   showLoader = false,
+  loaderLabel,
 }: {
   html: string;
   fonts?: unknown;
@@ -292,6 +297,7 @@ export default function SmartHtmlSlide({
   title?: string;
   executeScripts?: boolean;
   showLoader?: boolean;
+  loaderLabel?: string;
 }) {
   if (USE_LINUX_IN_PAGE_RENDERER) {
     return (
@@ -303,6 +309,7 @@ export default function SmartHtmlSlide({
         title={title}
         executeScripts={executeScripts}
         showLoader={showLoader}
+        loaderLabel={loaderLabel}
       />
     );
   }
@@ -315,6 +322,7 @@ export default function SmartHtmlSlide({
       html={html}
       title={title}
       showLoader={showLoader}
+      loaderLabel={loaderLabel}
     />
   );
 }

@@ -219,6 +219,7 @@
     "communityPreview": "Community preview",
     "sharedDescription": "Shared community presentation.",
     "loadingSlides": "Loading presentation slides…",
+    "loadingSlide": "Loading slide…",
     "viewingReferenceAria": "Viewing reference presentation {id}",
     "previewReferenceAria": "Preview reference presentation {id}",
     "setup": {

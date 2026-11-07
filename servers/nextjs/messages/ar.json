@@ -219,6 +219,7 @@
     "communityPreview": "معاينة المجتمع",
     "sharedDescription": "عرض تقديمي مشارك من المجتمع.",
     "loadingSlides": "جارٍ تحميل شرائح العرض…",
+    "loadingSlide": "جارٍ تحميل الشريحة…",
     "viewingReferenceAria": "عرض مرجعي {id} قيد العرض",
     "previewReferenceAria": "معاينة العرض المرجعي {id}",
     "setup": {

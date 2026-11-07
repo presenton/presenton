@@ -245,6 +245,7 @@ export default function CommunityDesignPreviewDialog({
                             html={slide}
                             fonts={displayedPresentation?.fonts}
                             title={t("slideTitle", { title, index: index + 1 })}
+                            loaderLabel={t("loadingSlide")}
                           />
                         </div>
                       ))}

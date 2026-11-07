@@ -58,7 +58,6 @@ const getFilterAnalyticsProps = (
 
 export default function CommunityPage() {
   const t = useTranslations("community");
-  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
@@ -424,6 +423,7 @@ function CommunityPresentationCard({
               html={thumbnail}
               fonts={presentation.fonts}
               title={t("previewAria", { title })}
+              loaderLabel={t("loadingSlide")}
             />
           </div>
         ) : (

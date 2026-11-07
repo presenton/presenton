@@ -191,6 +191,7 @@ export default function CommunityReferencePicker({
                       executeScripts={false}
                       html={preview}
                       fonts={item.fonts}
+                      loaderLabel={t("loadingSlide")}
                     />
                   ) : (
                     <span className="flex h-full items-center justify-center text-xs text-[#999999]">
