@@ -1,5 +1,5 @@
 import { ChildProcess, spawn } from "child_process";
-import { getLogsDir, localhost } from "./constants";
+import { getLogsDir, localhost, loopbackHost } from "./constants";
 import http from "http";
 import fs from "fs";
 import path from "path";
@@ -208,7 +208,7 @@ export async function startNextJsServer(
     // Windows: npm is npm.cmd; spawn() needs a shell or ENOENT.
     nextjsProcess = spawn(
       process.platform === "win32" ? "npm.cmd" : "npm",
-      ["run", "dev", "--", "-H", "127.0.0.1", "-p", port.toString()],
+      ["run", "dev", "--", "-H", loopbackHost, "-p", port.toString()],
       {
         cwd: directory,
         stdio: ["ignore", "pipe", "pipe"],
@@ -278,7 +278,7 @@ export async function startNextJsServer(
           ...process.env,
           ...env,
           ELECTRON_RUN_AS_NODE: "1",
-          HOSTNAME: "127.0.0.1",
+          HOSTNAME: loopbackHost,
           PORT: port.toString(),
         },
         windowsHide: process.platform === "win32",
