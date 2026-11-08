@@ -38,7 +38,7 @@
     "setup:env": "npm install && cd ../servers/fastapi && uv sync && cd ../nextjs && npm install && cd ../../electron && npm run setup:export-runtime && npm run prepare:imagemagick",
     "install:pyinstaller": "cd ../servers/fastapi && echo 'pyinstaller will be installed via uv run --with when building'",
     "typecheck": "tsc --noEmit",
-    "test:security": "npm run build:ts && node --test scripts/security-dependencies.test.cjs scripts/private-storage.test.cjs",
+    "test:security": "npm run build:ts && node --test scripts/security-dependencies.test.cjs scripts/private-storage.test.cjs scripts/find-unused-ports.test.cjs",
     "build:ts": "node -e \"fs.rmSync('app_dist',{recursive:true,force:true})\" && tsc",
     "check:main-no-undef": "node scripts/check-main-no-undef.cjs",
     "lint:main": "npm run build:ts && npm run check:main-no-undef",
