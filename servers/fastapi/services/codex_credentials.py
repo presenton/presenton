@@ -16,7 +16,7 @@ from sqlalchemy import create_engine, func, select
 from models.sql.provider_settings import ProviderSettings
 from utils.datetime_utils import get_current_utc_datetime
 from utils.db_utils import get_database_url_and_connect_args, to_sync_sqlalchemy_url
-from utils.get_env import get_user_config_path_env
+from utils.get_env import get_database_url_env, get_user_config_path_env
 from utils.oauth.openai_codex import TokenSuccess, get_account_profile, refresh_access_token
 from utils.user_config_store import update_user_config_file
 from services.codex_models import auth_required
@@ -47,7 +47,11 @@ class CredentialSnapshot:
 
 
 def _engine():
-    url, _ = get_database_url_and_connect_args()
+    # The async helper strips query options. Psycopg must receive the original
+    # DSN so settings such as sslmode/sslrootcert retain their native meaning.
+    url = get_database_url_env()
+    if not url:
+        url, _ = get_database_url_and_connect_args()
     return create_engine(to_sync_sqlalchemy_url(url), hide_parameters=True)
 
 

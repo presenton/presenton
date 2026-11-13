@@ -14,6 +14,44 @@ from utils.datetime_utils import get_current_utc_datetime
 from utils.user_config_store import read_user_config_file, update_user_config_file
 
 
+@pytest.mark.parametrize("scheme", ["postgresql", "postgresql+asyncpg"])
+def test_sync_engine_preserves_dsn_tls_options_without_pg_environment(monkeypatch, scheme):
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        f"{scheme}://fixture:fixture@db.example/presenton"
+        "?sslmode=verify-full&sslrootcert=%2Ffixture%2Fca.pem&connect_timeout=5",
+    )
+    monkeypatch.delenv("PGSSLMODE", raising=False)
+    monkeypatch.delenv("PGSSLROOTCERT", raising=False)
+    def reject_async_helper():
+        raise AssertionError("The async helper would discard the DSN query")
+    monkeypatch.setattr(credentials, "get_database_url_and_connect_args", reject_async_helper)
+
+    engine = credentials._engine()
+    try:
+        _, options = engine.dialect.create_connect_args(engine.url)
+        assert engine.dialect.driver == "psycopg"
+        assert options["sslmode"] == "verify-full"
+        assert options["sslrootcert"] == "/fixture/ca.pem"
+        assert options["connect_timeout"] == "5"
+        assert engine.hide_parameters is True
+    finally:
+        engine.dispose()
+
+
+def test_sync_engine_keeps_default_sqlite_path_initialization(monkeypatch, tmp_path):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    app_data = tmp_path / "new-app-data"
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(app_data))
+    engine = credentials._engine()
+    try:
+        assert engine.url.database == str(app_data / "fastapi.db")
+        ProviderSettings.__table__.create(engine)
+    finally:
+        engine.dispose()
+    assert credentials.read_provider_snapshot() == {}
+
+
 @pytest.fixture
 def credential_store(monkeypatch, tmp_path):
     url = "sqlite:///" + str(tmp_path / "credentials.db")
