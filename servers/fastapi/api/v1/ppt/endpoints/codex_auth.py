@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from utils.oauth.openai_codex import (
     CodexAccountProfile,
     OAuthCallbackServer,
+    TokenFailure,
     TokenSuccess,
     create_authorization_flow,
     exchange_authorization_code,
@@ -97,6 +98,44 @@ def _store_token(result: TokenSuccess, *, expected=None) -> CodexAccountProfile:
     return profile
 
 
+async def _exchange_session_code(
+    session_id: str, session: dict, code: str,
+) -> CodexAccountProfile | TokenFailure:
+    """Own exchange, persistence and cleanup even if the HTTP caller leaves."""
+    try:
+        result = await asyncio.to_thread(
+            exchange_authorization_code, code, session["verifier"],
+        )
+        if not isinstance(result, TokenSuccess):
+            return result
+        return await asyncio.to_thread(
+            _store_token, result, expected=session["credentials"],
+        )
+    finally:
+        try:
+            await asyncio.to_thread(session["server"].close)
+        finally:
+            if _sessions.get(session_id) is session:
+                _sessions.pop(session_id, None)
+
+
+def _observe_exchange_result(task: asyncio.Task) -> None:
+    # Shielded work may outlive every HTTP waiter. Retrieve a detached failure
+    # without logging credentials; active waiters still receive the exception.
+    if not task.cancelled():
+        task.exception()
+
+
+def _start_session_exchange(session_id: str, session: dict, code: str) -> asyncio.Task:
+    # No await between checking and claiming this process-local session.
+    task = session.get("exchange_task")
+    if task is None:
+        task = asyncio.create_task(_exchange_session_code(session_id, session, code))
+        session["exchange_task"] = task
+        task.add_done_callback(_observe_exchange_result)
+    return task
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -153,26 +192,19 @@ async def poll_codex_auth_status(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found or already consumed")
 
-    server: OAuthCallbackServer = session["server"]
+    task = session.get("exchange_task")
+    if task is None:
+        server: OAuthCallbackServer = session["server"]
+        code = server.get_code_nowait() if session.get("server_started") else None
+        if code is None:
+            return StatusResponse(status="pending")
+        task = _start_session_exchange(session_id, session, code)
 
-    # Non-blocking peek — check whether the callback server already received a code
-    code = server.get_code_nowait() if session.get("server_started") else None
-
-    if code is None:
-        return StatusResponse(status="pending")
-
-    # We have a code — exchange it
-    verifier: str = session["verifier"]
-    result = await asyncio.to_thread(exchange_authorization_code, code, verifier)
-
-    # Clean up session
-    await asyncio.to_thread(server.close)
-    _sessions.pop(session_id, None)
-
-    if not isinstance(result, TokenSuccess):
+    result = await asyncio.shield(task)
+    if isinstance(result, TokenFailure):
         return StatusResponse(status="failed", detail=result.reason)
 
-    profile = await asyncio.to_thread(_store_token, result, expected=session["credentials"])
+    profile = result
     return StatusResponse(
         status="success",
         account_id=profile.account_id,
@@ -197,6 +229,8 @@ async def exchange_codex_code(body: ExchangeRequest):
     session = _sessions.get(body.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found or already consumed")
+    if session.get("exchange_task") is not None:
+        raise HTTPException(status_code=409, detail="ChatGPT sign-in is already being completed. Wait for it to finish.")
 
     parsed = parse_authorization_input(body.code)
     code = parsed.get("code")
@@ -208,18 +242,11 @@ async def exchange_codex_code(body: ExchangeRequest):
     if incoming_state and incoming_state != session["state"]:
         raise HTTPException(status_code=400, detail="State mismatch — possible CSRF")
 
-    verifier: str = session["verifier"]
-    server: OAuthCallbackServer = session["server"]
-
-    result = await asyncio.to_thread(exchange_authorization_code, code, verifier)
-
-    await asyncio.to_thread(server.close)
-    _sessions.pop(body.session_id, None)
-
-    if not isinstance(result, TokenSuccess):
+    result = await asyncio.shield(_start_session_exchange(body.session_id, session, code))
+    if isinstance(result, TokenFailure):
         raise HTTPException(status_code=502, detail=f"Token exchange failed: {result.reason}")
 
-    profile = await asyncio.to_thread(_store_token, result, expected=session["credentials"])
+    profile = result
     if not profile.account_id:
         raise HTTPException(status_code=502, detail="Token exchanged but could not extract account ID")
 

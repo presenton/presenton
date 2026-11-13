@@ -32,6 +32,8 @@ Catalog responses are `private, no-store`. Presenton does not persist the catalo
 
 The shared resolver captures credentials, selected model, and generation settings together. It validates the model against that account's catalog and passes the same exact ID to the SDK. Async callers offload synchronous resolution; synchronous templates use the same resolver directly. Credentials refresh is serialized per revision, and revision-checked writes prevent late refresh/login results or stale settings mirrors from replacing newer state.
 
+Within one OAuth session, overlapping polls share one authorization-code exchange and persistence task. A simultaneous manual exchange receives a controlled conflict; a poll can join an exchange started manually. Disconnecting an HTTP waiter does not cancel credential persistence or callback cleanup. Synchronous PostgreSQL credential connections preserve TLS options from the configured database URL.
+
 ## Capabilities and failures
 
 Reasoning choices are the intersection of the catalog's levels and the installed SDK's supported values. A new upstream level, such as `ultra`, does not make the other models unavailable, but is not offered until the SDK can express it. Unsupported explicit overrides produce a controlled error. Reset legacy reasoning overrides to model defaults when switching to incompatible settings.
