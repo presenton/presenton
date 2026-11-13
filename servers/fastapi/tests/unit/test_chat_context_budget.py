@@ -1,4 +1,6 @@
 import asyncio
+
+from services.configured_llm import ResolvedLLM
 import json
 import uuid
 from types import SimpleNamespace
@@ -145,9 +147,7 @@ class _Client:
 def _service(monkeypatch, client):
     monkeypatch.setenv("LLM", "openai")
     monkeypatch.setenv("LLM_CONTEXT_WINDOW", "32768")
-    monkeypatch.setattr("services.chat.service.get_llm_config", lambda: None)
-    monkeypatch.setattr("services.chat.service.get_client", lambda **kwargs: client)
-    monkeypatch.setattr("services.chat.service.get_model", lambda: "test-alias")
+    monkeypatch.setattr("services.chat.service.resolve_configured_llm", lambda: ResolvedLLM(client, "test-alias", None, None, None))
 
     async def stream(client, **kwargs):
         result = client.generate(**kwargs)

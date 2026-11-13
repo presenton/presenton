@@ -1,4 +1,3 @@
-import time
 from typing import Optional
 
 from fastapi import HTTPException
@@ -45,8 +44,6 @@ from utils.get_env import (
     get_cerebras_base_url_env,
     get_codex_access_token_env,
     get_codex_account_id_env,
-    get_codex_refresh_token_env,
-    get_codex_token_expires_env,
     get_custom_llm_api_key_env,
     get_custom_llm_url_env,
     get_deepseek_api_key_env,
@@ -85,12 +82,6 @@ from utils.get_env import (
 from utils.available_models import normalize_openai_compatible_base_url
 from utils.llm_provider import get_llm_provider
 from utils.parsers import parse_bool_or_none
-from utils.set_env import (
-    set_codex_access_token_env,
-    set_codex_account_id_env,
-    set_codex_refresh_token_env,
-    set_codex_token_expires_env,
-)
 
 
 CHATGPT_AUTH_REQUIRED_HEADERS = {"X-Presenton-Auth-Action": "codex-reauth"}
@@ -106,63 +97,12 @@ def disable_thinking() -> bool:
 
 
 def _get_codex_access_token() -> str:
+    # Refresh belongs to the operation-scoped resolver. Config construction must
+    # not reread another account or rotate credentials halfway through a snapshot.
     access_token = get_codex_access_token_env()
     if not access_token:
-        raise HTTPException(
-            status_code=401,
-            detail=(
-                f"{CHATGPT_AUTH_REQUIRED_PREFIX} ChatGPT authentication is required. "
-                "Please sign in again from Settings."
-            ),
-            headers=CHATGPT_AUTH_REQUIRED_HEADERS,
-        )
-
-    expires_str = get_codex_token_expires_env()
-    if expires_str:
-        try:
-            expires_ms = int(expires_str)
-            now_ms = int(time.time() * 1000)
-            if now_ms >= expires_ms - 60_000:
-                refresh_token = get_codex_refresh_token_env()
-                if not refresh_token:
-                    raise HTTPException(
-                        status_code=401,
-                        detail=(
-                            f"{CHATGPT_AUTH_REQUIRED_PREFIX} Your ChatGPT session expired. "
-                            "Please sign in again from Settings."
-                        ),
-                        headers=CHATGPT_AUTH_REQUIRED_HEADERS,
-                    )
-
-                from utils.oauth.openai_codex import (
-                    TokenSuccess,
-                    get_account_id,
-                    refresh_access_token,
-                )
-                from utils.user_config import save_codex_tokens_to_user_config
-
-                result = refresh_access_token(refresh_token)
-                if not isinstance(result, TokenSuccess):
-                    raise HTTPException(
-                        status_code=401,
-                        detail=(
-                            f"{CHATGPT_AUTH_REQUIRED_PREFIX} Your ChatGPT session expired. "
-                            "Please sign in again from Settings."
-                        ),
-                        headers=CHATGPT_AUTH_REQUIRED_HEADERS,
-                    )
-
-                set_codex_access_token_env(result.access)
-                set_codex_refresh_token_env(result.refresh)
-                set_codex_token_expires_env(str(result.expires))
-                account_id = get_account_id(result.access)
-                if account_id:
-                    set_codex_account_id_env(account_id)
-                save_codex_tokens_to_user_config()
-                access_token = result.access
-        except (TypeError, ValueError):
-            pass
-
+        from services.codex_models import auth_required
+        raise auth_required()
     return access_token
 
 

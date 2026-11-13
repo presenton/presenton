@@ -210,6 +210,7 @@ def test_api_keys_cannot_access_browser_admin_routes(monkeypatch):
 
 
 @pytest.mark.parametrize(("path", "request_method"), [
+    ("/api/v1/admin/codex/models", "GET"),
     ("/api/v1/ppt/openai/models/available", "POST"),
     ("/api/v1/ppt/images/test", "POST"),
     ("/api/v1/ppt/openrouter/providers/available", "POST"),

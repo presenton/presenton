@@ -1,3 +1,5 @@
+from services.configured_llm import ResolvedLLM
+
 import json
 
 from models.sql.template_v2 import TemplateV2
@@ -181,9 +183,7 @@ def test_llm_receives_only_compact_profile(monkeypatch):
         }
 
     monkeypatch.setattr("templates.v2.generation._generate_with_validation_retries", fake_generate)
-    monkeypatch.setattr("templates.v2.theme.get_client", lambda **_kwargs: object())
-    monkeypatch.setattr("templates.v2.theme.get_llm_config", lambda: object())
-    monkeypatch.setattr("templates.v2.theme.get_model", lambda: "test-model")
+    monkeypatch.setattr("templates.v2.theme.resolve_configured_llm", lambda: ResolvedLLM(object(), "test-model", None, None, object()))
 
     select_theme_roles_with_llm(profile)
 

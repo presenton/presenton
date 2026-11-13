@@ -1,9 +1,9 @@
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 import logging
 from typing import Optional
 
-from llmai import get_client
 from llmai.shared import (
     JSONSchemaResponse,
     Message,
@@ -18,8 +18,7 @@ from constants.presentation import MAX_NUMBER_OF_SLIDES, MAX_OUTLINE_CONTENT_WOR
 from utils.get_dynamic_models import get_presentation_outline_model_with_n_slides
 from utils.llm_calls.generate_web_search_query import generate_web_search_query
 from utils.llm_client_error_handler import handle_llm_client_exceptions
-from utils.llm_config import get_llm_config
-from utils.llm_provider import get_model
+from services.configured_llm import resolve_configured_llm
 from utils.llm_utils import (
     DisconnectChecker,
     get_generate_kwargs,
@@ -263,7 +262,6 @@ async def generate_ppt_outline(
     emit_statuses: bool = False,
     disconnect_checker: Optional[DisconnectChecker] = None,
 ):
-    model = get_model()
     response_model = (
         get_presentation_outline_model_with_n_slides(n_slides)
         if n_slides is not None
@@ -272,9 +270,8 @@ async def generate_ppt_outline(
 
     use_search_tool = web_search and should_use_native_web_search()
     use_external_search = web_search and should_expose_external_web_search_tool()
-    client = get_client(
-        config=get_llm_config(use_openai_responses_api=use_search_tool)
-    )
+    resolved = await asyncio.to_thread(resolve_configured_llm, use_openai_responses_api=use_search_tool)
+    client, model = resolved.client, resolved.model
     route_mode, actual_provider = get_web_search_route()
     actual_provider_name = (
         actual_provider.value
@@ -373,6 +370,7 @@ async def generate_ppt_outline(
             client,
             disconnect_checker=disconnect_checker,
             **get_generate_kwargs(
+                client=client,
                 model=model,
                 messages=get_messages(
                     content,

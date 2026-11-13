@@ -40,8 +40,7 @@ from services.documents_loader import DocumentsLoader
 from services.mem0_presentation_memory_service import MEM0_PRESENTATION_MEMORY_SERVICE
 from services.temp_file_service import TEMP_FILE_SERVICE
 from utils.llm_client_error_handler import handle_llm_client_exceptions
-from utils.llm_config import get_llm_config
-from utils.llm_provider import get_model
+from services.configured_llm import resolve_configured_llm
 from utils.llm_utils import (
     extract_text,
     get_generate_kwargs,
@@ -130,8 +129,8 @@ class PresentationChatService:
             attachments or [],
         )
 
-        client = get_client(config=get_llm_config())
-        model = get_model()
+        resolved = await asyncio.to_thread(resolve_configured_llm)
+        client, model = resolved.client, resolved.model
         tools = build_chat_llm_tools(self._tools.get_tool_definitions())
         budget = await asyncio.to_thread(ChatContextBudget.from_client, client, model)
 
@@ -375,8 +374,8 @@ class PresentationChatService:
         )
 
     async def _run_llm_with_tools(self, messages: list[Message]) -> tuple[str, list[str]]:
-        client = get_client(config=get_llm_config())
-        model = get_model()
+        resolved = await asyncio.to_thread(resolve_configured_llm)
+        client, model = resolved.client, resolved.model
         tools = build_chat_llm_tools(self._tools.get_tool_definitions())
         budget = await asyncio.to_thread(ChatContextBudget.from_client, client, model)
 
@@ -456,7 +455,7 @@ class PresentationChatService:
             if prepared == previous:
                 raise HTTPException(status_code=422, detail=CONTEXT_ERROR_DETAIL)
             previous = prepared
-            kwargs = get_generate_kwargs(model=model, tools=tools, stream=stream, **prepared)
+            kwargs = get_generate_kwargs(model=model, tools=tools, stream=stream, client=client, **prepared)
             emitted = False
             try:
                 if stream:

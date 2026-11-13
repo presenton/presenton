@@ -1,4 +1,25 @@
 import os
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Mapping
+
+
+_environment_snapshot: ContextVar[Mapping[str, str] | None] = ContextVar("llm_environment_snapshot", default=None)
+
+
+@contextmanager
+def use_environment_snapshot(values: Mapping[str, str]):
+    """Resolve all existing provider getters against one captured configuration."""
+    token = _environment_snapshot.set(values)
+    try:
+        yield
+    finally:
+        _environment_snapshot.reset(token)
+
+
+def _getenv(name: str, default=None):
+    snapshot = _environment_snapshot.get()
+    return snapshot.get(name, default) if snapshot is not None else os.getenv(name, default)
 from typing import Literal
 
 from utils.image_config import LEGACY_GPT_IMAGE_PROVIDERS
@@ -17,7 +38,7 @@ def _is_truthy(value: str | None) -> bool:
 
 
 def get_presenton_public_url() -> str | None:
-    value = (os.getenv("PRESENTON_PUBLIC_URL") or "").strip().rstrip("/")
+    value = (_getenv("PRESENTON_PUBLIC_URL") or "").strip().rstrip("/")
     if value.startswith(("http://", "https://")):
         return value
     return None
@@ -25,7 +46,7 @@ def get_presenton_public_url() -> str | None:
 
 def get_presentation_generation_mode() -> PresentationGenerationMode:
     """Return the enabled generation mode, matching the web UI's fallback."""
-    value = (os.getenv("PRESENTATION_GENERATION_MODE") or "").strip().lower()
+    value = (_getenv("PRESENTATION_GENERATION_MODE") or "").strip().lower()
     if value in {"standard", "smart", "both"}:
         return value
     return "both"
@@ -33,18 +54,18 @@ def get_presentation_generation_mode() -> PresentationGenerationMode:
 
 def is_community_enabled() -> bool:
     """Return whether cloud-backed community features are available."""
-    value = (os.getenv("PRESENTON_COMMUNITY_ENABLED") or "").strip().lower()
+    value = (_getenv("PRESENTON_COMMUNITY_ENABLED") or "").strip().lower()
     if not value:
         return True
     return value not in {"0", "false", "no", "off"}
 
 
 def get_database_url_env():
-    return os.getenv("DATABASE_URL")
+    return _getenv("DATABASE_URL")
 
 
 def get_app_data_directory_env():
-    return os.getenv("APP_DATA_DIRECTORY")
+    return _getenv("APP_DATA_DIRECTORY")
 
 
 def get_fastapi_public_base_url() -> str | None:
@@ -54,20 +75,20 @@ def get_fastapi_public_base_url() -> str | None:
     Uses NEXT_PUBLIC_FAST_API (same value Electron and the export runtime inject for the UI).
     When unset, callers keep path-only URLs for same-origin / reverse-proxy setups (e.g. Docker).
     """
-    v = (os.getenv("NEXT_PUBLIC_FAST_API") or "").strip().rstrip("/")
+    v = (_getenv("NEXT_PUBLIC_FAST_API") or "").strip().rstrip("/")
     return v or None
 
 
 def get_temp_directory_env():
-    return os.getenv("TEMP_DIRECTORY")
+    return _getenv("TEMP_DIRECTORY")
 
 
 def get_user_config_path_env():
-    return os.getenv("USER_CONFIG_PATH")
+    return _getenv("USER_CONFIG_PATH")
 
 
 def get_disable_auth_env():
-    return os.getenv("DISABLE_AUTH")
+    return _getenv("DISABLE_AUTH")
 
 
 def get_presenton_oauth_issuer() -> str:
@@ -84,239 +105,239 @@ def is_disable_auth_enabled():
 
 def is_presenton_electron_desktop():
     """True when running inside the Presenton Electron desktop app."""
-    return _is_truthy(os.getenv("PRESENTON_ELECTRON"))
+    return _is_truthy(_getenv("PRESENTON_ELECTRON"))
 
 
 def get_llm_provider_env():
-    return os.getenv("LLM")
+    return _getenv("LLM")
 
 
 def get_anthropic_api_key_env():
-    return os.getenv("ANTHROPIC_API_KEY")
+    return _getenv("ANTHROPIC_API_KEY")
 
 
 def get_anthropic_model_env():
-    return os.getenv("ANTHROPIC_MODEL")
+    return _getenv("ANTHROPIC_MODEL")
 
 
 def get_ollama_url_env():
-    return os.getenv("OLLAMA_URL")
+    return _getenv("OLLAMA_URL")
 
 
 def get_custom_llm_url_env():
-    return os.getenv("CUSTOM_LLM_URL")
+    return _getenv("CUSTOM_LLM_URL")
 
 
 def get_deepseek_base_url_env():
-    return os.getenv("DEEPSEEK_BASE_URL")
+    return _getenv("DEEPSEEK_BASE_URL")
 
 
 def get_deepseek_api_key_env():
-    return os.getenv("DEEPSEEK_API_KEY")
+    return _getenv("DEEPSEEK_API_KEY")
 
 
 def get_deepseek_model_env():
-    return os.getenv("DEEPSEEK_MODEL")
+    return _getenv("DEEPSEEK_MODEL")
 
 
 def get_openai_api_key_env():
-    return os.getenv("OPENAI_API_KEY")
+    return _getenv("OPENAI_API_KEY")
 
 
 def get_openai_model_env():
-    return os.getenv("OPENAI_MODEL")
+    return _getenv("OPENAI_MODEL")
 
 
 def get_google_api_key_env():
-    return os.getenv("GOOGLE_API_KEY")
+    return _getenv("GOOGLE_API_KEY")
 
 
 def get_google_model_env():
-    return os.getenv("GOOGLE_MODEL")
+    return _getenv("GOOGLE_MODEL")
 
 
 def get_vertex_api_key_env():
-    return os.getenv("VERTEX_API_KEY")
+    return _getenv("VERTEX_API_KEY")
 
 
 def get_vertex_model_env():
-    return os.getenv("VERTEX_MODEL")
+    return _getenv("VERTEX_MODEL")
 
 
 def get_vertex_project_env():
-    return os.getenv("VERTEX_PROJECT")
+    return _getenv("VERTEX_PROJECT")
 
 
 def get_vertex_location_env():
-    return os.getenv("VERTEX_LOCATION")
+    return _getenv("VERTEX_LOCATION")
 
 
 def get_vertex_base_url_env():
-    return os.getenv("VERTEX_BASE_URL")
+    return _getenv("VERTEX_BASE_URL")
 
 
 def get_azure_openai_api_key_env():
-    return os.getenv("AZURE_OPENAI_API_KEY")
+    return _getenv("AZURE_OPENAI_API_KEY")
 
 
 def get_azure_openai_model_env():
-    return os.getenv("AZURE_OPENAI_MODEL")
+    return _getenv("AZURE_OPENAI_MODEL")
 
 
 def get_azure_openai_endpoint_env():
-    return os.getenv("AZURE_OPENAI_ENDPOINT")
+    return _getenv("AZURE_OPENAI_ENDPOINT")
 
 
 def get_azure_openai_base_url_env():
-    return os.getenv("AZURE_OPENAI_BASE_URL")
+    return _getenv("AZURE_OPENAI_BASE_URL")
 
 
 def get_azure_openai_api_version_env():
-    return os.getenv("AZURE_OPENAI_API_VERSION")
+    return _getenv("AZURE_OPENAI_API_VERSION")
 
 
 def get_azure_openai_deployment_env():
-    return os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    return _getenv("AZURE_OPENAI_DEPLOYMENT")
 
 
 def get_bedrock_region_env():
-    return os.getenv("BEDROCK_REGION")
+    return _getenv("BEDROCK_REGION")
 
 
 def get_bedrock_api_key_env():
-    return os.getenv("BEDROCK_API_KEY")
+    return _getenv("BEDROCK_API_KEY")
 
 
 def get_bedrock_aws_access_key_id_env():
-    return os.getenv("BEDROCK_AWS_ACCESS_KEY_ID")
+    return _getenv("BEDROCK_AWS_ACCESS_KEY_ID")
 
 
 def get_bedrock_aws_secret_access_key_env():
-    return os.getenv("BEDROCK_AWS_SECRET_ACCESS_KEY")
+    return _getenv("BEDROCK_AWS_SECRET_ACCESS_KEY")
 
 
 def get_bedrock_aws_session_token_env():
-    return os.getenv("BEDROCK_AWS_SESSION_TOKEN")
+    return _getenv("BEDROCK_AWS_SESSION_TOKEN")
 
 
 def get_bedrock_profile_name_env():
-    return os.getenv("BEDROCK_PROFILE_NAME")
+    return _getenv("BEDROCK_PROFILE_NAME")
 
 
 def get_bedrock_model_env():
-    return os.getenv("BEDROCK_MODEL")
+    return _getenv("BEDROCK_MODEL")
 
 
 def get_openrouter_api_key_env():
-    return os.getenv("OPENROUTER_API_KEY")
+    return _getenv("OPENROUTER_API_KEY")
 
 
 def get_openrouter_model_env():
-    return os.getenv("OPENROUTER_MODEL")
+    return _getenv("OPENROUTER_MODEL")
 
 
 def get_openrouter_base_url_env():
-    return os.getenv("OPENROUTER_BASE_URL")
+    return _getenv("OPENROUTER_BASE_URL")
 
 
 def get_openrouter_provider_order_env():
-    return os.getenv("OPENROUTER_PROVIDER_ORDER")
+    return _getenv("OPENROUTER_PROVIDER_ORDER")
 
 
 def get_openrouter_allow_fallbacks_env():
-    return os.getenv("OPENROUTER_ALLOW_FALLBACKS")
+    return _getenv("OPENROUTER_ALLOW_FALLBACKS")
 
 
 def get_openrouter_require_parameters_env():
-    return os.getenv("OPENROUTER_REQUIRE_PARAMETERS")
+    return _getenv("OPENROUTER_REQUIRE_PARAMETERS")
 
 
 def get_openrouter_data_collection_env():
-    return os.getenv("OPENROUTER_DATA_COLLECTION")
+    return _getenv("OPENROUTER_DATA_COLLECTION")
 
 
 def get_openrouter_zdr_env():
-    return os.getenv("OPENROUTER_ZDR")
+    return _getenv("OPENROUTER_ZDR")
 
 
 def get_fireworks_api_key_env():
-    return os.getenv("FIREWORKS_API_KEY")
+    return _getenv("FIREWORKS_API_KEY")
 
 
 def get_fireworks_model_env():
-    return os.getenv("FIREWORKS_MODEL")
+    return _getenv("FIREWORKS_MODEL")
 
 
 def get_fireworks_base_url_env():
-    return os.getenv("FIREWORKS_BASE_URL")
+    return _getenv("FIREWORKS_BASE_URL")
 
 
 def get_together_api_key_env():
-    return os.getenv("TOGETHER_API_KEY")
+    return _getenv("TOGETHER_API_KEY")
 
 
 def get_together_model_env():
-    return os.getenv("TOGETHER_MODEL")
+    return _getenv("TOGETHER_MODEL")
 
 
 def get_together_base_url_env():
-    return os.getenv("TOGETHER_BASE_URL")
+    return _getenv("TOGETHER_BASE_URL")
 
 
 def get_cerebras_api_key_env():
-    return os.getenv("CEREBRAS_API_KEY")
+    return _getenv("CEREBRAS_API_KEY")
 
 
 def get_cerebras_model_env():
-    return os.getenv("CEREBRAS_MODEL")
+    return _getenv("CEREBRAS_MODEL")
 
 
 def get_cerebras_base_url_env():
-    return os.getenv("CEREBRAS_BASE_URL")
+    return _getenv("CEREBRAS_BASE_URL")
 
 
 def get_litellm_base_url_env():
-    return os.getenv("LITELLM_BASE_URL")
+    return _getenv("LITELLM_BASE_URL")
 
 
 def get_litellm_api_key_env():
-    return os.getenv("LITELLM_API_KEY")
+    return _getenv("LITELLM_API_KEY")
 
 
 def get_litellm_model_env():
-    return os.getenv("LITELLM_MODEL")
+    return _getenv("LITELLM_MODEL")
 
 
 def get_lmstudio_base_url_env():
-    return os.getenv("LMSTUDIO_BASE_URL")
+    return _getenv("LMSTUDIO_BASE_URL")
 
 
 def get_lmstudio_api_key_env():
-    return os.getenv("LMSTUDIO_API_KEY")
+    return _getenv("LMSTUDIO_API_KEY")
 
 
 def get_lmstudio_model_env():
-    return os.getenv("LMSTUDIO_MODEL")
+    return _getenv("LMSTUDIO_MODEL")
 
 
 def get_custom_llm_api_key_env():
-    return os.getenv("CUSTOM_LLM_API_KEY")
+    return _getenv("CUSTOM_LLM_API_KEY")
 
 
 def get_ollama_model_env():
-    return os.getenv("OLLAMA_MODEL")
+    return _getenv("OLLAMA_MODEL")
 
 
 def get_custom_model_env():
-    return os.getenv("CUSTOM_MODEL")
+    return _getenv("CUSTOM_MODEL")
 
 
 def get_pexels_api_key_env():
-    return os.getenv("PEXELS_API_KEY")
+    return _getenv("PEXELS_API_KEY")
 
 
 def get_disable_image_generation_env():
-    return os.getenv("DISABLE_IMAGE_GENERATION")
+    return _getenv("DISABLE_IMAGE_GENERATION")
 
 
 def is_parallel_image_generation_enabled() -> bool:
@@ -325,171 +346,171 @@ def is_parallel_image_generation_enabled() -> bool:
     Parallel generation is the existing behavior, so it remains enabled unless
     ENABLE_PARALLEL_IMAGE_GENERATION is explicitly set to a falsey value.
     """
-    return _is_truthy(os.getenv("ENABLE_PARALLEL_IMAGE_GENERATION", "true"))
+    return _is_truthy(_getenv("ENABLE_PARALLEL_IMAGE_GENERATION", "true"))
 
 
 def get_image_provider_env():
-    return os.getenv("IMAGE_PROVIDER")
+    return _getenv("IMAGE_PROVIDER")
 
 
 def get_pixabay_api_key_env():
-    return os.getenv("PIXABAY_API_KEY")
+    return _getenv("PIXABAY_API_KEY")
 
 
 def get_disable_thinking_env():
-    return os.getenv("DISABLE_THINKING")
+    return _getenv("DISABLE_THINKING")
 
 
 def get_extended_reasoning_env():
-    return os.getenv("EXTENDED_REASONING")
+    return _getenv("EXTENDED_REASONING")
 
 
 def get_llm_generation_profile_env():
-    return os.getenv("LLM_GENERATION_PROFILE")
+    return _getenv("LLM_GENERATION_PROFILE")
 
 
 def get_llm_max_output_tokens_env():
-    return os.getenv("LLM_MAX_OUTPUT_TOKENS")
+    return _getenv("LLM_MAX_OUTPUT_TOKENS")
 
 
 def get_llm_reasoning_mode_env():
-    return os.getenv("LLM_REASONING_MODE")
+    return _getenv("LLM_REASONING_MODE")
 
 
 def get_llm_reasoning_effort_env():
-    return os.getenv("LLM_REASONING_EFFORT")
+    return _getenv("LLM_REASONING_EFFORT")
 
 
 def get_llm_reasoning_budget_tokens_env():
-    return os.getenv("LLM_REASONING_BUDGET_TOKENS")
+    return _getenv("LLM_REASONING_BUDGET_TOKENS")
 
 
 def get_web_grounding_env():
-    return os.getenv("WEB_GROUNDING")
+    return _getenv("WEB_GROUNDING")
 
 
 def get_web_search_provider_env():
-    return os.getenv("WEB_SEARCH_PROVIDER")
+    return _getenv("WEB_SEARCH_PROVIDER")
 
 
 def get_web_search_max_results_env():
-    return os.getenv("WEB_SEARCH_MAX_RESULTS")
+    return _getenv("WEB_SEARCH_MAX_RESULTS")
 
 
 def get_searxng_base_url_env():
-    return os.getenv("SEARXNG_BASE_URL")
+    return _getenv("SEARXNG_BASE_URL")
 
 
 def get_tavily_api_key_env():
-    return os.getenv("TAVILY_API_KEY")
+    return _getenv("TAVILY_API_KEY")
 
 
 def get_exa_api_key_env():
-    return os.getenv("EXA_API_KEY")
+    return _getenv("EXA_API_KEY")
 
 
 def get_brave_search_api_key_env():
-    return os.getenv("BRAVE_SEARCH_API_KEY")
+    return _getenv("BRAVE_SEARCH_API_KEY")
 
 
 def get_serper_api_key_env():
-    return os.getenv("SERPER_API_KEY")
+    return _getenv("SERPER_API_KEY")
 
 
 def get_comfyui_url_env():
-    return os.getenv("COMFYUI_URL")
+    return _getenv("COMFYUI_URL")
 
 
 def get_comfyui_workflow_env():
-    return os.getenv("COMFYUI_WORKFLOW")
+    return _getenv("COMFYUI_WORKFLOW")
 
 
 # GPT Image 2 Quality
 def get_gpt_image_2_quality_env():
-    quality = os.getenv("GPT_IMAGE_2_QUALITY")
+    quality = _getenv("GPT_IMAGE_2_QUALITY")
     if quality:
         return quality
-    if os.getenv("IMAGE_PROVIDER") == "dall-e-3":
-        return "high" if os.getenv("DALL_E_3_QUALITY") == "hd" else "medium"
+    if _getenv("IMAGE_PROVIDER") == "dall-e-3":
+        return "high" if _getenv("DALL_E_3_QUALITY") == "hd" else "medium"
     return None
 
 
 # Shared GPT Image 2.5 Flare / Sunburst quality
 def get_gpt_image_2_5_quality_env():
-    quality = os.getenv("GPT_IMAGE_2_5_QUALITY")
+    quality = _getenv("GPT_IMAGE_2_5_QUALITY")
     if quality:
         return quality
-    if os.getenv("IMAGE_PROVIDER") in LEGACY_GPT_IMAGE_PROVIDERS:
-        return os.getenv("GPT_IMAGE_1_5_QUALITY") or "medium"
+    if _getenv("IMAGE_PROVIDER") in LEGACY_GPT_IMAGE_PROVIDERS:
+        return _getenv("GPT_IMAGE_1_5_QUALITY") or "medium"
     return None
 
 
 # Codex OAuth
 def get_codex_access_token_env():
-    return os.getenv("CODEX_ACCESS_TOKEN")
+    return _getenv("CODEX_ACCESS_TOKEN")
 
 
 def get_codex_refresh_token_env():
-    return os.getenv("CODEX_REFRESH_TOKEN")
+    return _getenv("CODEX_REFRESH_TOKEN")
 
 
 def get_codex_token_expires_env():
-    return os.getenv("CODEX_TOKEN_EXPIRES")
+    return _getenv("CODEX_TOKEN_EXPIRES")
 
 
 def get_codex_account_id_env():
-    return os.getenv("CODEX_ACCOUNT_ID")
+    return _getenv("CODEX_ACCOUNT_ID")
 
 
 def get_codex_username_env():
-    return os.getenv("CODEX_USERNAME")
+    return _getenv("CODEX_USERNAME")
 
 
 def get_codex_email_env():
-    return os.getenv("CODEX_EMAIL")
+    return _getenv("CODEX_EMAIL")
 
 
 def get_codex_is_pro_env():
-    return os.getenv("CODEX_IS_PRO")
+    return _getenv("CODEX_IS_PRO")
 
 
 def get_codex_model_env():
-    return os.getenv("CODEX_MODEL")
+    return _getenv("CODEX_MODEL")
 
 
 def get_migrate_database_on_startup_env():
-    return os.getenv("MIGRATE_DATABASE_ON_STARTUP", "true")
+    return _getenv("MIGRATE_DATABASE_ON_STARTUP", "true")
 
 
 def get_sentry_dsn_env():
-    return os.getenv("SENTRY_DSN")
+    return _getenv("SENTRY_DSN")
 
 
 def get_sentry_traces_sample_rate_env():
-    return os.getenv("SENTRY_TRACES_SAMPLE_RATE")
+    return _getenv("SENTRY_TRACES_SAMPLE_RATE")
 
 
 def get_sentry_send_default_pii_env():
-    return os.getenv("SENTRY_SEND_DEFAULT_PII")
+    return _getenv("SENTRY_SEND_DEFAULT_PII")
 
 
 # Open WebUI Image Provider
 def get_open_webui_image_url_env():
-    return os.getenv("OPEN_WEBUI_IMAGE_URL")
+    return _getenv("OPEN_WEBUI_IMAGE_URL")
 
 
 def get_open_webui_image_api_key_env():
-    return os.getenv("OPEN_WEBUI_IMAGE_API_KEY")
+    return _getenv("OPEN_WEBUI_IMAGE_API_KEY")
 
 
 # OpenAI Compatible Image Provider
 def get_openai_compat_image_base_url_env():
-    return os.getenv("OPENAI_COMPAT_IMAGE_BASE_URL")
+    return _getenv("OPENAI_COMPAT_IMAGE_BASE_URL")
 
 
 def get_openai_compat_image_api_key_env():
-    return os.getenv("OPENAI_COMPAT_IMAGE_API_KEY")
+    return _getenv("OPENAI_COMPAT_IMAGE_API_KEY")
 
 
 def get_openai_compat_image_model_env():
-    return os.getenv("OPENAI_COMPAT_IMAGE_MODEL")
+    return _getenv("OPENAI_COMPAT_IMAGE_MODEL")

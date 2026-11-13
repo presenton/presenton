@@ -1,5 +1,7 @@
 import asyncio
 
+from services.configured_llm import ResolvedLLM
+
 import pytest
 
 from models.presentation_layout import SlideLayoutModel
@@ -34,7 +36,7 @@ def test_slide_content_user_prompt_includes_one_indexed_slide_number():
 def test_slide_content_generation_skips_schema_without_content_fields(monkeypatch):
     monkeypatch.setattr(
         generate_slide_content,
-        "get_client",
+        "resolve_configured_llm",
         lambda **_kwargs: pytest.fail("LLM client should not be created"),
     )
 
@@ -55,7 +57,7 @@ def test_slide_content_generation_skips_schema_without_content_fields(monkeypatc
 def test_slide_content_generation_skips_asset_only_schema(monkeypatch):
     monkeypatch.setattr(
         generate_slide_content,
-        "get_client",
+        "resolve_configured_llm",
         lambda **_kwargs: pytest.fail("LLM client should not be created"),
     )
 
@@ -101,9 +103,7 @@ def test_slide_content_generation_normalizes_object_schema_and_calls_llm(
             "__speaker_note__": "Speaker note",
         }
 
-    monkeypatch.setattr(generate_slide_content, "get_client", lambda **_kwargs: object())
-    monkeypatch.setattr(generate_slide_content, "get_llm_config", lambda: {})
-    monkeypatch.setattr(generate_slide_content, "get_model", lambda: "test-model")
+    monkeypatch.setattr(generate_slide_content, "resolve_configured_llm", lambda: ResolvedLLM(object(), "test-model", None, None, {}))
     monkeypatch.setattr(
         generate_slide_content,
         "generate_structured_with_schema_retries",

@@ -1,4 +1,6 @@
 import asyncio
+
+from services.configured_llm import ResolvedLLM
 import json
 from unittest.mock import patch
 
@@ -25,9 +27,7 @@ def test_outline_generation_snapshot_matches_normalized_schema(load_snapshot):
         yield content_event('{"content":"## Details\\n1. Item one\\n2. Item two"}')
         yield content_event("]}")
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
+    with patch.object(outline_module, "resolve_configured_llm", return_value=ResolvedLLM(object(), "fake-model", None, None, {})), patch.object(
         outline_module,
         "get_generate_kwargs",
         side_effect=lambda **kwargs: kwargs,

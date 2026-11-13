@@ -40,6 +40,7 @@ from templates.v2.models.elements import Image as SlideImageElement
 from templates.v2.models.elements import ImageFit
 from templates.v2.tools import PREVIEW_SLIDE_TOOL_NAME, PreviewSlideTool
 from utils.asset_directory_utils import resolve_image_path_to_filesystem
+from services.configured_llm import resolve_configured_llm as _resolve_configured_llm
 from utils.llm_config import get_llm_config
 from utils.llm_provider import get_model
 
@@ -50,6 +51,13 @@ CONTENT_IMAGE_PLACEHOLDER_URL = "/static/images/replaceable_template_image.png"
 CONTENT_ICON_PLACEHOLDER_URL = "/static/icons/placeholder.svg"
 
 LOGGER = logging.getLogger(__name__)
+
+
+def resolve_configured_llm():
+    """Keep the public template module's established client/model override seam."""
+    return _resolve_configured_llm(
+        client_factory=get_client, config_factory=get_llm_config, model_factory=get_model,
+    )
 
 _DUPLICATE_POSITION_GRID_UNITS = 5
 _IGNORED_DUPLICATE_SCHEMA_KEYS = {
@@ -668,8 +676,8 @@ def generate_prompted_slide_layout(
                 "layout must contain at least one semantic element with decorative=false"
             )
 
-    client = get_client(config=get_llm_config())
-    model = get_model()
+    resolved = resolve_configured_llm()
+    client, model = resolved.client, resolved.model
     generated = _generate_with_validation_retries(
         client=client,
         model=model,

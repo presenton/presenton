@@ -11,7 +11,6 @@ from typing import Any, Optional
 
 import llmai
 from fastapi import HTTPException
-from llmai import get_client
 from llmai.shared import (
     Message,
     ReasoningConfig,
@@ -23,13 +22,13 @@ from llmai.shared import (
 )
 
 from constants.presentation import MAX_NUMBER_OF_SLIDES
+from services.configured_llm import resolve_configured_llm
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_config import (
     disable_thinking,
-    get_llm_config,
     has_explicit_reasoning_settings,
 )
-from utils.llm_provider import get_llm_provider, get_model
+from utils.llm_provider import get_llm_provider
 from utils.llm_utils import (
     TextGenerationMetrics,
     build_text_generation_metrics,
@@ -648,6 +647,7 @@ async def _stream_deck_response(
     async for event in stream_generate_events(
         client,
         **get_generate_kwargs(
+            client=client,
             model=model,
             messages=messages,
             max_tokens=max_output_tokens,
@@ -702,8 +702,19 @@ async def _stream_deck_response(
     return response, metrics
 
 
-def get_smart_reasoning_config(model: str) -> tuple[ReasoningConfig | None, bool]:
+def get_smart_reasoning_config(model: str, client=None) -> tuple[ReasoningConfig | None, bool]:
+    from utils.get_env import use_environment_snapshot
+    captured = getattr(client, "__dict__", {}).get("_presenton_environment") if client is not None else None
+    if captured is not None:
+        with use_environment_snapshot(captured):
+            return _get_smart_reasoning_config(model, client)
+    return _get_smart_reasoning_config(model, client)
+
+
+def _get_smart_reasoning_config(model: str, client=None) -> tuple[ReasoningConfig | None, bool]:
     """Enable reasoning only when llmai knows the selected model supports it."""
+    if client is not None and getattr(client, "__dict__", {}).get("_presenton_model_metadata") is not None:
+        return client._generation_defaults.reasoning, client.get_model_capabilities(model).reasoning.supported is True
     if disable_thinking() and not has_explicit_reasoning_settings():
         return None, False
 
@@ -749,15 +760,14 @@ async def generate_smart_presentation(
     on_metrics: SmartMetricsCallback | None = None,
     on_retry: SmartRetryCallback | None = None,
 ) -> dict[str, Any]:
-    client_config = get_llm_config(use_openai_responses_api=True)
-    client = get_client(config=client_config)
-    model = get_model()
+    resolved = await asyncio.to_thread(resolve_configured_llm, use_openai_responses_api=True)
+    client, model, client_config = resolved.client, resolved.model, resolved.client_config
     configured_output_token_limit = getattr(
         getattr(client_config, "generation", None),
         "max_output_tokens",
         None,
     )
-    reasoning, configured_thinking_support = get_smart_reasoning_config(model)
+    reasoning, configured_thinking_support = get_smart_reasoning_config(model, client)
     accepted_slides: list[dict[str, str]] = []
     for index, saved_slide in enumerate(existing_slides or []):
         normalized_slide = _slide_from_html(saved_slide.get("html"), index)

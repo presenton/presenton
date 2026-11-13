@@ -7,7 +7,6 @@ from constants.llm import (
     DEFAULT_AZURE_MODEL,
     DEFAULT_BEDROCK_MODEL,
     DEFAULT_CEREBRAS_MODEL,
-    DEFAULT_CODEX_MODEL,
     DEFAULT_DEEPSEEK_MODEL,
     DEFAULT_FIREWORKS_MODEL,
     DEFAULT_LITELLM_MODEL,
@@ -17,7 +16,6 @@ from constants.llm import (
     DEFAULT_OPENROUTER_MODEL,
     DEFAULT_TOGETHER_MODEL,
     DEFAULT_VERTEX_MODEL,
-    SUPPORTED_CODEX_MODELS,
 )
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
@@ -46,7 +44,8 @@ from utils.get_env import (
 
 def get_llm_provider():
     try:
-        return LLMProvider(get_llm_provider_env())
+        value = get_llm_provider_env()
+        return LLMProvider.CODEX if value == "chatgpt" else LLMProvider(value)
     except:
         raise HTTPException(
             status_code=500,
@@ -161,7 +160,9 @@ def get_model():
         return get_lmstudio_model_env() or DEFAULT_LMSTUDIO_MODEL
     elif selected_llm == LLMProvider.CODEX:
         codex_model = get_codex_model_env()
-        return codex_model if codex_model in SUPPORTED_CODEX_MODELS else DEFAULT_CODEX_MODEL
+        if not codex_model or not codex_model.strip():
+            raise HTTPException(status_code=400, detail="Select a ChatGPT model in Settings.")
+        return codex_model
     else:
         raise HTTPException(
             status_code=500,

@@ -1,4 +1,6 @@
 import asyncio
+
+from services.configured_llm import ResolvedLLM
 import json
 from typing import Any
 from unittest.mock import patch
@@ -109,7 +111,7 @@ def test_outline_schema_describes_audience_facing_content_only():
 
 def test_generate_ppt_outline_default_openai_uses_native_search_tool(monkeypatch):
     captured_kwargs = {}
-    captured_config_kwargs = {}
+    captured_resolver_kwargs = {}
 
     async def is_disconnected():
         return False
@@ -118,19 +120,17 @@ def test_generate_ppt_outline_default_openai_uses_native_search_tool(monkeypatch
         captured_kwargs.update(kwargs)
         yield content_event('{"slides": [{"content": "## Current facts"}]}')
 
-    def fake_get_llm_config(**kwargs):
-        captured_config_kwargs.update(kwargs)
-        return {}
+    def fake_resolve_configured_llm(**kwargs):
+        captured_resolver_kwargs.update(kwargs)
+        return ResolvedLLM(object(), "fake-model", None, None, {})
 
     monkeypatch.setenv("LLM", "openai")
     monkeypatch.setenv("WEB_SEARCH_PROVIDER", "auto")
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(
+    with patch.object(
         outline_module,
-        "get_llm_config",
-        side_effect=fake_get_llm_config,
+        "resolve_configured_llm",
+        side_effect=fake_resolve_configured_llm,
     ), patch.object(
         outline_module,
         "get_generate_kwargs",
@@ -148,7 +148,7 @@ def test_generate_ppt_outline_default_openai_uses_native_search_tool(monkeypatch
             )
         )
 
-    assert captured_config_kwargs == {"use_openai_responses_api": True}
+    assert captured_resolver_kwargs == {"use_openai_responses_api": True}
     assert len(captured_kwargs["tools"]) == 1
     assert isinstance(captured_kwargs["tools"][0], WebSearchTool)
     assert captured_kwargs["disconnect_checker"] is is_disconnected
@@ -160,9 +160,7 @@ def test_generate_ppt_outline_streams_json_chunks_and_keeps_schema_shape():
         yield content_event('{"content": "## Intro\\nBullet"}')
         yield content_event("]}")
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
+    with patch.object(outline_module, "resolve_configured_llm", return_value=ResolvedLLM(object(), "fake-model", None, None, {})), patch.object(
         outline_module,
         "get_generate_kwargs",
         side_effect=lambda **kwargs: kwargs,
@@ -188,12 +186,10 @@ def test_generate_ppt_outline_returns_http_exception_chunk_on_failure():
         raise TimeoutError("provider timed out")
         yield  # pragma: no cover
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(
+    with patch.object(
         outline_module,
-        "get_llm_config",
-        return_value={},
+        "resolve_configured_llm",
+        return_value=ResolvedLLM(object(), "fake-model", None, None, {}),
     ), patch.object(
         outline_module,
         "get_generate_kwargs",
@@ -227,9 +223,7 @@ def test_generate_ppt_outline_injects_external_search_context_without_hosted_too
         captured_kwargs.update(kwargs)
         yield content_event('{"slides": [{"content": "## Current facts"}]}')
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
+    with patch.object(outline_module, "resolve_configured_llm", return_value=ResolvedLLM(object(), "fake-model", None, None, {})), patch.object(
         outline_module, "should_use_native_web_search", return_value=False
     ), patch.object(
         outline_module, "should_expose_external_web_search_tool", return_value=True
@@ -266,9 +260,7 @@ def test_generate_ppt_outline_emits_provider_aware_external_search_statuses():
     async def fake_stream_generate_events(_client, **_kwargs):
         yield content_event('{"slides": [{"content": "## Current facts"}]}')
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
+    with patch.object(outline_module, "resolve_configured_llm", return_value=ResolvedLLM(object(), "fake-model", None, None, {})), patch.object(
         outline_module, "should_use_native_web_search", return_value=False
     ), patch.object(
         outline_module, "should_expose_external_web_search_tool", return_value=True
@@ -312,9 +304,7 @@ def test_generate_ppt_outline_emits_model_native_search_status():
     async def fake_stream_generate_events(_client, **_kwargs):
         yield content_event('{"slides": [{"content": "## Current facts"}]}')
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
+    with patch.object(outline_module, "resolve_configured_llm", return_value=ResolvedLLM(object(), "fake-model", None, None, {})), patch.object(
         outline_module, "should_use_native_web_search", return_value=True
     ), patch.object(
         outline_module, "should_expose_external_web_search_tool", return_value=False
@@ -356,9 +346,7 @@ def test_generate_ppt_outline_uses_fallback_query_when_query_generation_fails():
         searched_queries.append(query)
         return ""
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
+    with patch.object(outline_module, "resolve_configured_llm", return_value=ResolvedLLM(object(), "fake-model", None, None, {})), patch.object(
         outline_module, "should_use_native_web_search", return_value=False
     ), patch.object(
         outline_module, "should_expose_external_web_search_tool", return_value=True
@@ -400,9 +388,7 @@ def test_generate_ppt_outline_uses_fallback_query_when_generated_query_is_null()
         searched_queries.append(query)
         return ""
 
-    with patch.object(outline_module, "get_model", return_value="fake-model"), patch.object(
-        outline_module, "get_client", return_value=object()
-    ), patch.object(outline_module, "get_llm_config", return_value={}), patch.object(
+    with patch.object(outline_module, "resolve_configured_llm", return_value=ResolvedLLM(object(), "fake-model", None, None, {})), patch.object(
         outline_module, "should_use_native_web_search", return_value=False
     ), patch.object(
         outline_module, "should_expose_external_web_search_tool", return_value=True
