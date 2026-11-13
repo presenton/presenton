@@ -1,22 +1,52 @@
 export interface CodexModel {
   id: string;
   name: string;
+  description?: string | null;
+  context_window?: number | null;
+  input_modalities?: string[] | null;
+  supported_reasoning_levels: string[];
+  default_reasoning_level?: string | null;
+  parallel_tool_calls?: boolean | null;
+  supports_reasoning_summary_parameter?: boolean | null;
 }
 
-export const CODEX_MODELS: CodexModel[] = [
-  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
-  { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },
-  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-  { id: "gpt-5.5", name: "GPT-5.5" },
-  { id: "gpt-5.4", name: "GPT-5.4" },
-  { id: "gpt-5.4-mini", name: "GPT-5.4 mini" },
-  { id: "gpt-5.3-codex-spark", name: "GPT-5.3 Codex Spark (Pro preview)" },
-];
+export interface CodexModelCatalog {
+  models: CodexModel[];
+  client_version: string;
+}
 
-export const DEFAULT_CODEX_MODEL = "gpt-5.6-luna";
+// These are transport values supported by the pinned llmai SDK, not a model list.
+const SDK_REASONING_EFFORTS = new Set([
+  "none", "minimal", "low", "medium", "high", "xhigh", "max",
+]);
 
-const CODEX_MODEL_IDS = new Set(CODEX_MODELS.map((model) => model.id));
+export function isCodexProvider(provider?: string): boolean {
+  return provider === "codex" || provider === "chatgpt";
+}
 
-export function isSupportedCodexModel(model?: string): boolean {
-  return Boolean(model && CODEX_MODEL_IDS.has(model));
+export function parseCodexModelCatalog(payload: unknown): CodexModelCatalog {
+  const invalid = () => new Error("ChatGPT returned an invalid model catalog.");
+  if (!payload || typeof payload !== "object") throw invalid();
+  const catalog = payload as Partial<CodexModelCatalog>;
+  if (!Array.isArray(catalog.models) || typeof catalog.client_version !== "string") {
+    throw invalid();
+  }
+  const seen = new Set<string>();
+  for (const model of catalog.models) {
+    if (!model || typeof model !== "object" ||
+      typeof model.id !== "string" || !model.id.trim() ||
+      typeof model.name !== "string" || !model.name.trim() ||
+      !Array.isArray(model.supported_reasoning_levels) ||
+      !model.supported_reasoning_levels.every((effort) => typeof effort === "string") ||
+      seen.has(model.id)) {
+      throw invalid();
+    }
+    seen.add(model.id);
+  }
+  return catalog as CodexModelCatalog;
+}
+
+export function getCodexReasoningEfforts(model?: CodexModel): string[] {
+  return [...new Set(model?.supported_reasoning_levels ?? [])]
+    .filter((effort) => SDK_REASONING_EFFORTS.has(effort));
 }

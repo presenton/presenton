@@ -1,8 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import {
-    Check,
-    ChevronUp,
     Loader2,
     RefreshCw,
     Trash2,
@@ -10,24 +8,10 @@ import {
     User,
     UserCheck,
 } from "lucide-react";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { notify } from "@/components/ui/sonner";
 import { getApiUrl } from "@/utils/api";
-import { Button } from "@/components/ui/button";
-import {
-    CODEX_MODELS,
-    DEFAULT_CODEX_MODEL,
-    isSupportedCodexModel,
-} from "@/utils/codexModels";
+import CodexModelPicker from "@/components/CodexModelPicker";
+import { useCodexModels } from "@/components/CodexModelCatalog";
 import { useRouter } from "next/navigation";
 import { syncStoreAfterCodexSignOut } from "@/utils/storeHelpers";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
@@ -68,7 +52,7 @@ export default function CodexConfig({
     const [isExchanging, setIsExchanging] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [openModelSelect, setOpenModelSelect] = useState(false);
+    const { updateConnection, refresh: refreshModels } = useCodexModels();
     const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const router = useRouter();
 
@@ -85,10 +69,8 @@ export default function CodexConfig({
     }, []);
 
     useEffect(() => {
-        if (codexModel && !isSupportedCodexModel(codexModel)) {
-            onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-        }
-    }, [codexModel, onInputChange]);
+        updateConnection(authStatus === "authenticated", accountId);
+    }, [authStatus, accountId, updateConnection]);
 
     const applyProfile = (data: Partial<StatusResponse>) => {
         setAccountId(data.account_id ?? null);
@@ -161,9 +143,6 @@ export default function CodexConfig({
                         setAuthStatus("authenticated");
                         applyProfile(pollData);
                         setSessionId(null);
-                        if (!isSupportedCodexModel(codexModel)) {
-                            onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-                        }
                         notify.success(
                             "Signed in to ChatGPT",
                             "Your ChatGPT account is connected and ready to use."
@@ -226,9 +205,6 @@ export default function CodexConfig({
             applyProfile(data);
             setSessionId(null);
             setManualCode("");
-            if (!isSupportedCodexModel(codexModel)) {
-                onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-            }
             notify.success(
                 "Signed in to ChatGPT",
                 "Your ChatGPT account is connected and ready to use."
@@ -331,6 +307,7 @@ export default function CodexConfig({
             }
             const data = await res.json();
             applyProfile(data);
+            refreshModels();
             notify.success(
                 "Session refreshed",
                 "Your ChatGPT connection was renewed successfully."
@@ -449,66 +426,10 @@ export default function CodexConfig({
                     </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select GPT Model
-                    </label>
-                    <Popover open={openModelSelect} onOpenChange={setOpenModelSelect}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={openModelSelect}
-                                className="w-full h-10 px-3 outline-none border border-gray-300 rounded-lg hover:border-gray-400 justify-between"
-                            >
-                                <span className="text-sm text-gray-900">
-                                    {codexModel
-                                        ? (CODEX_MODELS.find((m) => m.id === codexModel)?.name ?? codexModel)
-                                        : "Select a model"}
-                                </span>
-                                <ChevronUp className="w-4 h-4 text-gray-400" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                            className="p-0"
-                            align="start"
-                            style={{ width: "var(--radix-popover-trigger-width)" }}
-                        >
-                            <Command>
-                                <CommandInput placeholder="Search models…" />
-                                <CommandList>
-                                    <CommandEmpty>No model found.</CommandEmpty>
-                                    <CommandGroup>
-                                        {CODEX_MODELS.map((model) => (
-                                            <CommandItem
-                                                key={model.id}
-                                                value={model.id}
-                                                onSelect={(value) => {
-                                                    trackEvent(MixpanelEvent.Settings_Model_Selected, {
-                                                        provider: "codex",
-                                                        model: value,
-                                                    });
-                                                    onInputChange(value, "codex_model");
-                                                    setOpenModelSelect(false);
-                                                }}
-                                            >
-                                                <Check
-                                                    className={cn(
-                                                        "mr-2 h-4 w-4",
-                                                        codexModel === model.id ? "opacity-100" : "opacity-0"
-                                                    )}
-                                                />
-                                                <span className="text-sm text-gray-900">
-                                                    {model.name}
-                                                </span>
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
-                </div>
+                <CodexModelPicker value={codexModel} onChange={(model) => {
+                    trackEvent(MixpanelEvent.Settings_Model_Selected, { provider: "codex", model });
+                    onInputChange(model, "codex_model");
+                }} />
             </div>
         );
     }

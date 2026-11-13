@@ -35,7 +35,7 @@ describe("DialogContent", () => {
     cy.get('[data-cy="dialog-content"]')
       .should("be.visible")
       .and("have.css", "translate", "none")
-      .then(($dialog) => {
+      .should(($dialog) => {
         const bounds = $dialog[0].getBoundingClientRect();
 
         expect(bounds.left).to.be.greaterThan(-1);
