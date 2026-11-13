@@ -1,12 +1,11 @@
-from llmai import get_client
+import asyncio
 from llmai.shared import JSONSchemaResponse, Message, SystemMessage, UserMessage
 from models.presentation_layout import PresentationLayoutModel, SlideLayoutModel
 from models.slide_layout_index import SlideLayoutIndex
 from models.sql.slide import SlideModel
-from utils.llm_config import get_llm_config
+from services.configured_llm import resolve_configured_llm
 from utils.llm_client_error_handler import handle_llm_client_exceptions
 from utils.llm_utils import generate_structured_with_schema_retries
-from utils.llm_provider import get_model
 from utils.schema_utils import prepare_schema_for_validation
 
 
@@ -53,8 +52,8 @@ async def get_slide_layout_from_prompt(
     slide: SlideModel,
     memory_context: str = "",
 ) -> SlideLayoutModel:
-    client = get_client(config=get_llm_config())
-    model = get_model()
+    resolved = await asyncio.to_thread(resolve_configured_llm)
+    client, model = resolved.client, resolved.model
 
     slide_layout_index = layout.get_slide_layout_index(slide.layout)
 

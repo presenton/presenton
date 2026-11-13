@@ -12,10 +12,8 @@ import { getApiUrl } from "@/utils/api";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import { usePathname, useRouter } from "next/navigation";
 import { syncStoreAfterCodexSignOut } from "@/utils/storeHelpers";
-import {
-  DEFAULT_CODEX_MODEL,
-  isSupportedCodexModel,
-} from "@/utils/codexModels";
+import CodexModelPicker from "@/components/CodexModelPicker";
+import { useCodexModels } from "@/components/CodexModelCatalog";
 import {
   isChatGptAuthRequiredResponse,
   normalizeChatGptAuthMessage,
@@ -44,6 +42,7 @@ export default function CodexConfig({
   onInputChange,
   onAuthStatusChange,
 }: CodexConfigProps) {
+  const { updateConnection, refresh: refreshModels } = useCodexModels();
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [accountId, setAccountId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
@@ -74,10 +73,8 @@ export default function CodexConfig({
   }, [authStatus, onAuthStatusChange]);
 
   useEffect(() => {
-    if (codexModel && !isSupportedCodexModel(codexModel)) {
-      onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-    }
-  }, [codexModel, onInputChange]);
+    updateConnection(authStatus === "authenticated", accountId);
+  }, [authStatus, accountId, updateConnection]);
 
   const applyProfile = (data: Partial<StatusResponse>) => {
     setAccountId(data.account_id ?? null);
@@ -96,9 +93,6 @@ export default function CodexConfig({
       const data: StatusResponse = await res.json();
       if (data.status === "authenticated") {
         onInputChange('codex', 'LLM');
-        if (!isSupportedCodexModel(codexModel)) {
-          onInputChange(DEFAULT_CODEX_MODEL, 'codex_model');
-        }
         setAuthStatus("authenticated");
         applyProfile(data);
       } else {
@@ -153,9 +147,6 @@ export default function CodexConfig({
             setAuthStatus("authenticated");
             applyProfile(pollData);
             setSessionId(null);
-            if (!isSupportedCodexModel(codexModel)) {
-              onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-            }
             notify.success(
               "Signed in to ChatGPT",
               "Your ChatGPT account is connected and ready to use."
@@ -211,9 +202,6 @@ export default function CodexConfig({
       applyProfile(data);
       setSessionId(null);
       setManualCode("");
-      if (!isSupportedCodexModel(codexModel)) {
-        onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-      }
       notify.success(
         "Signed in to ChatGPT",
         "Your ChatGPT account is connected and ready to use."
@@ -314,6 +302,7 @@ export default function CodexConfig({
       }
       const data = await res.json();
       applyProfile(data);
+      refreshModels();
       notify.success(
         "Session refreshed",
         "Your ChatGPT connection was renewed successfully."
@@ -454,8 +443,12 @@ export default function CodexConfig({
             </button>
           </div>
         </div>
-
-
+        <CodexModelPicker value={codexModel} onChange={(model) => {
+          trackEvent(MixpanelEvent.Onboarding_Text_Model_Selected, {
+            provider: "codex", model, text_provider_tab: "chatgpt",
+          });
+          onInputChange(model, "codex_model");
+        }} />
       </div>
     );
   }

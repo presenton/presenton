@@ -1,4 +1,6 @@
 import asyncio
+
+from services.configured_llm import ResolvedLLM
 from types import SimpleNamespace
 
 import pytest
@@ -357,22 +359,15 @@ def test_smart_generation_keeps_prefix_when_continuation_hits_token_limit(
         retry_indices.append(index)
 
     monkeypatch.setattr(
-        "utils.llm_calls.generate_smart_presentation.get_client",
-        lambda **_kwargs: object(),
-    )
-    monkeypatch.setattr(
-        "utils.llm_calls.generate_smart_presentation.get_llm_config",
-        lambda **_kwargs: SimpleNamespace(
-            generation=SimpleNamespace(max_output_tokens=4_000)
+        "utils.llm_calls.generate_smart_presentation.resolve_configured_llm",
+        lambda **_kwargs: ResolvedLLM(
+            object(), "limited-model", None, None,
+            SimpleNamespace(generation=SimpleNamespace(max_output_tokens=4_000)),
         ),
     )
     monkeypatch.setattr(
-        "utils.llm_calls.generate_smart_presentation.get_model",
-        lambda: "limited-model",
-    )
-    monkeypatch.setattr(
         "utils.llm_calls.generate_smart_presentation.get_smart_reasoning_config",
-        lambda _model: (None, False),
+        lambda _model, _client=None: (None, False),
     )
     monkeypatch.setattr(
         "utils.llm_calls.generate_smart_presentation._stream_deck_response",
@@ -432,20 +427,12 @@ def test_smart_generation_resumes_from_existing_checkpoint(monkeypatch):
         streamed_indices.append(index)
 
     monkeypatch.setattr(
-        "utils.llm_calls.generate_smart_presentation.get_client",
-        lambda **_kwargs: object(),
-    )
-    monkeypatch.setattr(
-        "utils.llm_calls.generate_smart_presentation.get_llm_config",
-        lambda **_kwargs: object(),
-    )
-    monkeypatch.setattr(
-        "utils.llm_calls.generate_smart_presentation.get_model",
-        lambda: "test-model",
+        "utils.llm_calls.generate_smart_presentation.resolve_configured_llm",
+        lambda **_kwargs: ResolvedLLM(object(), "test-model", None, None, object()),
     )
     monkeypatch.setattr(
         "utils.llm_calls.generate_smart_presentation.get_smart_reasoning_config",
-        lambda _model: (None, False),
+        lambda _model, _client=None: (None, False),
     )
     monkeypatch.setattr(
         "utils.llm_calls.generate_smart_presentation._stream_deck_response",

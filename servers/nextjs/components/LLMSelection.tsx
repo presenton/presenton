@@ -6,6 +6,7 @@ import AnthropicConfig from "./AnthropicConfig";
 import OllamaConfig from "./OllamaConfig";
 import CustomConfig from "./CustomConfig";
 import CodexConfig from "./CodexConfig";
+import { CodexModelCatalogProvider } from "./CodexModelCatalog";
 import {
   updateLLMConfig,
   changeProvider as changeProviderUtil,
@@ -298,10 +299,12 @@ export default function LLMProviderSelection({
 
           {/* ChatGPT / Codex Content */}
           <TabsContent value="codex" className="mt-6">
+            <CodexModelCatalogProvider>
             <CodexConfig
               codexModel={llmConfig.CODEX_MODEL || ""}
               onInputChange={input_field_changed}
             />
+            </CodexModelCatalogProvider>
           </TabsContent>
         </Tabs>
 

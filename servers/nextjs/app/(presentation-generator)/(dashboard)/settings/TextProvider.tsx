@@ -42,6 +42,7 @@ import Image from "next/image";
 import CreatableModelInput from "@/components/CreatableModelInput";
 import AdvancedTextProviderSettings from "@/components/AdvancedTextProviderSettings";
 import { syncStoreAfterPresentonDisconnect } from "@/utils/storeHelpers";
+import { CodexModelCatalogProvider } from "@/components/CodexModelCatalog";
 
 interface OpenAIConfigProps {
   onInputChange: (value: string | boolean | number | string[], field: string) => void;
@@ -423,6 +424,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
   };
 
   return (
+    <CodexModelCatalogProvider>
     <div className="space-y-6 bg-[#F9F8F8] p-7 rounded-[12px] ">
       {/* API Key Input */}
       <div className="mb-4 flex flex-col gap-8 rounded-[12px] bg-white pt-5 pb-10 px-10 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
@@ -903,6 +905,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
                 </div>
             </div> */}
     </div>
+    </CodexModelCatalogProvider>
   );
 };
 

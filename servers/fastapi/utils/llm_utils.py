@@ -115,6 +115,7 @@ def get_generate_kwargs(
     response_format: Optional[ResponseFormat] = None,
     reasoning: Optional[ReasoningConfig] = None,
     stream: bool = False,
+    client: Any = None,
 ) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
         "model": model,
@@ -130,7 +131,8 @@ def get_generate_kwargs(
     if reasoning is not None:
         kwargs["reasoning"] = reasoning
 
-    extra_body = get_extra_body(uses_tool_choice=bool(tools or response_format))
+    captured = getattr(client, "__dict__", {}).get("_presenton_extra_bodies") if client is not None else None
+    extra_body = captured[bool(tools or response_format)] if isinstance(captured, dict) else get_extra_body(uses_tool_choice=bool(tools or response_format))
     if extra_body:
         kwargs["extra_body"] = extra_body
 
@@ -340,6 +342,7 @@ async def generate_structured_with_schema_retries(
                     else None
                 ),
                 **get_generate_kwargs(
+                    client=client,
                     model=model,
                     messages=working_messages,
                     response_format=response_format,
