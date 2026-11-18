@@ -27,7 +27,8 @@ def test_outline_generation_snapshot_matches_normalized_schema(load_snapshot):
         yield content_event('{"content":"## Details\\n1. Item one\\n2. Item two"}')
         yield content_event("]}")
 
-    with patch.object(outline_module, "resolve_configured_llm", return_value=ResolvedLLM(object(), "fake-model", None, None, {})), patch.object(
+    resolution = ResolvedLLM(object(), "fake-model", None, None, {}), "unavailable", None, "auto"
+    with patch.object(outline_module, "_resolve_outline_request", return_value=resolution), patch.object(
         outline_module,
         "get_generate_kwargs",
         side_effect=lambda **kwargs: kwargs,

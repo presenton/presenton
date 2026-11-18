@@ -16,8 +16,10 @@ from llmai.shared import (
 from models.presentation_outline_model import PresentationOutlineModel
 from constants.presentation import MAX_NUMBER_OF_SLIDES, MAX_OUTLINE_CONTENT_WORDS
 from utils.get_dynamic_models import get_presentation_outline_model_with_n_slides
+from utils.get_env import use_environment_snapshot
 from utils.llm_calls.generate_web_search_query import generate_web_search_query
 from utils.llm_client_error_handler import handle_llm_client_exceptions
+from utils.llm_config import get_llm_config
 from services.configured_llm import resolve_configured_llm
 from utils.llm_utils import (
     DisconnectChecker,
@@ -31,8 +33,6 @@ from utils.web_search import (
     get_web_search_route,
     get_selected_web_search_provider,
     get_web_search_context,
-    should_expose_external_web_search_tool,
-    should_use_native_web_search,
 )
 from utils.safe_logging import safe_log
 
@@ -50,6 +50,19 @@ DIRECT_CONTENT_VOICE_RULES = """Content voice rules:
 @dataclass(frozen=True)
 class OutlineGenerationStatus:
     message: str
+
+
+def _resolve_outline_request(web_search: bool):
+    def build_config():
+        nonlocal route_mode, actual_provider, selected_provider
+        route_mode, actual_provider = get_web_search_route()
+        selected_provider = get_selected_web_search_provider().value
+        return get_llm_config(use_openai_responses_api=web_search and route_mode == "native")
+
+    # The resolver calls this factory inside the effective environment snapshot.
+    route_mode, actual_provider, selected_provider = "unavailable", None, ""
+    resolved = resolve_configured_llm(config_factory=build_config)
+    return resolved, route_mode, actual_provider, selected_provider
 
 
 def _web_search_provider_display_name(provider_name: str) -> str:
@@ -268,11 +281,12 @@ async def generate_ppt_outline(
         else PresentationOutlineModel
     )
 
-    use_search_tool = web_search and should_use_native_web_search()
-    use_external_search = web_search and should_expose_external_web_search_tool()
-    resolved = await asyncio.to_thread(resolve_configured_llm, use_openai_responses_api=use_search_tool)
+    resolved, route_mode, actual_provider, selected_provider = await asyncio.to_thread(
+        _resolve_outline_request, web_search
+    )
     client, model = resolved.client, resolved.model
-    route_mode, actual_provider = get_web_search_route()
+    use_search_tool = web_search and route_mode == "native"
+    use_external_search = web_search and route_mode == "external"
     actual_provider_name = (
         actual_provider.value
         if actual_provider
@@ -284,26 +298,26 @@ async def generate_ppt_outline(
     if not web_search:
         LOGGER.info(
             "Outline web search routing: enabled=false selected_provider=%s route=%s actual_provider=%s",
-            get_selected_web_search_provider().value,
+            selected_provider,
             route_mode,
             actual_provider_name,
         )
     elif use_search_tool:
         LOGGER.info(
             "Outline web search routing: enabled=true route=native selected_provider=%s actual_provider=model-native model=%s",
-            get_selected_web_search_provider().value,
+            selected_provider,
             model,
         )
     elif use_external_search:
         LOGGER.info(
             "Outline web search routing: enabled=true route=external selected_provider=%s actual_provider=%s",
-            get_selected_web_search_provider().value,
+            selected_provider,
             actual_provider_name,
         )
     else:
         LOGGER.warning(
             "Outline web search requested but unavailable: selected_provider=%s model=%s",
-            get_selected_web_search_provider().value,
+            selected_provider,
             model,
         )
 
@@ -341,7 +355,8 @@ async def generate_ppt_outline(
                 yield OutlineGenerationStatus(
                     f"Searching with {actual_provider_display_name}: {search_query}"
                 )
-            search_context = await get_web_search_context(search_query)
+            with use_environment_snapshot(client._presenton_environment):
+                search_context = await get_web_search_context(search_query)
             if emit_statuses:
                 yield OutlineGenerationStatus("Web research complete")
         if search_context:
