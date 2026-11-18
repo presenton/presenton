@@ -11,6 +11,7 @@ from utils.datetime_utils import get_current_utc_datetime
 from utils.db_utils import get_database_url_and_connect_args, to_sync_sqlalchemy_url
 from utils.get_env import get_user_config_path_env
 from utils.image_config import migrate_legacy_image_config
+from utils.parsers import parse_bool_or_none
 from utils.user_config_store import read_user_config_file, update_user_config_file
 
 
@@ -120,31 +121,80 @@ def _mirror_to_legacy_file(config: dict[str, Any]) -> dict[str, Any]:
     return update_user_config_file(path, replace_provider_config)
 
 
-async def migrate_provider_settings_from_file(session: AsyncSession) -> dict[str, Any]:
-    """One-time startup import, followed by DB-to-file compatibility syncing."""
-    row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID)
-    path = get_user_config_path_env()
+def _startup_codex_config(
+    config: dict[str, Any], codex_environment: dict[str, str] | None
+) -> dict[str, Any] | None:
+    from services.codex_credentials import CONFIG_REVISION_KEY, REVISION_KEY
 
-    if row is None:
-        legacy_config = read_user_config_file(path) if path else {}
-        row = ProviderSettings(
-            id=PROVIDER_SETTINGS_ID,
-            config=sanitize_provider_settings(legacy_config),
-        )
-        session.add(row)
-        await session.commit()
-        await session.refresh(row)
-        logger.info("Migrated provider settings from userConfig.json into the database.")
-    else:
-        sanitized = sanitize_provider_settings(dict(row.config or {}))
-        if sanitized != row.config:
-            row.config = sanitized
-            row.updated_at = get_current_utc_datetime()
+    if not codex_environment or not codex_environment.get("CODEX_ACCESS_TOKEN", "").strip():
+        return None
+    # A stored token key, including an explicit clear, owns the whole bundle.
+    if (
+        {"CODEX_ACCESS_TOKEN", "CODEX_REFRESH_TOKEN"} & config.keys()
+        or int(config.get(REVISION_KEY, 0)) != 0
+    ):
+        return None
+    bundle: dict[str, str | bool] = {
+        key: codex_environment[key] for key in CODEX_MANAGED_FIELDS if key in codex_environment
+    }
+    if "CODEX_IS_PRO" in bundle:
+        is_pro = parse_bool_or_none(codex_environment["CODEX_IS_PRO"])
+        if is_pro is not None:
+            bundle["CODEX_IS_PRO"] = is_pro
+        else:
+            del bundle["CODEX_IS_PRO"]
+    return {
+        **{key: value for key, value in config.items() if key not in CODEX_MANAGED_FIELDS},
+        **bundle,
+        REVISION_KEY: 1,
+        CONFIG_REVISION_KEY: int(config.get(CONFIG_REVISION_KEY, 0)) + 1,
+    }
+
+
+async def migrate_provider_settings_from_file(
+    session: AsyncSession, *, codex_environment: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """Import legacy config, then mirror DB settings back to the file."""
+    from services.codex_credentials import CONFIG_REVISION_KEY, REVISION_KEY
+
+    for _ in range(3):
+        row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID)
+        if row is None:
+            path = get_user_config_path_env()
+            config = sanitize_provider_settings(read_user_config_file(path) if path else {})
+            imported = _startup_codex_config(config, codex_environment)
+            row = ProviderSettings(id=PROVIDER_SETTINGS_ID, config=imported if imported is not None else config)
+            session.add(row)
             await session.commit()
+            await session.refresh(row)
+            logger.info("Initialized provider settings in the database.")
+        else:
+            config = sanitize_provider_settings(dict(row.config or {}))
+            imported = _startup_codex_config(config, codex_environment)
+            if imported is not None:
+                table = ProviderSettings.__table__
+                result = await session.execute(update(table).where(
+                    table.c.id == PROVIDER_SETTINGS_ID,
+                    table.c.updated_at == row.updated_at,
+                    func.coalesce(table.c.config[REVISION_KEY].as_integer(), 0) == 0,
+                    func.coalesce(table.c.config[CONFIG_REVISION_KEY].as_integer(), 0)
+                    == int(config.get(CONFIG_REVISION_KEY, 0)),
+                ).values(config=imported, updated_at=get_current_utc_datetime()))
+                if result.rowcount != 1:
+                    # A concurrent settings write or logout won. Recheck eligibility.
+                    await session.rollback()
+                    continue
+                await session.commit()
+                await session.refresh(row)
+            elif config != row.config:
+                row.config = config
+                row.updated_at = get_current_utc_datetime()
+                await session.commit()
 
-    config = dict(row.config or {})
-    _mirror_to_legacy_file(config)
-    return config
+        config = dict(row.config or {})
+        _mirror_to_legacy_file(config)
+        return config
+    raise RuntimeError("Provider settings changed repeatedly during startup import.")
 
 
 async def get_provider_settings(session: AsyncSession) -> dict[str, Any]:

@@ -12,6 +12,8 @@ The selected ID is preserved exactly across saves and restarts. A model missing 
 
 For a deployment that sets `CODEX_MODEL` in the environment, Presenton uses that exact ID when the stored configuration has no `CODEX_MODEL` key. Once the key is stored, its value takes precedence. An explicit empty value requires a new selection. Using the environment value for generation or settings validation does not save it to the database.
 
+At startup, Presenton imports an environment-provided Codex credential bundle if it contains an access token, both stored token keys are absent, and the credential revision is zero. The import preserves the provider and model settings. Subsequent requests use the stored credentials. An existing token key, including an explicit empty value after sign-out, prevents reimport even when the environment still contains the old tokens.
+
 An administrator configures the shared provider for the installation. Web model discovery requires the native admin browser session; ordinary users and API keys cannot access the discovery endpoint. Electron uses its existing trusted desktop-request protection.
 
 Settings in the packaged Electron runtime (account details excluded):

@@ -166,7 +166,11 @@ def store_token(result: TokenSuccess, *, expected: CredentialSnapshot | None = N
 
 def logout() -> None:
     with _condition:
-        _commit(current_credentials(), {**{key: "" for key in CREDENTIAL_FIELDS}, "CODEX_MODEL": ""})
+        _commit(current_credentials(), {
+            **{key: "" for key in CREDENTIAL_FIELDS},
+            "CODEX_IS_PRO": None,
+            "CODEX_MODEL": "",
+        })
         _condition.notify_all()
 
 
