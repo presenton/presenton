@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useCodexAuthPolling, type CodexAuthStatus as StatusResponse } from "@/hooks/useCodexAuthPolling";
 import {
   Loader2,
   RefreshCw,
@@ -28,15 +29,6 @@ interface CodexConfigProps {
 
 type AuthStatus = "checking" | "unauthenticated" | "polling" | "authenticated";
 
-interface StatusResponse {
-  status: string;
-  account_id?: string;
-  username?: string;
-  email?: string;
-  is_pro?: boolean;
-  detail?: string;
-}
-
 export default function CodexConfig({
   codexModel,
   onInputChange,
@@ -52,20 +44,14 @@ export default function CodexConfig({
   const [isExchanging, setIsExchanging] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { startPolling, stopPolling } = useCodexAuthPolling();
+  const signInRequest = useRef<AbortController | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
-  const stopPolling = () => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-  };
-
   useEffect(() => {
     checkCurrentAuthStatus();
-    return () => stopPolling();
+    return () => signInRequest.current?.abort();
   }, []);
 
   useEffect(() => {
@@ -106,6 +92,10 @@ export default function CodexConfig({
   };
 
   const handleSignIn = async () => {
+    stopPolling();
+    signInRequest.current?.abort();
+    const request = new AbortController();
+    signInRequest.current = request;
     trackEvent(MixpanelEvent.Provider_Login_Clicked, {
       provider: "chatgpt",
       implementation: "codex",
@@ -118,24 +108,24 @@ export default function CodexConfig({
 
       const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/initiate"), {
         method: "POST",
+        signal: request.signal,
       });
       if (!res.ok) throw new Error("Failed to initiate auth");
       const data = await res.json();
       const { session_id, url } = data;
+      if (request.signal.aborted) return;
 
       setSessionId(session_id);
       setAuthStatus("polling");
       window.open(url, "_blank", "noopener,noreferrer");
 
-      pollIntervalRef.current = setInterval(async () => {
-        try {
-          const pollRes = await fetch(
-            getApiUrl(`/api/v1/ppt/codex/auth/status/${session_id}`)
-          );
-          if (!pollRes.ok) return;
-          const pollData: StatusResponse = await pollRes.json();
-
-          if (pollData.status === "success") {
+      startPolling(session_id, (result) => {
+        request.abort();
+        setIsExchanging(false);
+        setSessionId(null);
+        setManualCode("");
+        if (result.status === "connected") {
+          if (!result.recovered) {
             trackEvent(MixpanelEvent.Codex_SignIn_Completed, { method: "browser_poll" });
             trackEvent(MixpanelEvent.Provider_Connection_Completed, {
               provider: "chatgpt",
@@ -143,29 +133,19 @@ export default function CodexConfig({
               source: "onboarding",
               method: "browser_poll",
             });
-            stopPolling();
-            setAuthStatus("authenticated");
-            applyProfile(pollData);
-            setSessionId(null);
-            notify.success(
-              "Signed in to ChatGPT",
-              "Your ChatGPT account is connected and ready to use."
-            );
-          } else if (pollData.status === "failed") {
-            trackEvent(MixpanelEvent.Codex_SignIn_Failed, { method: "browser_poll" });
-            stopPolling();
-            setAuthStatus("unauthenticated");
-            applyProfile({});
-            notify.error(
-              "Sign-in failed",
-              "Authentication did not complete. Please try signing in again."
-            );
           }
-        } catch {
-          // keep polling on transient errors
+          setAuthStatus("authenticated");
+          applyProfile(result.profile);
+          notify.success("Signed in to ChatGPT", "Your ChatGPT account is connected and ready to use.");
+        } else {
+          trackEvent(MixpanelEvent.Codex_SignIn_Failed, { method: "browser_poll" });
+          setAuthStatus("unauthenticated");
+          applyProfile({});
+          notify.error("Sign-in failed", result.message);
         }
-      }, 2000);
+      });
     } catch (err) {
+      if (request.signal.aborted) return;
       trackEvent(MixpanelEvent.Codex_SignIn_Failed, { method: "initiate" });
       notify.error(
         "Sign-in failed",
@@ -178,10 +158,12 @@ export default function CodexConfig({
 
   const handleManualExchange = async () => {
     if (!sessionId || !manualCode.trim()) return;
+    const signal = signInRequest.current?.signal;
     setIsExchanging(true);
     try {
       const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/exchange"), {
         method: "POST",
+        signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, code: manualCode.trim() }),
       });
@@ -190,6 +172,7 @@ export default function CodexConfig({
         throw new Error(err.detail || "Exchange failed");
       }
       const data = await res.json();
+      if (signal?.aborted) return;
       trackEvent(MixpanelEvent.Codex_SignIn_Completed, { method: "manual_exchange" });
       trackEvent(MixpanelEvent.Provider_Connection_Completed, {
         provider: "chatgpt",
@@ -207,17 +190,20 @@ export default function CodexConfig({
         "Your ChatGPT account is connected and ready to use."
       );
     } catch (err: any) {
+      if (signal?.aborted) return;
       trackEvent(MixpanelEvent.Codex_SignIn_Failed, { method: "manual_exchange" });
       notify.error(
         "Sign-in failed",
         err.message || "The verification code could not be accepted. Please try again."
       );
     } finally {
-      setIsExchanging(false);
+      if (!signal?.aborted) setIsExchanging(false);
     }
   };
 
   const handleCancelPolling = () => {
+    signInRequest.current?.abort();
+    setIsExchanging(false);
     trackEvent(MixpanelEvent.Codex_SignIn_Cancelled);
     stopPolling();
     setSessionId(null);

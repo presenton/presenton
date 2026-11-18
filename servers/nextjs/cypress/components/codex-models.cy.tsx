@@ -17,6 +17,7 @@ const model = (id = FUTURE_ID, name = "Future model") => ({
 const catalog = (models = [model()]) => ({ models, client_version: "0.169.0" });
 const profile = { status: "authenticated", account_id: "fixture-account-a" };
 const catalogPath = "**/api/v1/admin/codex/models";
+const authPath = "**/api/v1/ppt/codex/auth";
 const picker = '[aria-label="ChatGPT model"]';
 
 function AccountControl() {
@@ -66,6 +67,114 @@ function Harness({ flow, initialModel = "", initialEffort = "" }: {
 }
 
 for (const flow of ["settings", "onboarding"] as const) {
+  describe(`ChatGPT sign-in polling in ${flow}`, () => {
+    const begin = () => cy.contains("button", "Sign in with ChatGPT").click();
+
+    beforeEach(() => {
+      cy.intercept("**/api-js.mixpanel.com/**", { statusCode: 200, body: {} });
+      cy.intercept("GET", catalogPath, catalog()).as("models");
+      cy.intercept("POST", `${authPath}/initiate`, {
+        session_id: "fixture-session", url: "https://example.test/oauth",
+      }).as("initiate");
+      cy.window().then((win) => cy.stub(win, "open"));
+    });
+
+    for (const [statusCode, connected] of [[404, false], [409, true]] as const) {
+      it(`stops polling after HTTP ${statusCode} and reconciles the account once`, () => {
+        let statusChecks = 0;
+        cy.intercept("GET", `${authPath}/status`, (request) => {
+          statusChecks += 1;
+          request.reply(statusChecks > 1 && connected
+            ? { ...profile, username: "Recovered account" }
+            : { status: statusChecks === 1 ? "not_authenticated" : "expired" });
+        }).as("status");
+        cy.intercept("GET", `${authPath}/status/fixture-session`, { statusCode }).as("poll");
+        cy.mount(<Harness flow={flow} />);
+        cy.wait("@status");
+        cy.clock(Date.now(), ["setTimeout", "clearTimeout"]);
+        begin();
+        cy.wait("@initiate");
+        cy.contains("Waiting for sign-in").should("be.visible");
+        cy.tick(2000);
+        cy.wait("@poll");
+        cy.wait("@status");
+        if (connected) {
+          cy.contains("Recovered account").should("be.visible");
+          cy.wait("@models");
+          cy.get(picker).should("not.be.disabled");
+        } else {
+          cy.contains("button", "Sign in with ChatGPT").should("be.enabled");
+        }
+        cy.contains("Waiting for sign-in").should("not.exist");
+        cy.tick(6000);
+        cy.get("@poll.all").should("have.length", 1);
+        cy.get("@status.all").should("have.length", 2);
+      });
+    }
+
+    it("retries a temporary upstream error and completes browser sign-in", () => {
+      cy.intercept("GET", `${authPath}/status`, { status: "not_authenticated" });
+      cy.intercept("GET", `${authPath}/status/fixture-session`, {
+        ...profile, status: "success", username: "Connected account",
+      }).as("success");
+      cy.intercept({ method: "GET", url: `${authPath}/status/fixture-session`, times: 1 }, {
+        statusCode: 503,
+      }).as("temporary");
+      cy.mount(<Harness flow={flow} />);
+      begin();
+      cy.wait("@temporary");
+      cy.contains("Waiting for sign-in").should("be.visible");
+      cy.wait("@success");
+      cy.contains("Connected account").should("be.visible");
+      cy.wait("@models");
+    });
+
+    it("preserves manual callback and stops polling when it succeeds", () => {
+      cy.intercept("GET", `${authPath}/status`, { status: "not_authenticated" });
+      cy.intercept("GET", `${authPath}/status/fixture-session`, { status: "pending" }).as("poll");
+      cy.intercept("POST", `${authPath}/exchange`, {
+        ...profile, username: "Manual account",
+      }).as("exchange");
+      cy.mount(<Harness flow={flow} />);
+      cy.clock(Date.now(), ["setTimeout", "clearTimeout"]);
+      begin();
+      cy.get('input[placeholder="Paste URL or code…"]').type("fixture-code");
+      cy.contains("button", "Submit").click();
+      cy.wait("@exchange");
+      cy.contains("Manual account").should("be.visible");
+      cy.wait("@models");
+      cy.tick(6000);
+      cy.get("@poll.all").should("have.length", 0);
+    });
+
+    it("ignores the old polling response after cancellation and a new attempt", () => {
+      cy.intercept("GET", `${authPath}/status`, { status: "not_authenticated" });
+      cy.intercept("GET", `${authPath}/status/fixture-session`, {
+        delay: 700, body: { ...profile, status: "success", username: "Old account" },
+      });
+      cy.window().then((win) => cy.spy(win, "fetch").as("pollFetch"));
+      cy.mount(<Harness flow={flow} />);
+      cy.clock(Date.now(), ["setTimeout", "clearTimeout"]);
+      begin();
+      cy.contains("Waiting for sign-in").should("be.visible");
+      cy.tick(2000);
+      cy.get("@pollFetch").should((spy) => {
+        expect(spy.getCalls().some((call) => String(call.args[0]).includes("/status/fixture-session"))).to.equal(true);
+      });
+      cy.contains("button", "Cancel").click();
+      cy.intercept("POST", `${authPath}/initiate`, {
+        session_id: "new-session", url: "https://example.test/oauth",
+      });
+      begin();
+      cy.contains("Waiting for sign-in").should("be.visible");
+      cy.get("@pollFetch").then((spy) => {
+        const oldPoll = spy.getCalls().find((call) => String(call.args[0]).includes("/status/fixture-session"));
+        expect(oldPoll.args[1].signal.aborted).to.equal(true);
+      });
+      cy.contains("Old account").should("not.exist");
+    });
+  });
+
   describe(`ChatGPT dynamic models in ${flow}`, () => {
     beforeEach(() => {
       cy.intercept("GET", "**/api/v1/ppt/codex/auth/status", profile).as("auth");

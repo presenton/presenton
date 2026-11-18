@@ -10,6 +10,8 @@ Presenton obtains ChatGPT/Codex models from the connected account instead of a b
 
 The selected ID is preserved exactly across saves and restarts. A model missing from a successfully loaded catalog is shown as unavailable; an unsuccessful refresh does not erase the selection. Choose an available model before generating. Explicitly signing out retains the existing behavior of clearing the ChatGPT model selection.
 
+For a deployment that sets `CODEX_MODEL` in the environment, Presenton uses that exact ID when the stored configuration has no `CODEX_MODEL` key. Once the key is stored, its value takes precedence. An explicit empty value requires a new selection. Using the environment value for generation or settings validation does not save it to the database.
+
 An administrator configures the shared provider for the installation. Web model discovery requires the native admin browser session; ordinary users and API keys cannot access the discovery endpoint. Electron uses its existing trusted desktop-request protection.
 
 Settings in the packaged Electron runtime (account details excluded):
@@ -32,7 +34,7 @@ Catalog responses are `private, no-store`. Presenton does not persist the catalo
 
 The shared resolver captures credentials, selected model, and generation settings together. It validates the model against that account's catalog and passes the same exact ID to the SDK. Async callers offload synchronous resolution; synchronous templates use the same resolver directly. Credentials refresh is serialized per revision, and revision-checked writes prevent late refresh/login results or stale settings mirrors from replacing newer state.
 
-Within one OAuth session, overlapping polls share one authorization-code exchange and persistence task. A simultaneous manual exchange receives a controlled conflict; a poll can join an exchange started manually. Disconnecting an HTTP waiter does not cancel credential persistence or callback cleanup. Synchronous PostgreSQL credential connections preserve TLS options from the configured database URL.
+Within one OAuth session, overlapping polls share one authorization-code exchange and persistence task. A simultaneous manual exchange receives a controlled conflict and a poll can join an exchange started manually. Disconnecting an HTTP waiter does not cancel credential persistence or callback cleanup. If the polled session has ended or conflicts with a newer connection, Settings and onboarding stop polling and check the current account once. An active connection is restored in the view. Otherwise the user can start a new sign-in. Synchronous PostgreSQL credential connections preserve TLS options from the configured database URL.
 
 ## Capabilities and failures
 
