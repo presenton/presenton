@@ -52,6 +52,79 @@ def save(database, incoming):
     return asyncio.run(operation())
 
 
+def set_stored_config(settings_store, config):
+    database, path, _ = settings_store
+    engine = create_engine("sqlite:///" + database)
+    try:
+        with engine.begin() as connection:
+            connection.execute(ProviderSettings.__table__.update().values(config=config))
+    finally:
+        engine.dispose()
+    update_user_config_file(path, lambda _: dict(config))
+
+
+@pytest.fixture
+def settings_without_model(settings_store):
+    database, path, initial = settings_store
+    missing = {key: value for key, value in initial.items() if key != "CODEX_MODEL"}
+    set_stored_config(settings_store, missing)
+    return database, path, missing
+
+
+def test_related_save_validates_captured_process_model_without_persisting_it(settings_without_model, monkeypatch):
+    database, path, _ = settings_without_model
+    monkeypatch.setenv("CODEX_MODEL", "new-model")
+    original_refresh = codex_credentials.refresh_credentials
+    def refresh():
+        snapshot = original_refresh()
+        monkeypatch.setenv("CODEX_MODEL", "later-process-selection")
+        return snapshot
+    monkeypatch.setattr(codex_credentials, "refresh_credentials", refresh)
+    saved = save(database, {"LLM_REASONING_EFFORT": "low"})
+    assert saved["LLM_REASONING_EFFORT"] == "low"
+    assert "CODEX_MODEL" not in saved
+    assert "CODEX_MODEL" not in codex_credentials.read_provider_snapshot()
+    assert "CODEX_MODEL" not in read_user_config_file(path)
+
+
+@pytest.mark.parametrize("selection", ["", None, "removed-process-model"])
+def test_related_save_rejects_missing_or_removed_process_model_atomically(settings_without_model, monkeypatch, selection):
+    import os
+    database, path, initial = settings_without_model
+    if selection is None:
+        monkeypatch.delenv("CODEX_MODEL", raising=False)
+    else:
+        monkeypatch.setenv("CODEX_MODEL", selection)
+    before = open(path, "rb").read()
+    with pytest.raises(HTTPException) as error:
+        save(database, {"LLM_REASONING_EFFORT": "low"})
+    assert error.value.status_code == 400
+    assert ("no longer available" if selection else "Select a ChatGPT model") in error.value.detail
+    assert codex_credentials.read_provider_snapshot() == initial
+    assert open(path, "rb").read() == before
+    assert os.environ.get("CODEX_MODEL") == selection
+
+
+@pytest.mark.parametrize("selection", [None, ""])
+def test_related_save_respects_stored_explicit_clear(settings_store, monkeypatch, selection):
+    database, _, initial = settings_store
+    set_stored_config(settings_store, {**initial, "CODEX_MODEL": selection})
+    monkeypatch.setenv("CODEX_MODEL", "new-model")
+    with pytest.raises(HTTPException) as error:
+        save(database, {"LLM_REASONING_EFFORT": "low"})
+    assert error.value.status_code == 400
+    assert error.value.detail == "Select a ChatGPT model in Settings."
+
+
+def test_unrelated_save_with_missing_model_does_not_discover_or_persist_fallback(settings_without_model, monkeypatch):
+    database, path, _ = settings_without_model
+    monkeypatch.setattr(configured_llm, "fetch_catalog", lambda *args: pytest.fail("Unrelated patch must not fetch models"))
+    saved = save(database, {"IMAGE_PROVIDER": "pexels"})
+    assert saved["IMAGE_PROVIDER"] == "pexels"
+    assert "CODEX_MODEL" not in saved
+    assert "CODEX_MODEL" not in read_user_config_file(path)
+
+
 @pytest.mark.parametrize("change", [
     {"CODEX_MODEL": "removed"}, {"LLM_REASONING_EFFORT": "ultra"},
     {"LLM_MAX_OUTPUT_TOKENS": "-1"}, {"LLM_CONTEXT_WINDOW": []},

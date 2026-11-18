@@ -101,6 +101,8 @@ def _mirror(config: dict[str, Any]) -> None:
     config = _mirror_to_legacy_file(config)
     # Environment is compatibility state only; DB snapshots own credential reads.
     for key in CREDENTIAL_FIELDS | {"CODEX_MODEL"}:
+        if key == "CODEX_MODEL" and key not in config:
+            continue
         value = config.get(key)
         if value is None:
             os.environ.pop(key, None)

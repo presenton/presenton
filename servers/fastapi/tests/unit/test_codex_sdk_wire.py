@@ -46,7 +46,8 @@ def sse_response(*, tool: bool):
 
 
 @pytest.mark.parametrize("case", ["plain", "structured", "tools", "reasoning"])
-def test_discovered_unknown_model_reaches_real_sdk_wire_and_parser(monkeypatch, case):
+@pytest.mark.parametrize("selection_source", ["saved", "process"])
+def test_discovered_unknown_model_reaches_real_sdk_wire_and_parser(monkeypatch, case, selection_source):
     assert get_model_capabilities(MODEL, provider="chatgpt").raw == {}
     network_attempts = []
     original_connect = socket.socket.connect
@@ -80,6 +81,9 @@ def test_discovered_unknown_model_reaches_real_sdk_wire_and_parser(monkeypatch, 
         return real_openai(**kwargs)
     monkeypatch.setattr("llmai.chatgpt.client.OpenAI", mocked_openai)
     config = {"LLM": "codex", "CODEX_MODEL": MODEL, "CODEX_ACCESS_TOKEN": "fixture-access", "CODEX_ACCOUNT_ID": "fixture-account"}
+    monkeypatch.setenv("CODEX_MODEL", MODEL if selection_source == "process" else "different-process-model")
+    if selection_source == "process":
+        config.pop("CODEX_MODEL")
     if case == "reasoning":
         config.update({"LLM_REASONING_MODE": "enabled", "LLM_REASONING_EFFORT": "high"})
     snapshot = codex_credentials._snapshot(config)
@@ -93,6 +97,7 @@ def test_discovered_unknown_model_reaches_real_sdk_wire_and_parser(monkeypatch, 
     )
     monkeypatch.setattr(configured_llm, "fetch_catalog", lambda *args: (metadata,))
     resolved = configured_llm.resolve_configured_llm()
+    assert ("CODEX_MODEL" in snapshot.config) == (selection_source == "saved")
     kwargs = {"model": resolved.model, "messages": [UserMessage(content="Return a fixture answer.")]}
     if case == "structured":
         kwargs["response_format"] = JSONSchemaResponse(name="Fixture", strict=True, json_schema=SCHEMA)

@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import os
 from typing import Any
 
 from sqlalchemy import create_engine, func, select, update
@@ -158,8 +159,9 @@ async def save_provider_settings(
 ) -> dict[str, Any]:
     from fastapi import HTTPException
     from services import codex_credentials
-    from services.configured_llm import validate_codex_configuration
+    from services.configured_llm import validate_codex_configuration, with_codex_model_fallback
 
+    process_model = os.environ.get("CODEX_MODEL")
     row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID)
     existing = dict(row.config or {}) if row else {}
     # Internal concurrency metadata is never user-configurable.
@@ -177,11 +179,12 @@ async def save_provider_settings(
     )
     credentials = None
     if needs_validation:
+        validation_config = with_codex_model_fallback(candidate, process_model)
         # Do not hold a database transaction while waiting on provider HTTP or
         # refresh; a rejected candidate has not mutated ORM, DB, file, or env.
         await session.rollback()
         credentials = await asyncio.to_thread(codex_credentials.refresh_credentials)
-        await asyncio.to_thread(validate_codex_configuration, candidate, credentials=credentials)
+        await asyncio.to_thread(validate_codex_configuration, validation_config, credentials=credentials)
 
     row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID, populate_existing=True, with_for_update=True)
     latest = dict(row.config or {}) if row else {}

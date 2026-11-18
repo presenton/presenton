@@ -193,3 +193,30 @@ def test_explicit_logout_clears_model_in_db_file_and_environment(credential_stor
     assert credentials.read_provider_snapshot()["CODEX_MODEL"] == ""
     assert read_user_config_file(credential_store)["CODEX_MODEL"] == ""
     assert os.environ["CODEX_MODEL"] == ""
+
+
+def test_refresh_preserves_process_model_when_database_key_is_missing(credential_store, monkeypatch):
+    config = dict(credentials.current_credentials().config)
+    config.pop("CODEX_MODEL")
+    engine = credentials._engine()
+    try:
+        with engine.begin() as connection:
+            connection.execute(ProviderSettings.__table__.update().values(config=config))
+    finally:
+        engine.dispose()
+    update_user_config_file(credential_store, lambda _: dict(config))
+    monkeypatch.setenv("CODEX_MODEL", "process-selection/ExactCase")
+    monkeypatch.setattr(credentials, "refresh_access_token", lambda _: token())
+    refreshed = credentials.refresh_credentials()
+    assert refreshed.access_token == "new-access"
+    assert os.environ["CODEX_MODEL"] == "process-selection/ExactCase"
+    assert "CODEX_MODEL" not in credentials.read_provider_snapshot()
+    assert "CODEX_MODEL" not in read_user_config_file(credential_store)
+
+
+@pytest.mark.parametrize("selection", [None, ""])
+def test_mirror_explicit_model_clear_overrides_process_fallback(credential_store, monkeypatch, selection):
+    monkeypatch.setenv("CODEX_MODEL", "process-selection")
+    config = {**credentials.current_credentials().config, "CODEX_MODEL": selection}
+    credentials._mirror(config)
+    assert os.environ.get("CODEX_MODEL") == selection

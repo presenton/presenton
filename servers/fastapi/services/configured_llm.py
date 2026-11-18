@@ -7,6 +7,7 @@ from typing import Any, Mapping
 from llmai import get_client
 from llmai.chatgpt.client import ChatGPTClient
 from openai import Omit
+from fastapi import HTTPException
 
 from services import codex_credentials
 from services.codex_models import CodexModel, capability_overrides, fetch_catalog, validate_model
@@ -71,9 +72,25 @@ def discover_models():
     return models
 
 
-def validate_codex_configuration(config: dict[str, Any], *, credentials=None) -> CodexModel:
-    credentials = credentials or codex_credentials.refresh_credentials()
+def with_codex_model_fallback(config: Mapping[str, Any], process_model: str | None) -> dict[str, Any]:
+    """Resolve a missing selection for this operation without persisting it."""
+    effective = dict(config)
+    if "CODEX_MODEL" not in effective:
+        effective["CODEX_MODEL"] = process_model
+    return effective
+
+
+def _codex_model_id(config: Mapping[str, Any]) -> str:
     model = str(config.get("CODEX_MODEL") or "")
+    if not model.strip():
+        raise HTTPException(status_code=400, detail="Select a ChatGPT model in Settings.")
+    return model
+
+
+def validate_codex_configuration(config: dict[str, Any], *, credentials=None) -> CodexModel:
+    config = with_codex_model_fallback(config, os.environ.get("CODEX_MODEL"))
+    model = _codex_model_id(config)
+    credentials = credentials or codex_credentials.refresh_credentials()
     metadata = validate_model(fetch_catalog(credentials.access_token, credentials.account_id), model, config)
     codex_credentials.ensure_current(credentials)
     # Validate the exact same generation settings before any persistence occurs.
@@ -86,7 +103,6 @@ def validate_codex_configuration(config: dict[str, Any], *, credentials=None) ->
             from llmai.shared.generation import prepare_generation
             prepare_generation(model=model, provider="chatgpt", defaults=sdk_config.generation)
         except ValueError:
-            from fastapi import HTTPException
             raise HTTPException(status_code=400, detail="Invalid ChatGPT generation settings.") from None
     return metadata
 
@@ -102,16 +118,16 @@ def resolve_configured_llm(
     credentials = None
     if effective.get("LLM") in {"codex", "chatgpt"}:
         credentials = codex_credentials.refresh_credentials()
-        snapshot = dict(credentials.config)
+        snapshot = with_codex_model_fallback(credentials.config, effective.get("CODEX_MODEL"))
         effective = _environment(snapshot)
         # An account/provider switch while refresh was in flight starts a new
         # operation; no token from the old account is attached to the new config.
         if effective.get("LLM") not in {"codex", "chatgpt"}:
-            from fastapi import HTTPException
             raise HTTPException(status_code=409, detail="Provider configuration changed. Retry the operation.")
+        selected_model = _codex_model_id(snapshot)
         metadata = validate_model(
             fetch_catalog(credentials.access_token, credentials.account_id),
-            str(snapshot.get("CODEX_MODEL") or ""), snapshot,
+            selected_model, snapshot,
         )
         codex_credentials.ensure_current(credentials)
     with use_environment_snapshot(effective):

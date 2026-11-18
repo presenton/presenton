@@ -98,6 +98,68 @@ def test_catalog_error_never_replaces_a_saved_model(configured_codex, monkeypatc
     assert error.value.status_code == 400
 
 
+def test_missing_model_uses_process_selection_captured_before_refresh(configured_codex, monkeypatch):
+    config, _, metadata = configured_codex
+    missing = {key: value for key, value in config.items() if key != "CODEX_MODEL"}
+    snapshot = codex_credentials._snapshot(missing)
+    monkeypatch.setenv("CODEX_MODEL", metadata.id)
+    def refresh():
+        monkeypatch.setenv("CODEX_MODEL", "later-process-selection")
+        return snapshot
+    monkeypatch.setattr(codex_credentials, "refresh_credentials", refresh)
+    resolved = configured_llm.resolve_configured_llm()
+    assert resolved.model == metadata.id
+    assert resolved.metadata.id == metadata.id
+    assert "CODEX_MODEL" not in snapshot.config
+    assert "CODEX_MODEL" not in missing
+
+
+def test_validation_captures_missing_model_before_its_refresh(configured_codex, monkeypatch):
+    config, snapshot, metadata = configured_codex
+    missing = {key: value for key, value in config.items() if key != "CODEX_MODEL"}
+    monkeypatch.setenv("CODEX_MODEL", metadata.id)
+    def refresh():
+        monkeypatch.setenv("CODEX_MODEL", "later-process-selection")
+        return snapshot
+    monkeypatch.setattr(codex_credentials, "refresh_credentials", refresh)
+    assert configured_llm.validate_codex_configuration(missing).id == metadata.id
+    assert "CODEX_MODEL" not in missing
+
+
+@pytest.mark.parametrize("selection", ["", None])
+def test_explicit_empty_model_never_falls_back_to_process(configured_codex, monkeypatch, selection):
+    config, _, metadata = configured_codex
+    empty = {**config, "CODEX_MODEL": selection}
+    snapshot = codex_credentials._snapshot(empty)
+    monkeypatch.setenv("CODEX_MODEL", metadata.id)
+    monkeypatch.setattr(codex_credentials, "refresh_credentials", lambda: snapshot)
+    monkeypatch.setattr(configured_llm, "fetch_catalog", lambda *args: pytest.fail("An empty selection must fail before discovery"))
+    for operation in [
+        configured_llm.resolve_configured_llm,
+        lambda: configured_llm.validate_codex_configuration(empty, credentials=snapshot),
+    ]:
+        with pytest.raises(HTTPException) as error:
+            operation()
+        assert error.value.status_code == 400
+        assert error.value.detail == "Select a ChatGPT model in Settings."
+
+
+@pytest.mark.parametrize("process_model", [None, "", "removed-process-model"])
+def test_missing_model_has_no_static_or_removed_model_fallback(configured_codex, monkeypatch, process_model):
+    config, _, _ = configured_codex
+    missing = {key: value for key, value in config.items() if key != "CODEX_MODEL"}
+    monkeypatch.setattr(codex_credentials, "refresh_credentials", lambda: codex_credentials._snapshot(missing))
+    if process_model is None:
+        monkeypatch.delenv("CODEX_MODEL", raising=False)
+    else:
+        monkeypatch.setenv("CODEX_MODEL", process_model)
+    with pytest.raises(HTTPException) as error:
+        configured_llm.resolve_configured_llm()
+    assert error.value.status_code == 400
+    assert ("no longer available" if process_model else "Select a ChatGPT model") in error.value.detail
+    assert "CODEX_MODEL" not in missing
+
+
 def test_catalog_adapter_preserves_model_and_only_proven_wire_capabilities():
     metadata = CodexModel(id="future", name="Future", parallel_tool_calls=False, supports_reasoning_summary_parameter=False)
     client = configured_llm.CatalogChatGPTClient(config=ChatGPTClientConfig(access_token="test-access"), metadata=metadata)
