@@ -55,7 +55,7 @@ export default function CodexModelPicker({ value, onChange }: {
               <CommandEmpty>No model found.</CommandEmpty>
               <CommandGroup>
                 {ready && catalog.models.map((model) => (
-                  <CommandItem key={model.id} value={model.id} onSelect={() => {
+                  <CommandItem key={model.id} value={model.id} keywords={[model.name]} onSelect={() => {
                     // Command search normalization must never rewrite a provider's ID.
                     onChange(model.id);
                     setOpen(false);

@@ -193,6 +193,9 @@ for (const flow of ["settings", "onboarding"] as const) {
       cy.wait("@models");
       cy.get(picker).click();
       cy.screenshot(`codex-${flow}-dynamic-models`, { capture: "viewport" });
+      cy.get('input[placeholder="Search models…"]').type("Future model");
+      cy.contains('[cmdk-item=""]', "Future model").should("be.visible");
+      cy.get('input[placeholder="Search models…"]').clear().type(FUTURE_ID);
       cy.contains('[cmdk-item=""]', "Future model").click();
       cy.get('[data-cy="selection"]').should("have.text", FUTURE_ID);
       cy.contains("button", "Save fixture configuration").click();
