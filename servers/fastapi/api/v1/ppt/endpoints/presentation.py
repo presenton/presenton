@@ -126,7 +126,7 @@ from utils.llm_calls.generate_smart_presentation import (
     generate_smart_presentation,
     resolve_smart_slide_count,
 )
-from utils.get_env import is_community_enabled
+from utils.get_env import get_slide_generation_batch_size, is_community_enabled
 import uuid
 from utils.safe_logging import safe_log, safe_log_exception
 
@@ -2981,8 +2981,9 @@ async def generate_presentation_handler(
         slide_layouts = [layout_model.slides[idx] for idx in slide_layout_indices]
         total_slides_to_create = len(slide_layouts)
 
-        # Schedule slide content generation and asset fetching in batches of 10
-        batch_size = 10
+        # Schedule slide content generation and asset fetching in batches
+        # (default 10; lower it for rate-limited providers such as Codex)
+        batch_size = get_slide_generation_batch_size()
         for start in range(0, len(slide_layouts), batch_size):
             await raise_if_client_disconnected()
             end = min(start + batch_size, len(slide_layouts))

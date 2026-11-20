@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException
 from google import genai
 from openai import OpenAI
@@ -42,6 +44,8 @@ from utils.get_env import (
     get_together_model_env,
     get_vertex_model_env,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 def get_llm_provider():
@@ -161,7 +165,15 @@ def get_model():
         return get_lmstudio_model_env() or DEFAULT_LMSTUDIO_MODEL
     elif selected_llm == LLMProvider.CODEX:
         codex_model = get_codex_model_env()
-        return codex_model if codex_model in SUPPORTED_CODEX_MODELS else DEFAULT_CODEX_MODEL
+        if codex_model in SUPPORTED_CODEX_MODELS:
+            return codex_model
+        if codex_model:
+            LOGGER.warning(
+                "Codex model %r is not supported; falling back to %s",
+                codex_model,
+                DEFAULT_CODEX_MODEL,
+            )
+        return DEFAULT_CODEX_MODEL
     else:
         raise HTTPException(
             status_code=500,
