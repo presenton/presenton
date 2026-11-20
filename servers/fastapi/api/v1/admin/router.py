@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 import os
 import shutil
 from typing import Any
@@ -28,6 +29,9 @@ from services.database import get_async_session
 from services.provider_settings import get_provider_settings, save_provider_settings
 from services.presenton_cloud import get_presenton_provider, has_cloud_credentials
 from services.api_keys import issue_api_key, reveal_api_key
+from services.codex_models import CodexModelsResponse
+from services.codex_credentials import CONFIG_REVISION_KEY, REVISION_KEY
+from services.configured_llm import discover_models
 from utils.datetime_utils import get_current_utc_datetime
 from utils.get_env import (
     get_app_data_directory_env,
@@ -149,7 +153,7 @@ async def read_provider_settings(
     settings = await get_provider_settings(session)
     provider = await get_presenton_provider(session, get_presenton_oauth_issuer())
     return {
-        **settings,
+        **{key: value for key, value in settings.items() if key not in {REVISION_KEY, CONFIG_REVISION_KEY}},
         "PRESENTON_CONNECTED": has_cloud_credentials(provider),
         "PRESENTON_EMAIL": provider.email if provider is not None else None,
     }
@@ -163,7 +167,17 @@ async def update_provider_settings(
 ) -> dict[str, Any]:
     saved = await save_provider_settings(session, config)
     update_env_with_user_config()
-    return saved
+    return {key: value for key, value in saved.items() if key not in {REVISION_KEY, CONFIG_REVISION_KEY}}
+
+
+@API_V1_ADMIN_ROUTER.get("/codex/models", response_model=CodexModelsResponse)
+async def get_codex_models(
+    response: Response,
+    _: None = Depends(require_settings_admin),
+) -> CodexModelsResponse:
+    response.headers["Cache-Control"] = "private, no-store"
+    models = await asyncio.to_thread(discover_models)
+    return CodexModelsResponse(models=models)
 
 
 @API_V1_ADMIN_ROUTER.get("/users", response_model=list[PublicUser])
