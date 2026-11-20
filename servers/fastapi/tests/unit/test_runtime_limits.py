@@ -4,8 +4,9 @@ import os
 import sys
 from types import SimpleNamespace
 
+import pytest
 from fastapi import HTTPException
-from services.export_task_service import ExportTaskService
+from services.export_task_service import ExportTaskService, JSON_PREVIEW_CONCURRENCY
 from services.liteparse_service import LiteParseService
 from utils.runtime_limits import BoundedTextBuffer
 
@@ -270,7 +271,7 @@ def test_render_json_to_image_embeds_protected_local_assets(monkeypatch, tmp_pat
     assert data[0]["children"][0]["data"] == local_url
 
 
-def test_render_jsons_to_images_sends_localized_batch_payload(monkeypatch, tmp_path):
+def test_render_jsons_to_images_renders_each_slide_separately(monkeypatch, tmp_path):
     app_data = tmp_path / "app-data"
     asset_path = app_data / "pptx-to-json" / "session" / "images" / "photo.svg"
     asset_path.parent.mkdir(parents=True)
@@ -282,12 +283,11 @@ def test_render_jsons_to_images_sends_localized_batch_payload(monkeypatch, tmp_p
     monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
     monkeypatch.setenv("DISABLE_AUTH", "true")
     service = ExportTaskService(timeout_seconds=10)
-    captured = {}
+    captured = []
 
     async def fake_run_task(task_payload, response_error_detail):
-        captured["task_payload"] = task_payload
-        captured["response_error_detail"] = response_error_detail
-        return {"file_paths": [str(path) for path in output_paths]}
+        captured.append(task_payload)
+        return {"file_path": str(output_paths[len(captured) - 1])}
 
     service._run_task = fake_run_task
     layouts = [
@@ -312,16 +312,93 @@ def test_render_jsons_to_images_sends_localized_batch_payload(monkeypatch, tmp_p
     )
 
     assert result.paths == [str(path) for path in output_paths]
-    payload = captured["task_payload"]
-    assert payload["type"] == "json-to-images"
-    assert payload["width"] == 960
-    assert payload["height"] == 540
-    assert payload["fonts"] == {"css": "@font-face {}"}
-    assert payload["jsons"][0]["elements"][0]["data"].startswith(
+    assert len(captured) == 2
+    assert [payload["type"] for payload in captured] == [
+        "json-to-image",
+        "json-to-image",
+    ]
+    assert all(
+        payload["width"] == 960
+        and payload["height"] == 540
+        and payload["fonts"] == {"css": "@font-face {}"}
+        for payload in captured
+    )
+    assert captured[0]["data"][0]["elements"][0]["data"].startswith(
         "data:image/svg+xml;base64,"
     )
     assert layouts[0]["elements"][0]["data"].startswith("/app_data/")
-    assert "JSON-to-images" in captured["response_error_detail"]
+
+
+def test_render_jsons_to_images_uses_bounded_parallel_single_slide_tasks():
+    service = ExportTaskService(timeout_seconds=10)
+    active = 0
+    peak_active = 0
+    started = []
+
+    async def fake_render_json_to_image(data, width, height, fonts=None):
+        nonlocal active, peak_active
+        assert width == 320
+        assert height == 180
+        assert fonts == {"css": "@font-face {}"}
+        active += 1
+        peak_active = max(peak_active, active)
+        slide_id = data[0]["id"]
+        started.append(slide_id)
+        # Later slides finish first, so result order must come from gather,
+        # not from completion order.
+        await asyncio.sleep(0.05 * (6 - slide_id))
+        active -= 1
+        return SimpleNamespace(path=f"slide-{slide_id}.png")
+
+    async def unexpected_batch_task(*_args, **_kwargs):
+        raise AssertionError("render_jsons_to_images must not send a batch task")
+
+    service.render_json_to_image = fake_render_json_to_image
+    service._run_task = unexpected_batch_task
+
+    result = asyncio.run(
+        service.render_jsons_to_images(
+            [{"id": index} for index in range(6)],
+            320,
+            180,
+            fonts={"css": "@font-face {}"},
+        )
+    )
+
+    assert peak_active > 1
+    assert peak_active <= JSON_PREVIEW_CONCURRENCY
+    assert sorted(started) == list(range(6))
+    assert result.paths == [f"slide-{index}.png" for index in range(6)]
+
+
+def test_render_jsons_to_images_fails_when_one_slide_fails(monkeypatch, tmp_path):
+    output_paths = [tmp_path / "preview-1.png", tmp_path / "preview-2.png"]
+    for output_path in output_paths:
+        output_path.write_bytes(b"png")
+    monkeypatch.setenv("APP_DATA_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("TEMP_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("DISABLE_AUTH", "true")
+    service = ExportTaskService(timeout_seconds=10)
+
+    async def fake_run_task(task_payload, response_error_detail):
+        return {"file_paths": [str(path) for path in output_paths]}
+
+    async def fake_render_json_to_image(data, width, height, fonts=None):
+        if data[0]["id"] == 1:
+            raise HTTPException(status_code=500, detail="Export task failed")
+        return SimpleNamespace(path=f"slide-{data[0]['id']}.png")
+
+    # The stubbed batch task is only reachable by the old serial code; the
+    # new code renders through render_json_to_image, so a passing stub here
+    # also proves the test fails without the fix instead of passing for the
+    # wrong reason.
+    service._run_task = fake_run_task
+    service.render_json_to_image = fake_render_json_to_image
+
+    with pytest.raises(HTTPException):
+        asyncio.run(
+            service.render_jsons_to_images([{"id": 0}, {"id": 1}], 320, 180)
+        )
 
 
 def test_render_htmls_to_images_sends_batch_task_payload(monkeypatch, tmp_path):

@@ -30,6 +30,15 @@ from utils.safe_logging import safe_log
 LOGGER = logging.getLogger(__name__)
 
 
+# Four slide renders run at once: each one spawns its own node child (a
+# headless-browser render), so the bound keeps peak memory in check on the
+# small self-hosted boxes Presenton targets. One slide takes roughly 5s in
+# the reported 12-slide case, so four at a time finishes a 12-slide preview
+# in about 15-20s, inside a normal 60s gateway timeout; the old serial batch
+# took ~63s and the gateway gave up first (issue #816).
+JSON_PREVIEW_CONCURRENCY = 4
+
+
 def _localize_json_image_assets(
     value: Any,
     data_uri_cache: dict[str, str] | None = None,
@@ -595,33 +604,28 @@ class ExportTaskService:
                 detail="JSON-to-images dimensions must be positive",
             )
 
-        task_payload: dict[str, Any] = {
-            "type": "json-to-images",
-            "jsons": [_localize_json_image_assets(slide) for slide in data],
-            "width": width,
-            "height": height,
-        }
-        if fonts:
-            task_payload["fonts"] = dict(fonts)
+        semaphore = asyncio.Semaphore(JSON_PREVIEW_CONCURRENCY)
 
-        response_data = await self._run_task(
-            task_payload,
-            "JSON-to-images export task did not produce response files",
+        async def render_one(slide: dict[str, Any]) -> str:
+            async with semaphore:
+                result = await self.render_json_to_image(
+                    [slide],
+                    width,
+                    height,
+                    fonts=fonts,
+                )
+            return result.path
+
+        # asyncio.gather returns results in the order the awaitables were
+        # passed, so the paths line up with the slides even when a later
+        # slide finishes first. A failure in any slide fails the whole
+        # preview, as the old batch call did; renders already running are
+        # left to finish and their output is discarded rather than
+        # cancelled mid-render.
+        output_paths = await asyncio.gather(
+            *(render_one(slide) for slide in data)
         )
-        raw_paths = response_data.get("file_paths")
-        if not isinstance(raw_paths, list) or len(raw_paths) != len(data):
-            raise HTTPException(
-                status_code=500,
-                detail="JSON-to-images export task produced invalid output",
-            )
-
-        output_paths = [
-            self._resolve_output_path({"file_path": raw_path}) for raw_path in raw_paths
-        ]
-        for output_path in output_paths:
-            self._ensure_output_readable(output_path)
-
-        return HtmlToImagesTaskResult(paths=output_paths)
+        return HtmlToImagesTaskResult(paths=list(output_paths))
 
     async def render_htmls_to_images(
         self,
