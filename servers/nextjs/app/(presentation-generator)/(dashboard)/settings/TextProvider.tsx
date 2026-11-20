@@ -365,7 +365,7 @@ const TextProvider = ({ onInputChange, llmConfig }: OpenAIConfigProps) => {
               : selectedProvider === "google"
               ? "models/gemini-2.5-flash"
               : selectedProvider === "anthropic"
-              ? "claude-sonnet-4-20250514"
+              ? "claude-sonnet-5-5"
               : selectedProvider === "openrouter"
               ? "openai/gpt-4o"
               : selectedProvider === "fireworks"

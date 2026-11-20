@@ -423,7 +423,7 @@ account setup available so an admin can finish configuration in Settings.
 | **CEREBRAS_MODEL** | `llama-3.3-70b` (default) | Cerebras model. |
 | **CEREBRAS_BASE_URL** | `https://api.cerebras.ai/v1` (default) | Cerebras base URL. |
 | **ANTHROPIC_API_KEY** | Required for `LLM=anthropic` | Anthropic API key. |
-| **ANTHROPIC_MODEL** | `claude-3-5-sonnet-20241022` (default) | Anthropic model. |
+| **ANTHROPIC_MODEL** | `claude-sonnet-5-5` (default) | Anthropic model. |
 | **CODEX_MODEL** | Required for `LLM=codex` | Codex model. The OAuth flow maps host port `1455` for its callback. |
 | **CUSTOM_LLM_URL** | Required for `LLM=custom` | OpenAI-compatible base URL. The server must implement `POST /v1/chat/completions`; a provider-specific completion endpoint is insufficient. Model discovery supports local servers and proxy prefixes, requires a URL without a query or fragment, and does not follow redirects. |
 | **CUSTOM_LLM_API_KEY** | Provider-dependent | Custom-provider API key. |
