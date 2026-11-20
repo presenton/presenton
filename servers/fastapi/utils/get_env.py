@@ -392,6 +392,10 @@ def get_brave_search_api_key_env():
     return os.getenv("BRAVE_SEARCH_API_KEY")
 
 
+def get_keenable_api_key_env():
+    return os.getenv("KEENABLE_API_KEY")
+
+
 def get_serper_api_key_env():
     return os.getenv("SERPER_API_KEY")
 

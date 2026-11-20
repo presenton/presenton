@@ -305,6 +305,10 @@ def set_brave_search_api_key_env(value):
     os.environ["BRAVE_SEARCH_API_KEY"] = value
 
 
+def set_keenable_api_key_env(value):
+    os.environ["KEENABLE_API_KEY"] = value
+
+
 def set_serper_api_key_env(value):
     os.environ["SERPER_API_KEY"] = value
 

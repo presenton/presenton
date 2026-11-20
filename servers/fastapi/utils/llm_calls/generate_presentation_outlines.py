@@ -59,6 +59,7 @@ def _web_search_provider_display_name(provider_name: str) -> str:
         "tavily": "Tavily",
         "exa": "Exa",
         "brave": "Brave",
+        "keenable": "Keenable",
         "serper": "Serper",
         "model-native": "model-native web search",
     }.get(provider_name, provider_name)

@@ -135,6 +135,7 @@ export interface LLMConfig {
   TAVILY_API_KEY?: string;
   EXA_API_KEY?: string;
   BRAVE_SEARCH_API_KEY?: string;
+  KEENABLE_API_KEY?: string;
   SERPER_API_KEY?: string;
 
   // Codex OAuth (ChatGPT)

@@ -261,3 +261,77 @@ def test_exa_search_requests_highlights_and_maps_results(monkeypatch):
             snippet="Summary fallback.",
         ),
     ]
+
+
+def _keenable_fake_session(captured):
+    class FakeResponse:
+        status = 200
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def json(self, content_type=None):
+            return {
+                "results": [
+                    {
+                        "title": "Presenton",
+                        "url": "https://example.com/presenton",
+                        "description": "",
+                        "snippet": "AI presentations.",
+                    },
+                    {
+                        "title": "Fallback",
+                        "url": "https://example.com/fallback",
+                        "description": "Description fallback.",
+                    },
+                ]
+            }
+
+    class FakeSession:
+        def post(self, url, json, headers):
+            captured.update(url=url, json=json, headers=headers)
+            return FakeResponse()
+
+    return FakeSession()
+
+
+def test_keenable_search_is_keyless_by_default(monkeypatch):
+    monkeypatch.delenv("KEENABLE_API_KEY", raising=False)
+    captured = {}
+
+    results = asyncio.run(
+        web_search._search_keenable(_keenable_fake_session(captured), "presentation ai", 2)
+    )
+
+    assert captured == {
+        "url": "https://api.keenable.ai/v1/search/public",
+        "json": {"query": "presentation ai", "max_results": 2},
+        "headers": {"X-Keenable-Title": "Presenton"},
+    }
+    assert results == [
+        web_search.WebSearchResult(
+            title="Presenton",
+            url="https://example.com/presenton",
+            snippet="AI presentations.",
+        ),
+        web_search.WebSearchResult(
+            title="Fallback",
+            url="https://example.com/fallback",
+            snippet="Description fallback.",
+        ),
+    ]
+
+
+def test_keenable_search_uses_key_when_configured(monkeypatch):
+    monkeypatch.setenv("KEENABLE_API_KEY", "test-keenable-key")
+    captured = {}
+
+    asyncio.run(
+        web_search._search_keenable(_keenable_fake_session(captured), "presentation ai", 3)
+    )
+
+    assert captured["url"] == "https://api.keenable.ai/v1/search"
+    assert captured["headers"] == {"X-API-Key": "test-keenable-key"}
