@@ -13,16 +13,21 @@ Thanks for helping improve **Presenton — the open-source AI presentation gener
 
 ---
 
-# Current Contribution Scope
+# Repository Structure
 
-The Electron application contains:
+Presenton ships as both a desktop app (Electron) and a self-hosted Docker image.
+Both run the same backend and frontend code:
 
-- Desktop application
-- FastAPI backend
-- Next.js frontend
-- Local runtime integrations
+| Path | What it is | Used by |
+| --- | --- | --- |
+| `servers/fastapi/` | FastAPI backend (generation, LLM providers, export) | Electron and Docker |
+| `servers/nextjs/` | Next.js frontend (UI, editor, settings) | Electron and Docker |
+| `electron/` | Desktop shell, packaging, local runtime integrations | Electron only |
+| `Dockerfile`, `docker-compose.yml`, `nginx.conf` | Container build and deployment | Docker only |
 
-Contributions outside `electron/` may not be accepted at this time.
+Contributions to any of these areas are welcome. Because `servers/` is shared,
+changes there affect **both** the desktop app and the Docker deployment, so
+please make sure they work in both.
 
 ---
 
@@ -60,7 +65,11 @@ docs/update-readme
 
 ---
 
-# Development Setup (Electron)
+# Development Setup
+
+You can develop against either runtime. Both use the code in `servers/`.
+
+## Electron
 
 ### Prerequisites
 
@@ -69,7 +78,7 @@ docs/update-readme
 - Python
 - `uv` (Python package manager)
 
-# Setup Environment
+### Setup Environment
 
 From the `electron` directory:
 
@@ -86,7 +95,7 @@ This installs:
 
 ---
 
-# Run the Electron App (Development)
+### Run the Electron App (Development)
 
 ```
 
@@ -102,7 +111,7 @@ This will:
 
 ---
 
-# Build the Electron App
+### Build the Electron App
 
 To build all components:
 
@@ -110,6 +119,24 @@ To build all components:
 
 npm run build:all
 
+```
+
+## Docker
+
+Run the development container from the repository root:
+
+```
+docker compose up development
+```
+
+---
+
+# Running Tests
+
+From the repository root, run the same checks as CI:
+
+```
+./test-local.sh
 ```
 
 ---
@@ -126,8 +153,9 @@ signing so maintainers can verify it.
 
 Please ensure:
 
-- Changes are **inside `electron/`**
-- Code runs locally on development as well as build environment both
+- Changes to `servers/` work in **both** the Electron app and the Docker image
+- Code runs in development as well as in the production build (`npm run build:all` for Electron, `docker compose build` for Docker)
+- `./test-local.sh` passes
 - PRs are **small and focused**
 - You explain **what and why**
 
