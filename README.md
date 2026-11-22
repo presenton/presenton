@@ -424,7 +424,7 @@ account setup available so an admin can finish configuration in Settings.
 | **CEREBRAS_BASE_URL** | `https://api.cerebras.ai/v1` (default) | Cerebras base URL. |
 | **ANTHROPIC_API_KEY** | Required for `LLM=anthropic` | Anthropic API key. |
 | **ANTHROPIC_MODEL** | `claude-3-5-sonnet-20241022` (default) | Anthropic model. |
-| **CODEX_MODEL** | Required for `LLM=codex` | Codex model. The OAuth flow maps host port `1455` for its callback. |
+| **CODEX_MODEL** | Required for `LLM=codex` | Exact model ID selected from the connected ChatGPT account's dynamic catalog. See [ChatGPT model discovery](docs/chatgpt-model-discovery.md). The OAuth flow uses port `1455` for its callback. |
 | **CUSTOM_LLM_URL** | Required for `LLM=custom` | OpenAI-compatible base URL. The server must implement `POST /v1/chat/completions`; a provider-specific completion endpoint is insufficient. Model discovery supports local servers and proxy prefixes, requires a URL without a query or fragment, and does not follow redirects. |
 | **CUSTOM_LLM_API_KEY** | Provider-dependent | Custom-provider API key. |
 | **CUSTOM_MODEL** | Required for `LLM=custom` | Custom-provider model ID. |
@@ -442,7 +442,7 @@ account setup available so an admin can finish configuration in Settings.
 | **TAVILY_API_KEY**, **EXA_API_KEY** | Optional | Credentials for hosted search providers. |
 | **EXTENDED_REASONING** | `true` / `false` | Enables extended reasoning where supported. |
 | **LLM_GENERATION_PROFILE** | `fast`, `balanced` (default), `deep`, `model_max` | Global generation profile. |
-| **LLM_MAX_OUTPUT_TOKENS** | Optional positive integer | Output-token override for every text provider. |
+| **LLM_MAX_OUTPUT_TOKENS** | Optional positive integer | Output-token budget override. The current ChatGPT/Codex transport does not enforce it as a hard provider output limit. |
 | **LLM_CONTEXT_WINDOW** | Optional positive integer | AI editor context limit in tokens. Set this to the actual deployed limit for custom/local models. Otherwise the editor uses model metadata, or assumes 32,768 for unknown aliases. Budgeting estimates messages and tool schemas with a safety margin, compacts older context, and retries a provider-rejected overflow once. |
 | **MAX_OUTLINE_WORDS** | `100` (default), positive integer | Maximum words in each generated, edited, or `slides_markdown` slide outline. |
 | **LLM_REASONING_MODE** | `auto`, `enabled`, `disabled` | Global reasoning-mode override. |

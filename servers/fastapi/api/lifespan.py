@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from migrations import migrate_database_on_startup
 from services.database import async_session_maker, create_db_and_tables, dispose_engines
 from services.async_tasks import fail_interrupted_async_tasks
-from services.provider_settings import migrate_provider_settings_from_file
+from services.provider_settings import CODEX_MANAGED_FIELDS, migrate_provider_settings_from_file
 from templates.default_templates import import_default_templates_on_startup
 from utils.get_env import get_app_data_directory_env
 from utils.user_config import update_env_with_user_config
@@ -56,11 +56,12 @@ async def app_lifespan(_: FastAPI):
     await migrate_database_on_startup()
     await create_db_and_tables()
     await bootstrap_database_admin()
+    codex_environment = {key: os.environ[key] for key in CODEX_MANAGED_FIELDS if key in os.environ}
     async with async_session_maker() as session:
         # BackgroundTasks are process-local and cannot resume after a restart.
         # Resolve their persisted rows before accepting polling requests.
         await fail_interrupted_async_tasks(session)
-        await migrate_provider_settings_from_file(session)
+        await migrate_provider_settings_from_file(session, codex_environment=codex_environment)
     await import_default_templates_on_startup()
     update_env_with_user_config()
     yield

@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useCodexAuthPolling, type CodexAuthStatus as StatusResponse } from "@/hooks/useCodexAuthPolling";
 import {
-    Check,
-    ChevronUp,
     Loader2,
     RefreshCw,
     Trash2,
@@ -10,24 +9,10 @@ import {
     User,
     UserCheck,
 } from "lucide-react";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { notify } from "@/components/ui/sonner";
 import { getApiUrl } from "@/utils/api";
-import { Button } from "@/components/ui/button";
-import {
-    CODEX_MODELS,
-    DEFAULT_CODEX_MODEL,
-    isSupportedCodexModel,
-} from "@/utils/codexModels";
+import CodexModelPicker from "@/components/CodexModelPicker";
+import { useCodexModels } from "@/components/CodexModelCatalog";
 import { useRouter } from "next/navigation";
 import { syncStoreAfterCodexSignOut } from "@/utils/storeHelpers";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
@@ -45,15 +30,6 @@ interface CodexConfigProps {
 
 type AuthStatus = "checking" | "unauthenticated" | "polling" | "authenticated";
 
-interface StatusResponse {
-    status: string;
-    account_id?: string;
-    username?: string;
-    email?: string;
-    is_pro?: boolean;
-    detail?: string;
-}
-
 export default function CodexConfig({
     codexModel,
     onInputChange,
@@ -68,27 +44,19 @@ export default function CodexConfig({
     const [isExchanging, setIsExchanging] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [openModelSelect, setOpenModelSelect] = useState(false);
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const { updateConnection, refresh: refreshModels } = useCodexModels();
+    const { startPolling, stopPolling } = useCodexAuthPolling();
+    const signInRequest = useRef<AbortController | null>(null);
     const router = useRouter();
-
-    const stopPolling = () => {
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-        }
-    };
 
     useEffect(() => {
         checkCurrentAuthStatus();
-        return () => stopPolling();
+        return () => signInRequest.current?.abort();
     }, []);
 
     useEffect(() => {
-        if (codexModel && !isSupportedCodexModel(codexModel)) {
-            onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-        }
-    }, [codexModel, onInputChange]);
+        updateConnection(authStatus === "authenticated", accountId);
+    }, [authStatus, accountId, updateConnection]);
 
     const applyProfile = (data: Partial<StatusResponse>) => {
         setAccountId(data.account_id ?? null);
@@ -120,6 +88,10 @@ export default function CodexConfig({
     };
 
     const handleSignIn = async () => {
+        stopPolling();
+        signInRequest.current?.abort();
+        const request = new AbortController();
+        signInRequest.current = request;
         trackEvent(MixpanelEvent.Provider_Login_Clicked, {
             provider: "chatgpt",
             implementation: "codex",
@@ -130,61 +102,44 @@ export default function CodexConfig({
             trackEvent(MixpanelEvent.Codex_SignIn_API_Call);
             const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/initiate"), {
                 method: "POST",
+                signal: request.signal,
             });
             if (!res.ok) throw new Error("Failed to initiate auth");
             const data = await res.json();
             const { session_id, url } = data;
+            if (request.signal.aborted) return;
 
             setSessionId(session_id);
             setAuthStatus("polling");
             window.open(url, "_blank", "noopener,noreferrer");
 
-            pollIntervalRef.current = setInterval(async () => {
-                try {
-                    const pollRes = await fetch(
-                        getApiUrl(`/api/v1/ppt/codex/auth/status/${session_id}`)
-                    );
-                    if (!pollRes.ok) return;
-                    const pollData: StatusResponse = await pollRes.json();
-
-                    if (pollData.status === "success") {
-                        stopPolling();
-                        trackEvent(MixpanelEvent.Codex_SignIn_Completed, {
-                            method: "browser_poll",
-                        });
+            startPolling(session_id, (result) => {
+                request.abort();
+                setIsExchanging(false);
+                setSessionId(null);
+                setManualCode("");
+                if (result.status === "connected") {
+                    if (!result.recovered) {
+                        trackEvent(MixpanelEvent.Codex_SignIn_Completed, { method: "browser_poll" });
                         trackEvent(MixpanelEvent.Provider_Connection_Completed, {
                             provider: "chatgpt",
                             implementation: "codex",
                             source: "settings",
                             method: "browser_poll",
                         });
-                        setAuthStatus("authenticated");
-                        applyProfile(pollData);
-                        setSessionId(null);
-                        if (!isSupportedCodexModel(codexModel)) {
-                            onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-                        }
-                        notify.success(
-                            "Signed in to ChatGPT",
-                            "Your ChatGPT account is connected and ready to use."
-                        );
-                    } else if (pollData.status === "failed") {
-                        stopPolling();
-                        trackEvent(MixpanelEvent.Codex_SignIn_Failed, {
-                            method: "browser_poll",
-                        });
-                        setAuthStatus("unauthenticated");
-                        applyProfile({});
-                        notify.error(
-                            "Sign-in failed",
-                            "Authentication did not complete. Please try signing in again."
-                        );
                     }
-                } catch {
-                    // keep polling on transient errors
+                    setAuthStatus("authenticated");
+                    applyProfile(result.profile);
+                    notify.success("Signed in to ChatGPT", "Your ChatGPT account is connected and ready to use.");
+                } else {
+                    trackEvent(MixpanelEvent.Codex_SignIn_Failed, { method: "browser_poll" });
+                    setAuthStatus("unauthenticated");
+                    applyProfile({});
+                    notify.error("Sign-in failed", result.message);
                 }
-            }, 2000);
+            });
         } catch (err) {
+            if (request.signal.aborted) return;
             trackEvent(MixpanelEvent.Codex_SignIn_Failed, {
                 method: "initiate",
                 error_message: sanitizeAnalyticsError(err, "Failed to initiate auth"),
@@ -200,10 +155,12 @@ export default function CodexConfig({
 
     const handleManualExchange = async () => {
         if (!sessionId || !manualCode.trim()) return;
+        const signal = signInRequest.current?.signal;
         setIsExchanging(true);
         try {
             const res = await fetch(getApiUrl("/api/v1/ppt/codex/auth/exchange"), {
                 method: "POST",
+                signal,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ session_id: sessionId, code: manualCode.trim() }),
             });
@@ -212,6 +169,7 @@ export default function CodexConfig({
                 throw new Error(err.detail || "Exchange failed");
             }
             const data = await res.json();
+            if (signal?.aborted) return;
             stopPolling();
             trackEvent(MixpanelEvent.Codex_SignIn_Completed, {
                 method: "manual_exchange",
@@ -226,14 +184,12 @@ export default function CodexConfig({
             applyProfile(data);
             setSessionId(null);
             setManualCode("");
-            if (!isSupportedCodexModel(codexModel)) {
-                onInputChange(DEFAULT_CODEX_MODEL, "codex_model");
-            }
             notify.success(
                 "Signed in to ChatGPT",
                 "Your ChatGPT account is connected and ready to use."
             );
         } catch (err: any) {
+            if (signal?.aborted) return;
             trackEvent(MixpanelEvent.Codex_SignIn_Failed, {
                 method: "manual_exchange",
                 error_message: sanitizeAnalyticsError(err, "Exchange failed"),
@@ -243,11 +199,13 @@ export default function CodexConfig({
                 err.message || "The verification code could not be accepted. Please try again."
             );
         } finally {
-            setIsExchanging(false);
+            if (!signal?.aborted) setIsExchanging(false);
         }
     };
 
     const handleCancelPolling = () => {
+        signInRequest.current?.abort();
+        setIsExchanging(false);
         stopPolling();
         trackEvent(MixpanelEvent.Codex_SignIn_Cancelled);
         setSessionId(null);
@@ -331,6 +289,7 @@ export default function CodexConfig({
             }
             const data = await res.json();
             applyProfile(data);
+            refreshModels();
             notify.success(
                 "Session refreshed",
                 "Your ChatGPT connection was renewed successfully."
@@ -449,66 +408,10 @@ export default function CodexConfig({
                     </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select GPT Model
-                    </label>
-                    <Popover open={openModelSelect} onOpenChange={setOpenModelSelect}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={openModelSelect}
-                                className="w-full h-10 px-3 outline-none border border-gray-300 rounded-lg hover:border-gray-400 justify-between"
-                            >
-                                <span className="text-sm text-gray-900">
-                                    {codexModel
-                                        ? (CODEX_MODELS.find((m) => m.id === codexModel)?.name ?? codexModel)
-                                        : "Select a model"}
-                                </span>
-                                <ChevronUp className="w-4 h-4 text-gray-400" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                            className="p-0"
-                            align="start"
-                            style={{ width: "var(--radix-popover-trigger-width)" }}
-                        >
-                            <Command>
-                                <CommandInput placeholder="Search models…" />
-                                <CommandList>
-                                    <CommandEmpty>No model found.</CommandEmpty>
-                                    <CommandGroup>
-                                        {CODEX_MODELS.map((model) => (
-                                            <CommandItem
-                                                key={model.id}
-                                                value={model.id}
-                                                onSelect={(value) => {
-                                                    trackEvent(MixpanelEvent.Settings_Model_Selected, {
-                                                        provider: "codex",
-                                                        model: value,
-                                                    });
-                                                    onInputChange(value, "codex_model");
-                                                    setOpenModelSelect(false);
-                                                }}
-                                            >
-                                                <Check
-                                                    className={cn(
-                                                        "mr-2 h-4 w-4",
-                                                        codexModel === model.id ? "opacity-100" : "opacity-0"
-                                                    )}
-                                                />
-                                                <span className="text-sm text-gray-900">
-                                                    {model.name}
-                                                </span>
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
-                </div>
+                <CodexModelPicker value={codexModel} onChange={(model) => {
+                    trackEvent(MixpanelEvent.Settings_Model_Selected, { provider: "codex", model });
+                    onInputChange(model, "codex_model");
+                }} />
             </div>
         );
     }

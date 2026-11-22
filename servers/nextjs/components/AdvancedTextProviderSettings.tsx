@@ -33,6 +33,8 @@ import {
 import { notify } from "@/components/ui/sonner";
 import { LLMConfig } from "@/types/llm_config";
 import { getApiErrorMessage, getApiUrl } from "@/utils/api";
+import { useCodexModels } from "@/components/CodexModelCatalog";
+import { getCodexReasoningEfforts, isCodexProvider } from "@/utils/codexModels";
 
 type ConfigValue = string | boolean | number | string[];
 
@@ -79,6 +81,7 @@ const MODEL_FIELDS: Partial<Record<string, keyof LLMConfig>> = {
   bedrock: "BEDROCK_MODEL",
   cerebras: "CEREBRAS_MODEL",
   codex: "CODEX_MODEL",
+  chatgpt: "CODEX_MODEL",
   custom: "CUSTOM_MODEL",
   deepseek: "DEEPSEEK_MODEL",
   fireworks: "FIREWORKS_MODEL",
@@ -166,6 +169,28 @@ const deduplicateProviders = (providers: ProviderOption[]) => {
 };
 
 export default function AdvancedTextProviderSettings({ config, onChange }: Props) {
+  const catalog = useCodexModels();
+  const codex = isCodexProvider(config.LLM);
+  const codexModel =
+    codex && catalog.status === "ready"
+      ? catalog.models.find((model) => model.id === config.CODEX_MODEL)
+      : undefined;
+  const codexEfforts = getCodexReasoningEfforts(codexModel);
+  const effortOptions = codex
+    ? [
+        { value: "model_default", label: "Model default" },
+        ...codexEfforts.map((effort) => ({
+          value: effort,
+          label: effort === "none" ? "None" :
+            REASONING_EFFORT_OPTIONS.find((option) => option.value === effort)?.label || effort,
+        })),
+      ]
+    : REASONING_EFFORT_OPTIONS;
+  const savedEffort = config.LLM_REASONING_EFFORT;
+  const unavailableEffort = codex && !!savedEffort && savedEffort !== "default" && !codexEfforts.includes(savedEffort);
+  if (unavailableEffort) {
+    effortOptions.push({ value: savedEffort, label: `${savedEffort} (saved; unavailable)` });
+  }
   const providerListId = useId();
   const modelMaximumId = useId();
   const [providers, setProviders] = useState<ProviderOption[]>([]);
@@ -187,10 +212,12 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
     config.LLM_REASONING_MODE === "disabled"
       ? config.LLM_REASONING_MODE
       : "model_default";
-  const reasoningAvailable = reasoningMode !== "disabled";
+  const reasoningAvailable = codex || reasoningMode !== "disabled";
   const modelField = config.LLM ? MODEL_FIELDS[config.LLM] : undefined;
   const selectedModel = modelField ? String(config[modelField] || "") : "";
-  const displayedMaxOutputTokens = useModelMaximum
+  const displayedMaxOutputTokens = codex
+    ? hasManualMaxOutputTokens ? config.LLM_MAX_OUTPUT_TOKENS : ""
+    : useModelMaximum
     ? tokenDefaults.modelMaxOutputTokens
     : config.LLM_MAX_OUTPUT_TOKENS ?? tokenDefaults.defaultMaxOutputTokens;
   const order = useMemo(
@@ -208,7 +235,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
   );
 
   useEffect(() => {
-    if (!config.LLM || config.LLM === "presenton") return;
+    if (!config.LLM || config.LLM === "presenton" || codex) return;
 
     const controller = new AbortController();
     fetch(getApiUrl("/api/v1/ppt/generation/defaults"), {
@@ -234,14 +261,14 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
       });
 
     return () => controller.abort();
-  }, [config.LLM, selectedModel]);
+  }, [config.LLM, selectedModel, codex]);
 
   const setReasoningMode = (value: string) => {
     onChange(value === "model_default" ? "" : value, "LLM_REASONING_MODE");
     if (value === "disabled") {
       onChange("", "LLM_REASONING_EFFORT");
       onChange("", "LLM_REASONING_BUDGET_TOKENS");
-    } else if (config.LLM_REASONING_EFFORT === "none") {
+    } else if (config.LLM_REASONING_EFFORT === "none" && !codex) {
       onChange("", "LLM_REASONING_EFFORT");
     }
   };
@@ -312,7 +339,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
   const resetToDefaults = () => {
     onChange("", "LLM_GENERATION_PROFILE");
     onChange(
-      tokenDefaults.defaultMaxOutputTokens,
+      codex ? "" : tokenDefaults.defaultMaxOutputTokens,
       "LLM_MAX_OUTPUT_TOKENS"
     );
     onChange("", "LLM_REASONING_MODE");
@@ -381,7 +408,7 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                 type="number"
                 min={1}
                 step={1}
-                disabled={useModelMaximum}
+                disabled={useModelMaximum && !codex}
                 value={displayedMaxOutputTokens}
                 onChange={(event) => {
                   onChange("", "LLM_GENERATION_PROFILE");
@@ -393,11 +420,11 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                   );
                 }}
                 placeholder={
-                  useModelMaximum ? "Model maximum" : "Enter a token limit"
+                  codex ? "Provider default" : useModelMaximum ? "Model maximum" : "Enter a token limit"
                 }
                 className={numberInputClass}
               />
-              <label
+              {!codex && <><label
                 htmlFor={modelMaximumId}
                 className="mt-3 flex w-fit cursor-pointer items-center gap-2 text-sm font-medium text-[#303036]"
               >
@@ -426,17 +453,21 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                 {!hasManualMaxOutputTokens && !useModelMaximum && (
                   <> The effective default is shown in the field.</>
                 )}
-              </p>
+              </p></>}
+              {codex && <p className="mt-1.5 text-xs leading-5 text-[#6B6C70]">
+                Maximum output limit is unavailable. Leave blank for the provider default, or enter a manual limit.
+                {useModelMaximum && <> A model-maximum override is saved. Enter a manual limit or reset advanced settings to remove it.</>}
+              </p>}
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
-              <SettingSelect
+              {!codex && <SettingSelect
                 label="Reasoning mode"
                 description="Use the backend model default, force reasoning on, or turn it off for faster responses."
                 value={reasoningMode}
                 options={REASONING_MODE_OPTIONS}
                 onValueChange={setReasoningMode}
-              />
+              />}
 
               {reasoningAvailable && (
                 <SettingSelect
@@ -444,15 +475,22 @@ export default function AdvancedTextProviderSettings({ config, onChange }: Props
                   description="Higher effort may improve difficult generations, but can increase latency and token usage."
                   value={
                     config.LLM_REASONING_EFFORT === "default" ||
-                    config.LLM_REASONING_EFFORT === "none"
+                    (config.LLM_REASONING_EFFORT === "none" && !codex)
                       ? "model_default"
                       : config.LLM_REASONING_EFFORT || "model_default"
                   }
-                  options={REASONING_EFFORT_OPTIONS}
+                  options={effortOptions}
+                  disabled={codex && !codexModel}
                   onValueChange={setReasoningEffort}
                 />
               )}
             </div>
+            {codex && unavailableEffort && <p role="alert" className="text-sm text-amber-800">
+              The saved reasoning effort cannot be verified for this model. Choose a supported effort or reset advanced settings.
+            </p>}
+            {codex && config.LLM_REASONING_MODE && <p role="alert" className="text-sm text-amber-800">
+              A reasoning-mode override is saved. ChatGPT advertises reasoning effort levels; reset advanced settings to use its default mode.
+            </p>}
           </div>
         </section>
 

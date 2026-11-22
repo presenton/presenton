@@ -2,7 +2,8 @@ import { DEFAULT_OPENAI_IMAGE_PROVIDER } from "@/utils/providerConstants";
 import { setLLMConfig } from "@/store/slices/userConfig";
 import { store } from "@/store/store";
 import { LLMConfig } from "@/types/llm_config";
-import { isSupportedCodexModel } from "@/utils/codexModels";
+import { isCodexProvider } from "@/utils/codexModels";
+import { getApiErrorMessage } from "@/utils/api";
 
 function isProvided(value: unknown): boolean {
   return value !== "" && value !== null && value !== undefined;
@@ -85,7 +86,7 @@ export const normalizeLLMConfig = (llmConfig: LLMConfig): LLMConfig => {
   // Reasoning budget is no longer exposed in the UI. Sending an empty value
   // removes any previously saved budget instead of leaving a hidden override.
   (normalizedConfig as Record<string, unknown>).LLM_REASONING_BUDGET_TOKENS = "";
-  if (normalizedConfig.LLM_REASONING_EFFORT === "none") {
+  if (normalizedConfig.LLM_REASONING_EFFORT === "none" && !isCodexProvider(normalizedConfig.LLM)) {
     (normalizedConfig as Record<string, unknown>).LLM_REASONING_EFFORT = "";
   }
   const providerOrder = (normalizedConfig as Record<string, unknown>)
@@ -256,9 +257,6 @@ export const getLLMConfigValidationError = (
     if (!isProvided(llmConfig.CODEX_MODEL)) {
       return "Select a Codex model.";
     }
-    if (!isSupportedCodexModel(llmConfig.CODEX_MODEL)) {
-      return "Select a supported Codex model.";
-    }
   } else {
     return "Unsupported or unknown text provider.";
   }
@@ -357,7 +355,7 @@ export const getLLMConfigValidationError = (
 
 /** Codex is selected but no model chosen - block navigation away from Settings. */
 export function isCodexMissingSelectedModel(llmConfig: LLMConfig): boolean {
-  return llmConfig.LLM === "codex" && !isProvided(llmConfig.CODEX_MODEL);
+  return isCodexProvider(llmConfig.LLM) && !isProvided(llmConfig.CODEX_MODEL);
 }
 
 /**
@@ -422,7 +420,7 @@ export const handleSaveLLMConfig = async (llmConfig: LLMConfig) => {
     body: JSON.stringify(normalizedConfig),
   });
   if (!response.ok) {
-    throw new Error(`Unable to save user configuration (${response.status})`);
+    throw new Error(await getApiErrorMessage(response, "Unable to save user configuration."));
   }
 
   store.dispatch(setLLMConfig(normalizedConfig));

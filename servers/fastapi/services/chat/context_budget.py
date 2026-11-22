@@ -156,7 +156,9 @@ class ChatContextBudget:
     @classmethod
     def from_client(cls, client: Any, model: str) -> "ChatContextBudget":
         prepared = client.prepare_generation(model=model, tools_requested=True)
-        override = os.environ.get("LLM_CONTEXT_WINDOW", "").strip()
+        captured = getattr(client, "__dict__", {})
+        override = (captured["_presenton_context_window_override"] or "") if "_presenton_context_window_override" in captured else os.environ.get("LLM_CONTEXT_WINDOW", "")
+        override = override.strip()
         if override:
             try:
                 window = int(override)
@@ -168,7 +170,8 @@ class ChatContextBudget:
             # Unknown aliases get a provisional assumption, never the SDK's
             # unrelated 4,000-token unknown-model fallback. Deployments can
             # override nominal model metadata; errors can lower it this turn.
-            window = get_context_window(model, provider=getattr(client, "PROVIDER_NAME", None), default=32768)
+            metadata = captured.get("_presenton_model_metadata")
+            window = getattr(metadata, "context_window", None) or get_context_window(model, provider=getattr(client, "PROVIDER_NAME", None), default=32768)
         reasoning = prepared.reasoning.budget_tokens or 0
         minimum = max(min(1024, prepared.max_output_tokens), reasoning + 512 if reasoning else 0)
         if minimum > prepared.max_output_tokens:
