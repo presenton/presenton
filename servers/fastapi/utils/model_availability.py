@@ -75,7 +75,8 @@ def _check_image_provider_configuration() -> None:
 
     elif (
         selected_image_provider == ImageProvider.GPT_IMAGE_2
-        or selected_image_provider == ImageProvider.GPT_IMAGE_1_5
+        or selected_image_provider == ImageProvider.GPT_IMAGE_2_5_FLARE
+        or selected_image_provider == ImageProvider.GPT_IMAGE_2_5_SUNBURST
     ):
         openai_api_key = get_openai_api_key_env()
         if not openai_api_key:

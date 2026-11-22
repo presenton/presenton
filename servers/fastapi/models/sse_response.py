@@ -31,12 +31,24 @@ class SSETraceResponse(BaseModel):
 
 class SSEErrorResponse(BaseModel):
     detail: str
+    code: str | None = None
     source: str | None = None
     status_code: int | None = None
     error_type: str | None = None
     retryable: bool | None = None
     completed_slides: int | None = None
     total_slides: int | None = None
+
+    @classmethod
+    def from_exception(cls, error: Exception, *, fallback_detail: str = "The request failed. Please try again."):
+        from utils.api_errors import api_error_payload
+
+        payload = api_error_payload(error, fallback_detail=fallback_detail, source="generation")
+        # Keep the existing SSE detail string contract for older clients.
+        if not isinstance(payload["detail"], str):
+            nested = payload["detail"]
+            payload["detail"] = nested["message"] if isinstance(nested, dict) and isinstance(nested.get("message"), str) else fallback_detail
+        return cls(**payload)
 
     def to_string(self):
         payload = {"type": "error", **self.model_dump(exclude_none=True)}

@@ -17,7 +17,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY servers/fastapi /app/servers/fastapi
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --python /opt/venv/bin/python --no-deps .
+    uv pip install --python /opt/venv/bin/python --no-deps . \
+    && cd /tmp \
+    && /opt/venv/bin/python -c "from templates.pptx_font_utils import get_static_font_catalog; assert get_static_font_catalog(), 'Packaged font catalog is empty'"
 # mem0/spaCy BM25 lemmatization loads en_core_web_sm at runtime; spaCy tries pip to
 # download it otherwise. Runtime image has no pip in PATH (--without-pip venv).
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -36,6 +38,9 @@ FROM node:22-bookworm-slim AS nextjs-builder
 WORKDIR /app/servers/nextjs
 
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Match the npm version that supports the frontend lockfile's range overrides.
+RUN npm install --global npm@11.16.0
 
 COPY servers/nextjs/package.json servers/nextjs/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \

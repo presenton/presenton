@@ -2377,7 +2377,7 @@ async def stream_presentation(
                     slide_number=i + 1,
                 )
             except HTTPException as e:
-                yield SSEErrorResponse(detail=e.detail).to_string()
+                yield SSEErrorResponse.from_exception(e).to_string()
                 return
 
             slide = SlideModel(

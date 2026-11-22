@@ -58,7 +58,7 @@ from utils.get_env import (
     get_openrouter_require_parameters_env,
     get_openrouter_data_collection_env,
     get_openrouter_zdr_env,
-    get_gpt_image_1_5_quality_env,
+    get_gpt_image_2_5_quality_env,
     get_llm_provider_env,
     get_ollama_model_env,
     get_ollama_url_env,
@@ -161,7 +161,7 @@ from utils.set_env import (
     set_openrouter_require_parameters_env,
     set_openrouter_data_collection_env,
     set_openrouter_zdr_env,
-    set_gpt_image_1_5_quality_env,
+    set_gpt_image_2_5_quality_env,
     set_llm_provider_env,
     set_ollama_model_env,
     set_ollama_url_env,
@@ -312,8 +312,8 @@ def get_user_config():
         COMFYUI_URL=existing_config.COMFYUI_URL or get_comfyui_url_env(),
         COMFYUI_WORKFLOW=existing_config.COMFYUI_WORKFLOW or get_comfyui_workflow_env(),
         GPT_IMAGE_2_QUALITY=existing_config.GPT_IMAGE_2_QUALITY or get_gpt_image_2_quality_env(),
-        GPT_IMAGE_1_5_QUALITY=existing_config.GPT_IMAGE_1_5_QUALITY
-        or get_gpt_image_1_5_quality_env(),
+        GPT_IMAGE_2_5_QUALITY=existing_config.GPT_IMAGE_2_5_QUALITY
+        or get_gpt_image_2_5_quality_env(),
         DISABLE_THINKING=(
             existing_config.DISABLE_THINKING
             if existing_config.DISABLE_THINKING is not None
@@ -524,8 +524,8 @@ def update_env_with_user_config():
         set_comfyui_workflow_env(user_config.COMFYUI_WORKFLOW)
     if user_config.GPT_IMAGE_2_QUALITY:
         set_gpt_image_2_quality_env(user_config.GPT_IMAGE_2_QUALITY)
-    if user_config.GPT_IMAGE_1_5_QUALITY:
-        set_gpt_image_1_5_quality_env(user_config.GPT_IMAGE_1_5_QUALITY)
+    if user_config.GPT_IMAGE_2_5_QUALITY:
+        set_gpt_image_2_5_quality_env(user_config.GPT_IMAGE_2_5_QUALITY)
     if user_config.DISABLE_THINKING is not None:
         set_disable_thinking_env(str(user_config.DISABLE_THINKING))
     if user_config.EXTENDED_REASONING is not None:

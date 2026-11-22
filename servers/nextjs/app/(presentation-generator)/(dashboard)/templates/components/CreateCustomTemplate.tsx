@@ -27,7 +27,7 @@ const CreateCustomTemplate = ({
 
     if (libraryPage) {
       return (
-        <Card className="relative h-full min-w-0 overflow-hidden rounded-[10px] border-0 bg-[#F8FBFB] shadow-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[10px] after:border after:border-[#EDEEEF] after:transition-colors hover:after:border-[#D8D3FA]">
+        <Card className="motion-card relative h-full min-w-0 overflow-hidden rounded-[10px] border-0 bg-[#F8FBFB] shadow-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[10px] after:border after:border-[#EDEEEF] hover:after:border-[#D8D3FA]">
           <button type="button" onClick={handleOpenTemplateBuilder} className="relative flex h-full min-h-[268px] w-full items-center justify-center overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#7A5AF8]">
             <TemplateLibraryPattern />
             <span className="relative flex flex-col items-center gap-2.5 p-2.5">

@@ -71,6 +71,11 @@ Create presentations from a prompt, an uploaded document, or your own PowerPoint
 
 Browse in-built AI presentation templates for pitch decks, business reports, executive updates, educational presentations, and more. Preview each editable slide layout, choose a design, and use Presenton to generate fully editable PowerPoint (`.pptx`) or PDF presentations from a prompt or document.
 
+To customize a built-in design, open its preview and select **Copy to custom**.
+The copy appears under **Custom** templates and uses the existing template editor.
+
+
+
 <table border="1" cellpadding="16" cellspacing="0" width="100%">
 <tr>
 <td align="center" width="33%">
@@ -419,7 +424,7 @@ account setup available so an admin can finish configuration in Settings.
 | **CEREBRAS_BASE_URL** | `https://api.cerebras.ai/v1` (default) | Cerebras base URL. |
 | **ANTHROPIC_API_KEY** | Required for `LLM=anthropic` | Anthropic API key. |
 | **ANTHROPIC_MODEL** | `claude-3-5-sonnet-20241022` (default) | Anthropic model. |
-| **CODEX_MODEL** | Required for `LLM=codex` | Codex model. The OAuth flow maps host port `1455` for its callback. |
+| **CODEX_MODEL** | Required for `LLM=codex` | Exact model ID selected from the connected ChatGPT account's dynamic catalog. See [ChatGPT model discovery](docs/chatgpt-model-discovery.md). The OAuth flow uses port `1455` for its callback. |
 | **CUSTOM_LLM_URL** | Required for `LLM=custom` | OpenAI-compatible base URL. The server must implement `POST /v1/chat/completions`; a provider-specific completion endpoint is insufficient. Model discovery supports local servers and proxy prefixes, requires a URL without a query or fragment, and does not follow redirects. |
 | **CUSTOM_LLM_API_KEY** | Provider-dependent | Custom-provider API key. |
 | **CUSTOM_MODEL** | Required for `LLM=custom` | Custom-provider model ID. |
@@ -437,7 +442,8 @@ account setup available so an admin can finish configuration in Settings.
 | **TAVILY_API_KEY**, **EXA_API_KEY** | Optional | Credentials for hosted search providers. |
 | **EXTENDED_REASONING** | `true` / `false` | Enables extended reasoning where supported. |
 | **LLM_GENERATION_PROFILE** | `fast`, `balanced` (default), `deep`, `model_max` | Global generation profile. |
-| **LLM_MAX_OUTPUT_TOKENS** | Optional positive integer | Output-token override for every text provider. |
+| **LLM_MAX_OUTPUT_TOKENS** | Optional positive integer | Output-token budget override. The current ChatGPT/Codex transport does not enforce it as a hard provider output limit. |
+| **LLM_CONTEXT_WINDOW** | Optional positive integer | AI editor context limit in tokens. Set this to the actual deployed limit for custom/local models. Otherwise the editor uses model metadata, or assumes 32,768 for unknown aliases. Budgeting estimates messages and tool schemas with a safety margin, compacts older context, and retries a provider-rejected overflow once. |
 | **MAX_OUTLINE_WORDS** | `100` (default), positive integer | Maximum words in each generated, edited, or `slides_markdown` slide outline. |
 | **LLM_REASONING_MODE** | `auto`, `enabled`, `disabled` | Global reasoning-mode override. |
 | **LLM_REASONING_EFFORT** | `default`, `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` | Reasoning-effort override. |
@@ -493,20 +499,24 @@ Docker images install the default spaCy model (`en_core_web_sm`) during build so
 
 #### Image generation
 
-These variables match `docker-compose.yml`. **`IMAGE_PROVIDER`** selects the backend (`pexels`, `pixabay`, `gemini_flash`, `nanobanana_pro`, `gpt-image-2`, `gpt-image-1.5`, `comfyui`, `open_webui`). Use **OPENAI_API_KEY** for OpenAI image modes and **GOOGLE_API_KEY** for Gemini image modes (same keys as the LLM section).
+These variables match `docker-compose.yml`. **`IMAGE_PROVIDER`** selects the backend (`pexels`, `pixabay`, `gemini_flash`, `nanobanana_pro`, `gpt-image-2`, `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst`, `comfyui`, `open_webui`). Use **OPENAI_API_KEY** for OpenAI image modes and **GOOGLE_API_KEY** for Gemini image modes (same keys as the LLM section).
 
 | Variable | Values / default | Purpose |
 | --- | --- | --- |
 | **DISABLE_IMAGE_GENERATION** | `true` / `false` | Disables slide image generation. |
 | **ENABLE_PARALLEL_IMAGE_GENERATION** | `true` (default), `false` | Allows concurrent image-provider requests. Set to `false` for providers with strict rate limits. |
-| **IMAGE_PROVIDER** | `pexels`, `pixabay`, `gemini_flash`, `nanobanana_pro`, `gpt-image-2`, `gpt-image-1.5`, `comfyui`, `open_webui`, `openai_compatible` | Selects the image backend. |
+| **IMAGE_PROVIDER** | `pexels`, `pixabay`, `gemini_flash`, `nanobanana_pro`, `gpt-image-2`, `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst`, `comfyui`, `open_webui`, `openai_compatible` | Selects the image backend. |
 | **PEXELS_API_KEY** | Required for `IMAGE_PROVIDER=pexels` | Pexels stock-image API key. |
 | **PIXABAY_API_KEY** | Required for `IMAGE_PROVIDER=pixabay` | Pixabay stock-image API key. |
 | **GPT_IMAGE_2_QUALITY** | `low`, `medium` (default), `high` | GPT Image 2 image quality. |
-| **GPT_IMAGE_1_5_QUALITY** | `low`, `medium` (default), `high` | GPT Image 1.5 image quality. |
+| **GPT_IMAGE_2_5_QUALITY** | `low`, `medium` (default), `high`, `xhigh`, `max`, `auto` | Shared image quality for GPT Image 2.5 Flare and Sunburst. |
 | **COMFYUI_URL** / **COMFYUI_WORKFLOW** | Required for `IMAGE_PROVIDER=comfyui` | Self-hosted ComfyUI endpoint and workflow JSON. |
 | **OPEN_WEBUI_IMAGE_URL** / **OPEN_WEBUI_IMAGE_API_KEY** | Required for `IMAGE_PROVIDER=open_webui` | Open WebUI API root (`http://host:8080/api/v1`; a bare origin gets `/api/v1` appended) and API key. |
 | **OPENAI_COMPAT_IMAGE_BASE_URL** / **OPENAI_COMPAT_IMAGE_API_KEY** / **OPENAI_COMPAT_IMAGE_MODEL** | Required for `IMAGE_PROVIDER=openai_compatible` | Sends image requests to an OpenAI-compatible `/v1/images/*` endpoint such as LiteLLM, Azure, or a vLLM gateway. |
+
+When no image provider is set and only OpenAI credentials are configured, Presenton defaults to `gpt-image-2.5-flare` at `medium` quality. Set `IMAGE_PROVIDER=gpt-image-2.5-sunburst` to use Sunburst instead. Both use `OPENAI_API_KEY` and `GPT_IMAGE_2_5_QUALITY`.
+
+Existing `IMAGE_PROVIDER=gpt-image-1.5` and `gpt-image-1.5-2025-12-16` configurations automatically migrate to `gpt-image-2.5-flare`. Their `GPT_IMAGE_1_5_QUALITY` value is preserved unless `GPT_IMAGE_2_5_QUALITY` is explicitly set. The old quality variable is accepted only for migration.
 
 Existing `IMAGE_PROVIDER=dall-e-3` configurations automatically migrate to `gpt-image-2`. Legacy `standard` quality maps to `medium`, and `hd` maps to `high`. Set `GPT_IMAGE_2_QUALITY` to choose a different quality.
 
@@ -671,7 +681,7 @@ Notes:
 Same variables as compose; use `-e` instead of `.env` when running `docker run` directly.
 
 - Using OpenAI
-    <pre><code class="language-bash">docker run -it --name presenton -p 5001:80 -e LLM="openai" -e OPENAI_API_KEY="******" -e IMAGE_PROVIDER="gpt-image-2" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
+    <pre><code class="language-bash">docker run -it --name presenton -p 5001:80 -e LLM="openai" -e OPENAI_API_KEY="******" -e IMAGE_PROVIDER="gpt-image-2.5-flare" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>
 
 - Using Google
     <pre><code class="language-bash">docker run -it --name presenton -p 5001:80 -e LLM="google" -e GOOGLE_API_KEY="******" -e IMAGE_PROVIDER="gemini_flash" -v "./app_data:/app_data" ghcr.io/presenton/presenton:latest</code></pre>

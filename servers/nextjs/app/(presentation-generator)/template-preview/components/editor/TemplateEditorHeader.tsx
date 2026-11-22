@@ -43,10 +43,12 @@ type TemplateEditorHeaderProps = {
   canUndo: boolean;
   canDelete: boolean;
   hasUnsavedChanges: boolean;
+  isCloning: boolean;
   isSaving: boolean;
   templateName: string;
   onBack: () => void;
   onCopy: () => void;
+  onClone: () => void;
   onDelete: () => void;
   onTemplateNameCancel: () => void;
   onTemplateNameChange: (name: string) => void;
@@ -63,10 +65,12 @@ export function TemplateEditorHeader({
   canUndo,
   canDelete,
   hasUnsavedChanges,
+  isCloning,
   isSaving,
   templateName,
   onBack,
   onCopy,
+  onClone,
   onDelete,
   onTemplateNameCancel,
   onTemplateNameChange,
@@ -150,27 +154,31 @@ export function TemplateEditorHeader({
           <Copy className="h-4 w-4" />
         </button>
         <div className="hidden h-[16.5px] w-px bg-[#EDEEEF] sm:block" />
-        <div className="flex h-[34px] w-[80px] items-center justify-center gap-[10px]">
-          <button
-            className="flex h-[34px] w-[24px] items-center justify-center rounded-full text-[#101323] transition-colors hover:bg-[#F7F6F9] disabled:text-[#B9B9B9]"
-            disabled={!canEdit || !canUndo}
-            onClick={onUndo}
-            title="Undo"
-            type="button"
-          >
-            <Undo2 className="h-[14px] w-[14px]" />
-          </button>
-          <button
-            className="flex h-[34px] w-[24px] items-center justify-center rounded-full text-[#101323] transition-colors hover:bg-[#F7F6F9] disabled:text-[#B9B9B9]"
-            disabled={!canEdit || !canRedo}
-            onClick={onRedo}
-            title="Redo"
-            type="button"
-          >
-            <Redo2 className="h-[14px] w-[14px]" />
-          </button>
-        </div>
-        <div className="hidden h-[16.5px] w-px bg-[#EDEEEF] sm:block" />
+        {canEdit ? (
+          <>
+            <div className="flex h-[34px] w-[80px] items-center justify-center gap-[10px]">
+              <button
+                className="flex h-[34px] w-[24px] items-center justify-center rounded-full text-[#101323] transition-colors hover:bg-[#F7F6F9] disabled:text-[#B9B9B9]"
+                disabled={!canUndo}
+                onClick={onUndo}
+                title="Undo"
+                type="button"
+              >
+                <Undo2 className="h-[14px] w-[14px]" />
+              </button>
+              <button
+                className="flex h-[34px] w-[24px] items-center justify-center rounded-full text-[#101323] transition-colors hover:bg-[#F7F6F9] disabled:text-[#B9B9B9]"
+                disabled={!canRedo}
+                onClick={onRedo}
+                title="Redo"
+                type="button"
+              >
+                <Redo2 className="h-[14px] w-[14px]" />
+              </button>
+            </div>
+            <div className="hidden h-[16.5px] w-px bg-[#EDEEEF] sm:block" />
+          </>
+        ) : null}
         {canDelete ? (
           <>
             <button
@@ -184,6 +192,21 @@ export function TemplateEditorHeader({
             </button>
             <div className="hidden h-[16.5px] w-px bg-[#EDEEEF] md:block" />
           </>
+        ) : null}
+        {!canEdit ? (
+          <GradientActionButton
+            onClick={onClone}
+            disabled={isCloning}
+            aria-busy={isCloning}
+            className="shrink-0 whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C51F8]"
+          >
+            {isCloning ? "Copying…" : "Copy to custom"}
+            {isCloning ? (
+              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+            ) : (
+              <Copy aria-hidden="true" className="h-4 w-4" />
+            )}
+          </GradientActionButton>
         ) : null}
         {canEdit ? (
           <GradientActionButton

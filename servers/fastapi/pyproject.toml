@@ -24,7 +24,7 @@ dependencies = [
     "greenlet>=3.0.3",
     "google-genai>=1.28.0",
     "httpx>=0.28.0",
-    "mem0ai[nlp]>=0.1.115",
+    "mem0ai[nlp]>=2.0.18",
     "nltk>=3.10.4",
     "openai>=1.98.0",
     "pathvalidate>=3.3.1",
@@ -40,6 +40,10 @@ dependencies = [
 
 [tool.uv]
 index-strategy = "unsafe-best-match"
+constraint-dependencies = [
+    "joserfc>=1.7.6",
+    "pyasn1>=0.6.5",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -52,6 +56,9 @@ include = [
     "utils*",
     "templates*",
 ]
+
+[tool.setuptools.package-data]
+templates = ["assets/fonts.json"]
 
 [tool.pyright]
 typeCheckingMode = "off"

@@ -1,5 +1,10 @@
 from io import BytesIO
+import asyncio
+import base64
+import json
 import math
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import List
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Header
 from PIL import Image, UnidentifiedImageError
@@ -7,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from models.image_prompt import ImagePrompt
+from models.image_provider_test import ImageProviderTestConfig
 from models.sql.image_asset import ImageAsset
 from services.database import get_async_session
 from services.image_generation_service import ImageGenerationService
@@ -17,6 +23,7 @@ from utils.asset_directory_utils import (
 )
 from utils.get_env import get_pexels_api_key_env, get_pixabay_api_key_env
 from utils.image_provider import get_selected_image_provider
+from utils.image_generation_error import normalize_image_generation_error
 from enums.image_provider import ImageProvider
 import os
 import uuid
@@ -44,6 +51,91 @@ ALLOWED_UPLOAD_IMAGE_FORMATS = {
     "WEBP",
 }
 REDACTED_SECRET_PLACEHOLDER = "__configured__"
+
+
+@IMAGES_ROUTER.post("/test")
+async def test_image_provider(config: ImageProviderTestConfig):
+    settings = config.model_dump(mode="json")
+    for key, value in settings.items():
+        if value == REDACTED_SECRET_PLACEHOLDER and key.endswith("_API_KEY"):
+            settings[key] = os.getenv(key, "")
+
+    required_fields = {
+        "pexels": ["PEXELS_API_KEY"],
+        "pixabay": ["PIXABAY_API_KEY"],
+        "gpt-image-2": ["OPENAI_API_KEY"],
+        "gpt-image-2.5-flare": ["OPENAI_API_KEY"],
+        "gpt-image-2.5-sunburst": ["OPENAI_API_KEY"],
+        "gemini_flash": ["GOOGLE_API_KEY"],
+        "nanobanana_pro": ["GOOGLE_API_KEY"],
+        "comfyui": ["COMFYUI_URL", "COMFYUI_WORKFLOW"],
+        "open_webui": ["OPEN_WEBUI_IMAGE_URL"],
+        "openai_compatible": [
+            "OPENAI_COMPAT_IMAGE_BASE_URL", "OPENAI_COMPAT_IMAGE_API_KEY",
+            "OPENAI_COMPAT_IMAGE_MODEL",
+        ],
+    }
+    for field in required_fields[settings["IMAGE_PROVIDER"]]:
+        if not settings[field].strip():
+            raise HTTPException(status_code=400, detail=f"{field} is required")
+    if settings["IMAGE_PROVIDER"] == "comfyui":
+        try:
+            workflow = json.loads(settings["COMFYUI_WORKFLOW"])
+            if not isinstance(workflow, dict) or not workflow:
+                raise ValueError()
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Enter a valid ComfyUI workflow JSON object",
+            )
+
+    try:
+        # Test images are temporary and never enter the user's asset library.
+        with TemporaryDirectory(prefix="presenton-image-test-") as directory:
+            service = ImageGenerationService(directory, config=settings)
+
+            async def generate_sample():
+                if settings["IMAGE_PROVIDER"] == "pexels":
+                    # Common searches may return cached public results even for
+                    # invalid keys. Force an uncached authentication check first.
+                    await service.get_image_from_pexels(
+                        f"__presenton_auth_check_{uuid.uuid4().hex}", limit=1
+                    )
+                return await service.generate_image(
+                    ImagePrompt(prompt="A mountain lake on a sunny day")
+                )
+
+            image = await asyncio.wait_for(
+                generate_sample(),
+                timeout=180,
+            )
+            if isinstance(image, ImageAsset):
+                data = Path(image.path).read_bytes()
+                with Image.open(BytesIO(data)) as preview:
+                    mime_type = Image.MIME.get(preview.format, "image/png")
+                    preview.verify()
+                image_url = f"data:{mime_type};base64,{base64.b64encode(data).decode()}"
+            elif (
+                isinstance(image, str)
+                and image.startswith(("https://", "http://"))
+                and "/static/images/placeholder.jpg" not in image
+            ):
+                image_url = image
+            else:
+                raise HTTPException(
+                    status_code=502,
+                    detail="The provider did not return an image. Check its configuration and try again.",
+                )
+            return {"image_url": image_url}
+    except TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="The image test timed out after 3 minutes. Check that your provider is reachable and try again.",
+        )
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise normalize_image_generation_error(error) from error
 
 
 async def _read_validated_image_upload(file: UploadFile) -> bytes:

@@ -228,8 +228,7 @@ const DocumentsPreviewPage: React.FC = () => {
     if (!isOpen) return null;
 
     return (
-      <div className={`border-r border-gray-200 fixed xl:relative w-full z-50 xl:z-auto
-        transition-all duration-300 bg-white ease-in-out max-w-[200px] md:max-w-[300px] h-[85vh] rounded-md p-5`}>
+      <div className="motion-enter border-r border-gray-200 fixed xl:relative w-full z-50 xl:z-auto bg-white max-w-[200px] md:max-w-[300px] h-[85vh] rounded-md p-5">
         <X
           onClick={() => setIsOpen(false)}
           className="text-black mb-4 ml-auto mr-0 cursor-pointer hover:text-gray-600"
@@ -289,17 +288,17 @@ const DocumentsPreviewPage: React.FC = () => {
 
         {renderSidebar()}
 
-        <div className="bg-white w-full mx-2 sm:mx-4 h-[calc(100vh-100px)] custom_scrollbar rounded-md overflow-y-auto py-6 pl-6">
+        <div className="motion-fade motion-delay-1 bg-white w-full mx-2 sm:mx-4 h-[calc(100vh-100px)] custom_scrollbar rounded-md overflow-y-auto py-6 pl-6">
           {renderDocumentContent()}
         </div>
 
         <div className="fixed bottom-5 right-5">
           <Button
             onClick={handleCreatePresentation}
-            className="flex items-center gap-2 px-8 py-6 rounded-sm text-md bg-[#5146E5] hover:bg-[#5146E5]/90"
+            className="motion-press group flex items-center gap-2 px-8 py-6 rounded-sm text-md bg-[#5146E5] hover:bg-[#5146E5]/90"
           >
             <span className="text-white font-semibold">Next</span>
-            <ChevronRight />
+            <ChevronRight className="motion-arrow" />
           </Button>
         </div>
       </div>

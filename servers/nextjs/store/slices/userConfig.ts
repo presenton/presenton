@@ -1,3 +1,4 @@
+import { DEFAULT_OPENAI_IMAGE_PROVIDER } from "@/utils/providerConstants";
 import { LLMConfig } from "@/types/llm_config";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
@@ -9,7 +10,8 @@ interface UserConfigState {
 const initialState: UserConfigState = {
   llm_config: {
     LLM: "",
-    IMAGE_PROVIDER: "gpt-image-1.5",
+    IMAGE_PROVIDER: DEFAULT_OPENAI_IMAGE_PROVIDER,
+    GPT_IMAGE_2_5_QUALITY: "medium",
 
   },
   role: null,

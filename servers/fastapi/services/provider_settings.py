@@ -1,13 +1,17 @@
 import logging
+import asyncio
+import os
 from typing import Any
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.sql.provider_settings import ProviderSettings
 from utils.datetime_utils import get_current_utc_datetime
 from utils.db_utils import get_database_url_and_connect_args, to_sync_sqlalchemy_url
 from utils.get_env import get_user_config_path_env
+from utils.image_config import migrate_legacy_image_config
+from utils.parsers import parse_bool_or_none
 from utils.user_config_store import read_user_config_file, update_user_config_file
 
 
@@ -51,19 +55,27 @@ OPTIONAL_ADVANCED_FIELDS = {
 
 def sanitize_provider_settings(config: dict[str, Any]) -> dict[str, Any]:
     """Keep provider/runtime settings and exclude every legacy auth field."""
-    return {
-        key: value
-        for key, value in config.items()
-        if not key.upper().startswith("AUTH_")
-    }
+    return migrate_legacy_image_config(
+        {
+            key: value
+            for key, value in config.items()
+            if not key.upper().startswith("AUTH_")
+        },
+    )
 
 
 def merge_provider_settings(
     existing: dict[str, Any], incoming: dict[str, Any]
 ) -> dict[str, Any]:
     """Preserve the previous settings API's patch and managed-token behavior."""
-    sanitized = sanitize_provider_settings(incoming)
-    merged = {**sanitize_provider_settings(existing), **sanitized}
+    # Normalize after overlaying the raw patch so an existing explicit new-model
+    # quality takes precedence over legacy quality values and migration defaults.
+    sanitized = {
+        key: value
+        for key, value in incoming.items()
+        if not key.upper().startswith("AUTH_")
+    }
+    merged = sanitize_provider_settings({**existing, **sanitized})
 
     for key in OAUTH_MANAGED_FIELDS:
         if key in existing:
@@ -82,14 +94,23 @@ def merge_provider_settings(
     return merged
 
 
-def _mirror_to_legacy_file(config: dict[str, Any]) -> None:
+def _mirror_to_legacy_file(config: dict[str, Any]) -> dict[str, Any]:
     """Mirror DB settings for code paths that still consume userConfig.json."""
     path = get_user_config_path_env()
     if not path:
-        return
+        return dict(config)
 
     def replace_provider_config(existing: dict[str, Any]) -> dict[str, Any]:
         mirrored = dict(config)
+        from services.codex_credentials import CREDENTIAL_FIELDS, CONFIG_REVISION_KEY, REVISION_KEY
+        if int(existing.get(CONFIG_REVISION_KEY, 0)) > int(config.get(CONFIG_REVISION_KEY, 0)):
+            return existing
+        if int(existing.get(REVISION_KEY, 0)) > int(config.get(REVISION_KEY, 0)):
+            # Auth transitions in another process may have committed after this
+            # settings snapshot. Never mirror older credentials over them.
+            for key in CREDENTIAL_FIELDS | {REVISION_KEY, "CODEX_MODEL"}:
+                if key in existing:
+                    mirrored[key] = existing[key]
         # Authentication is database-backed now, but the compatibility file is
         # also the rollback/recovery copy. Never discard its credential fields.
         for key, value in existing.items():
@@ -97,34 +118,83 @@ def _mirror_to_legacy_file(config: dict[str, Any]) -> None:
                 mirrored[key] = value
         return mirrored
 
-    update_user_config_file(path, replace_provider_config)
+    return update_user_config_file(path, replace_provider_config)
 
 
-async def migrate_provider_settings_from_file(session: AsyncSession) -> dict[str, Any]:
-    """One-time startup import, followed by DB-to-file compatibility syncing."""
-    row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID)
-    path = get_user_config_path_env()
+def _startup_codex_config(
+    config: dict[str, Any], codex_environment: dict[str, str] | None
+) -> dict[str, Any] | None:
+    from services.codex_credentials import CONFIG_REVISION_KEY, REVISION_KEY
 
-    if row is None:
-        legacy_config = read_user_config_file(path) if path else {}
-        row = ProviderSettings(
-            id=PROVIDER_SETTINGS_ID,
-            config=sanitize_provider_settings(legacy_config),
-        )
-        session.add(row)
-        await session.commit()
-        await session.refresh(row)
-        logger.info("Migrated provider settings from userConfig.json into the database.")
-    else:
-        sanitized = sanitize_provider_settings(dict(row.config or {}))
-        if sanitized != row.config:
-            row.config = sanitized
-            row.updated_at = get_current_utc_datetime()
+    if not codex_environment or not codex_environment.get("CODEX_ACCESS_TOKEN", "").strip():
+        return None
+    # A stored token key, including an explicit clear, owns the whole bundle.
+    if (
+        {"CODEX_ACCESS_TOKEN", "CODEX_REFRESH_TOKEN"} & config.keys()
+        or int(config.get(REVISION_KEY, 0)) != 0
+    ):
+        return None
+    bundle: dict[str, str | bool] = {
+        key: codex_environment[key] for key in CODEX_MANAGED_FIELDS if key in codex_environment
+    }
+    if "CODEX_IS_PRO" in bundle:
+        is_pro = parse_bool_or_none(codex_environment["CODEX_IS_PRO"])
+        if is_pro is not None:
+            bundle["CODEX_IS_PRO"] = is_pro
+        else:
+            del bundle["CODEX_IS_PRO"]
+    return {
+        **{key: value for key, value in config.items() if key not in CODEX_MANAGED_FIELDS},
+        **bundle,
+        REVISION_KEY: 1,
+        CONFIG_REVISION_KEY: int(config.get(CONFIG_REVISION_KEY, 0)) + 1,
+    }
+
+
+async def migrate_provider_settings_from_file(
+    session: AsyncSession, *, codex_environment: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """Import legacy config, then mirror DB settings back to the file."""
+    from services.codex_credentials import CONFIG_REVISION_KEY, REVISION_KEY
+
+    for _ in range(3):
+        row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID)
+        if row is None:
+            path = get_user_config_path_env()
+            config = sanitize_provider_settings(read_user_config_file(path) if path else {})
+            imported = _startup_codex_config(config, codex_environment)
+            row = ProviderSettings(id=PROVIDER_SETTINGS_ID, config=imported if imported is not None else config)
+            session.add(row)
             await session.commit()
+            await session.refresh(row)
+            logger.info("Initialized provider settings in the database.")
+        else:
+            config = sanitize_provider_settings(dict(row.config or {}))
+            imported = _startup_codex_config(config, codex_environment)
+            if imported is not None:
+                table = ProviderSettings.__table__
+                result = await session.execute(update(table).where(
+                    table.c.id == PROVIDER_SETTINGS_ID,
+                    table.c.updated_at == row.updated_at,
+                    func.coalesce(table.c.config[REVISION_KEY].as_integer(), 0) == 0,
+                    func.coalesce(table.c.config[CONFIG_REVISION_KEY].as_integer(), 0)
+                    == int(config.get(CONFIG_REVISION_KEY, 0)),
+                ).values(config=imported, updated_at=get_current_utc_datetime()))
+                if result.rowcount != 1:
+                    # A concurrent settings write or logout won. Recheck eligibility.
+                    await session.rollback()
+                    continue
+                await session.commit()
+                await session.refresh(row)
+            elif config != row.config:
+                row.config = config
+                row.updated_at = get_current_utc_datetime()
+                await session.commit()
 
-    config = dict(row.config or {})
-    _mirror_to_legacy_file(config)
-    return config
+        config = dict(row.config or {})
+        _mirror_to_legacy_file(config)
+        return config
+    raise RuntimeError("Provider settings changed repeatedly during startup import.")
 
 
 async def get_provider_settings(session: AsyncSession) -> dict[str, Any]:
@@ -137,16 +207,62 @@ async def get_provider_settings(session: AsyncSession) -> dict[str, Any]:
 async def save_provider_settings(
     session: AsyncSession, incoming: dict[str, Any]
 ) -> dict[str, Any]:
+    from fastapi import HTTPException
+    from services import codex_credentials
+    from services.configured_llm import validate_codex_configuration, with_codex_model_fallback
+
+    process_model = os.environ.get("CODEX_MODEL")
     row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID)
+    existing = dict(row.config or {}) if row else {}
+    # Internal concurrency metadata is never user-configurable.
+    internal_fields = {codex_credentials.REVISION_KEY, codex_credentials.CONFIG_REVISION_KEY}
+    incoming = {key: value for key, value in incoming.items() if key not in internal_fields}
+    candidate = merge_provider_settings(existing, incoming)
+    validation_fields = {
+        "LLM", "CODEX_MODEL", "LLM_REASONING_MODE", "LLM_REASONING_EFFORT",
+        "LLM_REASONING_BUDGET_TOKENS", "LLM_GENERATION_PROFILE",
+        "DISABLE_THINKING", "EXTENDED_REASONING",
+        "LLM_MAX_OUTPUT_TOKENS", "LLM_CONTEXT_WINDOW",
+    }
+    needs_validation = candidate.get("LLM") in {"codex", "chatgpt"} and any(
+        existing.get(key) != candidate.get(key) for key in validation_fields
+    )
+    credentials = None
+    if needs_validation:
+        validation_config = with_codex_model_fallback(candidate, process_model)
+        # Do not hold a database transaction while waiting on provider HTTP or
+        # refresh; a rejected candidate has not mutated ORM, DB, file, or env.
+        await session.rollback()
+        credentials = await asyncio.to_thread(codex_credentials.refresh_credentials)
+        await asyncio.to_thread(validate_codex_configuration, validation_config, credentials=credentials)
+
+    row = await session.get(ProviderSettings, PROVIDER_SETTINGS_ID, populate_existing=True, with_for_update=True)
+    latest = dict(row.config or {}) if row else {}
+    ignored = OAUTH_MANAGED_FIELDS | internal_fields
+    if {k: v for k, v in latest.items() if k not in ignored} != {k: v for k, v in existing.items() if k not in ignored}:
+        raise HTTPException(status_code=409, detail="Provider settings changed. Reload Settings and retry.")
+    if credentials is not None and (
+        int(latest.get(codex_credentials.REVISION_KEY, 0)) != credentials.revision
+        or latest.get("CODEX_ACCESS_TOKEN", "") != credentials.access_token
+    ):
+        raise HTTPException(status_code=409, detail="ChatGPT credentials changed. Retry the operation.")
+    config = merge_provider_settings(latest, incoming)
+    config[codex_credentials.CONFIG_REVISION_KEY] = int(latest.get(codex_credentials.CONFIG_REVISION_KEY, 0)) + 1
+    timestamp = get_current_utc_datetime()
     if row is None:
-        existing: dict[str, Any] = {}
-        row = ProviderSettings(id=PROVIDER_SETTINGS_ID, config={})
+        row = ProviderSettings(id=PROVIDER_SETTINGS_ID, config=config, updated_at=timestamp)
         session.add(row)
     else:
-        existing = dict(row.config or {})
-
-    row.config = merge_provider_settings(existing, incoming)
-    row.updated_at = get_current_utc_datetime()
+        table = ProviderSettings.__table__
+        result = await session.execute(update(table).where(
+            table.c.id == PROVIDER_SETTINGS_ID,
+            table.c.updated_at == row.updated_at,
+            func.coalesce(table.c.config[codex_credentials.REVISION_KEY].as_integer(), 0)
+            == int(latest.get(codex_credentials.REVISION_KEY, 0)),
+        ).values(config=config, updated_at=timestamp))
+        if result.rowcount != 1:
+            await session.rollback()
+            raise HTTPException(status_code=409, detail="Provider settings changed. Reload Settings and retry.")
     await session.commit()
     await session.refresh(row)
 

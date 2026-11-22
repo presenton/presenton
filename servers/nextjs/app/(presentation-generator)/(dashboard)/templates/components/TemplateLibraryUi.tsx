@@ -136,7 +136,7 @@ export function TemplateLibraryCard({ template, onOpen }: {
   const hasDate = createdAt !== null && !Number.isNaN(createdAt.getTime());
 
   return (
-    <Card className="relative min-w-0 overflow-hidden rounded-xl border-0 bg-white font-manrope shadow-none after:pointer-events-none after:absolute after:inset-0 after:rounded-xl after:border after:border-[#EDEEEF] after:transition-colors hover:after:border-[#D8D3FA]">
+    <Card className="motion-card relative min-w-0 overflow-hidden rounded-xl border-0 bg-white font-manrope shadow-none after:pointer-events-none after:absolute after:inset-0 after:rounded-xl after:border after:border-[#EDEEEF] hover:after:border-[#D8D3FA]">
       <button type="button" onClick={onOpen} aria-label={`Open ${template.name} template`} className="group block w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#7A5AF8]">
         <div className="relative aspect-[304.5/169.183] w-full overflow-hidden bg-[#F8FBFB]">
           <TemplateLibraryPattern />

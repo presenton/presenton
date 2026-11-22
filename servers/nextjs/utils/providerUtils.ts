@@ -4,6 +4,8 @@ import {
 } from "@/utils/api";
 import { LLMConfig } from "@/types/llm_config";
 
+import { DEFAULT_OPENAI_IMAGE_PROVIDER } from "@/utils/providerConstants";
+
 const LOCALHOST_OLLAMA_URL = "http://localhost:11434";
 const DOCKER_HOST_OLLAMA_URL = "http://host.docker.internal:11434";
 const OLLAMA_MODELS_CACHE_TTL_MS = 30_000;
@@ -166,7 +168,7 @@ export const updateLLMConfig = (
     comfyui_url: "COMFYUI_URL",
     comfyui_workflow: "COMFYUI_WORKFLOW",
     gpt_image_2_quality: "GPT_IMAGE_2_QUALITY",
-    gpt_image_1_5_quality: "GPT_IMAGE_1_5_QUALITY",
+    gpt_image_2_5_quality: "GPT_IMAGE_2_5_QUALITY",
     open_webui_image_url: "OPEN_WEBUI_IMAGE_URL",
     open_webui_image_api_key: "OPEN_WEBUI_IMAGE_API_KEY",
     openai_compat_image_base_url: "OPENAI_COMPAT_IMAGE_BASE_URL",
@@ -198,7 +200,8 @@ export const changeProvider = (
 
   // Auto Select appropriate image provider based on the text models
   if (provider === "openai") {
-    newConfig.IMAGE_PROVIDER = "gpt-image-1.5";
+    newConfig.IMAGE_PROVIDER = DEFAULT_OPENAI_IMAGE_PROVIDER;
+    newConfig.GPT_IMAGE_2_5_QUALITY ||= "medium";
   } else if (provider === "google") {
     newConfig.IMAGE_PROVIDER = "gemini_flash";
   } else {

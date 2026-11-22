@@ -1,0 +1,203 @@
+/* Short, non-bouncing motion for the application chrome. Slide content and
+   export rendering deliberately do not opt in to these utilities. */
+:root {
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.motion-enter {
+  animation: presenton-content-enter 220ms var(--motion-ease-out) backwards;
+}
+
+.motion-fade {
+  animation: presenton-fade-in 180ms var(--motion-ease-out) backwards;
+}
+
+.motion-enter[data-motion-complete], .motion-fade[data-motion-complete] {
+  animation: none;
+}
+
+.motion-delay-1 { animation-delay: 30ms; }
+.motion-delay-2 { animation-delay: 60ms; }
+.motion-delay-3 { animation-delay: 90ms; }
+
+/* Move the selection itself to preserve context when switching modes or tabs.
+   Transitions retarget smoothly if the user changes their mind mid-flight. */
+.motion-segments {
+  position: relative;
+  isolation: isolate;
+}
+
+.motion-segments > .motion-segment-indicator {
+  position: absolute;
+  top: var(--motion-segment-inset-y, 3px);
+  bottom: var(--motion-segment-inset-y, 3px);
+  left: var(--motion-segment-inset, 3px);
+  width: calc(50% - var(--motion-segment-inset, 3px));
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform 240ms var(--motion-ease-out);
+}
+
+.motion-segments[data-selection="1"] > .motion-segment-indicator {
+  transform: translateX(100%);
+}
+
+.motion-segments > button {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes presenton-content-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes presenton-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes presenton-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Pointer feedback is interruptible. Touch and keyboard keep a stable target. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html:not([data-motion-input="keyboard"]) :is(.motion-card, .motion-press, .motion-arrow) {
+    transition: transform 160ms var(--motion-ease-out);
+  }
+
+  html:not([data-motion-input="keyboard"]) .motion-card:hover:not(:disabled):not([aria-disabled="true"]) {
+    transform: translateY(-2px);
+  }
+
+  html:not([data-motion-input="keyboard"]) .motion-card:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: translateY(0) scale(0.985);
+  }
+
+  html:not([data-motion-input="keyboard"]) .motion-press {
+    transition-duration: 120ms;
+  }
+
+  html:not([data-motion-input="keyboard"]) .motion-press:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: scale(0.97);
+  }
+
+  html:not([data-motion-input="keyboard"]) .group:hover:not(:disabled):not([aria-disabled="true"]) .motion-arrow {
+    transform: translateX(2px);
+  }
+}
+
+/* Radix presence keeps exit animations mounted, so dismissal remains smooth.
+   Preserve Tailwind's position variables, including bottom-aligned dialogs. */
+.motion-overlay[data-state="open"] {
+  animation: presenton-fade-in 180ms var(--motion-ease-out);
+}
+
+.motion-overlay[data-state="closed"] {
+  animation: presenton-fade-out 120ms var(--motion-ease-in);
+}
+
+.motion-dialog[data-state="open"] {
+  animation: presenton-dialog-enter 220ms var(--motion-ease-out);
+}
+
+.motion-dialog[data-state="closed"] {
+  animation: presenton-dialog-exit 120ms var(--motion-ease-in);
+}
+
+@keyframes presenton-dialog-enter {
+  from { opacity: 0; transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) scale(1); }
+}
+
+@keyframes presenton-dialog-exit {
+  from { opacity: 1; transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) scale(1); }
+  to { opacity: 0; transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) translateY(2px) scale(0.995); }
+}
+
+.motion-popover {
+  transform-origin: var(--radix-popover-content-transform-origin,
+    var(--radix-dropdown-menu-content-transform-origin,
+    var(--radix-select-content-transform-origin, center)));
+}
+
+.motion-popover[data-state="open"] {
+  animation: presenton-popover-enter 160ms var(--motion-ease-out);
+}
+
+.motion-popover[data-state="closed"] {
+  animation: presenton-popover-exit 100ms var(--motion-ease-in);
+}
+
+@keyframes presenton-popover-enter {
+  from { opacity: 0; transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) scale(0.98); filter: blur(2px); }
+  to { opacity: 1; transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) scale(1); filter: blur(0); }
+}
+
+@keyframes presenton-popover-exit {
+  from { opacity: 1; transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) scale(1); }
+  to { opacity: 0; transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) scale(0.995); }
+}
+
+/* Tooltips in a Radix provider's skip-delay window appear immediately. */
+.motion-tooltip {
+  transform-origin: var(--radix-tooltip-content-transform-origin);
+}
+
+.motion-tooltip[data-state="delayed-open"] {
+  animation: presenton-popover-enter 120ms var(--motion-ease-out);
+}
+
+.motion-tooltip[data-state="closed"] {
+  animation: presenton-fade-out 80ms var(--motion-ease-in);
+}
+
+/* Keep the existing directional sheet animation, with a shorter exit. */
+.motion-sheet[data-state="open"] {
+  animation-duration: 240ms;
+  animation-timing-function: var(--motion-ease-out);
+}
+
+.motion-sheet[data-state="closed"] {
+  animation-duration: 160ms;
+  animation-timing-function: var(--motion-ease-in);
+}
+
+html[data-motion-input="keyboard"] :is(
+  .motion-enter, .motion-fade, .motion-card, .motion-press, .motion-arrow,
+  .motion-segment-indicator
+) {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  transition: none !important;
+}
+
+/* Preserve Radix's animationend event if input/preference changes mid-exit.
+   Canceling the animation can leave a closing overlay mounted. */
+html[data-motion-input="keyboard"] :is(
+  .motion-overlay, .motion-dialog, .motion-popover, .motion-tooltip, .motion-sheet
+) {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .motion-enter, .motion-fade, .motion-card, .motion-press, .motion-arrow,
+    .motion-segment-indicator
+  ) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition: none !important;
+  }
+
+  :is(.motion-overlay, .motion-dialog, .motion-popover, .motion-tooltip, .motion-sheet) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition: none !important;
+  }
+}

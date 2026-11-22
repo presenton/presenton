@@ -88,9 +88,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: servers/nextjs/package-lock.json
+
+      # Match Docker: npm 10 misinterprets the frontend lockfile's range overrides.
+      - name: Install pinned npm
+        run: npm install --global npm@11.16.0
 
       - name: Install dependencies
         run: npm ci

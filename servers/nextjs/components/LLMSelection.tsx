@@ -6,10 +6,12 @@ import AnthropicConfig from "./AnthropicConfig";
 import OllamaConfig from "./OllamaConfig";
 import CustomConfig from "./CustomConfig";
 import CodexConfig from "./CodexConfig";
+import { CodexModelCatalogProvider } from "./CodexModelCatalog";
 import {
   updateLLMConfig,
   changeProvider as changeProviderUtil,
 } from "@/utils/providerUtils";
+import { DEFAULT_OPENAI_IMAGE_PROVIDER, isGPTImage25Provider } from "@/utils/providerConstants";
 import { LLMConfig } from "@/types/llm_config";
 import ImageSelectionConfig from "./ImageSelectionConfig";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -66,7 +68,7 @@ export default function LLMProviderSelection({
     const needsImageProviderApiKey =
       !llmConfig.DISABLE_IMAGE_GENERATION &&
       ((llmConfig.IMAGE_PROVIDER === "gpt-image-2" && !llmConfig.OPENAI_API_KEY) ||
-        (llmConfig.IMAGE_PROVIDER === "gpt-image-1.5" &&
+        (isGPTImage25Provider(llmConfig.IMAGE_PROVIDER) &&
           !llmConfig.OPENAI_API_KEY) ||
         (llmConfig.IMAGE_PROVIDER === "gemini_flash" &&
           !llmConfig.GOOGLE_API_KEY) ||
@@ -172,7 +174,7 @@ export default function LLMProviderSelection({
 
       if (!prevConfig.DISABLE_IMAGE_GENERATION && !prevConfig.IMAGE_PROVIDER) {
         if (prevConfig.LLM === "openai") {
-          updates.IMAGE_PROVIDER = "gpt-image-1.5";
+          updates.IMAGE_PROVIDER = DEFAULT_OPENAI_IMAGE_PROVIDER;
         } else if (prevConfig.LLM === "google") {
           updates.IMAGE_PROVIDER = "gemini_flash";
         } else {
@@ -200,10 +202,10 @@ export default function LLMProviderSelection({
       }
 
       if (
-        prevConfig.IMAGE_PROVIDER === "gpt-image-1.5" &&
-        !prevConfig.GPT_IMAGE_1_5_QUALITY
+        isGPTImage25Provider(prevConfig.IMAGE_PROVIDER) &&
+        !prevConfig.GPT_IMAGE_2_5_QUALITY
       ) {
-        updates.GPT_IMAGE_1_5_QUALITY = "medium";
+        updates.GPT_IMAGE_2_5_QUALITY = "medium";
       }
 
       if (Object.keys(updates).length === 0) {
@@ -297,10 +299,12 @@ export default function LLMProviderSelection({
 
           {/* ChatGPT / Codex Content */}
           <TabsContent value="codex" className="mt-6">
+            <CodexModelCatalogProvider>
             <CodexConfig
               codexModel={llmConfig.CODEX_MODEL || ""}
               onInputChange={input_field_changed}
             />
+            </CodexModelCatalogProvider>
           </TabsContent>
         </Tabs>
 

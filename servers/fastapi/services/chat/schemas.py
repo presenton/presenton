@@ -67,11 +67,21 @@ class MoveOutlineInput(StrictSchemaModel):
     model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
 
 
-class GetSlideAtIndexInput(StrictSchemaModel):
+class GetSlideAtIndexInput(OpenAIStrictSchemaModel):
     index: int = Field(ge=0, le=1000)
     include_full_content: bool = Field(alias="includeFullContent")
+    element_path: str | None = Field(..., alias="elementPath", min_length=1, max_length=1000)
+    component_id: str | None = Field(..., alias="componentId", min_length=1, max_length=200)
+    element_offset: int | None = Field(..., alias="elementOffset", ge=0, le=10000, description="Discovery offset; null means 0.")
+    element_limit: int | None = Field(..., alias="elementLimit", ge=1, le=50, description="Discovery page size; null means 30.")
 
     model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
+
+    @model_validator(mode="after")
+    def one_target(self):
+        if self.element_path and self.component_id:
+            raise ValueError("Use either elementPath or componentId, not both.")
+        return self
 
 
 class GetSmartPresentationContextInput(StrictSchemaModel):

@@ -4,7 +4,7 @@ import {
     normalizeTemplateTheme,
     type TemplateTheme,
 } from "@/lib/template-theme";
-import { ApiResponseHandler } from "./api-error-handler";
+import { ApiResponseHandler, apiFetch } from "./api-error-handler";
 import { getHeader } from "./header";
 
 const TEMPLATE_THEME_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -131,7 +131,7 @@ class TemplateService {
             if (options.presentonCloudOnly) {
                 params.set("presenton_cloud_only", "true");
             }
-            const response = await fetch(getApiUrl(`/api/v1/ppt/template/all?${params.toString()}`));
+            const response = await apiFetch(getApiUrl(`/api/v1/ppt/template/all?${params.toString()}`));
             return await ApiResponseHandler.handleResponse(response, "Failed to get Templates summaries");
         } catch (error) {
             console.error("Failed to get Templates summaries", error);
@@ -142,7 +142,7 @@ class TemplateService {
     static async getTemplateDetails(templateId: string): Promise<TemplateDetailsResponse> {
         try {
             const apiTemplateId = this.normalizeTemplateId(templateId);
-            const response = await fetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(apiTemplateId)}`));
+            const response = await apiFetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(apiTemplateId)}`));
             return await ApiResponseHandler.handleResponse(response, "Failed to get template details");
         } catch (error) {
             console.error("Failed to get Templates v1 details", error);
@@ -162,7 +162,7 @@ class TemplateService {
 
         const request = (async () => {
             try {
-                const response = await fetch(
+                const response = await apiFetch(
                     getApiUrl(
                         `/api/v1/ppt/template/${encodeURIComponent(cacheKey)}/theme`,
                     ),
@@ -204,7 +204,7 @@ class TemplateService {
 
     static async createTemplate(payload: CreateTemplatePayload): Promise<AsyncTaskResponse> {
         try {
-            const response = await fetch(getApiUrl(`/api/v1/ppt/template/async`), {
+            const response = await apiFetch(getApiUrl(`/api/v1/ppt/template/async`), {
                 method: "POST",
                 headers: getHeader(),
                 body: JSON.stringify(payload),
@@ -226,7 +226,7 @@ class TemplateService {
                 offset: "0",
                 created_at: createdAtFrom.toISOString(),
             });
-            const response = await fetch(getApiUrl(`/api/v1/async-tasks?${params.toString()}`));
+            const response = await apiFetch(getApiUrl(`/api/v1/async-tasks?${params.toString()}`));
             return await ApiResponseHandler.handleResponse(response, "Failed to get recent template tasks");
         } catch (error) {
             console.error("Failed to get recent template tasks", error);
@@ -236,7 +236,7 @@ class TemplateService {
 
     static async retryTemplateCreateTask(taskId: string): Promise<TemplateCreateTaskResponse> {
         try {
-            const response = await fetch(
+            const response = await apiFetch(
                 getApiUrl(`/api/v1/ppt/template/async/${encodeURIComponent(taskId)}/retry`),
                 {
                     method: "POST",
@@ -253,9 +253,18 @@ class TemplateService {
         }
     }
 
+    static async cloneTemplate(templateId: string): Promise<string> {
+        const apiTemplateId = this.normalizeTemplateId(templateId);
+        const response = await apiFetch(
+            getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(apiTemplateId)}/clone`),
+            { method: "POST", headers: getHeader() },
+        );
+        return ApiResponseHandler.handleResponse(response, "Failed to copy template");
+    }
+
     static async deleteTemplate(templateId: string) {
         try {
-            const response = await fetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(templateId)}`), {
+            const response = await apiFetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(templateId)}`), {
                 method: "DELETE",
                 headers: getHeader(),
             });
@@ -283,7 +292,7 @@ class TemplateService {
         payload: UpdateTemplatePayload,
     ) {
         try {
-            const response = await fetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(templateId)}`), {
+            const response = await apiFetch(getApiUrl(`/api/v1/ppt/template/${encodeURIComponent(templateId)}`), {
                 method: "PATCH",
                 headers: getHeader(),
                 body: JSON.stringify(payload),
@@ -299,7 +308,7 @@ class TemplateService {
 
     static async createTemplateLayout(payload: CreateTemplateLayoutPayload) {
         try {
-            const response = await fetch(
+            const response = await apiFetch(
                 getApiUrl("/api/v1/ppt/template/layouts/create"),
                 {
                     method: "POST",
@@ -323,7 +332,7 @@ class TemplateService {
         payload: GenerateTemplateLayoutPayload,
     ): Promise<GenerateTemplateLayoutResponse> {
         try {
-            const response = await fetch(
+            const response = await apiFetch(
                 getApiUrl("/api/v1/ppt/template/layouts/generate"),
                 {
                     method: "POST",

@@ -116,7 +116,7 @@ const LayoutPreview = () => {
             <Link
               href="/custom-template"
               onClick={() => trackEvent(MixpanelEvent.Templates_New_Template_Clicked)}
-              className="inline-flex items-center font-syne font-semibold gap-2 rounded-xl px-4 py-2.5 text-black text-sm shadow-sm hover:shadow-md"
+              className="motion-press group inline-flex items-center font-syne font-semibold gap-2 rounded-xl px-4 py-2.5 text-black text-sm shadow-sm hover:shadow-md"
               aria-label="Create new template"
               style={{
                 borderRadius: "48px",
@@ -126,13 +126,13 @@ const LayoutPreview = () => {
             >
               <span className="hidden md:inline">New Template</span>
               <span className="md:hidden">New</span>
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="motion-arrow w-4 h-4" />
             </Link>
           </div>
         </div>
       </div>
 
-      <section aria-label="Template library" className="mx-auto flex min-w-0 flex-col gap-5 px-4 pb-8 pt-[19px] sm:pl-6 sm:pr-2">
+      <section aria-label="Template library" className="motion-fade mx-auto flex min-w-0 flex-col gap-5 px-4 pb-8 pt-[19px] sm:pl-6 sm:pr-2">
         <p className="flex min-h-[26px] flex-wrap items-center gap-1.5 text-base font-medium text-[#191919]">
           <span>Choose a template or</span>
           <Link href="/custom-template" onClick={() => trackEvent(MixpanelEvent.Templates_New_Template_Clicked)} className="inline-flex items-center gap-1.5 rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[#7A5AF8]/30">

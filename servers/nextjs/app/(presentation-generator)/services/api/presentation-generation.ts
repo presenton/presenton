@@ -1,6 +1,6 @@
 import { getHeader, getHeaderForFormData } from "./header";
 import { IconSearch, ImageGenerate, PreviousGeneratedImagesResponse } from "./params";
-import { ApiResponseHandler } from "./api-error-handler";
+import { ApiResponseHandler, apiFetch } from "./api-error-handler";
 import { getApiUrl, resolveBackendAssetUrl } from "@/utils/api";
 import {
   limitOutlines,
@@ -22,7 +22,7 @@ export type BlankPresentationResponse = {
 
 export class PresentationGenerationApi {
   static async regenerateSmartPresentation(id: string): Promise<void> {
-    const response = await fetch(
+    const response = await apiFetch(
       getApiUrl(`/api/v1/ppt/presentation/${id}/regenerate`),
       { method: "POST", headers: getHeader() }
     );
@@ -37,7 +37,7 @@ export class PresentationGenerationApi {
     });
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/files/upload`),
         {
           method: "POST",
@@ -59,7 +59,7 @@ export class PresentationGenerationApi {
     language?: string | null
   ) {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/files/decompose`),
         {
           method: "POST",
@@ -113,7 +113,7 @@ export class PresentationGenerationApi {
         typeof n_slides === "number"
           ? Math.min(Math.max(n_slides, 1), MAX_NUMBER_OF_SLIDES)
           : null;
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/create`),
         {
           method: "POST",
@@ -155,7 +155,7 @@ export class PresentationGenerationApi {
     templateId?: string
   ): Promise<BlankPresentationResponse> {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/create/blank`),
         {
           method: "POST",
@@ -184,7 +184,7 @@ export class PresentationGenerationApi {
 
   static async updatePresentationContent(body: unknown) {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/update`),
         {
           method: "PATCH",
@@ -203,7 +203,7 @@ export class PresentationGenerationApi {
 
   static async updatePresentationSlide(slide: Slide) {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/slide_update`),
         {
           method: "PATCH",
@@ -232,7 +232,7 @@ export class PresentationGenerationApi {
             outlines: limitOutlines(presentationData.outlines),
           }
           : presentationData;
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/presentation/prepare`),
         {
           method: "POST",
@@ -251,7 +251,7 @@ export class PresentationGenerationApi {
 
   static async getOutlines(presentationId: string): Promise<{ slides: { content: string }[] }> {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/outlines/${presentationId}`),
         {
           method: "GET",
@@ -272,7 +272,7 @@ export class PresentationGenerationApi {
     outlines: { content: string }[]
   ): Promise<{ slides: { content: string }[] }> {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/outlines/${presentationId}`),
         {
           method: "PUT",
@@ -299,7 +299,7 @@ export class PresentationGenerationApi {
         params.set("width", String(imageGenerate.width));
         params.set("height", String(imageGenerate.height));
       }
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/images/generate?${params.toString()}`),
         {
           method: "GET",
@@ -317,7 +317,7 @@ export class PresentationGenerationApi {
 
   static getPreviousGeneratedImages = async (): Promise<PreviousGeneratedImagesResponse[]> => {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/images/generated`),
         {
           method: "GET",
@@ -344,7 +344,7 @@ export class PresentationGenerationApi {
       if (iconSearch.icon_weight) {
         params.set("icon_weight", iconSearch.icon_weight);
       }
-      const response = await fetch(
+      const response = await apiFetch(
         getApiUrl(`/api/v1/ppt/icons/search?${params.toString()}`),
         {
           method: "GET",

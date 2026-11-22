@@ -1,7 +1,9 @@
+import { DEFAULT_OPENAI_IMAGE_PROVIDER } from "@/utils/providerConstants";
 import { setLLMConfig } from "@/store/slices/userConfig";
 import { store } from "@/store/store";
 import { LLMConfig } from "@/types/llm_config";
-import { isSupportedCodexModel } from "@/utils/codexModels";
+import { isCodexProvider } from "@/utils/codexModels";
+import { getApiErrorMessage } from "@/utils/api";
 
 function isProvided(value: unknown): boolean {
   return value !== "" && value !== null && value !== undefined;
@@ -35,6 +37,11 @@ export const normalizeLLMConfig = (llmConfig: LLMConfig): LLMConfig => {
     );
   }
   delete (normalizedConfig as Record<string, unknown>).DALL_E_3_QUALITY;
+  if (["gpt-image-1.5", "gpt-image-1.5-2025-12-16"].includes(normalizedConfig.IMAGE_PROVIDER || "")) {
+    normalizedConfig.IMAGE_PROVIDER = DEFAULT_OPENAI_IMAGE_PROVIDER;
+    normalizedConfig.GPT_IMAGE_2_5_QUALITY ||= normalizedConfig.GPT_IMAGE_1_5_QUALITY || "medium";
+  }
+  delete normalizedConfig.GPT_IMAGE_1_5_QUALITY;
 
   const parsedDisableImageGeneration = parseOptionalBool(
     (normalizedConfig as Record<string, unknown>).DISABLE_IMAGE_GENERATION
@@ -79,7 +86,7 @@ export const normalizeLLMConfig = (llmConfig: LLMConfig): LLMConfig => {
   // Reasoning budget is no longer exposed in the UI. Sending an empty value
   // removes any previously saved budget instead of leaving a hidden override.
   (normalizedConfig as Record<string, unknown>).LLM_REASONING_BUDGET_TOKENS = "";
-  if (normalizedConfig.LLM_REASONING_EFFORT === "none") {
+  if (normalizedConfig.LLM_REASONING_EFFORT === "none" && !isCodexProvider(normalizedConfig.LLM)) {
     (normalizedConfig as Record<string, unknown>).LLM_REASONING_EFFORT = "";
   }
   const providerOrder = (normalizedConfig as Record<string, unknown>)
@@ -250,9 +257,6 @@ export const getLLMConfigValidationError = (
     if (!isProvided(llmConfig.CODEX_MODEL)) {
       return "Select a Codex model.";
     }
-    if (!isSupportedCodexModel(llmConfig.CODEX_MODEL)) {
-      return "Select a supported Codex model.";
-    }
   } else {
     return "Unsupported or unknown text provider.";
   }
@@ -274,9 +278,10 @@ export const getLLMConfigValidationError = (
           return "OpenAI API key is required for GPT Image 2.";
         }
         break;
-      case "gpt-image-1.5":
+      case "gpt-image-2.5-flare":
+      case "gpt-image-2.5-sunburst":
         if (!isProvided(llmConfig.OPENAI_API_KEY)) {
-          return "OpenAI API key is required for GPT Image 1.5.";
+          return "OpenAI API key is required for GPT Image 2.5.";
         }
         break;
       case "gemini_flash":
@@ -350,7 +355,7 @@ export const getLLMConfigValidationError = (
 
 /** Codex is selected but no model chosen - block navigation away from Settings. */
 export function isCodexMissingSelectedModel(llmConfig: LLMConfig): boolean {
-  return llmConfig.LLM === "codex" && !isProvided(llmConfig.CODEX_MODEL);
+  return isCodexProvider(llmConfig.LLM) && !isProvided(llmConfig.CODEX_MODEL);
 }
 
 /**
@@ -415,7 +420,7 @@ export const handleSaveLLMConfig = async (llmConfig: LLMConfig) => {
     body: JSON.stringify(normalizedConfig),
   });
   if (!response.ok) {
-    throw new Error(`Unable to save user configuration (${response.status})`);
+    throw new Error(await getApiErrorMessage(response, "Unable to save user configuration."));
   }
 
   store.dispatch(setLLMConfig(normalizedConfig));

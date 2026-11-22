@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import math
+import logging
 import os
 import secrets
 from weakref import WeakKeyDictionary
@@ -16,7 +17,7 @@ from models.image_prompt import ImagePrompt
 from models.sql.image_asset import ImageAsset
 from utils.get_env import (
     get_gpt_image_2_quality_env,
-    get_gpt_image_1_5_quality_env,
+    get_gpt_image_2_5_quality_env,
     get_pexels_api_key_env,
     get_open_webui_image_url_env,
     get_open_webui_image_api_key_env,
@@ -29,7 +30,8 @@ from utils.get_env import get_pixabay_api_key_env
 from utils.get_env import get_comfyui_url_env
 from utils.get_env import get_comfyui_workflow_env
 from utils.image_provider import (
-    is_gpt_image_1_5_selected,
+    is_gpt_image_2_5_flare_selected,
+    is_gpt_image_2_5_sunburst_selected,
     is_image_generation_disabled,
     is_pixels_selected,
     is_pixabay_selected,
@@ -42,6 +44,8 @@ from utils.image_provider import (
 )
 from utils.asset_directory_utils import absolute_fastapi_asset_url
 from utils.image_generation_error import normalize_image_generation_error
+from utils.provider_errors import ProviderHTTPException, ProviderResponseError, normalize_provider_error
+from utils.image_config import migrate_legacy_image_config
 import uuid
 
 
@@ -91,7 +95,7 @@ def _closest_ratio_option(
 
 
 def _openai_image_size(model: str, target_size: tuple[float, float] | None) -> str:
-    if model in ("gpt-image-2", "gpt-image-1.5"):
+    if model in ("gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"):
         sizes = GPT_IMAGE_SIZES
     else:
         return DEFAULT_IMAGE_SIZE
@@ -130,12 +134,33 @@ def _get_image_generation_lock() -> asyncio.Lock:
 
 
 class ImageGenerationService:
-    def __init__(self, output_directory: str):
+    def __init__(self, output_directory: str, config: dict[str, str] | None = None):
         self.output_directory = output_directory
-        self.is_image_generation_disabled = is_image_generation_disabled()
+        self.config = migrate_legacy_image_config(config) if config is not None else None
+        self.is_image_generation_disabled = (
+            False if config is not None else is_image_generation_disabled()
+        )
         self.image_gen_func = self.get_image_gen_func()
 
+    def _setting(self, key: str, getter):
+        # Empty form values must not fall back to a different saved configuration.
+        return self.config.get(key) if self.config is not None else getter()
+
     def get_image_gen_func(self):
+        if self.config is not None:
+            return {
+                "pexels": self.get_image_from_pexels,
+                "pixabay": self.get_image_from_pixabay,
+                "gemini_flash": self.generate_image_gemini_flash,
+                "nanobanana_pro": self.generate_image_nanobanana_pro,
+                "gpt-image-2": self.generate_image_openai_gpt_image_2,
+                "gpt-image-2.5-flare": self.generate_image_openai_gpt_image_2_5_flare,
+                "gpt-image-2.5-sunburst": self.generate_image_openai_gpt_image_2_5_sunburst,
+                "comfyui": self.generate_image_comfyui,
+                "open_webui": self.generate_image_open_webui,
+                "openai_compatible": self.generate_image_openai_compatible,
+            }.get(self.config.get("IMAGE_PROVIDER"))
+
         if self.is_image_generation_disabled:
             return None
 
@@ -149,8 +174,10 @@ class ImageGenerationService:
             return self.generate_image_nanobanana_pro
         elif is_gpt_image_2_selected():
             return self.generate_image_openai_gpt_image_2
-        elif is_gpt_image_1_5_selected():
-            return self.generate_image_openai_gpt_image_1_5
+        elif is_gpt_image_2_5_flare_selected():
+            return self.generate_image_openai_gpt_image_2_5_flare
+        elif is_gpt_image_2_5_sunburst_selected():
+            return self.generate_image_openai_gpt_image_2_5_sunburst
         elif is_comfyui_selected():
             return self.generate_image_comfyui
         elif is_open_webui_selected():
@@ -160,6 +187,8 @@ class ImageGenerationService:
         return None
 
     def is_stock_provider_selected(self):
+        if self.config is not None:
+            return self.config.get("IMAGE_PROVIDER") in {"pexels", "pixabay"}
         return is_pixels_selected() or is_pixabay_selected()
 
     async def generate_image(self, prompt: ImagePrompt) -> str | ImageAsset:
@@ -217,8 +246,8 @@ class ImageGenerationService:
             raise Exception(f"Image not found at {image_path}")
 
         except Exception as e:
-            print(f"Error generating image: {e}")
             normalized_error = normalize_image_generation_error(e)
+            logging.getLogger(__name__).warning("Image generation failed: code=%s exception=%s", getattr(normalized_error, "error_code", "image_error"), type(e).__name__)
             if normalized_error is e:
                 raise
             raise normalized_error from e
@@ -242,7 +271,10 @@ class ImageGenerationService:
         quality: str,
         target_size: tuple[float, float] | None = None,
     ) -> str:
-        client = AsyncOpenAI()
+        client = (
+            AsyncOpenAI(api_key=self.config["OPENAI_API_KEY"])
+            if self.config is not None else AsyncOpenAI()
+        )
         selected_size = _openai_image_size(model, target_size)
         print(f"OpenAI image API size: {selected_size}", flush=True)
         request = {
@@ -279,11 +311,11 @@ class ImageGenerationService:
             prompt,
             output_directory,
             "gpt-image-2",
-            get_gpt_image_2_quality_env() or "medium",
+            self._setting("GPT_IMAGE_2_QUALITY", get_gpt_image_2_quality_env) or "medium",
             target_size,
         )
 
-    async def generate_image_openai_gpt_image_1_5(
+    async def generate_image_openai_gpt_image_2_5_flare(
         self,
         prompt: str,
         output_directory: str,
@@ -292,8 +324,22 @@ class ImageGenerationService:
         return await self.generate_image_openai(
             prompt,
             output_directory,
-            "gpt-image-1.5",
-            get_gpt_image_1_5_quality_env() or "medium",
+            "gpt-image-2.5-flare",
+            self._setting("GPT_IMAGE_2_5_QUALITY", get_gpt_image_2_5_quality_env) or "medium",
+            target_size,
+        )
+
+    async def generate_image_openai_gpt_image_2_5_sunburst(
+        self,
+        prompt: str,
+        output_directory: str,
+        target_size: tuple[float, float] | None = None,
+    ) -> str:
+        return await self.generate_image_openai(
+            prompt,
+            output_directory,
+            "gpt-image-2.5-sunburst",
+            self._setting("GPT_IMAGE_2_5_QUALITY", get_gpt_image_2_5_quality_env) or "medium",
             target_size,
         )
 
@@ -303,12 +349,12 @@ class ImageGenerationService:
         output_directory: str,
         target_size: tuple[float, float] | None = None,
     ) -> str:
-        base_url = get_open_webui_image_url_env()
+        base_url = self._setting("OPEN_WEBUI_IMAGE_URL", get_open_webui_image_url_env)
         if not base_url:
             raise ValueError("OPEN_WEBUI_IMAGE_URL environment variable is not set")
 
         base_url = resolve_open_webui_api_base(base_url)
-        api_key = get_open_webui_image_api_key_env() or ""
+        api_key = self._setting("OPEN_WEBUI_IMAGE_API_KEY", get_open_webui_image_api_key_env) or ""
 
         parsed = urlparse(base_url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -333,16 +379,16 @@ class ImageGenerationService:
             )
 
             if resp.status != 200:
-                error_text = await resp.text()
-                hint = ""
-                if resp.status in (404, 405):
-                    hint = (
-                        " (OPEN_WEBUI_IMAGE_URL should point at the Open WebUI"
-                        f" API root, e.g. {origin}{OPEN_WEBUI_API_PREFIX})"
+                if resp.status in {404, 405}:
+                    raise ProviderHTTPException(
+                        status_code=resp.status,
+                        detail="Open WebUI could not find the image API endpoint. Set OPEN_WEBUI_IMAGE_URL to the API root ending in /api/v1.",
+                        code="provider_endpoint_not_found", retryable=False, source="image",
                     )
-                raise Exception(
-                    f"Open WebUI image generation returned {resp.status}: "
-                    f"{error_text}{hint}"
+                error_text = await resp.text()
+                raise normalize_provider_error(
+                    ProviderResponseError(resp.status, error_text),
+                    provider="Open WebUI", operation="image generation", source="image",
                 )
 
             body = await resp.json()
@@ -396,7 +442,10 @@ class ImageGenerationService:
         target_size: tuple[float, float] | None = None,
     ) -> str:
         """Base method for Google image generation models."""
-        client = genai.Client()
+        client = (
+            genai.Client(api_key=self.config["GOOGLE_API_KEY"])
+            if self.config is not None else genai.Client()
+        )
         aspect_ratio = _gemini_image_aspect_ratio(target_size)
         print(f"Gemini image API aspect ratio: {aspect_ratio or 'auto'}", flush=True)
         config_kwargs = {"response_modalities": ["IMAGE"]}
@@ -479,7 +528,7 @@ class ImageGenerationService:
         self, prompt: str, api_key: str | None = None, limit: int = 1
     ) -> str | list[str]:
         per_page = max(1, min(limit, 80))
-        resolved_api_key = (api_key or get_pexels_api_key_env() or "").strip()
+        resolved_api_key = (api_key or self._setting("PEXELS_API_KEY", get_pexels_api_key_env) or "").strip()
 
         async with aiohttp.ClientSession(trust_env=True) as session:
             response = await session.get(
@@ -514,7 +563,7 @@ class ImageGenerationService:
         self, prompt: str, api_key: str | None = None, limit: int = 1
     ) -> str | list[str]:
         per_page = max(3, min(limit, 200))
-        resolved_api_key = (api_key or get_pixabay_api_key_env() or "").strip()
+        resolved_api_key = (api_key or self._setting("PIXABAY_API_KEY", get_pixabay_api_key_env) or "").strip()
 
         async with aiohttp.ClientSession(trust_env=True) as session:
             response = await session.get(
@@ -585,8 +634,8 @@ class ImageGenerationService:
         Returns:
             Path to the generated image file
         """
-        comfyui_url = get_comfyui_url_env()
-        workflow_json = get_comfyui_workflow_env()
+        comfyui_url = self._setting("COMFYUI_URL", get_comfyui_url_env)
+        workflow_json = self._setting("COMFYUI_WORKFLOW", get_comfyui_workflow_env)
 
         if not comfyui_url:
             raise ValueError("COMFYUI_URL environment variable is not set")
@@ -921,13 +970,18 @@ class ImageGenerationService:
 
         if response.status != 200:
             error_text = await response.text()
-            raise Exception(f"Failed to submit workflow to ComfyUI: {error_text}")
+            raise normalize_provider_error(
+                ProviderResponseError(response.status, error_text),
+                provider="ComfyUI", operation="image generation", source="image",
+            )
 
         data = await response.json()
+        if not isinstance(data, dict):
+            raise normalize_provider_error(ProviderResponseError(502, "invalid_response"), provider="ComfyUI", source="image")
         prompt_id = data.get("prompt_id")
 
         if not prompt_id:
-            raise Exception("No prompt_id returned from ComfyUI")
+            raise normalize_provider_error(ProviderResponseError(502, "invalid_response"), provider="ComfyUI", source="image")
 
         print(f"ComfyUI workflow submitted. Prompt ID: {prompt_id}")
         return prompt_id
@@ -946,7 +1000,7 @@ class ImageGenerationService:
         while True:
             elapsed = asyncio.get_event_loop().time() - start_time
             if elapsed > timeout:
-                raise Exception(f"ComfyUI workflow timed out after {timeout} seconds")
+                raise TimeoutError("ComfyUI workflow timed out")
 
             await asyncio.sleep(poll_interval)
 
@@ -956,12 +1010,14 @@ class ImageGenerationService:
             )
 
             if response.status != 200:
-                continue
+                raise normalize_provider_error(
+                    ProviderResponseError(response.status, await response.text()),
+                    provider="ComfyUI", operation="image generation", source="image",
+                )
 
-            try:
-                status_data = await response.json()
-            except Exception as _:
-                continue
+            status_data = await response.json()
+            if not isinstance(status_data, dict):
+                raise normalize_provider_error(ProviderResponseError(502, "invalid_response"), provider="ComfyUI", source="image")
 
             if prompt_id in status_data:
                 execution_data = status_data[prompt_id]
@@ -969,11 +1025,15 @@ class ImageGenerationService:
                 # Check for completion
                 if "status" in execution_data:
                     status = execution_data["status"]
+                    if "error" in status or status.get("status_str") == "error":
+                        raise ProviderHTTPException(
+                            status_code=422,
+                            detail="ComfyUI could not execute the workflow. Check the configured workflow and required models.",
+                            code="provider_request_rejected", retryable=False, source="image",
+                        )
                     if status.get("completed", False):
                         print("ComfyUI workflow completed successfully")
                         return status_data
-                    if "error" in status:
-                        raise Exception(f"ComfyUI workflow error: {status['error']}")
 
                 # Also check if outputs exist (alternative completion check)
                 if "outputs" in execution_data and execution_data["outputs"]:
@@ -1033,7 +1093,10 @@ class ImageGenerationService:
                         print(f"Downloaded image from ComfyUI: {image_path}")
                         return image_path
                     else:
-                        raise Exception(f"Failed to download image: {response.status}")
+                        raise normalize_provider_error(
+                            ProviderResponseError(response.status, await response.text()),
+                            provider="ComfyUI", operation="image download", source="image",
+                        )
 
     async def generate_image_openai_compatible(
         self,
@@ -1041,9 +1104,9 @@ class ImageGenerationService:
         output_directory: str,
         target_size: tuple[float, float] | None = None,
     ) -> str:
-        base_url = get_openai_compat_image_base_url_env()
-        api_key = get_openai_compat_image_api_key_env()
-        model = get_openai_compat_image_model_env()
+        base_url = self._setting("OPENAI_COMPAT_IMAGE_BASE_URL", get_openai_compat_image_base_url_env)
+        api_key = self._setting("OPENAI_COMPAT_IMAGE_API_KEY", get_openai_compat_image_api_key_env)
+        model = self._setting("OPENAI_COMPAT_IMAGE_MODEL", get_openai_compat_image_model_env)
 
         if not base_url or not api_key or not model:
             raise ValueError(

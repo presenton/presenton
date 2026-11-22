@@ -14,7 +14,7 @@ const layout = ({ children }: { children: React.ReactNode }) => {
                 showCommunity={isCommunityEnabled(process.env.PRESENTON_COMMUNITY_ENABLED)}
                 showTemplates={presentationGenerationMode !== "smart"}
             />
-            <div className='w-full'>
+            <div className='w-full min-w-0'>
 
                 {children}
             </div>

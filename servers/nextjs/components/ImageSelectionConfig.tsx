@@ -1,31 +1,15 @@
 import React from 'react'
+import ImageProviderTest from '@/components/ImageProviderTest'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Button } from './ui/button';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { LLMConfig } from '@/types/llm_config';
 import OpenAICompatibleImageFields from '@/components/OpenAICompatibleImageFields';
-import { GPT_IMAGE_2_QUALITY_OPTIONS, IMAGE_PROVIDERS } from '@/utils/providerConstants';
+import { GPT_IMAGE_2_QUALITY_OPTIONS, GPT_IMAGE_2_5_QUALITY_OPTIONS, IMAGE_PROVIDERS, isGPTImage25Provider } from '@/utils/providerConstants';
 import { cn } from '@/lib/utils';
 import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from './ui/select';
 
-const GPT_IMAGE_1_5_QUALITY_OPTIONS = [
-    {
-        label: "Low",
-        value: "low",
-        description: "Fastest and most cost-effective",
-    },
-    {
-        label: "Medium",
-        value: "medium",
-        description: "Balanced quality and speed",
-    },
-    {
-        label: "High",
-        value: "high",
-        description: "Best quality with longer generation time",
-    },
-];
 const renderQualitySelector = (llmConfig: LLMConfig, input_field_changed: (value: string, field: string) => void) => {
     if (llmConfig.IMAGE_PROVIDER === "gpt-image-2") {
         return (
@@ -49,16 +33,16 @@ const renderQualitySelector = (llmConfig: LLMConfig, input_field_changed: (value
         );
     }
 
-    if (llmConfig.IMAGE_PROVIDER === "gpt-image-1.5") {
+    if (isGPTImage25Provider(llmConfig.IMAGE_PROVIDER)) {
         return (
             <div className="w-[295px]">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                    GPT Image 1.5 Quality
+                    GPT Image 2.5 Quality
                 </label>
                 <div className="">
                     <Select
-                        value={llmConfig.GPT_IMAGE_1_5_QUALITY}
-                        onValueChange={(value) => input_field_changed(value, "gpt_image_1_5_quality")}
+                        value={llmConfig.GPT_IMAGE_2_5_QUALITY || "medium"}
+                        onValueChange={(value) => input_field_changed(value, "gpt_image_2_5_quality")}
                     >
                         <SelectTrigger
 
@@ -66,33 +50,12 @@ const renderQualitySelector = (llmConfig: LLMConfig, input_field_changed: (value
                             <SelectValue placeholder="Select a quality" />
                         </SelectTrigger>
                         <SelectContent>
-                            {GPT_IMAGE_1_5_QUALITY_OPTIONS.map((option) => (
+                            {GPT_IMAGE_2_5_QUALITY_OPTIONS.map((option) => (
                                 <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
-                    {/* {GPT_IMAGE_1_5_QUALITY_OPTIONS.map((option) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            className={cn(
-                                "border rounded-lg p-3 text-left transition-colors",
-                                llmConfig.GPT_IMAGE_1_5_QUALITY === option.value
-                                    ? "border-blue-500 bg-blue-50"
-                                    : "border-gray-200 hover:border-gray-300"
-                            )}
-                            onClick={() =>
-                                input_field_changed(option.value, "gpt_image_1_5_quality")
-                            }
-                        >
-                            <div className="text-sm font-medium text-gray-900">
-                                {option.label}
-                            </div>
-                            <div className="text-xs text-gray-600 mt-1">
-                                {option.description}
-                            </div>
-                        </button>
-                    ))} */}
+
                 </div>
             </div>
         );
@@ -212,7 +175,7 @@ const ImageSelectionConfig = ({ isImageGenerationDisabled, openImageProviderSele
                                     }
 
                                     if (
-                                        provider.value === "gpt-image-1.5" &&
+                                        isGPTImage25Provider(provider.value) &&
                                         llmConfig.LLM === "openai"
                                     ) {
                                         return <></>;
@@ -386,6 +349,11 @@ const ImageSelectionConfig = ({ isImageGenerationDisabled, openImageProviderSele
                 </div>
             </div>
 
+            {!isImageGenerationDisabled && llmConfig.IMAGE_PROVIDER && (
+                <div className="px-10 pb-6 bg-white rounded-b-[12px]">
+                    <ImageProviderTest config={llmConfig} />
+                </div>
+            )}
         </div>
     )
 }

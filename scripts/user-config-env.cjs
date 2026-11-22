@@ -103,7 +103,8 @@ const USER_CONFIG_ENV_KEYS = [
   "OPENAI_COMPAT_IMAGE_MODEL",
   "DALL_E_3_QUALITY", // Read only to migrate legacy deployments.
   "GPT_IMAGE_2_QUALITY",
-  "GPT_IMAGE_1_5_QUALITY",
+  "GPT_IMAGE_2_5_QUALITY",
+  "GPT_IMAGE_1_5_QUALITY", // Read only to migrate legacy deployments.
   "CODEX_MODEL",
   "CODEX_ACCESS_TOKEN",
   "CODEX_REFRESH_TOKEN",
@@ -184,6 +185,14 @@ const normalizeConfigTypes = (config) => {
 };
 
 const normalizeImageConfig = (config) => {
+  const legacyGptImageQuality = config.GPT_IMAGE_1_5_QUALITY;
+  if (["gpt-image-1.5", "gpt-image-1.5-2025-12-16"].includes(config.IMAGE_PROVIDER)) {
+    config.IMAGE_PROVIDER = "gpt-image-2.5-flare";
+    config.GPT_IMAGE_2_5_QUALITY = config.GPT_IMAGE_2_5_QUALITY ||
+      legacyGptImageQuality || "medium";
+  }
+  delete config.GPT_IMAGE_1_5_QUALITY;
+
   if (config.IMAGE_PROVIDER === "dall-e-3") {
     config.IMAGE_PROVIDER = "gpt-image-2";
     config.GPT_IMAGE_2_QUALITY = config.GPT_IMAGE_2_QUALITY ||
@@ -210,8 +219,9 @@ const normalizeImageConfig = (config) => {
   } else if (config.PIXABAY_API_KEY) {
     config.IMAGE_PROVIDER = "pixabay";
   } else if (config.LLM === "openai" && config.OPENAI_API_KEY) {
-    config.IMAGE_PROVIDER = "gpt-image-1.5";
-    config.GPT_IMAGE_1_5_QUALITY = config.GPT_IMAGE_1_5_QUALITY || "medium";
+    config.IMAGE_PROVIDER = "gpt-image-2.5-flare";
+    config.GPT_IMAGE_2_5_QUALITY = config.GPT_IMAGE_2_5_QUALITY ||
+      legacyGptImageQuality || "medium";
   } else if (config.LLM === "google" && config.GOOGLE_API_KEY) {
     config.IMAGE_PROVIDER = "gemini_flash";
   } else {

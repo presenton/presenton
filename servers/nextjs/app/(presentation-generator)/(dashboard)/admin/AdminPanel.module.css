@@ -1,0 +1,91 @@
+.root {
+  container: admin-panel / inline-size;
+  width: 100%;
+  min-width: 0;
+  color: #191923;
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  --admin-accent: #7147df;
+}
+.standalone { min-height: 100dvh; padding: 36px 32px; background: #f8f8fb; }
+.embedded { padding: 4px 0 24px; }
+.canvas { width: 100%; max-width: 1240px; margin-inline: auto; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.heading { margin: 0; color: #191923; font-family: var(--font-syne), sans-serif; font-size: 28px; font-weight: 600; line-height: 36px; letter-spacing: -0.035em; }
+.description { max-width: 66ch; margin: 7px 0 0; color: #656570; font-size: 14px; line-height: 22px; }
+.sheet { overflow: hidden; border: 1px solid #e8e8ee; border-radius: 16px; background: #fff; }
+.sheet .tabList { display: flex; justify-content: flex-start; width: 100%; height: 58px; gap: 28px; padding: 0 24px; border-bottom: 1px solid #ededf1; border-radius: 0; background: transparent; }
+.sheet .tabTrigger { position: relative; height: 58px; gap: 8px; padding: 0 2px; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #656570; font-size: 14px; font-weight: 500; box-shadow: none; transition: none; }
+.sheet .tabTrigger[data-state="active"] { border-bottom-color: var(--admin-accent); background: transparent; color: #191923; box-shadow: none; }
+.tabCount { color: #656570; font-size: 12px; font-variant-numeric: tabular-nums; }
+.sheet .tabContent { margin-top: 0; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px 16px; }
+.filters { display: flex; flex: 1; min-width: 0; align-items: center; gap: 12px; }
+.search { position: relative; flex: 1; min-width: 0; max-width: 320px; }
+.search > svg { position: absolute; left: 12px; top: 50%; color: #73717c; transform: translateY(-50%); pointer-events: none; }
+.search .input { padding-left: 38px; }
+.input { display: block; width: 100%; min-width: 0; height: 40px; padding: 0 12px; border: 1px solid #d9d9e1; border-radius: 7px; background: white; color: #191923; font: inherit; font-size: 14px; caret-color: var(--admin-accent, #7147df); }
+.input::placeholder { color: #6b6b76; opacity: 1; }
+.input:focus { border-color: #aaa9b5; outline: none; box-shadow: none; }
+.input:focus-visible { outline: 1px solid #656570; outline-offset: 2px; }
+:global(html[data-motion-input="pointer"]) .input:focus-visible { outline: none; }
+.primaryButton:focus-visible, .secondaryButton:focus-visible, .iconButton:focus-visible, .backButton:focus-visible { outline: 2px solid #7147df; outline-offset: 3px; }
+.primaryButton, .secondaryButton { display: inline-flex; flex: none; min-height: 40px; align-items: center; justify-content: center; gap: 8px; padding: 9px 16px; border: 1px solid transparent; border-radius: 8px; font-family: var(--font-manrope), sans-serif; font-size: 13px; line-height: 20px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.primaryButton { background: #7147df; color: #fff; }
+.primaryButton:hover:not(:disabled) { background: #6038c8; }
+.secondaryButton { border-color: #d9d9e1; background: #fff; color: #45434f; }
+.secondaryButton:hover:not(:disabled) { background: #f4f3f7; }
+.dangerButton { border-color: transparent; background: #b42318; color: #fff; }
+.dangerButton:hover:not(:disabled) { background: #921b12; }
+.primaryButton:disabled, .secondaryButton:disabled, .iconButton:disabled { opacity: 0.6; cursor: not-allowed; }
+.iconButton { display: inline-flex; width: 40px; height: 40px; flex: none; align-items: center; justify-content: center; border: 1px solid #dedee5; border-radius: 7px; background: white; color: #656570; cursor: pointer; }
+.iconButton:hover:not(:disabled) { background: #f5f4f8; color: #191923; }
+.refreshIcon { transform-origin: center; }
+.createSection { padding: 24px; border-bottom: 1px solid #e8e8ee; background: #faf9fc; }
+.createHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.createHeading h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.createHeading p { margin: 5px 0 0; color: #656570; font-size: 13px; }
+.createHeading .iconButton { width: 32px; height: 32px; border: 0; background: transparent; }
+.userForm { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 16px; }
+.keyForm { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 132px auto; align-items: end; gap: 16px; }
+.field { display: flex; min-width: 0; flex-direction: column; gap: 8px; }
+.field label { font-size: 13px; font-weight: 500; }
+.passwordField { position: relative; }
+.passwordField .input { padding-right: 44px; }
+.passwordField button { position: absolute; top: 0; right: 0; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; border: 0; border-radius: 7px; background: transparent; color: #656570; cursor: pointer; }
+.passwordField button:focus-visible { outline: 2px solid #7147df; outline-offset: -3px; }
+.formHint { margin: 12px 0 0; color: #656570; font-size: 12px; }
+.scopeNote { display: flex; align-items: flex-start; gap: 8px; margin: 20px 0 0; color: #656570; font-size: 12px; line-height: 20px; }
+.scopeNote svg { flex: none; margin-top: 2px; }
+.backButton { display: none; align-items: center; gap: 7px; min-height: 40px; margin: 0 0 12px; padding: 0; border: 0; background: transparent; color: #656570; font: inherit; font-size: 13px; cursor: pointer; }
+.dialog { font-family: var(--font-manrope), sans-serif; overflow-wrap: anywhere; }
+.spinner { animation: admin-panel-spin 700ms linear infinite; }
+@keyframes admin-panel-spin { to { transform: rotate(360deg); } }
+:global(html[data-motion-input="keyboard"]) .spinner { animation: none; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* The work uses one fluid column; its rows and forms reflow from this actual
+   container width, including the narrower Settings embedding. */
+@container admin-panel (max-width: 850px) {
+  .keyForm { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@container admin-panel (max-width: 580px) {
+  .header { align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 22px; }
+  .heading { font-size: 24px; line-height: 32px; }
+  .description { margin-top: 5px; font-size: 13px; line-height: 21px; }
+  .sheet .tabList { gap: 24px; padding-inline: 16px; }
+  .toolbar { align-items: flex-start; gap: 10px; padding: 16px; }
+  .filters { flex-wrap: wrap; gap: 10px; }
+  .search { min-width: 100%; max-width: none; }
+  .userForm, .keyForm { grid-template-columns: minmax(0, 1fr); }
+  .createSection { padding: 20px 16px; }
+  .primaryButton, .secondaryButton, .input, .iconButton { min-height: 44px; }
+  .passwordField button { height: 44px; width: 44px; }
+  .scopeNote { margin-top: 16px; }
+}
+@media (max-width: 767px) {
+  .standalone { padding: 24px 16px; }
+  .embedded { padding-top: 0; }
+  .embedded .backButton { display: inline-flex; }
+}

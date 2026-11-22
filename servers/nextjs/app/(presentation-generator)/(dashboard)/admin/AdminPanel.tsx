@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
-  Copy,
+  ArrowLeft,
   Eye,
   EyeOff,
   KeyRound,
@@ -12,7 +12,9 @@ import {
   RefreshCw,
   Trash2,
   UserPlus,
-  Users,
+  Search,
+  ShieldCheck,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -28,24 +30,10 @@ import { sanitizeAnalyticsError } from "@/utils/analytics";
 import { formatFastApiDetail } from "@/utils/authErrors";
 import { copyTextToClipboard } from "@/utils/clipboard";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
-
-type AdminUser = {
-  id: string;
-  username: string;
-  role: "admin" | "user";
-  created_at?: string | null;
-};
-
-type ApiKey = {
-  id: string;
-  user_id: string;
-  created_by_id: string;
-  label: string;
-  created_at: string;
-  expires_at: string;
-  last_used_at: string | null;
-  revoked_at: string | null;
-};
+import { APIKeysList, UsersList } from "./AdminAccessLists";
+import AdminSelectPopover from "./AdminSelectPopover";
+import type { AdminUser, ApiKey } from "./admin-types";
+import styles from "./AdminPanel.module.css";
 
 type ApiKeyCreated = ApiKey & { token: string };
 
@@ -57,6 +45,7 @@ type AdminDialog =
 
 type AdminPanelProps = {
   embedded?: boolean;
+  onBackToSettings?: () => void;
 };
 
 async function errorDetail(response: Response): Promise<string> {
@@ -67,12 +56,12 @@ async function errorDetail(response: Response): Promise<string> {
 }
 
 const primaryButtonClass =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#7C51F8] px-5 text-xs font-semibold text-white transition hover:bg-[#6D46E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+  `${styles.primaryButton} motion-press`;
 
 const inputClass =
-  "h-11 w-full rounded-lg border border-[#E1E1E5] bg-white px-4 text-sm text-[#101323] outline-none transition placeholder:text-[#98A2B3] focus:border-[#7A5AF8] focus:ring-2 focus:ring-[#7A5AF8]/15";
+  styles.input;
 
-export default function AdminPanel({ embedded = false }: AdminPanelProps) {
+export default function AdminPanel({ embedded = false, onBackToSettings }: AdminPanelProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [apiKeyTokens, setApiKeyTokens] = useState<Record<string, string>>({});
@@ -85,11 +74,29 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
   const [resetPasswordValue, setResetPasswordValue] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [dialog, setDialog] = useState<AdminDialog>(null);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [keysLoading, setKeysLoading] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [keysError, setKeysError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("users");
+  const [userSearch, setUserSearch] = useState("");
+  const [keySearch, setKeySearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [showKeyForm, setShowKeyForm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const usernameInput = useRef<HTMLInputElement>(null);
+  const keyLabelInput = useRef<HTMLInputElement>(null);
+  const createAction = useRef<HTMLButtonElement>(null);
+  const dialogReturnFocus = useRef<HTMLButtonElement | null>(null);
+  const [restoreCreateFocus, setRestoreCreateFocus] = useState(false);
 
   const loadUsers = useCallback(async (
     trigger: "initial" | "manual" | "user_created" | "user_deleted" = "initial"
   ) => {
-    setBusy("users");
+    setUsersLoading(true);
+    setUsersError(null);
     try {
       const response = await fetch("/api/v1/admin/users", {
         cache: "no-store",
@@ -98,6 +105,11 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
       if (response.ok) {
         const loadedUsers = (await response.json()) as AdminUser[];
         setUsers(loadedUsers);
+        setOwnerFilter((current) =>
+          current === "all" || loadedUsers.some((user) => user.id === current)
+            ? current
+            : "all"
+        );
         setApiKeyUserId((current) =>
           current && loadedUsers.some((user) => user.id === current)
             ? current
@@ -109,6 +121,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
         });
       } else {
         const detail = await errorDetail(response);
+        setUsersError(`Users could not be loaded. ${detail}`);
         trackEvent(MixpanelEvent.Auth_Admin_User_List_Failed, {
           trigger,
           status_code: response.status,
@@ -117,6 +130,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
         notify.error("Could not load users", detail);
       }
     } catch (loadError) {
+      setUsersError("Users could not be loaded. Check your connection and try again.");
       trackEvent(MixpanelEvent.Auth_Admin_User_List_Failed, {
         trigger,
         status_code: null,
@@ -127,12 +141,13 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
       });
       notify.error("Could not load users", "Please try again.");
     } finally {
-      setBusy(null);
+      setUsersLoading(false);
     }
   }, []);
 
   const loadApiKeys = useCallback(async () => {
-    setBusy("api-keys");
+    setKeysLoading(true);
+    setKeysError(null);
     try {
       const response = await fetch("/api/v1/admin/api-keys", {
         cache: "no-store",
@@ -142,16 +157,26 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
         const loaded = (await response.json()) as ApiKey[];
         const active = loaded.filter((apiKey) => !apiKey.revoked_at);
         setApiKeys(active);
+        const validIds = new Set(active.map((key) => key.id));
+        setApiKeyTokens((current) => Object.fromEntries(
+          Object.entries(current).filter(([id]) => validIds.has(id))
+        ));
+        setVisibleApiKeys((current) => new Set(
+          [...current].filter((id) => validIds.has(id))
+        ));
         trackEvent(MixpanelEvent.Auth_Admin_API_Key_List_Loaded, {
           api_key_count: active.length,
         });
       } else {
-        notify.error("Could not load API keys", await errorDetail(response));
+        const detail = await errorDetail(response);
+        setKeysError(`API keys could not be loaded. ${detail}`);
+        notify.error("Could not load API keys", detail);
       }
     } catch {
+      setKeysError("API keys could not be loaded. Check your connection and try again.");
       notify.error("Could not load API keys", "Please try again.");
     } finally {
-      setBusy(null);
+      setKeysLoading(false);
     }
   }, []);
 
@@ -161,6 +186,18 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
     });
     void Promise.all([loadUsers(), loadApiKeys()]);
   }, [embedded, loadApiKeys, loadUsers]);
+
+  useEffect(() => {
+    if (showUserForm && activeTab === "users") usernameInput.current?.focus();
+    if (showKeyForm && activeTab === "keys") keyLabelInput.current?.focus();
+  }, [showUserForm, showKeyForm, activeTab]);
+
+  useEffect(() => {
+    if (restoreCreateFocus && busy === null) {
+      createAction.current?.focus({ preventScroll: true });
+      setRestoreCreateFocus(false);
+    }
+  }, [restoreCreateFocus, busy]);
 
   const addUser = async (event: FormEvent) => {
     event.preventDefault();
@@ -185,6 +222,11 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
         notify.success("User created", `${cleanedUsername} can now sign in.`);
         setUsername("");
         setPassword("");
+        setShowPassword(false);
+        setShowUserForm(false);
+        setRestoreCreateFocus(true);
+        setUserSearch("");
+        setRoleFilter("all");
         await loadUsers("user_created");
       } else {
         const detail = await errorDetail(response);
@@ -208,9 +250,18 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
     }
   };
 
+  const openAdminDialog = (next: Exclude<AdminDialog, null>) => {
+    const kind = next.kind === "revoke-key" ? "key" : "user";
+    const id = next.kind === "revoke-key" ? next.apiKey.id : next.user.id;
+    dialogReturnFocus.current = document.querySelector<HTMLButtonElement>(
+      `button[data-admin-action-${kind}="${CSS.escape(id)}"]`
+    );
+    setDialog(next);
+  };
+
   const openResetPassword = (user: AdminUser) => {
     setResetPasswordValue("");
-    setDialog({ kind: "reset-password", user });
+    openAdminDialog({ kind: "reset-password", user });
   };
 
   const resetPassword = async (event: FormEvent) => {
@@ -281,8 +332,9 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           user_count_after: Math.max(0, users.length - 1),
         });
         notify.success("User deleted", `${user.username}'s workspace was removed.`);
-        setDialog(null);
         await loadUsers("user_deleted");
+        await loadApiKeys();
+        setDialog(null);
       } else {
         const detail = await errorDetail(response);
         trackEvent(MixpanelEvent.Auth_Admin_User_Delete_Failed, {
@@ -309,6 +361,17 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
 
   const createApiKey = async (event: FormEvent) => {
     event.preventDefault();
+    if (usersLoading || busy === "create-api-key") return;
+    if (!users.some((user) => user.id === apiKeyUserId)) {
+      notify.error("Choose a user", "Select the user whose workspace this key will access.");
+      document.getElementById("admin-key-user")?.focus();
+      return;
+    }
+    if (!apiKeyLabel.trim()) {
+      notify.error("Add a key label", "Give this key a name so you can identify its client.");
+      keyLabelInput.current?.focus();
+      return;
+    }
     setBusy("create-api-key");
     trackEvent(MixpanelEvent.Auth_Admin_API_Key_Create_Started, {
       api_key_count_before: apiKeys.length,
@@ -333,6 +396,10 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
       setApiKeys((current) => [apiKey, ...current]);
       setApiKeyTokens((current) => ({ ...current, [apiKey.id]: token }));
       setVisibleApiKeys((current) => new Set(current).add(apiKey.id));
+      setShowKeyForm(false);
+      setRestoreCreateFocus(true);
+      setKeySearch("");
+      setOwnerFilter("all");
       trackEvent(MixpanelEvent.Auth_Admin_API_Key_Create_Completed, {
         api_key_count_after: apiKeys.length + 1,
       });
@@ -447,322 +514,194 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
     (dialog?.kind === "delete-user" && busy === `delete:${dialog.user.id}`) ||
     (dialog?.kind === "revoke-key" && busy === `revoke-api-key:${dialog.apiKey.id}`);
   const RootElement = embedded ? "section" : "main";
+  const formOpen = activeTab === "users" ? showUserForm : showKeyForm;
+  const userQuery = userSearch.trim().toLocaleLowerCase();
+  const keyQuery = keySearch.trim().toLocaleLowerCase();
+  const filteredUsers = users.filter((user) =>
+    user.username.toLocaleLowerCase().includes(userQuery) &&
+    (roleFilter === "all" || user.role === roleFilter)
+  );
+  const filteredKeys = apiKeys.filter((key) => {
+    const owner = users.find((user) => user.id === key.user_id)?.username ?? key.user_id;
+    return `${key.label} ${owner}`.toLocaleLowerCase().includes(keyQuery) &&
+      (ownerFilter === "all" || key.user_id === ownerFilter);
+  });
+  const userCount = usersLoading || usersError ? "—" : users.length;
+  const keyCount = keysLoading || keysError ? "—" : apiKeys.length;
+  const clearUserFilters = () => { setUserSearch(""); setRoleFilter("all"); };
+  const clearKeyFilters = () => { setKeySearch(""); setOwnerFilter("all"); };
 
   return (
-    <RootElement
-      className={
-        embedded
-          ? "h-[calc(100vh-104px)] overflow-y-auto pb-28 pr-6 font-syne"
-          : "min-h-screen bg-white px-8 py-10 font-syne"
-      }
-    >
-      <div className={embedded ? "max-w-5xl" : "mx-auto max-w-5xl"}>
-        {!embedded ? (
-          <h1 className="font-syne font-medium text-[28px] tracking-[-0.84px] text-black">
-            Admin
-          </h1>
-        ) : null}
+    <RootElement className={`${styles.root} ${embedded ? styles.embedded : styles.standalone}`}>
+      <div className={styles.canvas}>
+        {embedded && onBackToSettings && (
+          <button type="button" className={styles.backButton} onClick={onBackToSettings}>
+            <ArrowLeft size={15} aria-hidden="true" /> Back to settings
+          </button>
+        )}
+        <header className={styles.header}>
+          <div>
+            <h1 className={styles.heading}>Administration</h1>
+            <p className={styles.description}>Manage who can sign in and which clients can connect to Presenton.</p>
+          </div>
+          <button
+            ref={createAction}
+            type="button"
+            className={formOpen ? styles.secondaryButton : primaryButtonClass}
+            disabled={busy !== null}
+            aria-expanded={activeTab === "users" ? showUserForm : showKeyForm}
+            aria-controls={activeTab === "users" ? "admin-create-user" : "admin-create-key"}
+            onClick={() => activeTab === "users" ? setShowUserForm((open) => !open) : setShowKeyForm((open) => !open)}
+          >
+            {formOpen ? <X size={16} aria-hidden="true" /> : activeTab === "users" ? <UserPlus size={16} aria-hidden="true" /> : <KeyRound size={16} aria-hidden="true" />}
+            {formOpen ? "Cancel" : activeTab === "users" ? "Add user" : "Generate API key"}
+          </button>
+        </header>
 
-        <div
-          className={`rounded-[12px] bg-[#F9F8F8] p-7 ${
-            embedded ? "" : "mt-7"
-          }`}
-        >
-          <h2 className="text-sm font-semibold text-[#191919]">
-            Manage access
-          </h2>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#6B7280]">
-            Create login accounts and issue user-scoped keys for both the REST API
-            and MCP. User workspaces remain private.
-          </p>
-
-          <Tabs defaultValue="users" className="mt-6">
-          <TabsList className="h-11 rounded-full border border-[#EDEEEF] bg-[#F9FAFB] p-1">
-            <TabsTrigger
-              value="users"
-              className="h-9 rounded-full px-5 text-xs text-[#667085] shadow-none data-[state=active]:bg-white data-[state=active]:text-[#5146E5] data-[state=active]:shadow-sm"
-            >
-              Users
+        <Tabs value={activeTab} onValueChange={setActiveTab} className={styles.sheet}>
+          <TabsList aria-label="Administration views" className={styles.tabList}>
+            <TabsTrigger value="users" className={styles.tabTrigger}>
+              Users <span aria-hidden="true" className={styles.tabCount}>{userCount}</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="keys"
-              className="h-9 rounded-full px-5 text-xs text-[#667085] shadow-none data-[state=active]:bg-white data-[state=active]:text-[#5146E5] data-[state=active]:shadow-sm"
-            >
-              API keys
+            <TabsTrigger value="keys" className={styles.tabTrigger}>
+              API keys <span aria-hidden="true" className={styles.tabCount}>{keyCount}</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="mt-6 space-y-5">
-            <section className="rounded-[12px] border border-[#EDEEEF] bg-white p-6">
-              <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F3FF]">
-                  <UserPlus className="h-4 w-4 text-[#5146E5]" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-[#101323]">Add user</h2>
-                  <p className="mt-0.5 text-xs text-[#667085]">
-                    Create a private workspace and sign-in credentials.
-                  </p>
-                </div>
-              </div>
-              <form onSubmit={addUser} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-                <input
-                  aria-label="Username"
-                  className={inputClass}
-                  placeholder="Username"
-                  minLength={3}
-                  maxLength={128}
-                  pattern="\S+"
-                  title="Username cannot contain spaces"
-                  value={username}
-                  onChange={(event) =>
-                    setUsername(event.target.value.replace(/\s/g, ""))
-                  }
-                  required
-                  spellCheck={false}
-                />
-                <input
-                  aria-label="Password"
-                  className={inputClass}
-                  type="password"
-                  placeholder="Password (8+ characters)"
-                  minLength={8}
-                  maxLength={128}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
-                <button type="submit" className={primaryButtonClass} disabled={busy === "add"}>
-                  {busy === "add" && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Create user
-                </button>
-              </form>
-            </section>
-
-            <section className="overflow-hidden rounded-[12px] border border-[#EDEEEF] bg-white">
-              <div className="flex items-center justify-between border-b border-[#EDEEEF] px-6 py-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F3FF]">
-                    <Users className="h-4 w-4 text-[#5146E5]" />
-                  </div>
+          <TabsContent value="users" className={styles.tabContent}>
+            {showUserForm && (
+              <section id="admin-create-user" className={`${styles.createSection} motion-fade`} aria-labelledby="admin-create-user-title">
+                <div className={styles.createHeading}>
                   <div>
-                    <h2 className="text-sm font-semibold text-[#101323]">Accounts</h2>
-                    <p className="mt-0.5 text-xs text-[#667085]">
-                      {users.length} account{users.length === 1 ? "" : "s"}
-                    </p>
+                    <h3 id="admin-create-user-title">Add a user</h3>
+                    <p>Create sign-in credentials for a private workspace.</p>
                   </div>
+                  <button type="button" className={styles.iconButton} aria-label="Close add user form" disabled={busy === "add"} onClick={() => { setShowUserForm(false); createAction.current?.focus(); }}><X size={16} aria-hidden="true" /></button>
                 </div>
-                <button
-                  type="button"
-                  aria-label="Refresh accounts"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F9FAFB] hover:text-[#5146E5]"
-                  onClick={() => void loadUsers("manual")}
-                >
-                  <RefreshCw className={`h-4 w-4 ${busy === "users" ? "animate-spin" : ""}`} />
-                </button>
-              </div>
-              <div className="divide-y divide-[#EDEEEF]">
-                {users.map((user) => (
-                  <div
-                    key={user.id}
-                    className="flex flex-wrap items-center justify-between gap-4 px-6 py-4"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-[#101323]">{user.username}</p>
-                      <p className="mt-1 text-xs text-[#667085]">
-                        {user.role === "admin" ? "Administrator" : "User"}
-                        {user.created_at
-                          ? ` · ${new Date(user.created_at).toLocaleDateString()}`
-                          : ""}
-                      </p>
+                <form onSubmit={addUser} className={styles.userForm}>
+                  <div className={styles.field}>
+                    <label htmlFor="admin-new-username">Username</label>
+                    <input ref={usernameInput} id="admin-new-username" className={inputClass} placeholder="e.g. maya.chen" minLength={3} maxLength={128} pattern={"\\S+"} title="Username cannot contain spaces" value={username} onChange={(event) => setUsername(event.target.value.replace(/\s/g, ""))} required spellCheck={false} autoComplete="off" disabled={busy === "add"} />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="admin-new-password">Password</label>
+                    <div className={styles.passwordField}>
+                      <input id="admin-new-password" className={inputClass} type={showPassword ? "text" : "password"} placeholder="At least 8 characters" minLength={8} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required disabled={busy === "add"} />
+                      <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((show) => !show)}>{showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}</button>
                     </div>
-                    {user.role === "user" && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="h-9 rounded-full border border-[#EDEEEF] bg-white px-4 text-xs font-semibold text-[#344054] transition hover:bg-[#F9FAFB]"
-                          onClick={() => openResetPassword(user)}
-                          disabled={busy !== null}
-                        >
-                          Reset password
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Delete ${user.username}`}
-                          className="flex h-9 w-9 items-center justify-center rounded-full border border-[#FEE4E2] bg-white text-[#D92D20] transition hover:bg-[#FEF3F2]"
-                          onClick={() => setDialog({ kind: "delete-user", user })}
-                          disabled={busy !== null}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
                   </div>
-                ))}
-              </div>
-            </section>
-          </TabsContent>
-
-          <TabsContent value="keys" className="mt-6 space-y-5">
-            <section className="rounded-[12px] border border-[#EDEEEF] bg-white p-6">
-              <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F3FF]">
-                  <KeyRound className="h-4 w-4 text-[#5146E5]" />
+                  <button type="submit" className={primaryButtonClass} disabled={busy === "add"}>
+                    {busy === "add" && <Loader2 className={styles.spinner} size={16} aria-hidden="true" />}
+                    {busy === "add" ? "Creating…" : "Create user"}
+                  </button>
+                </form>
+                <p className={styles.formHint}>New accounts are created as users. Usernames cannot contain spaces.</p>
+              </section>
+            )}
+            <div className={styles.toolbar}>
+              <div className={styles.filters}>
+                <div className={styles.search}>
+                  <Search size={16} aria-hidden="true" />
+                  <input type="search" className={inputClass} aria-label="Search users" placeholder="Search users…" value={userSearch} onChange={(event) => setUserSearch(event.target.value)} />
                 </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-[#101323]">Generate API key</h2>
-                  <p className="mt-0.5 text-xs text-[#667085]">
-                    One user-scoped key works with both REST API and MCP clients.
-                  </p>
-                </div>
-              </div>
-              <form
-                onSubmit={createApiKey}
-                className="grid gap-3 lg:grid-cols-[1fr_1fr_150px_auto]"
-              >
-                <select
-                  aria-label="API key user"
-                  className={inputClass}
-                  value={apiKeyUserId}
-                  onChange={(event) => setApiKeyUserId(event.target.value)}
-                  required
-                >
-                  <option value="" disabled>Select user</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.username} ({user.role})
-                    </option>
-                  ))}
-                </select>
-                <input
-                  aria-label="API key label"
-                  className={inputClass}
-                  value={apiKeyLabel}
-                  onChange={(event) => setApiKeyLabel(event.target.value)}
-                  minLength={1}
-                  maxLength={120}
-                  placeholder="Client name"
-                  required
+                <AdminSelectPopover
+                  label="Filter users by role"
+                  value={roleFilter}
+                  onChange={setRoleFilter}
+                  options={[
+                    { value: "all", label: "All roles" },
+                    { value: "admin", label: "Administrators" },
+                    { value: "user", label: "Users" },
+                  ]}
                 />
-                <select
-                  aria-label="API key expiry days"
-                  className={inputClass}
-                  value={apiKeyExpiryDays}
-                  onChange={(event) => setApiKeyExpiryDays(Number(event.target.value))}
-                  required
-                >
-                  <option value={30}>30 days</option>
-                  <option value={90}>90 days</option>
-                  <option value={180}>180 days</option>
-                  <option value={365}>365 days</option>
-                </select>
-                <button
-                  type="submit"
-                  className={primaryButtonClass}
-                  disabled={busy === "create-api-key" || !apiKeyUserId}
-                >
-                  {busy === "create-api-key" && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Generate key
-                </button>
-              </form>
-            </section>
-
-            <section className="overflow-hidden rounded-[12px] border border-[#EDEEEF] bg-white">
-              <div className="flex items-center justify-between border-b border-[#EDEEEF] px-6 py-5">
-                <div>
-                  <h2 className="text-sm font-semibold text-[#101323]">API keys</h2>
-                  <p className="mt-0.5 text-xs text-[#667085]">
-                    Reveal or copy a key whenever you configure an API or MCP client.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Refresh API keys"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F9FAFB] hover:text-[#5146E5]"
-                  onClick={() => void loadApiKeys()}
-                >
-                  <RefreshCw className={`h-4 w-4 ${busy === "api-keys" ? "animate-spin" : ""}`} />
-                </button>
               </div>
-              <div className="divide-y divide-[#EDEEEF]">
-                {apiKeys.length === 0 && (
-                  <div className="px-6 py-12 text-center">
-                    <KeyRound className="mx-auto h-6 w-6 text-[#B8B4C7]" />
-                    <p className="mt-3 text-sm text-[#667085]">No API keys have been generated.</p>
-                  </div>
-                )}
-                {apiKeys.map((apiKey) => {
-                  const isVisible = visibleApiKeys.has(apiKey.id);
-                  const token = apiKeyTokens[apiKey.id];
-                  const user = users.find((item) => item.id === apiKey.user_id);
-                  const isRevoked = Boolean(apiKey.revoked_at);
-                  return (
-                    <div key={apiKey.id} className="flex flex-wrap items-center gap-3 px-6 py-4">
-                      <div className="min-w-[260px] flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-[#101323]">{apiKey.label}</p>
-                          {isRevoked && (
-                            <span className="rounded-full bg-[#FEF3F2] px-2 py-0.5 text-[10px] font-semibold text-[#D92D20]">
-                              Revoked
-                            </span>
-                          )}
-                        </div>
-                        <code className="mt-1 block truncate text-xs text-[#344054]">
-                          {isVisible && token ? token : `sk-presenton-••••••••${apiKey.id.slice(-4)}`}
-                        </code>
-                        <p className="mt-1 text-[11px] text-[#98A2B3]">
-                          {user?.username ?? apiKey.user_id} · Expires {new Date(apiKey.expires_at).toLocaleDateString()}
-                          {apiKey.last_used_at
-                            ? ` · Last used ${new Date(apiKey.last_used_at).toLocaleDateString()}`
-                            : " · Never used"}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label={isVisible ? "Hide API key" : "Show API key"}
-                        title={isVisible ? "Hide API key" : "Show API key"}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F4F3FF] hover:text-[#5146E5] disabled:opacity-50"
-                        onClick={() => void toggleApiKeyVisibility(apiKey.id)}
-                        disabled={busy === `reveal-api-key:${apiKey.id}`}
-                      >
-                        {busy === `reveal-api-key:${apiKey.id}` ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : isVisible ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Copy API key"
-                        title="Copy API key"
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDEEEF] text-[#667085] transition hover:bg-[#F4F3FF] hover:text-[#5146E5] disabled:opacity-50"
-                        onClick={() => void copyApiKey(apiKey.id)}
-                        disabled={busy === `reveal-api-key:${apiKey.id}`}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
-                      {!isRevoked && (
-                        <button
-                          type="button"
-                          aria-label="Revoke API key"
-                          title="Revoke API key"
-                          className="flex h-9 w-9 items-center justify-center rounded-full border border-[#FEE4E2] text-[#D92D20] transition hover:bg-[#FEF3F2]"
-                          onClick={() => setDialog({ kind: "revoke-key", apiKey })}
-                          disabled={busy !== null}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+              <button type="button" className={styles.iconButton} aria-label="Refresh accounts" title="Refresh accounts" disabled={usersLoading || busy !== null} onClick={() => void loadUsers("manual")}>
+                <RefreshCw size={16} aria-hidden="true" className={usersLoading ? styles.spinner : styles.refreshIcon} />
+              </button>
+            </div>
+            <UsersList users={filteredUsers} total={users.length} loading={usersLoading} error={usersError} busy={busy !== null} onRetry={() => void loadUsers("manual")} onResetPassword={openResetPassword} onDeleteUser={(user) => openAdminDialog({ kind: "delete-user", user })} onClearFilters={clearUserFilters} />
           </TabsContent>
-          </Tabs>
-        </div>
+
+          <TabsContent value="keys" className={styles.tabContent}>
+            {showKeyForm && (
+              <section id="admin-create-key" className={`${styles.createSection} motion-fade`} aria-labelledby="admin-create-key-title">
+                <div className={styles.createHeading}>
+                  <div>
+                    <h3 id="admin-create-key-title">Generate an API key</h3>
+                    <p>Connect REST API and MCP clients to the selected user’s workspace.</p>
+                  </div>
+                  <button type="button" className={styles.iconButton} aria-label="Close API key form" disabled={busy === "create-api-key"} onClick={() => { setShowKeyForm(false); createAction.current?.focus(); }}><X size={16} aria-hidden="true" /></button>
+                </div>
+                <form onSubmit={createApiKey} className={styles.keyForm}>
+                  <div className={styles.field}>
+                    <label htmlFor="admin-key-user">User</label>
+                    <AdminSelectPopover
+                      id="admin-key-user"
+                      label="API key user"
+                      value={apiKeyUserId}
+                      onChange={setApiKeyUserId}
+                      options={users.map((user) => ({ value: user.id, label: `${user.username} (${user.role})` }))}
+                      placeholder={usersLoading ? "Loading users…" : "Select user"}
+                      searchable
+                      searchLabel="Find a user"
+                      emptyMessage="No users found."
+                      fullWidth
+                      required
+                      disabled={usersLoading || busy === "create-api-key"}
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="admin-key-label">Key label</label>
+                    <input ref={keyLabelInput} id="admin-key-label" aria-label="API key label" className={inputClass} value={apiKeyLabel} onChange={(event) => setApiKeyLabel(event.target.value)} minLength={1} maxLength={120} placeholder="e.g. Editorial MCP" required disabled={busy === "create-api-key"} />
+                  </div>
+                  <div className={styles.field}>
+                    <label htmlFor="admin-key-expiry">Expires after</label>
+                    <AdminSelectPopover
+                      id="admin-key-expiry"
+                      label="API key expiry days"
+                      value={String(apiKeyExpiryDays)}
+                      onChange={(value) => setApiKeyExpiryDays(Number(value))}
+                      options={[30, 90, 180, 365].map((days) => ({ value: String(days), label: `${days} days` }))}
+                      fullWidth
+                      required
+                      disabled={busy === "create-api-key"}
+                    />
+                  </div>
+                  <button type="submit" className={primaryButtonClass} disabled={busy === "create-api-key" || usersLoading || !apiKeyUserId || !apiKeyLabel.trim()}>
+                    {busy === "create-api-key" && <Loader2 className={styles.spinner} size={16} aria-hidden="true" />}
+                    {busy === "create-api-key" ? "Generating…" : "Generate key"}
+                  </button>
+                </form>
+                <p className={styles.formHint}>{users.length === 0 ? "Add a user before generating a key." : "You can reveal or copy a key again later. Revoking it disconnects its clients immediately."}</p>
+              </section>
+            )}
+            <div className={styles.toolbar}>
+              <div className={styles.filters}>
+                <div className={styles.search}>
+                  <Search size={16} aria-hidden="true" />
+                  <input type="search" className={inputClass} aria-label="Search API keys" placeholder="Search keys or users…" value={keySearch} onChange={(event) => setKeySearch(event.target.value)} />
+                </div>
+                <AdminSelectPopover
+                  label="Filter API keys by user"
+                  value={ownerFilter}
+                  onChange={setOwnerFilter}
+                  searchable
+                  searchLabel="Find a user"
+                  emptyMessage="No users found."
+                  options={[
+                    { value: "all", label: "All users" },
+                    ...users.map((user) => ({ value: user.id, label: user.username })),
+                  ]}
+                />
+              </div>
+              <button type="button" className={styles.iconButton} aria-label="Refresh API keys" title="Refresh API keys" disabled={keysLoading || busy !== null} onClick={() => void loadApiKeys()}>
+                <RefreshCw size={16} aria-hidden="true" className={keysLoading ? styles.spinner : styles.refreshIcon} />
+              </button>
+            </div>
+            <APIKeysList apiKeys={filteredKeys} users={users} total={apiKeys.length} loading={keysLoading} error={keysError} busy={busy} tokens={apiKeyTokens} visibleKeys={visibleApiKeys} onRetry={() => void loadApiKeys()} onReveal={(id) => void toggleApiKeyVisibility(id)} onCopy={(id) => void copyApiKey(id)} onRevoke={(apiKey) => openAdminDialog({ kind: "revoke-key", apiKey })} onClearFilters={clearKeyFilters} />
+          </TabsContent>
+        </Tabs>
+        <p className={styles.scopeNote}><ShieldCheck size={15} aria-hidden="true" />User workspaces stay private. API and MCP keys use the selected user’s access.</p>
       </div>
 
       <Dialog
@@ -774,13 +713,15 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           }
         }}
       >
-        <DialogContent className="w-[calc(100vw-32px)] max-w-[440px] gap-0 rounded-[24px] border-0 bg-white p-0 font-syne shadow-[0_24px_80px_rgba(15,23,42,0.18)] [&>button]:hidden">
+        <DialogContent hideDefaultClose onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const target = dialogReturnFocus.current;
+          (target?.isConnected ? target : createAction.current)?.focus();
+        }} className={`${styles.dialog} w-[calc(100vw-32px)] max-w-[440px] gap-0 rounded-2xl border-0 bg-white p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)]`}>
           {dialog?.kind === "reset-password" && (
             <form onSubmit={resetPassword}>
               <DialogHeader className="px-7 pb-5 pt-7 text-left">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#F4F3FF]">
-                  <LockKeyhole className="h-5 w-5 text-[#5146E5]" />
-                </div>
+                <LockKeyhole aria-hidden="true" className="mb-3 h-6 w-6 text-[#656570]" />
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
                   Reset password
                 </DialogTitle>
@@ -805,17 +746,17 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   required
                 />
               </DialogHeader>
-              <DialogFooter className="flex-row border-t border-[#EAECF0] p-4 sm:justify-end sm:space-x-0">
+              <DialogFooter className="flex-row gap-3 border-t border-[#EAECF0] p-5 sm:justify-end sm:space-x-0">
                 <button
                   type="button"
-                  className="h-10 rounded-full border border-[#E1E1E5] px-5 text-xs font-semibold text-[#344054] transition hover:bg-[#F9FAFB]"
+                  className={styles.secondaryButton}
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
                   Cancel
                 </button>
                 <button type="submit" className={primaryButtonClass} disabled={dialogBusy}>
-                  {dialogBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {dialogBusy && <Loader2 className={`${styles.spinner} h-4 w-4`} aria-hidden="true" />}
                   Reset password
                 </button>
               </DialogFooter>
@@ -825,9 +766,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           {dialog?.kind === "delete-user" && (
             <>
               <DialogHeader className="px-7 pb-6 pt-7 text-left">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#FEF3F2]">
-                  <AlertTriangle className="h-5 w-5 text-[#D92D20]" />
-                </div>
+                <AlertTriangle aria-hidden="true" className="mb-3 h-6 w-6 text-[#B42318]" />
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
                   Delete {dialog.user.username}?
                 </DialogTitle>
@@ -836,10 +775,10 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   templates, chats, tasks, and files. This action cannot be undone.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter className="flex-row border-t border-[#EAECF0] p-4 sm:justify-end sm:space-x-0">
+              <DialogFooter className="flex-row gap-3 border-t border-[#EAECF0] p-5 sm:justify-end sm:space-x-0">
                 <button
                   type="button"
-                  className="h-10 rounded-full border border-[#E1E1E5] px-5 text-xs font-semibold text-[#344054] transition hover:bg-[#F9FAFB]"
+                  className={styles.secondaryButton}
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
@@ -847,11 +786,11 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#D92D20] px-5 text-xs font-semibold text-white transition hover:bg-[#B42318] disabled:opacity-60"
+                  className={`${styles.primaryButton} ${styles.dangerButton}`}
                   onClick={() => void deleteUser()}
                   disabled={dialogBusy}
                 >
-                  {dialogBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  {dialogBusy ? <Loader2 className={`${styles.spinner} h-4 w-4`} aria-hidden="true" /> : <Trash2 className="h-4 w-4" />}
                   Delete user
                 </button>
               </DialogFooter>
@@ -861,9 +800,7 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
           {dialog?.kind === "revoke-key" && (
             <>
               <DialogHeader className="px-7 pb-6 pt-7 text-left">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#FEF3F2]">
-                  <AlertTriangle className="h-5 w-5 text-[#D92D20]" />
-                </div>
+                <AlertTriangle aria-hidden="true" className="mb-3 h-6 w-6 text-[#B42318]" />
                 <DialogTitle className="text-xl font-semibold leading-7 text-[#101323]">
                   Revoke API key?
                 </DialogTitle>
@@ -872,10 +809,10 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                   immediately. This action cannot be undone.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter className="flex-row border-t border-[#EAECF0] p-4 sm:justify-end sm:space-x-0">
+              <DialogFooter className="flex-row gap-3 border-t border-[#EAECF0] p-5 sm:justify-end sm:space-x-0">
                 <button
                   type="button"
-                  className="h-10 rounded-full border border-[#E1E1E5] px-5 text-xs font-semibold text-[#344054] transition hover:bg-[#F9FAFB]"
+                  className={styles.secondaryButton}
                   onClick={() => setDialog(null)}
                   disabled={dialogBusy}
                 >
@@ -883,11 +820,11 @@ export default function AdminPanel({ embedded = false }: AdminPanelProps) {
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#D92D20] px-5 text-xs font-semibold text-white transition hover:bg-[#B42318] disabled:opacity-60"
+                  className={`${styles.primaryButton} ${styles.dangerButton}`}
                   onClick={() => void revokeApiKey()}
                   disabled={dialogBusy}
                 >
-                  {dialogBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  {dialogBusy ? <Loader2 className={`${styles.spinner} h-4 w-4`} aria-hidden="true" /> : <Trash2 className="h-4 w-4" />}
                   Revoke key
                 </button>
               </DialogFooter>

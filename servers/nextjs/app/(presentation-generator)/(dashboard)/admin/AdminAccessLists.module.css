@@ -1,0 +1,107 @@
+.list {
+  width: 100%;
+  min-width: 0;
+  font-family: var(--font-manrope), sans-serif;
+  color: #191923;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* Restore native table layout after the application's global scroll-table rules. */
+.table thead { display: table-header-group; width: auto; }
+.table tbody { display: table-row-group; }
+.table thead tr, .table tbody tr { display: table-row; width: auto; table-layout: auto; }
+.table th { height: 40px; padding: 0 12px; color: #656570; font-size: 12px; font-weight: 500; }
+.table td { height: 72px; padding: 12px; vertical-align: middle; border-top: 1px solid #ededf1; }
+.table th:first-child, .table td:first-child { padding-left: 24px; }
+.table th:last-child, .table td:last-child { padding-right: 20px; }
+.usersTable td { height: 68px; }
+.roleColumn { width: 19%; }
+.dateColumn { width: 23%; }
+.userActionColumn { width: 120px; }
+.ownerColumn { width: 15%; }
+.keyDateColumn { width: 16%; }
+.keyActionColumn { width: 144px; }
+.actionHeading { text-align: right; }
+.dateHeading { text-align: right; }
+
+.identity { display: flex; align-items: center; min-width: 0; gap: 12px; }
+.avatar { display: flex; width: 32px; height: 32px; flex: 0 0 32px; align-items: center; justify-content: center; border-radius: 50%; background: #f0eff4; font-size: 12px; font-weight: 600; color: #595762; }
+.identityText { min-width: 0; }
+.name { display: block; min-width: 0; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.mobileMeta { display: none; }
+.date { color: #656570; font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
+.owner { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.userRole, .adminRole, .expired, .active { display: inline-flex; flex: none; align-items: center; min-height: 22px; padding: 1px 7px; border-radius: 4px; font-size: 12px; line-height: 20px; font-weight: 500; white-space: nowrap; }
+.userRole { background: #f4f4f6; color: #585862; }
+.adminRole { background: #f3effc; color: #6840b5; }
+.expired { color: #92400e; background: #fff7e7; }
+.active { color: #585862; background: #f4f4f6; }
+.protected { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 12px; color: #656570; white-space: nowrap; }
+.actionsCell { text-align: right; }
+.keyNameLine { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.token { display: block; overflow: hidden; max-width: 100%; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; color: #656570; }
+.keyActions { display: flex; align-items: center; justify-content: flex-end; }
+.iconButton { display: inline-flex; height: 40px; width: 40px; flex: 0 0 40px; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: #656570; cursor: pointer; }
+.iconButton:hover:not(:disabled) { color: #191923; background: #f4f3f7; }
+.iconButton:focus-visible, .loadError button:focus-visible, .empty button:focus-visible { outline: 2px solid #7147df; outline-offset: 2px; }
+.iconButton:disabled { cursor: wait; opacity: 0.5; }
+.menu { min-width: 180px; padding: 5px; border-color: #e5e4eb; border-radius: 8px; font-family: var(--font-manrope), sans-serif; }
+.menuItem { min-height: 40px; gap: 10px; border-radius: 4px; padding: 8px 10px; font-size: 13px; color: #191923; cursor: pointer; }
+.destructiveMenuItem { color: #b42318; }
+.destructiveMenuItem:focus { color: #b42318; background: #fff2f0; }
+
+.resultCount { margin: 0; border-top: 1px solid #ededf1; padding: 16px 24px; color: #656570; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums; }
+.empty { padding: 48px 24px; text-align: center; }
+.empty h3 { margin: 0; font-size: 14px; line-height: 22px; font-weight: 600; }
+.empty p { max-width: 420px; margin: 6px auto 0; color: #656570; font-size: 13px; line-height: 21px; }
+.empty button, .loadError button { min-height: 40px; border: 0; background: transparent; color: #6840b5; font-size: 13px; font-weight: 600; cursor: pointer; }
+.empty button { margin-top: 8px; }
+.loadError { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #ededf1; padding: 10px 24px; font-size: 13px; line-height: 20px; }
+.loadError > svg { flex: none; color: #b42318; }
+.loadError p { flex: 1; min-width: 0; margin: 0; color: #656570; overflow-wrap: anywhere; }
+.loadError button { flex: none; }
+.skeleton { display: block; height: 12px; width: 65%; max-width: 160px; border-radius: 3px; background: #eeeef2; }
+.skeletonRow td:last-child .skeleton { width: 28px; margin-left: auto; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.spinner { animation: admin-list-spin 700ms linear infinite; }
+@keyframes admin-list-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+:global(html[data-motion-input="keyboard"]) .spinner { animation: none; }
+
+/* The shared admin panel sets this named container, so embedded Settings and
+   the standalone route reflow from their available width, not the viewport. */
+@container admin-panel (max-width: 720px) {
+  .table, .table tbody { display: block; }
+  .table colgroup { display: none; }
+  .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; width: 100%; min-width: 0; padding: 16px; border-top: 1px solid #ededf1; }
+  .table tbody tr:first-child { border-top: 0; }
+  .table td, .table td:first-child, .table td:last-child { display: block; min-width: 0; height: auto; padding: 0; border: 0; }
+  .table td.secondaryCell { display: none; }
+  .identityCell { grid-column: 1; }
+  .actionsCell { grid-column: 2; }
+  .mobileMeta { display: block; margin-top: 5px; font-size: 12px; font-weight: 400; line-height: 19px; color: #656570; overflow-wrap: anywhere; }
+  .iconButton { width: 44px; height: 44px; flex-basis: 44px; }
+  .protected span { display: none; }
+  .protected { width: 44px; height: 44px; justify-content: center; }
+  .keysTable tbody tr { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .keysTable .actionsCell { grid-column: 1; }
+  .keyActions { justify-content: flex-start; margin-left: -12px; }
+  .keyNameLine { flex-wrap: wrap; }
+  .keyNameLine .name { max-width: 100%; }
+  .resultCount { padding: 16px; }
+  .empty { padding: 40px 16px; }
+  .loadError { flex-wrap: wrap; padding: 12px 16px; }
+  .loadError p { flex-basis: calc(100% - 26px); }
+  .loadError button { margin-left: 26px; }
+  .skeletonRow td:nth-child(n + 2) { display: none; }
+  .skeleton { width: 50%; }
+}

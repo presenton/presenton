@@ -39,7 +39,7 @@
     "install:pyinstaller": "cd ../servers/fastapi && echo 'pyinstaller will be installed via uv run --with when building'",
     "typecheck": "tsc --noEmit",
     "test:export": "npm run build:ts && node --test scripts/export-runtime.test.cjs",
-    "test:security": "npm run build:ts && node --test scripts/security-dependencies.test.cjs scripts/private-storage.test.cjs",
+    "test:security": "npm run build:ts && node --test scripts/security-dependencies.test.cjs scripts/private-storage.test.cjs scripts/find-unused-ports.test.cjs",
     "build:ts": "node -e \"fs.rmSync('app_dist',{recursive:true,force:true})\" && tsc",
     "check:main-no-undef": "node scripts/check-main-no-undef.cjs",
     "lint:main": "npm run build:ts && npm run check:main-no-undef",
@@ -106,6 +106,8 @@
     },
     "serve-handler": {
       "minimatch": "^3.1.5"
-    }
+    },
+    "minimatch@>=9 <11.0.1": "^11.0.3",
+    "glob@>=9 <14.0.2": "^14.0.3"
   }
 }

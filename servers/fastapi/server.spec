@@ -65,6 +65,7 @@ a = Analysis(
     + binaries_spacy_model,
     datas=[
         ("assets", "assets"),
+        ("templates/assets/fonts.json", "templates/assets"),
         ("static", "static"),
         ("alembic", "alembic"),
     ]

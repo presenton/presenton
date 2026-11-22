@@ -6,12 +6,12 @@ import { RootState } from '@/store/store'
 
 export type SettingsSection = 'text-provider' | 'image-provider' | 'web-search-provider' | 'privacy' | 'admin' | 'session'
 
-const SettingSideBar = ({ selectedProvider, setSelectedProvider, presentonSelected = false }: { selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void, presentonSelected?: boolean }) => {
+const SettingSideBar = ({ selectedProvider, setSelectedProvider, presentonSelected = false, className = '' }: { selectedProvider: SettingsSection, setSelectedProvider: (provider: SettingsSection) => void, presentonSelected?: boolean, className?: string }) => {
     const { llm_config } = useSelector((state: RootState) => state.userConfig)
     const textProviderIcon = LLM_PROVIDERS[llm_config.LLM as keyof typeof LLM_PROVIDERS]?.icon
     const imageProviderIcon = IMAGE_PROVIDERS[llm_config.IMAGE_PROVIDER as keyof typeof IMAGE_PROVIDERS]?.icon || '/providers/pexel.png'
     return (
-        <div className='w-full max-w-[230px] h-screen px-3 pt-[22px] bg-[#F9FAFB] flex flex-col'>
+        <div className={`w-full max-w-[230px] h-screen px-3 pt-[22px] bg-[#F9FAFB] flex flex-col ${className}`}>
             <p className='text-xs text-black  font-medium border-b mt-[3.15rem]  border-[#E1E1E5] pb-3.5'>FILTER BY:</p>
             <div className='mt-6 flex-1'>
                 <p className='text-[#3A3A3A] text-xs font-medium pb-2.5'>Select Provider</p>

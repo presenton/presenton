@@ -8,7 +8,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from llmai import get_client
 from llmai.shared import SystemMessage, UserMessage
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,8 +18,7 @@ from models.theme_data import (
     PresentationThemeTextFont,
 )
 from templates.v2.models.layouts import SlideLayouts
-from utils.llm_config import get_llm_config
-from utils.llm_provider import get_model
+from services.configured_llm import resolve_configured_llm
 
 
 LOGGER = logging.getLogger(__name__)
@@ -283,9 +281,10 @@ def select_theme_roles_with_llm(profile: ThemeProfile) -> ThemeRoleSelection:
     for font in prompt_profile.get("fonts", []):
         font.pop("url", None)
 
+    resolved = resolve_configured_llm()
     payload = _generate_with_validation_retries(
-        client=get_client(config=get_llm_config()),
-        model=get_model(),
+        client=resolved.client,
+        model=resolved.model,
         messages=[
             SystemMessage(content=THEME_ROLE_SYSTEM_PROMPT),
             UserMessage(

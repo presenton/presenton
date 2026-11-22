@@ -249,7 +249,9 @@ class ChatTools:
                 name="getSlideAtIndex",
                 description=(
                     "Live SQL: one slide by index—authoritative for exact current content. "
-                    "Set includeFullContent=true when you need full JSON (before saveSlide or precise edits). "
+                    "Prefer elementPath or componentId to read one complete target before editing. "
+                    "Without a target, returns paginated discovery previews; use elementOffset for more. "
+                    "Set includeFullContent=true only for whole-slide JSON or HTML operations. "
                     "If user says slide N, use zero-based index N-1."
                 ),
                 schema=GetSlideAtIndexInput,
@@ -590,16 +592,23 @@ class ChatTools:
         normalized_args = dict(args)
         normalized_args.setdefault("includeFullContent", False)
         payload = GetSlideAtIndexInput(**normalized_args)
+        read_options = {
+            "include_full_content": payload.include_full_content,
+            "element_path": payload.element_path,
+            "component_id": payload.component_id,
+            "element_offset": payload.element_offset or 0,
+            "element_limit": payload.element_limit or 30,
+        }
         slide = await self._memory.get_slide_at_index(
             payload.index,
-            include_full_content=payload.include_full_content,
+            **read_options,
         )
         if not slide and payload.index > 0:
             # Users often refer to slides as 1-based; allow a safe fallback.
             fallback_index = payload.index - 1
             fallback_slide = await self._memory.get_slide_at_index(
                 fallback_index,
-                include_full_content=payload.include_full_content,
+                **read_options,
             )
             if fallback_slide:
                 return {

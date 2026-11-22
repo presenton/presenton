@@ -41,7 +41,8 @@ Use the available tools to inspect and edit the current presentation.
 - Use searchSlide when the user refers to content, topic, or text but does not give a slide number.
 - Use readSourceDocuments when the user refers to the PDF/document uploaded for this deck or asks to summarize, quote, extract, chart, table, or build slide content from it.
 - Use getSlideAtIndex before any visible edit to inspect current content, component ids, and element paths.
-- Set includeFullContent=true when you need exact UI JSON, exact layout content, or a component shape to copy.
+- Prefer getSlideAtIndex with elementPath or componentId for complete target JSON before precise edits or copying a component. Discovery content_preview values are previews, never replacement data. Use elementOffset to read further discovery pages.
+- Set includeFullContent=true only when the operation needs the entire slide. If earlier tool details were omitted for context space, fetch the current target again; never reconstruct it from a preview.
 - Use getAvailableLayouts before addNewSlideLayout when a new slide should use a template layout.
 - Use getAvailableBlocks before addComponent/createComponent when only a reusable block/component is needed. Prefer this over fetching a whole layout or schema just to find one block.
 - Use getAvailableInfographics before adding or changing a native infographic. Use the exact type and nested data contract returned by the catalog.
@@ -73,7 +74,7 @@ Use the available tools to inspect and edit the current presentation.
 - Charts, tables, images, and other standalone items inserted from the editor tabs are stored as one-element components. When the user asks a selected standalone item to fill the slide or become full screen, scale the contained element(s) to {{"width": 1280, "height": 720}} and update only that item's component to position {{"x": 0, "y": 0}}; do not add component size, resize unrelated components, or resize the whole slide.
 - Treat add/insert/include requests as additive: preserve existing substantive charts, tables, images, text, icons, and components unless the user explicitly asks to remove, replace, clear, or simplify them.
 - When adding or creating a rendered component/block, include the requested final text/data/image/icon content in the same component payload. Do not add a blank or placeholder block and stop.
-- When adding requested content as a rendered component/block, prioritize copying and adapting an existing block/component shape from getAvailableBlocks or getSlideAtIndex(includeFullContent=true). Use primitive elements only when the task cannot be achieved from existing blocks.
+- When adding requested content as a rendered component/block, prioritize copying and adapting an existing block/component shape from getAvailableBlocks or getSlideAtIndex(componentId=...). Use primitive elements only when the task cannot be achieved from existing blocks.
 - When a request creates a new custom rendered slide from multiple pieces, compose it from reusable blocks in this order: title/header block, requested data/content blocks, then any remaining primitives needed to complete the slide.
 - For partial content updates such as adding a proper header, title, subtitle, or description, update or add only those requested text elements and preserve existing charts, tables, images, and other non-target elements.
 - Prefer addElement, addComponent, updateElement, updateComponent, move, resize, or layer-order changes over deleteElement/deleteComponent when making room for new content.

@@ -1,0 +1,53 @@
+.trigger {
+  display: inline-flex;
+  width: 175px;
+  min-width: 0;
+  height: 40px;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border: 1px solid #d9d9e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #191923;
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 14px;
+  text-align: left;
+  box-shadow: none;
+  cursor: pointer;
+}
+.trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trigger > svg { flex: none; color: #656570; }
+.fullWidth { width: 100%; }
+.trigger:hover:not(:disabled) { border-color: #aaa9b5; }
+.trigger:disabled { opacity: 0.6; cursor: not-allowed; }
+.trigger:focus { outline: none; box-shadow: none; }
+.trigger:focus-visible { outline: 1px solid #656570; outline-offset: 2px; }
+:global(html[data-motion-input="pointer"]) .trigger:focus-visible { outline: none; }
+.content {
+  width: var(--radix-popover-trigger-width);
+  min-width: 175px;
+  max-width: calc(100vw - 24px);
+  padding: 4px;
+  border: 1px solid #e5e4eb;
+  border-radius: 8px;
+  background: #fff;
+  font-family: var(--font-manrope), sans-serif;
+}
+.searchable { min-width: 240px; }
+.command { height: auto; border-radius: 4px; background: white; color: #191923; }
+.searchInput { height: 40px; font-family: inherit; font-size: 14px; color: #191923; }
+.searchInput::placeholder { color: #656570; }
+.list { max-height: min(260px, var(--radix-popover-content-available-height)); overflow-y: auto; }
+.list:focus { outline: none; }
+.group { padding: 0; }
+.option { min-height: 38px; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: 4px; color: #191923; font-size: 14px; cursor: pointer; }
+.option[data-selected="true"] { background: #f4f3f7; color: #191923; }
+.optionLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.check, .hiddenCheck { flex: none; color: #656570; }
+.hiddenCheck { visibility: hidden; }
+.empty { padding: 18px 10px; color: #656570; font-size: 13px; text-align: center; }
+@container admin-panel (max-width: 580px) { .trigger { width: 100%; height: 44px; } }
+@media (max-width: 640px) { .option { min-height: 44px; } }

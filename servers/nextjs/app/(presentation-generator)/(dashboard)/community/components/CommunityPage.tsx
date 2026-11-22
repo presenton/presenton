@@ -247,14 +247,14 @@ export default function CommunityPage() {
         </h1>
         <Link
           href="/upload"
-          className="inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(270deg,#D5CAFC_2.4%,#E3D2EB_27.88%,#F4DCD3_69.23%,#FDE4C2_100%)] px-4 font-syne text-sm font-medium text-[#191919] shadow-sm transition hover:shadow-md"
+          className="motion-press group inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(270deg,#D5CAFC_2.4%,#E3D2EB_27.88%,#F4DCD3_69.23%,#FDE4C2_100%)] px-4 font-syne text-sm font-medium text-[#191919] shadow-sm hover:shadow-md"
         >
           New presentation
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="motion-arrow h-4 w-4" />
         </Link>
       </header>
 
-      <main className="px-7 py-8">
+      <main className="motion-fade px-7 py-8">
         <div className="flex min-h-10 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-base font-medium text-[#191919]">
@@ -404,7 +404,7 @@ function CommunityPresentationCard({
   const author = getCommunityPresentationAuthor(presentation);
 
   return (
-    <article className="min-w-0 overflow-hidden rounded-xl border border-[#EDEEEF] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+    <article className="motion-card min-w-0 overflow-hidden rounded-xl border border-[#EDEEEF] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
       <button
         type="button"
         onClick={onPreview}
@@ -412,7 +412,7 @@ function CommunityPresentationCard({
         aria-label={`Preview ${title}`}
       >
         {thumbnail ? (
-          <div className="transition duration-300 group-hover:scale-[1.015]">
+          <div>
             <SmartHtmlSlide
               showLoader
               executeScripts={false}

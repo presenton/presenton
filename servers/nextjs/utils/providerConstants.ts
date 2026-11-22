@@ -119,15 +119,25 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderOption> = {
     apiKeyFieldLabel: "OpenAI API Key",
     getApiKeyUrl: "https://www.google.com/search?q=how+to+get+openai+api+key&ie=UTF-8",
   },
-  "gpt-image-1.5": {
-    value: "gpt-image-1.5",
-    label: "GPT Image 1.5",
-    description: "OpenAI's image generation model",
+  "gpt-image-2.5-flare": {
+    value: "gpt-image-2.5-flare",
+    label: "GPT Image 2.5 Flare",
+    description: "OpenAI's fast image generation model",
     icon: "/providers/openai.png",
     requiresApiKey: true,
     apiKeyField: "OPENAI_API_KEY",
     apiKeyFieldLabel: "OpenAI API Key",
-    getApiKeyUrl: "https://www.google.com/search?q=how+to+get+openai+api+key&ie=UTF-8",
+    getApiKeyUrl: "https://platform.openai.com/api-keys",
+  },
+  "gpt-image-2.5-sunburst": {
+    value: "gpt-image-2.5-sunburst",
+    label: "GPT Image 2.5 Sunburst",
+    description: "OpenAI's image generation and precise editing model",
+    icon: "/providers/openai.png",
+    requiresApiKey: true,
+    apiKeyField: "OPENAI_API_KEY",
+    apiKeyFieldLabel: "OpenAI API Key",
+    getApiKeyUrl: "https://platform.openai.com/api-keys",
   },
   gemini_flash: {
     value: "gemini_flash",
@@ -304,7 +314,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderOption> = {
 
 };
 
-export const GPT_IMAGE_1_5_QUALITY_OPTIONS = [
+export const GPT_IMAGE_2_QUALITY_OPTIONS = [
   {
     label: "Low",
     value: "low",
@@ -322,4 +332,14 @@ export const GPT_IMAGE_1_5_QUALITY_OPTIONS = [
   },
 ];
 
-export const GPT_IMAGE_2_QUALITY_OPTIONS = GPT_IMAGE_1_5_QUALITY_OPTIONS;
+export const GPT_IMAGE_2_5_QUALITY_OPTIONS = [
+  ...GPT_IMAGE_2_QUALITY_OPTIONS,
+  { label: "Extra high", value: "xhigh", description: "More detail with longer generation time" },
+  { label: "Maximum", value: "max", description: "Highest rendering quality" },
+  { label: "Auto", value: "auto", description: "Let the model choose the quality" },
+];
+
+export const DEFAULT_OPENAI_IMAGE_PROVIDER = "gpt-image-2.5-flare";
+
+export const isGPTImage25Provider = (provider?: string): boolean =>
+  provider === "gpt-image-2.5-flare" || provider === "gpt-image-2.5-sunburst";

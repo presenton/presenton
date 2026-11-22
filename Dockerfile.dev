@@ -86,6 +86,9 @@ WORKDIR /app/servers/fastapi
 RUN python scripts/warm_fastembed_cache.py
 RUN --network=none HF_HUB_OFFLINE=1 python scripts/warm_fastembed_cache.py
 
+# Match the npm version that supports the frontend lockfile's range overrides.
+RUN npm install --global npm@11.16.0
+
 WORKDIR /app
 COPY nginx.conf /etc/nginx/nginx.conf
 

@@ -6,6 +6,41 @@ import { mergeAttributes } from "@tiptap/core";
 import katex from "katex";
 
 const require = createRequire(import.meta.url);
+const fromParser = createRequire(require.resolve("@typescript-eslint/typescript-estree"));
+const fromSucrase = createRequire(require.resolve("sucrase"));
+const fromEslint = createRequire(require.resolve("eslint"));
+require("../../../scripts/glob-security-checks.cjs").registerGlobSecurityTests({
+  modernMatcherPath: fromParser.resolve("minimatch"),
+  modernGlobPath: fromSucrase.resolve("glob"),
+  legacyMatcherPath: fromEslint.resolve("minimatch"),
+});
+
+test("Next.js includes the November 2026 security fixes", () => {
+  const { version } = require("next/package.json");
+  const { satisfies } = fromParser("semver");
+  assert.ok(satisfies(version, ">=16.4.5"), `Next.js ${version} is below the patched range`);
+});
+
+test("Windows service queries remove PowerShell Unicode delimiters and preserve service names", () => {
+  const probe = spawnSync(process.execPath, ["-e", `
+    const assert = require('node:assert/strict');
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const util = require('systeminformation/lib/util');
+    const { services } = require('systeminformation/lib/processes');
+    const commands = [];
+    util.powerShell = async command => { commands.push(command); return ''; };
+    (async () => {
+      for (const quotes of [['“', '”'], ['‘', '’']]) {
+        await services('not-a-service' + quotes[1] + ' (New-Item -Name marker -ItemType File -Force) ' + quotes[0]);
+        assert.doesNotMatch(commands.at(-1), /[“”‘’()]/);
+      }
+      await services('Spooler');
+      assert.match(commands.at(-1), /Name='spooler'/);
+    })().catch(error => { console.error(error); process.exitCode = 1; });
+  `], { encoding: "utf8", timeout: 3000 });
+  assert.equal(probe.status, 0, String(probe.error || probe.stderr));
+});
+
 test("imported attribute objects cannot introduce inherited executable attributes", () => {
   const input = JSON.parse('{"class":"slide-run","data-slide-run-style":"true","__proto__":{"src":"x-invalid://canary","onerror":"alert(1)"}}');
   const attributes = mergeAttributes(input);

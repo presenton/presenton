@@ -233,3 +233,7 @@ def get_exports_directory():
 
 def get_uploads_directory():
     return _owned_directory("uploads")
+
+
+def get_pptx_to_json_directory():
+    return _owned_directory("pptx-to-json")

@@ -1,3 +1,4 @@
+import ImageProviderTest from '@/components/ImageProviderTest'
 import ToolTip from '@/components/ToolTip'
 import { Button } from '@/components/ui/button'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -6,7 +7,7 @@ import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { LLMConfig } from '@/types/llm_config'
 import OpenAICompatibleImageFields from '@/components/OpenAICompatibleImageFields'
-import { GPT_IMAGE_2_QUALITY_OPTIONS, GPT_IMAGE_1_5_QUALITY_OPTIONS, IMAGE_PROVIDERS } from '@/utils/providerConstants'
+import { GPT_IMAGE_2_QUALITY_OPTIONS, GPT_IMAGE_2_5_QUALITY_OPTIONS, isGPTImage25Provider, IMAGE_PROVIDERS } from '@/utils/providerConstants'
 import { Check, ChevronUp, Eye, EyeOff } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { MixpanelEvent, trackEvent } from '@/utils/mixpanel'
@@ -80,16 +81,16 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
             );
         }
 
-        if (llmConfig.IMAGE_PROVIDER === "gpt-image-1.5") {
+        if (isGPTImage25Provider(llmConfig.IMAGE_PROVIDER)) {
             return (
                 <div className="w-[205px]">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        GPT Image 1.5 Quality
+                        GPT Image 2.5 Quality
                     </label>
                     <div className="">
                         <Select
-                            value={llmConfig.GPT_IMAGE_1_5_QUALITY || 'low'}
-                            onValueChange={(value) => input_field_changed(value, "GPT_IMAGE_1_5_QUALITY")}
+                            value={llmConfig.GPT_IMAGE_2_5_QUALITY || 'medium'}
+                            onValueChange={(value) => input_field_changed(value, "GPT_IMAGE_2_5_QUALITY")}
                         >
                             <SelectTrigger
 
@@ -97,7 +98,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                 <SelectValue placeholder="Select a quality" />
                             </SelectTrigger>
                             <SelectContent>
-                                {GPT_IMAGE_1_5_QUALITY_OPTIONS.map((option) => (
+                                {GPT_IMAGE_2_5_QUALITY_OPTIONS.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -433,6 +434,8 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                     </>
                 )}
 
+
+            <ImageProviderTest config={llmConfig} />
 
             {/* Web Grounding Toggle - show at the end, below models dropdown */}
             {/* <div className="bg-white flex justify-between items-center p-10 rounded-[12px]">

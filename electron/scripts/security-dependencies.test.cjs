@@ -37,3 +37,29 @@ test("generated AppImage library paths exclude the working directory and preserv
     assert.ok(result.stdout.split(":").every(Boolean));
   }
 });
+
+
+const { createRequire } = require("node:module");
+const fromBuilder = createRequire(require.resolve("app-builder-lib"));
+const fromCacache = createRequire(require.resolve("cacache"));
+const fromAsar = createRequire(require.resolve("@electron/asar"));
+require("../../scripts/glob-security-checks.cjs").registerGlobSecurityTests({
+  modernMatcherPath: fromBuilder.resolve("minimatch"),
+  modernGlobPath: fromCacache.resolve("glob"),
+  legacyMatcherPath: fromAsar.resolve("minimatch"),
+});
+
+test("desktop packaging filters preserve inclusion, exclusion, and partial directory matches", () => {
+  const path = require("node:path");
+  const { FileMatcher } = require("app-builder-lib/out/fileMatcher");
+  const root = path.resolve("security-filter-control");
+  const matcher = new FileMatcher(root, root, value => value, ["**/*.{js,json}", "!**/secret.json"]);
+  const filter = matcher.createFilter();
+  const file = { isDirectory: () => false };
+  const directory = { isDirectory: () => true };
+  assert.equal(filter(path.join(root, "app/main.js"), file), true);
+  assert.equal(filter(path.join(root, "app/config.json"), file), true);
+  assert.equal(filter(path.join(root, "app/secret.json"), file), false);
+  assert.equal(filter(path.join(root, "app/readme.txt"), file), false);
+  assert.equal(filter(path.join(root, "app"), directory), true);
+});

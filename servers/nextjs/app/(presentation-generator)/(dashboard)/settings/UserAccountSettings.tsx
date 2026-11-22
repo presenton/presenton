@@ -46,7 +46,7 @@ export default function UserAccountSettings({
           </div>
 
           <section
-            className="max-w-3xl rounded-[12px] bg-[#F9F8F8] p-7"
+            className="motion-enter max-w-3xl rounded-[12px] bg-[#F9F8F8] p-7"
             aria-labelledby="account-heading"
           >
             <h2
@@ -86,7 +86,7 @@ export default function UserAccountSettings({
                 </p>
                 <LogoutButton
                   label="Sign out"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[58px] border border-[#EDEEEF] bg-[#7C51F8] px-5 py-3 text-xs font-semibold text-white transition hover:bg-[#6d46e6] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  className="motion-press mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[58px] border border-[#EDEEEF] bg-[#7C51F8] px-5 py-3 text-xs font-semibold text-white hover:bg-[#6d46e6] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 />
               </div>
             </div>

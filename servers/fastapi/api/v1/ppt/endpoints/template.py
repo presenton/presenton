@@ -53,6 +53,7 @@ from api.v1.auth.context import (
     set_current_owner_is_admin,
 )
 from services.export_task_service import EXPORT_TASK_SERVICE
+from templates.cloning import clone_builtin_template
 from utils.get_env import get_presenton_public_url
 from utils.mcp_public_urls import is_mcp_request
 from templates.preview import (
@@ -2152,6 +2153,21 @@ async def get_template(
         ),
         fonts=_get_template_fonts(template),
     )
+
+
+@TEMPLATE_ROUTER.post("/{template_id}/clone", status_code=201, response_model=str)
+async def clone_template(
+    template_id: str = Path(...),
+    sql_session: AsyncSession = Depends(get_async_session),
+):
+    template = await sql_session.get(TemplateV2, template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    try:
+        return await clone_builtin_template(template, sql_session)
+    except OSError as exc:
+        safe_log(LOGGER, logging.ERROR, "Could not copy built-in template assets: %s", exc)
+        raise HTTPException(500, "Could not copy template assets. Please try again.") from exc
 
 
 @TEMPLATE_ROUTER.delete("/{template_id}", status_code=204)

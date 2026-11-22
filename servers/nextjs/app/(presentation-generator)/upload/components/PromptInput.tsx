@@ -39,7 +39,7 @@ export function PromptInput({
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-2.5 rounded-xl border border-[#DBDBDB99] bg-white px-[10px] py-3 font-syne shadow-[0_4px_12px_rgba(0,0,0,0.04)]",
+        "relative flex flex-col gap-2.5 rounded-xl border border-[#3088d599]  bg-white px-[10px] py-3 font-syne shadow-[0_4px_12px_rgba(0,0,0,0.04)]",
         hasAttachments ? "min-h-[215px]" : "min-h-[174px]",
       )}
     >

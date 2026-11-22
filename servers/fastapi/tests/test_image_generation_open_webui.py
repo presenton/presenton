@@ -163,6 +163,8 @@ async def test_generate_image_open_webui_405_error_points_at_api_root(
     with url_env, key_env, pytest.raises(Exception) as exc_info:
         await service.generate_image_open_webui("a cat", str(tmp_path))
 
-    message = str(exc_info.value)
-    assert "returned 405" in message
-    assert "http://127.0.0.1:8080/api/v1" in message
+    assert exc_info.value.status_code == 405
+    assert exc_info.value.error_code == "provider_endpoint_not_found"
+    assert "OPEN_WEBUI_IMAGE_URL" in exc_info.value.detail
+    assert "/api/v1" in exc_info.value.detail
+    assert "http://127.0.0.1:8080" not in exc_info.value.detail

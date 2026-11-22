@@ -108,6 +108,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
                     "/api/v1/ppt/ollama/models/pull",
                     "/api/v1/ppt/ollama/models/available",
                     "/api/v1/ppt/openai/models/available",
+                    "/api/v1/ppt/images/test",
                     "/api/v1/ppt/openrouter/providers/available",
                 }
             )

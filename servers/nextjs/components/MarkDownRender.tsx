@@ -6,7 +6,7 @@ import { marked } from "marked";
 import { cn } from "@/lib/utils";
 
 interface MarkdownRendererProps {
-    content: string;
+    content?: string | null;
     className?: string;
 }
 
@@ -14,17 +14,25 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
     const [markdownContent, setMarkdownContent] = useState<string>("");
 
     useEffect(() => {
+        if (typeof content !== "string" || content.length === 0) {
+            setMarkdownContent("");
+            return;
+        }
+
+        let active = true;
         const parseMarkdown = async () => {
             try {
                 const parsed = await marked.parse(content);
-                setMarkdownContent(parsed);
+                if (active) setMarkdownContent(parsed);
             } catch (error) {
+                if (!active) return;
                 console.error("Error parsing markdown:", error);
                 setMarkdownContent("");
             }
         };
 
         parseMarkdown();
+        return () => { active = false; };
     }, [content]);
 
     return (

@@ -181,6 +181,48 @@ def test_get_slide_elements_reports_editable_layout():
     assert title["style"] == {"font": {"size": 20, "family": "Inter"}}
 
 
+def test_targeted_slide_reads_preserve_complete_target_and_do_not_write():
+    slide = _slide()
+    before = copy.deepcopy(slide.ui)
+    tools, session = _tools(slide)
+    element = _call(tools, "getSlideAtIndex", {"index": 0, "elementPath": "components[0].elements[0]"})
+    component = _call(tools, "getSlideAtIndex", {"index": 0, "componentId": "hero"})
+    assert element["result"]["slide"]["element"] == before["components"][0]["elements"][0]
+    assert component["result"]["slide"]["component"] == before["components"][0]
+    assert "ui_summary" not in element["result"]["slide"]
+    assert "ui" not in component["result"]["slide"]
+    assert slide.ui == before
+    assert session.commit_count == 0
+
+
+def test_slide_discovery_is_paginated_and_marks_previews():
+    slide = _slide()
+    slide.ui["components"][0]["elements"][0]["runs"][0]["text"] = "long title " * 100
+    tools, _ = _tools(slide)
+    first = _call(tools, "getSlideAtIndex", {"index": 0, "elementLimit": 1})["result"]["slide"]["ui_summary"]
+    second = _call(tools, "getSlideAtIndex", {"index": 0, "elementLimit": 1, "elementOffset": first["next_offset"]})["result"]["slide"]["ui_summary"]
+    assert len(first["elements"]) == len(second["elements"]) == 1
+    assert first["elements"][0]["path"] != second["elements"][0]["path"]
+    assert second["next_offset"] is None
+    assert first["editable_count"] == 2
+    assert len(first["elements"][0]["content_preview"]) <= 160
+    assert "content" not in first["elements"][0]
+    assert "style" not in first["elements"][0]
+    assert "previews" in first["message"]
+
+
+def test_targeted_slide_read_rejects_invalid_or_ambiguous_targets():
+    tools, _ = _tools(_slide())
+    for args in (
+        {"elementPath": "components[99].elements[0]"},
+        {"componentId": "missing"},
+        {"componentId": "hero", "elementPath": "components[0].elements[0]"},
+        {"elementLimit": 51},
+    ):
+        result = _call(tools, "getSlideAtIndex", {"index": 0, **args})
+        assert result["ok"] is False
+
+
 def test_get_available_blocks_returns_matching_block_summary_only():
     slide = _slide()
     tools, session = _tools(slide)
@@ -823,11 +865,13 @@ def test_get_slide_elements_exposes_vector_infographic_and_svg_content():
     by_type = {element["type"]: element for element in elements}
 
     assert by_type["vector"]["content_editable"] is True
-    assert by_type["vector"]["content"]["points"][1] == {"x": 100, "y": 40}
+    vector = _call(tools, "getSlideAtIndex", {"index": 0, "elementPath": by_type["vector"]["path"]})["result"]["slide"]["element"]
+    assert vector["points"][1] == {"x": 100, "y": 40}
     assert by_type["infographic"]["content_editable"] is True
-    assert by_type["infographic"]["content"]["data"]["value"] == 65
+    infographic = _call(tools, "getSlideAtIndex", {"index": 0, "elementPath": by_type["infographic"]["path"]})["result"]["slide"]["element"]
+    assert infographic["data"]["value"] == 65
     assert by_type["svg"]["geometry_editable"] is True
-    assert by_type["svg"]["content"] == {"svg_length": 11}
+    assert json.loads(by_type["svg"]["content_preview"]) == {"svg_length": 11}
 
 
 def test_update_slide_element_applies_text_font_patch_to_runs():
