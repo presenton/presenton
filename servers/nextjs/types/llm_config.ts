@@ -136,6 +136,7 @@ export interface LLMConfig {
   EXA_API_KEY?: string;
   BRAVE_SEARCH_API_KEY?: string;
   SERPER_API_KEY?: string;
+  FIRECRAWL_API_KEY?: string;
 
   // Codex OAuth (ChatGPT)
   CODEX_MODEL?: string;

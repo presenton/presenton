@@ -343,6 +343,11 @@ export const getLLMConfigValidationError = (
           return "Brave Search API key is required.";
         }
         break;
+      case "firecrawl":
+        if (!isProvided(llmConfig.FIRECRAWL_API_KEY)) {
+          return "Firecrawl API key is required.";
+        }
+        break;
       case "auto":
         break;
       default:

@@ -417,6 +417,10 @@ def get_serper_api_key_env():
     return _getenv("SERPER_API_KEY")
 
 
+def get_firecrawl_api_key_env():
+    return _getenv("FIRECRAWL_API_KEY")
+
+
 def get_comfyui_url_env():
     return _getenv("COMFYUI_URL")
 
