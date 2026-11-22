@@ -1,6 +1,6 @@
 import net from 'net'
 import treeKill from 'tree-kill'
-import { getTempDir, getUserConfigPath, localhost } from './constants'
+import { getTempDir, getUserConfigPath, localhost, loopbackHost } from './constants'
 
 export function setupEnv(fastApiPort: number, nextjsPort: number) {
   const { app } = require('electron');
@@ -50,7 +50,9 @@ export async function findUnusedPorts(startPort: number = 40000, count: number =
         server.close();
         resolve(true);
       });
-      server.listen(port);
+      // Probe the address the local servers bind to. A wildcard probe can
+      // succeed on macOS while another process listens on the loopback port.
+      server.listen(port, loopbackHost);
     });
   };
 
