@@ -3,14 +3,25 @@ name: Upload Release to R2
 on:
   release:
     types: [published]
+  # Re-sync a release whose automatic run was missed or failed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Electron release tag to sync (e.g. electron-v0.9.12-beta)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   upload:
+    # Only Electron releases carry desktop installers; Docker `v*` releases have none.
+    if: startsWith(github.event.release.tag_name || inputs.tag, 'electron-v')
     runs-on: ubuntu-latest
     environment: sync_r2
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
 
     steps:
       - name: Checkout code
@@ -21,7 +32,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir assets
-          gh release download "${{ github.event.release.tag_name }}" --dir assets --pattern '*.deb' --pattern '*.dmg' --pattern '*.exe' --pattern '*.AppImage'
+          gh release download "$RELEASE_TAG" --dir assets --pattern '*.deb' --pattern '*.dmg' --pattern '*.exe' --pattern '*.AppImage'
           echo "Downloaded files:"
           ls -lh assets/
 
