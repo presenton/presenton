@@ -123,3 +123,11 @@ test("choosing another provider discards obsolete DALL-E quality", () => {
   assert.equal(config.IMAGE_PROVIDER, "pexels");
   assert.equal("DALL_E_3_QUALITY" in config, false);
 });
+
+test("environment config carries the Firecrawl web search provider and key", () => {
+  const config = buildUserConfigFromEnv({}, {
+    WEB_SEARCH_PROVIDER: "firecrawl", FIRECRAWL_API_KEY: "test-firecrawl-key",
+  });
+  assert.equal(config.WEB_SEARCH_PROVIDER, "firecrawl");
+  assert.equal(config.FIRECRAWL_API_KEY, "test-firecrawl-key");
+});

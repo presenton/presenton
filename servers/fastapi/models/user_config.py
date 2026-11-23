@@ -147,6 +147,7 @@ class UserConfig(BaseModel):
     EXA_API_KEY: Optional[str] = None
     BRAVE_SEARCH_API_KEY: Optional[str] = None
     SERPER_API_KEY: Optional[str] = None
+    FIRECRAWL_API_KEY: Optional[str] = None
 
     # Codex OAuth (ChatGPT)
     CODEX_MODEL: Optional[str] = None

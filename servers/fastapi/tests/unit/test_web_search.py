@@ -1,6 +1,9 @@
 import asyncio
 import logging
 
+import pytest
+from fastapi import HTTPException
+
 from enums.llm_provider import LLMProvider
 from enums.web_search_provider import WebSearchProvider
 from utils import web_search
@@ -261,3 +264,95 @@ def test_exa_search_requests_highlights_and_maps_results(monkeypatch):
             snippet="Summary fallback.",
         ),
     ]
+
+
+def test_explicit_firecrawl_search_is_supported(monkeypatch):
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", WebSearchProvider.FIRECRAWL.value)
+
+    assert web_search.resolve_external_web_search_provider() == WebSearchProvider.FIRECRAWL
+    assert web_search.should_expose_external_web_search_tool() is True
+
+
+def test_firecrawl_search_requests_web_results_and_maps_results(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        status = 200
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def json(self, content_type=None):
+            return {
+                "success": True,
+                "data": {
+                    "web": [
+                        {
+                            "title": "Presenton",
+                            "url": "https://example.com/presenton",
+                            "description": "Open-source AI presentations.",
+                        },
+                        {
+                            "title": "Missing URL",
+                            "description": "Skipped.",
+                        },
+                        {
+                            "title": "Docs",
+                            "url": "https://example.com/docs",
+                        },
+                    ]
+                },
+            }
+
+    class FakeSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def post(self, url, json, headers):
+            captured.update(url=url, json=json, headers=headers)
+            return FakeResponse()
+
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", WebSearchProvider.FIRECRAWL.value)
+    monkeypatch.setenv("FIRECRAWL_API_KEY", "test-firecrawl-key")
+    monkeypatch.setattr(
+        web_search.aiohttp,
+        "ClientSession",
+        lambda **_kwargs: FakeSession(),
+    )
+
+    results = asyncio.run(web_search.search_web("presentation ai", max_results=3))
+
+    assert captured == {
+        "url": "https://api.firecrawl.dev/v2/search",
+        "json": {"query": "presentation ai", "limit": 3, "origin": "presenton"},
+        "headers": {"Authorization": "Bearer test-firecrawl-key"},
+    }
+    assert results == [
+        web_search.WebSearchResult(
+            title="Presenton",
+            url="https://example.com/presenton",
+            snippet="Open-source AI presentations.",
+        ),
+        web_search.WebSearchResult(
+            title="Docs",
+            url="https://example.com/docs",
+            snippet="",
+        ),
+    ]
+
+
+def test_firecrawl_search_requires_api_key(monkeypatch):
+    monkeypatch.delenv("FIRECRAWL_API_KEY", raising=False)
+
+    class FakeSession:
+        def post(self, *_args, **_kwargs):
+            raise AssertionError("request should not be sent without an API key")
+
+    with pytest.raises(HTTPException, match="FIRECRAWL_API_KEY is not configured"):
+        asyncio.run(web_search._search_firecrawl(FakeSession(), "presentation ai", 3))

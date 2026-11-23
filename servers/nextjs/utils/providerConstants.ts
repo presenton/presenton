@@ -79,6 +79,13 @@ export const WEB_SEARCH_PROVIDERS: Record<string, WebSearchProviderOption> = {
     apiKeyField: "BRAVE_SEARCH_API_KEY",
     apiKeyLabel: "Brave Search API key",
   },
+  firecrawl: {
+    value: "firecrawl",
+    label: "Firecrawl",
+    description: "Firecrawl Search API for web search results.",
+    apiKeyField: "FIRECRAWL_API_KEY",
+    apiKeyLabel: "Firecrawl API key",
+  },
   // serper: {
   //   value: "serper",
   //   label: "Serper",

@@ -53,6 +53,7 @@ const WEB_SEARCH_PROVIDER_OPTIONS = [
     WEB_SEARCH_PROVIDERS.tavily,
     WEB_SEARCH_PROVIDERS.exa,
     WEB_SEARCH_PROVIDERS.brave,
+    WEB_SEARCH_PROVIDERS.firecrawl,
 ];
 
 const PresentonMode = ({

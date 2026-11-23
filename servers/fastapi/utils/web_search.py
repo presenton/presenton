@@ -14,6 +14,7 @@ from enums.web_search_provider import WebSearchProvider
 from utils.get_env import (
     get_brave_search_api_key_env,
     get_exa_api_key_env,
+    get_firecrawl_api_key_env,
     get_searxng_base_url_env,
     get_serper_api_key_env,
     get_tavily_api_key_env,
@@ -131,6 +132,8 @@ async def search_web(query: str, max_results: int | None = None) -> list[WebSear
                 results = await _search_brave(session, query, limit)
             elif provider == WebSearchProvider.SERPER:
                 results = await _search_serper(session, query, limit)
+            elif provider == WebSearchProvider.FIRECRAWL:
+                results = await _search_firecrawl(session, query, limit)
             else:
                 raise HTTPException(
                     status_code=400,
@@ -327,4 +330,21 @@ async def _search_serper(session: aiohttp.ClientSession, query: str, limit: int)
         WebSearchResult(_clean_text(item.get("title")), str(item.get("link") or ""), _clean_text(item.get("snippet")))
         for item in payload.get("organic", [])[:limit]
         if item.get("title") and item.get("link")
+    ]
+
+
+async def _search_firecrawl(session: aiohttp.ClientSession, query: str, limit: int) -> list[WebSearchResult]:
+    api_key = _required(get_firecrawl_api_key_env(), "FIRECRAWL_API_KEY")
+    async with session.post(
+        "https://api.firecrawl.dev/v2/search",
+        json={"query": query, "limit": limit, "origin": "presenton"},
+        headers={"Authorization": f"Bearer {api_key}"},
+    ) as response:
+        payload = await _json_response(response)
+    data = payload.get("data")
+    items = data.get("web", []) if isinstance(data, dict) else []
+    return [
+        WebSearchResult(_clean_text(item.get("title")), str(item.get("url") or ""), _clean_text(item.get("description")))
+        for item in items[:limit]
+        if item.get("title") and item.get("url")
     ]

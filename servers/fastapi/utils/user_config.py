@@ -82,6 +82,7 @@ from utils.get_env import (
     get_exa_api_key_env,
     get_brave_search_api_key_env,
     get_serper_api_key_env,
+    get_firecrawl_api_key_env,
     get_codex_access_token_env,
     get_codex_refresh_token_env,
     get_codex_token_expires_env,
@@ -178,6 +179,7 @@ from utils.set_env import (
     set_exa_api_key_env,
     set_brave_search_api_key_env,
     set_serper_api_key_env,
+    set_firecrawl_api_key_env,
     set_codex_access_token_env,
     set_codex_refresh_token_env,
     set_codex_token_expires_env,
@@ -352,6 +354,8 @@ def get_user_config():
         BRAVE_SEARCH_API_KEY=existing_config.BRAVE_SEARCH_API_KEY
         or get_brave_search_api_key_env(),
         SERPER_API_KEY=existing_config.SERPER_API_KEY or get_serper_api_key_env(),
+        FIRECRAWL_API_KEY=existing_config.FIRECRAWL_API_KEY
+        or get_firecrawl_api_key_env(),
         CODEX_MODEL=existing_config.CODEX_MODEL or get_codex_model_env(),
         CODEX_ACCESS_TOKEN=existing_config.CODEX_ACCESS_TOKEN or get_codex_access_token_env(),
         CODEX_REFRESH_TOKEN=existing_config.CODEX_REFRESH_TOKEN or get_codex_refresh_token_env(),
@@ -558,6 +562,8 @@ def update_env_with_user_config():
         set_brave_search_api_key_env(user_config.BRAVE_SEARCH_API_KEY)
     if user_config.SERPER_API_KEY:
         set_serper_api_key_env(user_config.SERPER_API_KEY)
+    if user_config.FIRECRAWL_API_KEY:
+        set_firecrawl_api_key_env(user_config.FIRECRAWL_API_KEY)
     if user_config.CODEX_MODEL:
         set_codex_model_env(user_config.CODEX_MODEL)
     if user_config.CODEX_ACCESS_TOKEN:
