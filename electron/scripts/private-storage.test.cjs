@@ -110,6 +110,33 @@ test("config writes keep locks, primary, backup and recovery private", posix, ()
   } finally { process.umask(previous); }
 });
 
+test("invalid primary config recovers its backup without overwriting it", () => {
+  for (const [name, content] of [["empty", ""], ["whitespace", " \n\t"], ["malformed", "{"]]) {
+    const config = path.join(directory, name, "userConfig.json");
+    fs.mkdirSync(path.dirname(config));
+    fs.writeFileSync(config, content);
+    const backup = JSON.stringify({ model: "saved-model" });
+    fs.writeFileSync(config + ".bak", backup);
+
+    assert.deepEqual(readUserConfigFile(config), { model: "saved-model" }, name);
+    updateUserConfigFile(config, (old) => ({ ...old, restored: true }));
+    assert.deepEqual(readUserConfigFile(config), { model: "saved-model", restored: true }, name);
+    assert.equal(fs.readFileSync(config + ".bak", "utf8"), backup, name);
+  }
+});
+
+test("an explicit empty config remains valid instead of restoring its backup", () => {
+  const config = path.join(directory, "explicit-empty", "userConfig.json");
+  fs.mkdirSync(path.dirname(config));
+  fs.writeFileSync(config, "{}");
+  fs.writeFileSync(config + ".bak", JSON.stringify({ model: "old-model" }));
+
+  assert.deepEqual(readUserConfigFile(config), {});
+  updateUserConfigFile(config, (old) => ({ ...old, updated: true }));
+  assert.deepEqual(readUserConfigFile(config), { updated: true });
+  assert.deepEqual(JSON.parse(fs.readFileSync(config + ".bak", "utf8")), {});
+});
+
 test("Windows runtime keeps temporary data under the per-user storage root", () => {
   const savedPlatform = Object.getOwnPropertyDescriptor(process, "platform");
   const savedEnv = { ...process.env };
