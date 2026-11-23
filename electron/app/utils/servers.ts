@@ -363,9 +363,9 @@ function abortableDelay(delayMs: number, signal?: AbortSignal): Promise<void> {
 }
 
 async function waitForServer(url: string, timeout = 120000, signal?: AbortSignal): Promise<void> {
-  const startTime = Date.now();
+  const deadline = Date.now() + timeout;
 
-  while (Date.now() - startTime < timeout) {
+  while (Date.now() < deadline) {
     if (signal?.aborted) {
       throw new Error("Server wait aborted");
     }
@@ -408,10 +408,15 @@ async function waitForServer(url: string, timeout = 120000, signal?: AbortSignal
           finish(() => reject(new Error('Request timed out')));
         };
         const cleanup = () => {
+          clearTimeout(deadlineTimer);
+          req.setTimeout(0);
+          req.removeListener("timeout", onTimeout);
           req.removeListener("error", onError);
           signal?.removeEventListener("abort", onAbort);
         };
 
+        // Socket inactivity alone cannot bound a peer sending partial headers.
+        const deadlineTimer = setTimeout(onTimeout, Math.max(0, deadline - Date.now()));
         req.on('error', onError);
         req.setTimeout(5000, onTimeout);
         signal?.addEventListener("abort", onAbort, { once: true });
@@ -421,7 +426,10 @@ async function waitForServer(url: string, timeout = 120000, signal?: AbortSignal
       if (signal?.aborted) {
         throw error;
       }
-      await abortableDelay(1000, signal);
+      const remaining = deadline - Date.now();
+      if (remaining > 0) {
+        await abortableDelay(Math.min(1000, remaining), signal);
+      }
     }
   }
   throw new Error(`Server did not start within ${timeout}ms`);
