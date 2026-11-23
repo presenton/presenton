@@ -15,6 +15,12 @@ require("../../../scripts/glob-security-checks.cjs").registerGlobSecurityTests({
   legacyMatcherPath: fromEslint.resolve("minimatch"),
 });
 
+test("Next.js includes the November 2026 security fixes", () => {
+  const { version } = require("next/package.json");
+  const { satisfies } = fromParser("semver");
+  assert.ok(satisfies(version, ">=16.4.5"), `Next.js ${version} is below the patched range`);
+});
+
 test("Windows service queries remove PowerShell Unicode delimiters and preserve service names", () => {
   const probe = spawnSync(process.execPath, ["-e", `
     const assert = require('node:assert/strict');

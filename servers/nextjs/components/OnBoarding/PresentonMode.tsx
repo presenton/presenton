@@ -19,7 +19,7 @@ import { getLLMConfigValidationError, handleSaveLLMConfig } from '@/utils/storeH
 import { getDefaultOllamaUrl, isOllamaModelAvailable } from '@/utils/providerUtils';
 import { getApiErrorMessage, getApiUrl } from '@/utils/api';
 import CodexConfig from '../CodexConfig';
-import { CODEX_MODELS } from '@/utils/codexModels';
+import { CodexModelCatalogProvider } from '@/components/CodexModelCatalog';
 import VertexAzureManualFields from '@/components/VertexAzureManualFields';
 import BedrockManualFields from '@/components/BedrockManualFields';
 import OpenAICompatibleImageFields from '@/components/OpenAICompatibleImageFields';
@@ -69,7 +69,6 @@ const PresentonMode = ({
     const userConfigState = useSelector((state: RootState) => state.userConfig);
     const [openProviderSelect, setOpenProviderSelect] = useState(false);
     const [textProviderTab, setTextProviderTab] = useState<TextProviderTab>("chatgpt");
-    const [chatGptAuthenticated, setChatGptAuthenticated] = useState(false);
 
     const [showApiKey, setShowApiKey] = useState(false);
     const [deepseekAdvancedOpen, setDeepseekAdvancedOpen] = useState(() =>
@@ -1090,6 +1089,7 @@ const PresentonMode = ({
     );
 
     return (
+        <CodexModelCatalogProvider>
         <div className='w-full max-w-[660px] font-syne pb-10'>
             <p className='px-2.5 py-0.5 w-fit text-[#7A5AF8] rounded-[50px]  border border-[#EDEEEF] text-[10px] font-medium mb-5 font-syne'>PRESENTON</p>
             <div className=''>
@@ -1184,33 +1184,7 @@ const PresentonMode = ({
                                     [normalizedField]: value
                                 }));
                             }}
-                            onAuthStatusChange={setChatGptAuthenticated}
                         />
-                        {chatGptAuthenticated && (llmConfig.LLM === "codex" || llmConfig.LLM === "chatgpt") && (
-                            <div className="mt-5">
-                                <label className="mb-2 block text-sm font-medium text-gray-700">ChatGPT model</label>
-                                <Select
-                                    value={llmConfig.CODEX_MODEL || ""}
-                                    onValueChange={(value) => {
-                                        trackEvent(MixpanelEvent.Onboarding_Text_Model_Selected, {
-                                            provider: "codex",
-                                            model: value,
-                                            text_provider_tab: textProviderTab,
-                                        });
-                                        setLlmConfig(prev => ({ ...prev, CODEX_MODEL: value }));
-                                    }}
-                                >
-                                    <SelectTrigger className="h-12 w-full rounded-lg border-gray-300">
-                                        <SelectValue placeholder="Select a model" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {CODEX_MODELS.map((model) => (
-                                            <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
                     </TabsContent>
                     <TabsContent value="local" className="mt-6">
                         <div className="grid grid-cols-2 gap-3">
@@ -1773,6 +1747,7 @@ const PresentonMode = ({
                 </button>
             </div>
         </div>
+        </CodexModelCatalogProvider>
     )
 }
 

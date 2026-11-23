@@ -4,7 +4,8 @@ import fs from "fs"
 import os from "os"
 import { ensurePrivateDirectory } from "./private-storage"
 
-export const localhost = "http://127.0.0.1"
+export const loopbackHost = "127.0.0.1"
+export const localhost = `http://${loopbackHost}`
 
 
 export const isDev = !app.isPackaged;

@@ -9,6 +9,9 @@ const nextConfig = {
   reactStrictMode: false,
   distDir: ".next-build",
   output: "standalone",
+  experimental: {
+    agentUpgrade: "security",
+  },
   turbopack: {
     root: nextjsRoot,
   },

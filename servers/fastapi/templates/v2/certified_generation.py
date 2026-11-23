@@ -4206,8 +4206,8 @@ def _template_structured_providers() -> list[TemplateStructuredProvider]:
     # the configured client/model at the established extension point.
     from templates.v2 import generation as public_generation
 
-    client = public_generation.get_client(config=public_generation.get_llm_config())
-    model = public_generation.get_model()
+    resolved = public_generation.resolve_configured_llm()
+    client, model = resolved.client, resolved.model
     return [
         TemplateStructuredProvider(
             name=model,
