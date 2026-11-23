@@ -81,6 +81,7 @@ from utils.get_env import (
     get_tavily_api_key_env,
     get_exa_api_key_env,
     get_brave_search_api_key_env,
+    get_keenable_api_key_env,
     get_serper_api_key_env,
     get_codex_access_token_env,
     get_codex_refresh_token_env,
@@ -177,6 +178,7 @@ from utils.set_env import (
     set_tavily_api_key_env,
     set_exa_api_key_env,
     set_brave_search_api_key_env,
+    set_keenable_api_key_env,
     set_serper_api_key_env,
     set_codex_access_token_env,
     set_codex_refresh_token_env,
@@ -351,6 +353,7 @@ def get_user_config():
         EXA_API_KEY=existing_config.EXA_API_KEY or get_exa_api_key_env(),
         BRAVE_SEARCH_API_KEY=existing_config.BRAVE_SEARCH_API_KEY
         or get_brave_search_api_key_env(),
+        KEENABLE_API_KEY=existing_config.KEENABLE_API_KEY or get_keenable_api_key_env(),
         SERPER_API_KEY=existing_config.SERPER_API_KEY or get_serper_api_key_env(),
         CODEX_MODEL=existing_config.CODEX_MODEL or get_codex_model_env(),
         CODEX_ACCESS_TOKEN=existing_config.CODEX_ACCESS_TOKEN or get_codex_access_token_env(),
@@ -556,6 +559,8 @@ def update_env_with_user_config():
         set_exa_api_key_env(user_config.EXA_API_KEY)
     if user_config.BRAVE_SEARCH_API_KEY:
         set_brave_search_api_key_env(user_config.BRAVE_SEARCH_API_KEY)
+    if user_config.KEENABLE_API_KEY:
+        set_keenable_api_key_env(user_config.KEENABLE_API_KEY)
     if user_config.SERPER_API_KEY:
         set_serper_api_key_env(user_config.SERPER_API_KEY)
     if user_config.CODEX_MODEL:

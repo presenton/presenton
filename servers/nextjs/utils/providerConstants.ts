@@ -79,6 +79,15 @@ export const WEB_SEARCH_PROVIDERS: Record<string, WebSearchProviderOption> = {
     apiKeyField: "BRAVE_SEARCH_API_KEY",
     apiKeyLabel: "Brave Search API key",
   },
+  keenable: {
+    value: "keenable",
+    label: "Keenable",
+    description:
+      "Independent web index built for AI agents. Works without a key; add one for higher limits.",
+    icon: "/providers/keenable.svg",
+    apiKeyField: "KEENABLE_API_KEY",
+    apiKeyLabel: "Keenable API key (optional)",
+  },
   // serper: {
   //   value: "serper",
   //   label: "Serper",
